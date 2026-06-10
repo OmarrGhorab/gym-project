@@ -64,3 +64,8 @@ Two integration contracts to preserve across phases (see the map):
 - DB naming: plural snake_case tables, singular models, `*_id` FKs, timestamped migrations. Migrations must be reversible (`down`) or explicitly documented as irreversible; FKs declare `on delete` behavior.
 - Structured logging via the framework logger only — no `dd`/`dump`/`var_dump`/`echo` in committed code. Log security/business events (auth failures, authz denials, payment/membership state changes, job failures) without secrets/PII.
 - Every endpoint's contract (inputs, outputs, statuses, auth/permission) must be documented and kept in sync. Comments explain WHY, not WHAT.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
