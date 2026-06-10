@@ -1,16 +1,28 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Subscriptions routes — /api/v1/subscriptions
-|--------------------------------------------------------------------------
-|
-| Registered inside the /api/v1 prefix group defined in routes/api.php.
-| All endpoints require auth:sanctum (inherited from the outer group).
-| Write endpoints carry throttle:api middleware.
-|
-| Implemented by: US3 (T050–T051), US4 (T063–T064)
-|
-*/
+use App\Http\Controllers\Api\V1\SubscriptionController;
+use App\Support\MembershipPermissions;
+use Illuminate\Support\Facades\Route;
 
-// US3/US4 routes are wired here in T051/T064 (Phases 5–6).
+Route::prefix('subscriptions')->group(function (): void {
+    Route::get('/', [SubscriptionController::class, 'index'])
+        ->middleware('permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_VIEW);
+
+    Route::post('/', [SubscriptionController::class, 'store'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_CREATE]);
+
+    Route::get('/{subscription}', [SubscriptionController::class, 'show'])
+        ->middleware('permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_VIEW);
+
+    Route::post('/{subscription}/renew', [SubscriptionController::class, 'renew'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_RENEW]);
+
+    Route::post('/{subscription}/freeze', [SubscriptionController::class, 'freeze'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE]);
+
+    Route::post('/{subscription}/unfreeze', [SubscriptionController::class, 'unfreeze'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE]);
+
+    Route::post('/{subscription}/stop', [SubscriptionController::class, 'stop'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_STOP]);
+});

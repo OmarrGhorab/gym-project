@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Actions\Subscriptions;
+
+use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
+use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class FreezeSubscription
+{
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function handle(Subscription $subscription, array $data, User $user): Subscription
+    {
+        return DB::transaction(function () use ($subscription, $data, $user): Subscription {
+            $lockedSubscription = Subscription::query()
+                ->lockForUpdate()
+                ->with(['plan', 'freezes'])
+                ->findOrFail($subscription->id);
+
+            if ($lockedSubscription->status !== 'active') {
+                throw ValidationException::withMessages([
+                    'subscription' => 'Only active subscriptions can be frozen.',
+                ]);
+            }
+
+            $plan = $lockedSubscription->plan;
+            $days = Carbon::parse($data['freeze_start'])
+                ->diffInDays(Carbon::parse($data['freeze_end'])) + 1;
+
+            $usedDays = (int) $lockedSubscription->freezes->sum('days');
+            $maxFreezeDays = (int) $plan->max_freeze_days;
+
+            if ($maxFreezeDays < 1 || ($usedDays + $days) > $maxFreezeDays) {
+                throw ValidationException::withMessages([
+                    'freeze_end' => 'Freeze duration exceeds the plan allowance.',
+                ]);
+            }
+
+            SubscriptionFreeze::create([
+                'subscription_id' => $lockedSubscription->id,
+                'freeze_start' => $data['freeze_start'],
+                'freeze_end' => $data['freeze_end'],
+                'days' => $days,
+                'reason' => $data['reason'] ?? null,
+                'created_by' => $user->id,
+            ]);
+
+            $lockedSubscription->update([
+                'status' => 'frozen',
+                'end_date' => $lockedSubscription->end_date->copy()->addDays($days)->toDateString(),
+            ]);
+
+            return $lockedSubscription->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes']);
+        });
+    }
+}

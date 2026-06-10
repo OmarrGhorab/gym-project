@@ -16,8 +16,8 @@
 
 **Purpose**: No new packages — all required packages were installed in Phase 0. Verify and prepare.
 
-- [ ] T001 Verify Phase 0 packages are present (sanctum, spatie/permission, spatie/activitylog, spatie/query-builder, pest) via `composer show`; no installs expected. Record nothing if clean.
-- [ ] T002 Generate the Laravel `notifications` table migration with `php artisan make:notifications-table` into `database/migrations/*_create_notifications_table.php` **and run it as part of Foundational** (review B4 — "create in setup, run later" is unworkable with `migrate`; it must exist as a normal migration applied with the rest).
+- [X] T001 Verify Phase 0 packages are present (sanctum, spatie/permission, spatie/activitylog, spatie/query-builder, pest) via `composer show`; no installs expected. Record nothing if clean.
+- [X] T002 Generate the Laravel `notifications` table migration with `php artisan make:notifications-table` into `database/migrations/*_create_notifications_table.php` **and run it as part of Foundational** (review B4 — "create in setup, run later" is unworkable with `migrate`; it must exist as a normal migration applied with the rest).
 
 ---
 
@@ -32,14 +32,14 @@
 > - **M4 (idempotency)**: reminder idempotency uses a durable `subscriptions.last_reminded_on` date column (set in the US3 migration), not a cache key.
 > - **routes hotspot**: `routes/api.php` is a shared-file conflict magnet across stories. Split per-area route files (`routes/api/members.php`, `routes/api/plans.php`, `routes/api/subscriptions.php`, etc.) included from one `/api/v1` group, OR serialize route edits behind a single integration owner. Decide in T003a below before parallel tracks touch routes.
 
-- [ ] T003 Run and record the pre-implementation architecture review (`laravel-architecture-reviewer`) in `specs/002-members-subscriptions-plans/reviews/architecture.md`. **(DONE — APPROVE-WITH-CHANGES; fixes folded into these tasks and the data-model.)**
-- [ ] T003a Adopt per-area route files to remove the `routes/api.php` shared-edit hazard: create `routes/api/` files included from a single `/api/v1` group in `routes/api.php`. Each story registers its routes in its own file.
-- [ ] T004 Create membership permission/role constants in `app/Support/MembershipPermissions.php` (members.*, plans.*, subscriptions.*, payments.*, notifications.view, dashboard.view), mirroring `app/Support/FoundationPermissions.php`.
-- [ ] T005 Create `database/seeders/MembershipAccessSeeder.php` registering the new permissions (idempotent `firstOrCreate`, clear Spatie cache) and assigning them to roles (Admin all; Manager most; Cashier sell/pay; Accountant payments/dues view).
-- [ ] T006 Wire `MembershipAccessSeeder` into `database/seeders/DatabaseSeeder.php` after `FoundationAccessSeeder` (no business seed data).
-- [ ] T007 [P] Apply M1 carry-in: when subscription lists embed the selling user, use a **slim user embed (id+name)**, NOT the full `UserResource` with roles/permissions. Add a slim embed (e.g. `UserSummaryResource`) or inline array in `SubscriptionResource`; reserve the role-bearing `UserResource` for auth/me. (Supersedes the earlier PERF-1 "load roles everywhere" framing.)
-- [ ] T008 [P] Apply SEC-M3 carry-in decision: ensure member photos use a private disk served via an authorized stream (no public `serve` exposure) — document the chosen disk in `config/filesystems.php` usage; actual stream route lands in US1.
-- [ ] T009 Add `subscriptionsSold()` (hasMany Subscription via `sold_by_user_id`) relation to `app/Models/User.php` without altering `$fillable`/`$hidden`/casts.
+- [X] T003 Run and record the pre-implementation architecture review (`laravel-architecture-reviewer`) in `specs/002-members-subscriptions-plans/reviews/architecture.md`. **(DONE — APPROVE-WITH-CHANGES; fixes folded into these tasks and the data-model.)**
+- [X] T003a Adopt per-area route files to remove the `routes/api.php` shared-edit hazard: create `routes/api/` files included from a single `/api/v1` group in `routes/api.php`. Each story registers its routes in its own file.
+- [X] T004 Create membership permission/role constants in `app/Support/MembershipPermissions.php` (members.*, plans.*, subscriptions.*, payments.*, notifications.view, dashboard.view), mirroring `app/Support/FoundationPermissions.php`.
+- [X] T005 Create `database/seeders/MembershipAccessSeeder.php` registering the new permissions (idempotent `firstOrCreate`, clear Spatie cache) and assigning them to roles (Admin all; Manager most; Cashier sell/pay; Accountant payments/dues view).
+- [X] T006 Wire `MembershipAccessSeeder` into `database/seeders/DatabaseSeeder.php` after `FoundationAccessSeeder` (no business seed data).
+- [X] T007 [P] Apply M1 carry-in: when subscription lists embed the selling user, use a **slim user embed (id+name)**, NOT the full `UserResource` with roles/permissions. Add a slim embed (e.g. `UserSummaryResource`) or inline array in `SubscriptionResource`; reserve the role-bearing `UserResource` for auth/me. (Supersedes the earlier PERF-1 "load roles everywhere" framing.)
+- [X] T008 [P] Apply SEC-M3 carry-in decision: ensure member photos use a private disk served via an authorized stream (no public `serve` exposure) — document the chosen disk in `config/filesystems.php` usage; actual stream route lands in US1.
+- [X] T009 Add `subscriptionsSold()` (hasMany Subscription via `sold_by_user_id`) relation to `app/Models/User.php` without altering `$fillable`/`$hidden`/casts.
 
 **Checkpoint**: Permissions seeded, role assignments ready, per-area route files in place, notifications table applied, User relations + M1/SEC-M3 prerequisites done.
 
@@ -53,25 +53,25 @@
 
 ### Tests for US1
 
-- [ ] T010 [P] [US1] Failing feature tests for member list (search, status filter, pagination, 200/401/403) in `tests/Feature/Api/V1/Members/MemberIndexTest.php`.
-- [ ] T011 [P] [US1] Failing feature tests for member create (201, 422 invalid/duplicate, 403) in `tests/Feature/Api/V1/Members/MemberStoreTest.php`.
-- [ ] T012 [P] [US1] Failing feature tests for member show/update/deactivate (200/404/422/403) in `tests/Feature/Api/V1/Members/MemberUpdateTest.php`.
-- [ ] T013 [P] [US1] Failing feature tests for photo upload + Policy-gated stream (200, 422 bad type/size, 403) in `tests/Feature/Api/V1/Members/MemberPhotoTest.php`.
-- [ ] T014 [P] [US1] Failing feature test for `GET /members/{id}/payments` (200, eager-loaded, paginated) in `tests/Feature/Api/V1/Members/MemberPaymentsTest.php`.
+- [X] T010 [P] [US1] Failing feature tests for member list (search, status filter, pagination, 200/401/403) in `tests/Feature/Api/V1/Members/MemberIndexTest.php`.
+- [X] T011 [P] [US1] Failing feature tests for member create (201, 422 invalid/duplicate, 403) in `tests/Feature/Api/V1/Members/MemberStoreTest.php`.
+- [X] T012 [P] [US1] Failing feature tests for member show/update/deactivate (200/404/422/403) in `tests/Feature/Api/V1/Members/MemberUpdateTest.php`.
+- [X] T013 [P] [US1] Failing feature tests for photo upload + Policy-gated stream (200, 422 bad type/size, 403) in `tests/Feature/Api/V1/Members/MemberPhotoTest.php`.
+- [X] T014 [P] [US1] Failing feature test for `GET /members/{id}/payments` (200, eager-loaded, paginated) in `tests/Feature/Api/V1/Members/MemberPaymentsTest.php`.
 
 ### Implementation for US1
 
-- [ ] T015 [US1] Create `members` migration per data-model (columns, indexes, FK `created_by` set null) in `database/migrations/*_create_members_table.php`.
-- [ ] T016 [US1] Create `app/Models/Member.php` (explicit `$fillable`, casts, `LogsActivity`, relations: subscriptions, creator).
-- [ ] T017 [P] [US1] Create `database/factories/MemberFactory.php`.
-- [ ] T018 [P] [US1] Create `app/Policies/MemberPolicy.php` (viewAny/view/create/update/delete mapped to `members.*`).
-- [ ] T019 [P] [US1] Create `app/Http/Requests/Members/StoreMemberRequest.php` and `UpdateMemberRequest.php` (authorize via Policy; validation incl. photo mime/size, unique email/national_id).
-- [ ] T020 [P] [US1] Create `app/Http/Resources/MemberResource.php` (envelope-compatible; member dues totals via `withSum('payments','amount')` aggregate — never a per-subscription loop, review M2).
-- [ ] T021 [US1] Create Actions in `app/Actions/Members/`: `StoreMember`, `UpdateMember`, `DeactivateMember`, `StoreMemberPhoto` (transactional photo path persistence).
-- [ ] T022 [US1] Create `app/Http/Controllers/Api/V1/MemberController.php` (index with Spatie Query Builder filters/sorts, store, show, update, destroy, photo upload, photo stream, payments).
-- [ ] T023 [US1] Register member routes under `/api/v1` in `routes/api.php` (auth:sanctum + `permission:`/Policy; write routes throttled).
-- [ ] T024 [US1] Document member endpoints in `specs/002-members-subscriptions-plans/contracts/api.md` (sync any drift).
-- [ ] T025 [US1] Run focused US1 tests; all green.
+- [X] T015 [US1] Create `members` migration per data-model (columns, indexes, FK `created_by` set null) in `database/migrations/*_create_members_table.php`.
+- [X] T016 [US1] Create `app/Models/Member.php` (explicit `$fillable`, casts, `LogsActivity`, relations: subscriptions, creator).
+- [X] T017 [P] [US1] Create `database/factories/MemberFactory.php`.
+- [X] T018 [P] [US1] Create `app/Policies/MemberPolicy.php` (viewAny/view/create/update/delete mapped to `members.*`).
+- [X] T019 [P] [US1] Create `app/Http/Requests/Members/StoreMemberRequest.php` and `UpdateMemberRequest.php` (authorize via Policy; validation incl. photo mime/size, unique email/national_id).
+- [X] T020 [P] [US1] Create `app/Http/Resources/MemberResource.php` (envelope-compatible; member dues totals via `withSum('payments','amount')` aggregate — never a per-subscription loop, review M2).
+- [X] T021 [US1] Create Actions in `app/Actions/Members/`: `StoreMember`, `UpdateMember`, `DeactivateMember`, `StoreMemberPhoto` (transactional photo path persistence).
+- [X] T022 [US1] Create `app/Http/Controllers/Api/V1/MemberController.php` (index with Spatie Query Builder filters/sorts, store, show, update, destroy, photo upload, photo stream, payments).
+- [X] T023 [US1] Register member routes under `/api/v1` in `routes/api.php` (auth:sanctum + `permission:`/Policy; write routes throttled).
+- [X] T024 [US1] Document member endpoints in `specs/002-members-subscriptions-plans/contracts/api.md` (sync any drift).
+- [X] T025 [US1] Run focused US1 tests; all green.
 
 **Checkpoint**: Members fully functional and independently testable (MVP slice).
 
@@ -85,22 +85,22 @@
 
 ### Tests for US2
 
-- [ ] T026 [P] [US2] Failing feature tests for plan list/create (200/201/422 incl. valid_to<valid_from, max_freeze_days>duration, 403) in `tests/Feature/Api/V1/Plans/PlanStoreTest.php`.
-- [ ] T027 [P] [US2] Failing feature tests for plan update + toggle (200, state flip, 403/404) in `tests/Feature/Api/V1/Plans/PlanToggleTest.php`.
+- [X] T026 [P] [US2] Failing feature tests for plan list/create (200/201/422 incl. valid_to<valid_from, max_freeze_days>duration, 403) in `tests/Feature/Api/V1/Plans/PlanStoreTest.php`.
+- [X] T027 [P] [US2] Failing feature tests for plan update + toggle (200, state flip, 403/404) in `tests/Feature/Api/V1/Plans/PlanToggleTest.php`.
 
 ### Implementation for US2
 
-- [ ] T028 [US2] Create `plans` migration per data-model (indexes on type/is_active) in `database/migrations/*_create_plans_table.php`.
-- [ ] T029 [US2] Create `app/Models/Plan.php` (explicit `$fillable`, casts price decimal:2/is_active bool/dates, `LogsActivity`, `subscriptions` relation, `isSellable()` helper).
-- [ ] T030 [P] [US2] Create `database/factories/PlanFactory.php` (+ states: active, inactive, expired-window).
-- [ ] T031 [P] [US2] Create `app/Policies/PlanPolicy.php` (`plans.*`).
-- [ ] T032 [P] [US2] Create `app/Http/Requests/Plans/StorePlanRequest.php` and `UpdatePlanRequest.php` (validity + freeze-cap rules).
-- [ ] T033 [P] [US2] Create `app/Http/Resources/PlanResource.php`.
-- [ ] T034 [US2] Create Actions `app/Actions/Plans/StorePlan.php`, `UpdatePlan.php`, `TogglePlanActive.php`.
-- [ ] T035 [US2] Create `app/Http/Controllers/Api/V1/PlanController.php` (index/store/update/toggle).
-- [ ] T036 [US2] Register plan routes in `routes/api.php`.
-- [ ] T037 [US2] Document plan endpoints in `contracts/api.md`.
-- [ ] T038 [US2] Run focused US2 tests; all green.
+- [X] T028 [US2] Create `plans` migration per data-model (indexes on type/is_active) in `database/migrations/*_create_plans_table.php`.
+- [X] T029 [US2] Create `app/Models/Plan.php` (explicit `$fillable`, casts price decimal:2/is_active bool/dates, `LogsActivity`, `subscriptions` relation, `isSellable()` helper).
+- [X] T030 [P] [US2] Create `database/factories/PlanFactory.php` (+ states: active, inactive, expired-window).
+- [X] T031 [P] [US2] Create `app/Policies/PlanPolicy.php` (`plans.*`).
+- [X] T032 [P] [US2] Create `app/Http/Requests/Plans/StorePlanRequest.php` and `UpdatePlanRequest.php` (validity + freeze-cap rules).
+- [X] T033 [P] [US2] Create `app/Http/Resources/PlanResource.php`.
+- [X] T034 [US2] Create Actions `app/Actions/Plans/StorePlan.php`, `UpdatePlan.php`, `TogglePlanActive.php`.
+- [X] T035 [US2] Create `app/Http/Controllers/Api/V1/PlanController.php` (index/store/update/toggle).
+- [X] T036 [US2] Register plan routes in `routes/api.php`.
+- [X] T037 [US2] Document plan endpoints in `contracts/api.md`.
+- [X] T038 [US2] Run focused US2 tests; all green.
 
 **Checkpoint**: Plans functional; sale-time validity available for US3.
 
@@ -114,24 +114,24 @@
 
 ### Tests for US3
 
-- [ ] T039 [P] [US3] Failing unit tests for `CreateSubscriptionAction` end-date derivation + payment creation + plan/member validity in `tests/Unit/Actions/Subscriptions/CreateSubscriptionTest.php`.
-- [ ] T040 [P] [US3] Failing unit tests for `RenewSubscriptionAction` start-date rule (contiguous vs today) + history preservation in `tests/Unit/Actions/Subscriptions/RenewSubscriptionTest.php`.
-- [ ] T041 [P] [US3] Failing feature tests for create/list/show (201/200/422 invalid plan/member/401/403, paginated, no N+1) in `tests/Feature/Api/V1/Subscriptions/SubscriptionStoreTest.php`.
-- [ ] T042 [P] [US3] Failing feature test for renew endpoint (201 new row, history in member profile) in `tests/Feature/Api/V1/Subscriptions/SubscriptionRenewTest.php`.
+- [X] T039 [P] [US3] Failing unit tests for `CreateSubscriptionAction` end-date derivation + payment creation + plan/member validity in `tests/Unit/Actions/Subscriptions/CreateSubscriptionTest.php`.
+- [X] T040 [P] [US3] Failing unit tests for `RenewSubscriptionAction` start-date rule (contiguous vs today) + history preservation in `tests/Unit/Actions/Subscriptions/RenewSubscriptionTest.php`.
+- [X] T041 [P] [US3] Failing feature tests for create/list/show (201/200/422 invalid plan/member/401/403, paginated, no N+1) in `tests/Feature/Api/V1/Subscriptions/SubscriptionStoreTest.php`.
+- [X] T042 [P] [US3] Failing feature test for renew endpoint (201 new row, history in member profile) in `tests/Feature/Api/V1/Subscriptions/SubscriptionRenewTest.php`.
 
 ### Implementation for US3
 
-- [ ] T043 [US3] Create `subscriptions` migration per data-model (FKs member cascade, plan restrict, sold_by_user_id→users set null, **`last_reminded_on` nullable date** for reminder idempotency (review M4), indexes incl. composite (status,end_date)) in `database/migrations/*_create_subscriptions_table.php`.
-- [ ] T044 [US3] Create `app/Models/Subscription.php` (explicit `$fillable` excluding server-set fields from raw binding, casts, `LogsActivity`, relations: member, plan, soldBy, freezes, payments morphMany).
-- [ ] T045 [P] [US3] Create `database/factories/SubscriptionFactory.php` (states: active, expiring-soon, expired, frozen, stopped).
-- [ ] T046 [P] [US3] Create `app/Policies/SubscriptionPolicy.php` (`subscriptions.*` incl. renew/freeze/stop abilities).
-- [ ] T047 [P] [US3] Create `app/Http/Requests/Subscriptions/StoreSubscriptionRequest.php` and `RenewSubscriptionRequest.php`.
-- [ ] T048 [P] [US3] Create `app/Http/Resources/SubscriptionResource.php` (eager-load member/plan/soldBy+roles per PERF-1).
-- [ ] T049 [US3] Create `app/Actions/Subscriptions/CreateSubscription.php` (derive dates, set status active, record sold_by_user_id, compute price_paid, create payment via RecordPayment) and `RenewSubscription.php` (new row per research §2). **Wrap creation + payment in a DB transaction** so a failed payment rolls back the subscription.
-- [ ] T050 [US3] Create `app/Http/Controllers/Api/V1/SubscriptionController.php` (index/store/show/renew).
-- [ ] T051 [US3] Register subscription create/list/show/renew routes in `routes/api.php` (write routes throttled).
-- [ ] T052 [US3] Document subscription endpoints in `contracts/api.md`.
-- [ ] T053 [US3] Run focused US3 tests; all green.
+- [X] T043 [US3] Create `subscriptions` migration per data-model (FKs member cascade, plan restrict, sold_by_user_id→users set null, **`last_reminded_on` nullable date** for reminder idempotency (review M4), indexes incl. composite (status,end_date)) in `database/migrations/*_create_subscriptions_table.php`.
+- [X] T044 [US3] Create `app/Models/Subscription.php` (explicit `$fillable` excluding server-set fields from raw binding, casts, `LogsActivity`, relations: member, plan, soldBy, freezes, payments morphMany).
+- [X] T045 [P] [US3] Create `database/factories/SubscriptionFactory.php` (states: active, expiring-soon, expired, frozen, stopped).
+- [X] T046 [P] [US3] Create `app/Policies/SubscriptionPolicy.php` (`subscriptions.*` incl. renew/freeze/stop abilities).
+- [X] T047 [P] [US3] Create `app/Http/Requests/Subscriptions/StoreSubscriptionRequest.php` and `RenewSubscriptionRequest.php`.
+- [X] T048 [P] [US3] Create `app/Http/Resources/SubscriptionResource.php` (eager-load member/plan/soldBy+roles per PERF-1).
+- [X] T049 [US3] Create `app/Actions/Subscriptions/CreateSubscription.php` (derive dates, set status active, record sold_by_user_id, compute price_paid, create payment via RecordPayment) and `RenewSubscription.php` (new row per research §2). **Wrap creation + payment in a DB transaction** so a failed payment rolls back the subscription.
+- [X] T050 [US3] Create `app/Http/Controllers/Api/V1/SubscriptionController.php` (index/store/show/renew).
+- [X] T051 [US3] Register subscription create/list/show/renew routes in `routes/api.php` (write routes throttled).
+- [X] T052 [US3] Document subscription endpoints in `contracts/api.md`.
+- [X] T053 [US3] Run focused US3 tests; all green.
 
 **Checkpoint**: Subscriptions can be sold and renewed with correct dates and history.
 
@@ -145,22 +145,22 @@
 
 ### Tests for US4
 
-- [ ] T054 [P] [US4] Failing unit tests for `FreezeSubscriptionAction` end-date math + cumulative cap enforcement (the highest-risk logic) **including a concurrency test proving two simultaneous freezes cannot exceed the cap (review B1)** in `tests/Unit/Actions/Subscriptions/FreezeSubscriptionTest.php`.
-- [ ] T055 [P] [US4] Failing unit tests for unfreeze/stop transitions + invalid-status guards in `tests/Unit/Actions/Subscriptions/SubscriptionTransitionsTest.php`.
-- [ ] T056 [P] [US4] Failing feature tests for freeze/unfreeze/stop endpoints (200/422 cap exceeded/invalid status, 403) in `tests/Feature/Api/V1/Subscriptions/SubscriptionLifecycleTest.php`.
+- [X] T054 [P] [US4] Failing unit tests for `FreezeSubscriptionAction` end-date math + cumulative cap enforcement (the highest-risk logic) **including a concurrency test proving two simultaneous freezes cannot exceed the cap (review B1)** in `tests/Unit/Actions/Subscriptions/FreezeSubscriptionTest.php`.
+- [X] T055 [P] [US4] Failing unit tests for unfreeze/stop transitions + invalid-status guards in `tests/Unit/Actions/Subscriptions/SubscriptionTransitionsTest.php`.
+- [X] T056 [P] [US4] Failing feature tests for freeze/unfreeze/stop endpoints (200/422 cap exceeded/invalid status, 403) in `tests/Feature/Api/V1/Subscriptions/SubscriptionLifecycleTest.php`.
 
 ### Implementation for US4
 
-- [ ] T057 [US4] Create `subscription_freezes` migration per data-model (FK cascade, index) in `database/migrations/*_create_subscription_freezes_table.php`.
-- [ ] T058 [US4] Create `app/Models/SubscriptionFreeze.php` (explicit `$fillable`, `subscription` relation).
-- [ ] T059 [P] [US4] Create `database/factories/SubscriptionFreezeFactory.php`.
-- [ ] T060 [P] [US4] Create `app/Http/Requests/Subscriptions/FreezeSubscriptionRequest.php` (freeze_start/end, reason).
-- [ ] T061 [P] [US4] Create `app/Http/Resources/SubscriptionFreezeResource.php`.
-- [ ] T062 [US4] Create Actions `app/Actions/Subscriptions/FreezeSubscription.php` (insert freeze, cap check vs SUM(days), add days to end_date, status frozen — **inside a DB transaction with `lockForUpdate()` on the subscription so the cap check is race-safe, review B1**), `UnfreezeSubscription.php`, `StopSubscription.php` (with status guards).
-- [ ] T063 [US4] Add freeze/unfreeze/stop methods to `app/Http/Controllers/Api/V1/SubscriptionController.php`.
-- [ ] T064 [US4] Register freeze/unfreeze/stop routes in `routes/api.php`.
-- [ ] T065 [US4] Document lifecycle endpoints in `contracts/api.md`.
-- [ ] T066 [US4] Run focused US4 tests; all green.
+- [X] T057 [US4] Create `subscription_freezes` migration per data-model (FK cascade, index) in `database/migrations/*_create_subscription_freezes_table.php`.
+- [X] T058 [US4] Create `app/Models/SubscriptionFreeze.php` (explicit `$fillable`, `subscription` relation).
+- [X] T059 [P] [US4] Create `database/factories/SubscriptionFreezeFactory.php`.
+- [X] T060 [P] [US4] Create `app/Http/Requests/Subscriptions/FreezeSubscriptionRequest.php` (freeze_start/end, reason).
+- [X] T061 [P] [US4] Create `app/Http/Resources/SubscriptionFreezeResource.php`.
+- [X] T062 [US4] Create Actions `app/Actions/Subscriptions/FreezeSubscription.php` (insert freeze, cap check vs SUM(days), add days to end_date, status frozen — **inside a DB transaction with `lockForUpdate()` on the subscription so the cap check is race-safe, review B1**), `UnfreezeSubscription.php`, `StopSubscription.php` (with status guards).
+- [X] T063 [US4] Add freeze/unfreeze/stop methods to `app/Http/Controllers/Api/V1/SubscriptionController.php`.
+- [X] T064 [US4] Register freeze/unfreeze/stop routes in `routes/api.php`.
+- [X] T065 [US4] Document lifecycle endpoints in `contracts/api.md`.
+- [X] T066 [US4] Run focused US4 tests; all green.
 
 **Checkpoint**: Full subscription lifecycle works; freeze math proven by unit tests.
 
@@ -174,23 +174,23 @@
 
 ### Tests for US5
 
-- [ ] T067 [P] [US5] Failing unit tests for `RecordPaymentAction` balance math (bcmath precision), status (paid/partial), overpayment rejection **and a concurrency test proving two simultaneous partial payments cannot jointly exceed price_paid (review B2)** in `tests/Unit/Actions/Payments/RecordPaymentTest.php`.
-- [ ] T068 [P] [US5] Failing feature tests for `POST /payments` (201 partial/paid, 422 overpay/settled, 404, 403) in `tests/Feature/Api/V1/Payments/PaymentStoreTest.php`.
-- [ ] T069 [P] [US5] Failing feature test for dues listing `GET /payments?status=due` (accurate balances, paginated) in `tests/Feature/Api/V1/Payments/DuesListTest.php`.
+- [X] T067 [P] [US5] Failing unit tests for `RecordPaymentAction` balance math (bcmath precision), status (paid/partial), overpayment rejection **and a concurrency test proving two simultaneous partial payments cannot jointly exceed price_paid (review B2)** in `tests/Unit/Actions/Payments/RecordPaymentTest.php`.
+- [X] T068 [P] [US5] Failing feature tests for `POST /payments` (201 partial/paid, 422 overpay/settled, 404, 403) in `tests/Feature/Api/V1/Payments/PaymentStoreTest.php`.
+- [X] T069 [P] [US5] Failing feature test for dues listing `GET /payments?status=due` (accurate balances, paginated) in `tests/Feature/Api/V1/Payments/DuesListTest.php`.
 
 ### Implementation for US5
 
-- [ ] T070 [US5] Create polymorphic `payments` migration per data-model (morph index, status/due_date indexes, FK created_by) in `database/migrations/*_create_payments_table.php`.
-- [ ] T071 [US5] Create `app/Models/Payment.php` (explicit `$fillable`, casts amount decimal:2/paid_at/due_date, `LogsActivity`, `payable` morphTo, creator relation).
-- [ ] T072 [P] [US5] Create `database/factories/PaymentFactory.php` (states: paid, partial, due).
-- [ ] T073 [P] [US5] Create `app/Policies/PaymentPolicy.php` (`payments.*`).
-- [ ] T074 [P] [US5] Create `app/Http/Requests/Payments/StorePaymentRequest.php`.
-- [ ] T075 [P] [US5] Create `app/Http/Resources/PaymentResource.php`.
-- [ ] T076 [US5] Create `app/Actions/Payments/RecordPayment.php` (bcmath balance, set status, reject overpayment — **inside a DB transaction with `lockForUpdate()` on the subscription so the overpayment check is race-safe, review B2**) and a dues query (scope or query object) used by member payments + dues list. The dues query returns **subscriptions with outstanding balance `price_paid − SUM(amount) > 0`** (review M3 — not merely rows whose `status` column = `due`).
-- [ ] T077 [US5] Create `app/Http/Controllers/Api/V1/PaymentController.php` (store, index with status filter); wire member payments endpoint (from US1 controller) to the dues query.
-- [ ] T078 [US5] Register payment routes in `routes/api.php` (throttled writes).
-- [ ] T079 [US5] Document payment endpoints in `contracts/api.md`.
-- [ ] T080 [US5] Run focused US5 tests; all green.
+- [X] T070 [US5] Create polymorphic `payments` migration per data-model (morph index, status/due_date indexes, FK created_by) in `database/migrations/*_create_payments_table.php`.
+- [X] T071 [US5] Create `app/Models/Payment.php` (explicit `$fillable`, casts amount decimal:2/paid_at/due_date, `LogsActivity`, `payable` morphTo, creator relation).
+- [X] T072 [P] [US5] Create `database/factories/PaymentFactory.php` (states: paid, partial, due).
+- [X] T073 [P] [US5] Create `app/Policies/PaymentPolicy.php` (`payments.*`).
+- [X] T074 [P] [US5] Create `app/Http/Requests/Payments/StorePaymentRequest.php`.
+- [X] T075 [P] [US5] Create `app/Http/Resources/PaymentResource.php`.
+- [X] T076 [US5] Create `app/Actions/Payments/RecordPayment.php` (bcmath balance, set status, reject overpayment — **inside a DB transaction with `lockForUpdate()` on the subscription so the overpayment check is race-safe, review B2**) and a dues query (scope or query object) used by member payments + dues list. The dues query returns **subscriptions with outstanding balance `price_paid − SUM(amount) > 0`** (review M3 — not merely rows whose `status` column = `due`).
+- [X] T077 [US5] Create `app/Http/Controllers/Api/V1/PaymentController.php` (store, index with status filter); wire member payments endpoint (from US1 controller) to the dues query.
+- [X] T078 [US5] Register payment routes in `routes/api.php` (throttled writes).
+- [X] T079 [US5] Document payment endpoints in `contracts/api.md`.
+- [X] T080 [US5] Run focused US5 tests; all green.
 
 **Checkpoint**: Payments + dues accurate to the cent; polymorphic table ready for Phase 2 reuse.
 

@@ -1,0 +1,83 @@
+<?php
+
+use App\Actions\Subscriptions\FreezeSubscription;
+use App\Models\Member;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
+use App\Models\User;
+use Database\Seeders\FoundationAccessSeeder;
+use Database\Seeders\MembershipAccessSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function (): void {
+    $this->seed(FoundationAccessSeeder::class);
+    $this->seed(MembershipAccessSeeder::class);
+});
+
+test('freeze subscription creates freeze row and extends end date by inclusive day count', function (): void {
+    $user = User::factory()->create();
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'max_freeze_days' => 10,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-30',
+    ]);
+
+    $frozen = app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+        'reason' => 'travel',
+    ], $user);
+
+    expect($frozen->status)->toBe('frozen')
+        ->and($frozen->end_date->toDateString())->toBe('2026-07-03');
+
+    $freeze = SubscriptionFreeze::first();
+    expect($freeze)->not->toBeNull()
+        ->and($freeze->days)->toBe(3)
+        ->and($freeze->created_by)->toBe($user->id);
+});
+
+test('freeze subscription rejects when cumulative freeze exceeds plan cap', function (): void {
+    $user = User::factory()->create();
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'max_freeze_days' => 5,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+    ]);
+
+    SubscriptionFreeze::create([
+        'subscription_id' => $subscription->id,
+        'freeze_start' => '2026-06-01',
+        'freeze_end' => '2026-06-03',
+        'days' => 3,
+        'reason' => 'prior freeze',
+        'created_by' => $user->id,
+    ]);
+
+    expect(fn () => app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+        'reason' => 'travel',
+    ], $user))->toThrow(ValidationException::class);
+});
+
+test('freeze subscription rejects invalid status', function (): void {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->stopped()->create();
+
+    expect(fn () => app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+    ], $user))->toThrow(ValidationException::class);
+});

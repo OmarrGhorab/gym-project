@@ -1,0 +1,205 @@
+<?php
+
+use App\Models\Member;
+use App\Models\User;
+use App\Support\FoundationPermissions;
+use Database\Seeders\FoundationAccessSeeder;
+use Database\Seeders\MembershipAccessSeeder;
+use Illuminate\Testing\Fluent\AssertableJson;
+use Laravel\Sanctum\Sanctum;
+
+beforeEach(function (): void {
+    $this->seed(FoundationAccessSeeder::class);
+    $this->seed(MembershipAccessSeeder::class);
+});
+
+test('admin can create a member and receives 201', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+        'email' => 'sara@example.com',
+        'gender' => 'female',
+        'birth_date' => '1995-04-12',
+        'national_id' => '29504120012345',
+        'join_date' => '2026-06-10',
+        'notes' => 'VIP member',
+    ])
+        ->assertStatus(201)
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('data.id')
+            ->has('data.name')
+            ->has('data.phone')
+            ->has('data.status')
+            ->has('meta')
+            ->has('message')
+            ->where('data.name', 'Sara Ali')
+            ->where('data.status', 'active')
+        );
+});
+
+test('created member defaults to active status', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $response = $this->postJson('/api/v1/members', [
+        'name' => 'Test Member',
+        'phone' => '+201111111111',
+    ])->assertStatus(201);
+
+    expect($response->json('data.status'))->toBe('active');
+});
+
+test('created_by is set to the authenticated user', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $response = $this->postJson('/api/v1/members', [
+        'name' => 'Test Member',
+        'phone' => '+201111111111',
+    ])->assertStatus(201);
+
+    $memberId = $response->json('data.id');
+    $member = Member::find($memberId);
+    expect($member->created_by)->toBe($user->id);
+});
+
+test('missing required name returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'phone' => '+201234567890',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.name')
+            ->etc()
+        );
+});
+
+test('missing required phone returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.phone')
+            ->etc()
+        );
+});
+
+test('duplicate email returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Member::factory()->create(['email' => 'sara@example.com']);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+        'email' => 'sara@example.com',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.email')
+            ->etc()
+        );
+});
+
+test('duplicate national_id returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Member::factory()->create(['national_id' => '29504120012345']);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+        'national_id' => '29504120012345',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.national_id')
+            ->etc()
+        );
+});
+
+test('invalid gender value returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+        'gender' => 'unknown',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});
+
+test('invalid birth_date format returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+        'birth_date' => 'not-a-date',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});
+
+test('unauthenticated request receives 401', function (): void {
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+    ])
+        ->assertStatus(401)
+        ->assertJsonPath('error.code', 'unauthenticated');
+});
+
+test('user without members.create permission receives 403', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+    ])
+        ->assertStatus(403)
+        ->assertJsonPath('error.code', 'forbidden');
+});
+
+test('null email does not conflict with another null email', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Member::factory()->create(['email' => null]);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Second Member',
+        'phone' => '+201234567891',
+    ])->assertStatus(201);
+});
