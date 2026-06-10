@@ -45,8 +45,19 @@ return [
     /*
      * These attributes will be excluded from logging for all models.
      * Model-specific exclusions via logExcept() are merged with these.
+     *
+     * These are system-wide blocklist keys that must never appear in the
+     * audit log regardless of which model or action triggers the event.
+     * FR-014 / Constitution Principle V: audit records must not store
+     * passwords, tokens, or other credential data.
      */
-    'default_except_attributes' => [],
+    'default_except_attributes' => [
+        'password',
+        'remember_token',
+        'token',
+        'api_key',
+        'secret',
+    ],
 
     /*
      * When enabled, activities are buffered in memory and inserted in a

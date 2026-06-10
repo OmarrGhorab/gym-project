@@ -26,13 +26,45 @@ REST API backend for a Gym Platform (members, subscriptions, POS, payroll, repor
 
 ## Current state (as of 2026-06-10, branch codex/001-backend-foundation)
 
-Phase 0 is in progress. Phase 1: Setup (T001-T006) completed in this session.
+Phase 0 Track A (T007–T051) is now COMPLETE. Track B (US5 T052–T064) was completed by a parallel agent.
 
-- All packages installed: sanctum v4.3.2, spatie/laravel-permission v7.4.2, spatie/laravel-activitylog v5.0.0, spatie/laravel-query-builder v7.3.0, maatwebsite/excel v3.1.69, barryvdh/laravel-dompdf v3.1.2, pestphp/pest v3.8.6.
-- Migrations published: personal_access_tokens, permission_tables, activity_log_table.
-- Configs published: config/sanctum.php, config/permission.php, config/activitylog.php.
-- tests/Pest.php configured with RefreshDatabase for Feature tests.
-- Example tests removed (Feature/ExampleTest.php and Unit/ExampleTest.php).
+**Full suite: 55 tests, 181 assertions, all green.**
+
+### Track A files created
+
+- `bootstrap/app.php` — API routing (`routes/api.php` registered), Spatie middleware aliases (role/permission/role_or_permission), JSON exception handlers for: InvalidCredentialsException (401 invalid_credentials), AuthenticationException (401 unauthenticated), AuthorizationException (403 forbidden), SpatieUnauthorizedException (403 forbidden), ModelNotFoundException (404), NotFoundHttpException (404), ValidationException (422), TooManyRequestsHttpException (429), catch-all Throwable (500)
+- `routes/api.php` — `/api/v1` prefix group: GET health (public), POST auth/login (throttle:auth), GET auth/me (auth:sanctum), POST auth/logout (auth:sanctum + throttle:api), GET foundation/protected-sample (auth:sanctum + permission:foundation.access-sample)
+- `app/Http/Responses/ApiResponse.php` — static success() and error() envelope factories
+- `app/Http/Controllers/Api/V1/ApiController.php` — abstract base with success()/error() helpers and AuthorizesRequests
+- `app/Http/Controllers/Api/V1/HealthController.php`
+- `app/Http/Controllers/Api/V1/AuthController.php` — login/me/logout; thin; uses LoginStaffUser/LogoutStaffUser actions
+- `app/Http/Controllers/Api/V1/Foundation/ProtectedSampleController.php` — calls RecordFoundationActivity then returns success
+- `app/Http/Resources/Concerns/WrapsApiResponse.php` — trait adding withMessage()/withMeta()/with() to any JsonResource
+- `app/Http/Resources/UserResource.php` — id/name/email/roles/permissions (getRoleNames/getAllPermissions)
+- `app/Http/Requests/Auth/LoginRequest.php` — authorize=true, rules: email required+string+email, password required+string
+- `app/Models/User.php` — HasApiTokens + HasRoles added; $fillable/hidden/casts preserved
+- `app/Actions/Auth/LoginStaffUser.php` — email+password → User+token; throws InvalidCredentialsException on fail
+- `app/Actions/Auth/LogoutStaffUser.php` — currentAccessToken()->delete()
+- `app/Actions/Foundation/RecordFoundationActivity.php` — activity('foundation')->causedBy(user)->event(event)->log(description); strips sensitive keys
+- `app/Exceptions/InvalidCredentialsException.php` — extends AuthenticationException; renders as 401 invalid_credentials
+- `app/Support/FoundationPermissions.php` — ALL_ROLES, ALL_PERMISSIONS constants
+- `app/Providers/AppServiceProvider.php` — RateLimiter::for('auth', 10/min by IP), RateLimiter::for('api', 60/min by user/IP)
+- `database/seeders/FoundationAccessSeeder.php` — Admin/Manager/Cashier/Captain/Accountant roles; foundation.access-sample permission assigned to Admin
+- `database/seeders/DatabaseSeeder.php` — calls FoundationAccessSeeder only (no test user)
+- `config/activitylog.php` — default_except_attributes: ['password','remember_token','token','api_key','secret']
+- `specs/001-backend-foundation/reviews/architecture.md`
+
+### Critical caveats discovered in Track A
+
+1. **Sanctum auth guard caches user between test requests.** When testing token revocation in a single test, call `$this->app['auth']->forgetGuards()` between requests that need a fresh Sanctum token lookup.
+2. **Spatie PermissionMiddleware throws `Spatie\Permission\Exceptions\UnauthorizedException`** (extends `Symfony\Component\HttpKernel\Exception\HttpException`), NOT `Illuminate\Auth\Access\AuthorizationException`. Must register a separate render handler for it in bootstrap/app.php.
+3. **Throttle named rates** are defined in AppServiceProvider via `RateLimiter::for()`, not in a RouteServiceProvider (there is none in this project — Laravel 12 uses AppServiceProvider).
+
+### Previously noted (Track B / US5)
+
+- Settings migration: `database/migrations/2026_06_10_140000_create_settings_table.php`
+- `config/filesystems.php`: 'remote' disk added (env-driven, S3-compatible)
+- `config/services.php`: 'realtime' key added (env-driven, Reverb/Pusher capable)
 
 ## Key environment facts
 

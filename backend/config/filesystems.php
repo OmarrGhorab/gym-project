@@ -60,6 +60,24 @@ return [
             'report' => false,
         ],
 
+        // Remote-compatible disk used by later phases for media uploads, exports,
+        // and report storage. Backed by an S3-compatible provider; all credentials
+        // are env-only (Constitution §V). Point REMOTE_DISK_DRIVER to 's3' in
+        // production and keep 'local' for local/test environments.
+        'remote' => [
+            'driver' => env('REMOTE_DISK_DRIVER', 'local'),
+            'key' => env('REMOTE_DISK_KEY'),
+            'secret' => env('REMOTE_DISK_SECRET'),
+            'region' => env('REMOTE_DISK_REGION'),
+            'bucket' => env('REMOTE_DISK_BUCKET'),
+            'url' => env('REMOTE_DISK_URL'),
+            'endpoint' => env('REMOTE_DISK_ENDPOINT'),
+            'use_path_style_endpoint' => env('REMOTE_DISK_PATH_STYLE', false),
+            'root' => env('REMOTE_DISK_ROOT', storage_path('app/remote')),
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

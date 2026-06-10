@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    // Realtime / broadcast readiness configuration.
+    // Used by CheckInfrastructureReadiness and later phases that publish
+    // server-sent events or WebSocket broadcasts (e.g. live dashboard updates).
+    // All credentials are env-only — no secrets in code (Constitution §V).
+    // Set REALTIME_DRIVER to 'reverb' (Laravel Reverb) or 'pusher' in production;
+    // leave unset (null) for local/test environments where broadcasting is disabled.
+    'realtime' => [
+        'driver' => env('REALTIME_DRIVER'),
+        'app_id' => env('REVERB_APP_ID'),
+        'app_key' => env('REVERB_APP_KEY'),
+        'app_secret' => env('REVERB_APP_SECRET'),
+        'host' => env('REVERB_HOST', '0.0.0.0'),
+        'port' => (int) env('REVERB_PORT', 8080),
+        'scheme' => env('REVERB_SCHEME', 'http'),
+    ],
+
 ];
