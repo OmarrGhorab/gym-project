@@ -1,0 +1,4 @@
+- [Constitution & Governance](project_constitution.md) — where the supreme rules live and the 7 NON-NEGOTIABLE principles in force
+- [Phase 0 Foundation Conventions](project_phase0_conventions.md) — envelope, permissions, throttle, exception renderers the whole API reuses
+- [Cross-Phase Contracts](project_cross_phase_contracts.md) — sold_by_user_id, polymorphic payments, notifications, settings.reminder_days
+- [Recurring Review Findings](feedback_recurring_findings.md) — patterns I flag repeatedly (UserResource N+1, derive-under-lock, dues semantics)

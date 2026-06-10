@@ -87,9 +87,12 @@ A member holding a plan over a date range. Renewal creates a new row (history pr
 | `discount` | decimal(10,2) | default 0 |
 | `sold_by_user_id` | FK → `users.id`, nullable | **users, NOT employees** (Phase 3 contract); `on delete set null`; **indexed** |
 | `created_by` | FK → `users.id`, nullable | `on delete set null` |
+| `last_reminded_on` | date, nullable | durable renewal-reminder idempotency marker (review M4); set to today when a reminder is sent, so re-running the command the same day does not duplicate |
 | `timestamps` | | |
 
 **Indexes**: `member_id`, `plan_id`, `status`, `end_date`, `sold_by_user_id`, composite (`status`,`end_date`) for the expiry/expiring-soon queries.
+
+> **Concurrency (review B1)**: freezing must run inside a DB transaction with `lockForUpdate()` on the subscription (and its freeze rows) so the cumulative `SUM(days) ≤ max_freeze_days` check cannot be defeated by two concurrent freeze requests (read-modify-write race). `price_paid` is the snapshot of the agreed price at sale time (immutable financial record), independent of later `plans.price` changes.
 **Model**: `Subscription` — explicit `$fillable` (note: `status`, `start_date`, `end_date`, `sold_by_user_id` are set by Actions, never from raw client input). Casts: dates → date, `price_paid`/`discount` → decimal:2. `LogsActivity`. Relations: `member() belongsTo`, `plan() belongsTo`, `soldBy() belongsTo User`, `freezes() hasMany SubscriptionFreeze`, `payments() morphMany Payment`.
 
 ### Status transitions (state engine)
@@ -159,6 +162,10 @@ Defined **once** here. Phase 2 attaches `Sale`; Phase 3 reads as the single reve
 **Model**: `Payment` — explicit `$fillable`. Casts: `amount` → decimal:2, `paid_at` → datetime, `due_date` → date. `LogsActivity`. Relations: `payable() morphTo`, `creator() belongsTo User`.
 **Derived balance** for a subscription: `subscription.price_paid − SUM(payments.amount WHERE payable = subscription)`. `> 0` ⇒ appears in dues. Overpayment (`sum > price_paid`) rejected at `RecordPayment` (422). Computed with `bcmath` (research §3).
 
+> **Concurrency (review B2)**: `RecordPayment` must run inside a DB transaction with `lockForUpdate()` on the subscription row (and a sum of its existing payments) before writing, so two concurrent partial payments cannot both pass the overpayment check and exceed `price_paid` (read-modify-write race).
+>
+> **Dues-list semantics (review M3)**: `GET /payments?status=due` returns the **subscriptions that still carry an outstanding balance** (`price_paid − SUM(amount) > 0`), not merely payment rows whose own `status` column equals `due`. The endpoint name filters on outstanding balance; document this clearly so it is not confused with the per-row `status` enum.
+
 ---
 
 ## 6. `notifications` (Laravel native)
@@ -174,5 +181,5 @@ Standard Laravel notifications table (published via `php artisan make:notificati
 - **Mass assignment**: every model declares an explicit `$fillable`; server-controlled fields (`status`, computed dates, `sold_by_user_id`, `created_by`) are written by Actions, never bound from request input.
 - **FK `on delete`**: `cascade` for owned children (subscriptions→freezes/payments, member→subscriptions), `set null` for authorship (`created_by`, `sold_by_user_id`), `restrict` for `plan_id` (don't delete a plan with live subscriptions).
 - **Reversibility**: every migration implements `down()` (drop table). Morphs added with explicit index names to keep `down()` clean.
-- **Eager loading** (no N+1): `SubscriptionResource` loads `member`, `plan`, `soldBy` (+ its roles/permissions per PERF-1), `payments`; `MemberResource` (profile) loads `subscriptions.plan` and aggregates payments; list endpoints paginate.
+- **Eager loading** (no N+1): `SubscriptionResource` loads `member`, `plan`, `soldBy`, `payments`. **(review M1)** When embedding the selling user in subscription **lists**, render a **slim user embed** (id + name only) — do NOT load the full `UserResource` with `roles`/`permissions` per row (that is 2–3 extra queries per row even with eager loading and is unnecessary for a list). Reserve the role/permission-bearing `UserResource` for the auth/me path. `MemberResource` (profile) loads `subscriptions.plan`; member **dues totals** are computed with `withSum('payments', 'amount')` / a single aggregate query **(review M2)**, never a per-subscription loop. List endpoints paginate.
 - **Indexes for the hot queries**: expiry job & expiring-soon list both hit `(status, end_date)`; dues list hits `payments.status`; member search hits `members.phone`/`name` + `status`.
