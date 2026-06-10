@@ -30,6 +30,12 @@ return [
 
     'disks' => [
 
+        // Member photos (and other private media) MUST use a private disk —
+        // either 'local' (storage_path('app/private')) or 'remote' in
+        // production — so files are never directly web-accessible.
+        // Access is gated by a Policy-authorised stream route (US1, SEC-M3).
+        // Do NOT store member photos on the 'public' disk or serve them via a
+        // public URL; all reads flow through an authorised controller action.
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
@@ -64,8 +70,7 @@ return [
         // and report storage. Backed by an S3-compatible provider; all credentials
         // are env-only (Constitution §V). Point REMOTE_DISK_DRIVER to 's3' in
         // production and keep 'local' for local/test environments.
-        'remote' => [
-            'driver' => env('REMOTE_DISK_DRIVER', 'local'),
+        'remote' => ['driver' => env('REMOTE_DISK_DRIVER', 'local'),
             'key' => env('REMOTE_DISK_KEY'),
             'secret' => env('REMOTE_DISK_SECRET'),
             'region' => env('REMOTE_DISK_REGION'),

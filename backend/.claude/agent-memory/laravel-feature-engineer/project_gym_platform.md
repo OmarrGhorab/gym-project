@@ -24,11 +24,23 @@ REST API backend for a Gym Platform (members, subscriptions, POS, payroll, repor
 1. `sold_by_user_id` on subscriptions (P1) and sales (P2) references `users` — no forward dependency on `employees`. P3 links commissions via `employees.user_id` + a backfill command.
 2. Polymorphic `payments` defined once in P1 (`payable_type`/`payable_id`, status paid/partial/due), reused in P2, read as single revenue source in P3. Do not fork payment logic.
 
-## Current state (as of 2026-06-10, branch codex/001-backend-foundation)
+## Current state (as of 2026-06-10)
 
-Phase 0 Track A (T007–T051) is now COMPLETE. Track B (US5 T052–T064) was completed by a parallel agent.
+Phase 0 COMPLETE. Phase 1 Phase 2 Foundational (T002–T009) COMPLETE.
 
-**Full suite: 55 tests, 181 assertions, all green.**
+**Full suite after Phase 2 Foundational: 62 tests, 284 assertions, all green.**
+
+### Phase 2 Foundational delivered (T002–T009)
+
+- T002: Notifications table migration generated + applied (`2026_06_10_153917_create_notifications_table.php`)
+- T003a: Routes split into `routes/api/` per-area stubs (members/plans/subscriptions/payments/notifications/dashboard); `routes/api.php` includes them all under one `/api/v1` + `auth:sanctum` group; all Phase 0 routes untouched
+- T004: `app/Support/MembershipPermissions.php` — constants for members.*/plans.*/subscriptions.*/payments.*/notifications.view/dashboard.view + ALL_PERMISSIONS array
+- T005: `database/seeders/MembershipAccessSeeder.php` — idempotent firstOrCreate; Admin=all, Manager=all-except-delete, Cashier=members+subscriptions-sell+payments, Accountant=read-only-reporting, Captain=subscriptions.view
+- T006: `DatabaseSeeder` wired to call MembershipAccessSeeder after FoundationAccessSeeder
+- T007: `app/Http/Resources/UserSummaryResource.php` — slim embed (id+name only, no roles/permissions) for use in SubscriptionResource (review M1)
+- T008: `config/filesystems.php` — doc comment added before 'local' disk explaining member photos must use private disk + Policy-gated stream (no public URL)
+- T009: `subscriptionsSold()` hasMany relation added to `app/Models/User.php` (FK: sold_by_user_id; references App\Models\Subscription class string; no $fillable/$hidden/casts changes)
+- New test: `tests/Feature/Foundation/MembershipAccessSeederTest.php` (7 tests covering all 5 roles + idempotency)
 
 ### Track A files created
 
