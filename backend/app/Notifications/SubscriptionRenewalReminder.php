@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use App\Notifications\Channels\ProviderHookChannel;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class SubscriptionRenewalReminder extends Notification

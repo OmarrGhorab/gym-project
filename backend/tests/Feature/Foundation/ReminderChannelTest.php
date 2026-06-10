@@ -5,6 +5,7 @@ use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Notifications\SubscriptionRenewalReminder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
@@ -38,7 +39,7 @@ test('reminder job still delivers database notification when messaging provider 
 
     (new SendRenewalReminderJob($subscription->id))->handle();
 
-    Notification::assertSentTo($seller, \App\Notifications\SubscriptionRenewalReminder::class);
+    Notification::assertSentTo($seller, SubscriptionRenewalReminder::class);
 
     $subscription->refresh();
     expect($subscription->last_reminded_on?->toDateString())->toBe('2026-06-10');

@@ -64,10 +64,10 @@ class Member extends Model
     }
 
     /**
-     * @return HasMany<\App\Models\Subscription, $this>
+     * @return HasMany<Subscription, $this>
      */
     public function subscriptions(): HasMany
     {
-        return $this->hasMany(\App\Models\Subscription::class);
+        return $this->hasMany(Subscription::class);
     }
 }

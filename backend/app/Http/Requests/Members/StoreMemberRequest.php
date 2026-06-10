@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Members;
 
+use App\Models\Member;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreMemberRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('create', \App\Models\Member::class);
+        return $this->user()->can('create', Member::class);
     }
 
     public function rules(): array

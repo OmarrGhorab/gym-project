@@ -253,14 +253,14 @@
 
 **Purpose**: Validate the full Phase 1 against the mandatory workflow.
 
-- [ ] T102 Update `specs/002-members-subscriptions-plans/quickstart.md` if any behavior drifted during implementation.
-- [ ] T103 [P] Final sync of `specs/002-members-subscriptions-plans/contracts/api.md` to shipped behavior.
-- [ ] T104 Run Pint and record result in `specs/002-members-subscriptions-plans/reviews/formatting.md`.
-- [ ] T105 Run the full Pest suite and record result in `specs/002-members-subscriptions-plans/reviews/tests.md`.
-- [ ] T106 Run `laravel-security-reviewer` and record findings in `specs/002-members-subscriptions-plans/reviews/security.md` (verify SEC-M3 photo gating, mass-assignment, server-set price/status/sold_by).
-- [ ] T107 Run `laravel-performance-reviewer` and record findings in `specs/002-members-subscriptions-plans/reviews/performance.md` (N+1 on subscription/member lists, indexes, queued reminders).
-- [ ] T108 Run `laravel-code-reviewer` and record findings in `specs/002-members-subscriptions-plans/reviews/code-review.md`.
-- [ ] T109 Run `release-readiness-auditor` and record verdict in `specs/002-members-subscriptions-plans/reviews/release-readiness.md`.
+- [X] T102 Update `specs/002-members-subscriptions-plans/quickstart.md` if any behavior drifted during implementation.
+- [X] T103 [P] Final sync of `specs/002-members-subscriptions-plans/contracts/api.md` to shipped behavior.
+- [X] T104 Run Pint and record result in `specs/002-members-subscriptions-plans/reviews/formatting.md`.
+- [X] T105 Run the full Pest suite and record result in `specs/002-members-subscriptions-plans/reviews/tests.md`.
+- [X] T106 Run `laravel-security-reviewer` and record findings in `specs/002-members-subscriptions-plans/reviews/security.md` (verify SEC-M3 photo gating, mass-assignment, server-set price/status/sold_by).
+- [X] T107 Run `laravel-performance-reviewer` and record findings in `specs/002-members-subscriptions-plans/reviews/performance.md` (N+1 on subscription/member lists, indexes, queued reminders).
+- [X] T108 Run `laravel-code-reviewer` and record findings in `specs/002-members-subscriptions-plans/reviews/code-review.md`.
+- [X] T109 Run `release-readiness-auditor` and record verdict in `specs/002-members-subscriptions-plans/reviews/release-readiness.md`.
 
 ---
 

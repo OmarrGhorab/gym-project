@@ -5,7 +5,6 @@ namespace App\Actions\Members;
 use App\Models\Member;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 final class StoreMemberPhoto
 {

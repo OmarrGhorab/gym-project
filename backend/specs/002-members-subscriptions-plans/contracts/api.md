@@ -122,7 +122,39 @@ Server derives `end_date = start_date + plan.duration_days`, sets `status=active
 Records a payment against the subscription; sets payment `status` (`paid` clears balance, `partial` leaves a due). **201**: `PaymentResource`. **422** on overpayment / settled subscription. **404** if subscription missing. **403** without permission.
 
 ### GET /payments?status=due
-**Auth**: `payments.view`. **Query**: `?status=paid|partial|due`, `?page=`. Paginated `PaymentResource` with accurate outstanding balances.
+**Auth**: `payments.view`. **Query**: `?status=paid|partial|due`, `?page=`.
+
+When `status=due`, the response is a paginated outstanding-subscriptions view, not `PaymentResource` items:
+```json
+{
+  "data": [
+    {
+      "subscription": {
+        "id": 5,
+        "status": "active",
+        "start_date": "2026-06-10",
+        "end_date": "2026-07-10"
+      },
+      "member": {
+        "id": 8,
+        "name": "Sara Ali"
+      },
+      "balance": "150.00",
+      "paid_total": "150.00",
+      "price_paid": "300.00"
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "per_page": 15,
+    "total": 1,
+    "last_page": 1
+  },
+  "message": "Dues retrieved"
+}
+```
+
+For other statuses, the endpoint returns paginated `PaymentResource` items.
 
 ---
 
@@ -142,7 +174,9 @@ Records a payment against the subscription; sets payment `status` (`paid` clears
 **Auth**: `dashboard.view`. **200**: `{ "data": { "count": 128 }, "meta": {}, "message": "..." }` — count of currently-active subscriptions.
 
 ### GET /dashboard/expiring-soon
-**Auth**: `dashboard.view`. **Query**: `?page=`. Paginated `SubscriptionResource` for subscriptions expiring within `settings.reminder_days`.
+**Auth**: `dashboard.view`. **Query**: `?page=`.
+
+Current shipped behavior returns a single-page `SubscriptionResource` collection for active subscriptions whose `end_date` is within `settings.reminder_days` **and** whose `last_reminded_on` is not today, because it reuses the reminder finder. The response still includes pagination-shaped `meta`, but `current_page`, `per_page`, `total`, and `last_page` are all derived from that in-memory collection.
 
 ---
 

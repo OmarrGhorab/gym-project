@@ -18,7 +18,7 @@ PHP=~/.config/herd-lite/bin/php
 $PHP artisan migrate            # creates members, plans, subscriptions, subscription_freezes, payments, notifications
 $PHP artisan db:seed --class=MembershipAccessSeeder   # registers members.*/plans.*/subscriptions.*/payments.* + role assignments
 # (optional) set the reminder lead time:
-$PHP artisan tinker --execute "App\Actions\Settings\StoreSetting::…('reminder_days', 7)"
+$PHP artisan tinker --execute "(new App\\Actions\\Settings\\StoreSetting)->execute('reminder_days', 7);"
 ```
 
 ## Test commands
@@ -53,7 +53,7 @@ Authenticate as an Admin (Phase 0 `POST /auth/login`) and use the returned token
 ### 4. Record the remaining payment / inspect dues (US5)
 `GET /payments?status=due` → the subscription's outstanding balance appears.
 `POST /payments` for the remaining amount → **201**, payment `status=paid`.
-**Expected**: balance = `price_paid − SUM(amount)` to the cent; once cleared, the subscription drops off the dues list. Overpayment → **422**.
+**Expected**: balance = `price_paid − SUM(amount)` to the cent; once cleared, the subscription drops off the dues list. The dues payload is a paginated list of outstanding subscriptions with `subscription`, `member`, `balance`, `paid_total`, and `price_paid`. Overpayment → **422**.
 
 ### 5. Freeze then unfreeze (US4)
 `POST /subscriptions/{id}/freeze` for N days (≤ `max_freeze_days`) → **200**, `status=frozen`, `end_date` extended by exactly N days, a `subscription_freezes` row created.
@@ -76,6 +76,7 @@ $PHP artisan subscriptions:expire
 ### 8. Dashboard read models (US7)
 `GET /dashboard/active-subscriptions` → count matches active rows.
 `GET /dashboard/expiring-soon` → exactly the in-window subscriptions, paginated.
+**Expected**: the current implementation returns a single-page envelope of active subscriptions within `settings.reminder_days` that have **not** already been reminded today.
 
 ---
 

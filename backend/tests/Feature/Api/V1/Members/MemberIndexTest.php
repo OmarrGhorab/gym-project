@@ -3,7 +3,6 @@
 use App\Models\Member;
 use App\Models\User;
 use App\Support\FoundationPermissions;
-use App\Support\MembershipPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Testing\Fluent\AssertableJson;

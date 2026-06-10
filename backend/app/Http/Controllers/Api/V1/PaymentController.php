@@ -8,7 +8,6 @@ use App\Http\Resources\PaymentResource;
 use App\Models\Payment;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 
 class PaymentController extends ApiController
 {
