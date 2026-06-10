@@ -236,14 +236,14 @@
 
 ### Tests for US7
 
-- [ ] T097 [P] [US7] Failing feature tests for `GET /dashboard/active-subscriptions` and `GET /dashboard/expiring-soon` (correct count/list, paginated, 403) in `tests/Feature/Api/V1/Dashboard/DashboardTest.php`.
+- [X] T097 [P] [US7] Failing feature tests for `GET /dashboard/active-subscriptions` and `GET /dashboard/expiring-soon` (correct count/list, paginated, 403) in `tests/Feature/Api/V1/Dashboard/DashboardTest.php`.
 
 ### Implementation for US7
 
-- [ ] T098 [US7] Create `app/Http/Controllers/Api/V1/DashboardController.php` (activeSubscriptions count; expiringSoon using settings.reminder_days, eager-loaded, paginated).
-- [ ] T099 [US7] Register dashboard routes in `routes/api.php` (`dashboard.view`).
-- [ ] T100 [US7] Document dashboard endpoints in `contracts/api.md`.
-- [ ] T101 [US7] Run focused US7 tests; all green.
+- [X] T098 [US7] Create `app/Http/Controllers/Api/V1/DashboardController.php` (activeSubscriptions count; expiringSoon using settings.reminder_days, eager-loaded, paginated).
+- [X] T099 [US7] Register dashboard routes in `routes/api.php` (`dashboard.view`).
+- [X] T100 [US7] Document dashboard endpoints in `contracts/api.md`.
+- [X] T101 [US7] Run focused US7 tests; all green.
 
 **Checkpoint**: Dashboard read models accurate.
 
