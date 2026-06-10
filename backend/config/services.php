@@ -51,4 +51,8 @@ return [
         'scheme' => env('REVERB_SCHEME', 'http'),
     ],
 
+    'messaging' => [
+        'driver' => env('MESSAGING_DRIVER'),
+    ],
+
 ];

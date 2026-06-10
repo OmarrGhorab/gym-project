@@ -204,25 +204,25 @@
 
 ### Tests for US6
 
-- [ ] T081 [P] [US6] Failing feature test for `ExpireSubscriptionsAction`/command (only past-end active → expired; frozen/stopped untouched) in `tests/Feature/Foundation/ExpireSubscriptionsTest.php`.
-- [ ] T082 [P] [US6] Failing feature test for reminder command selection + idempotency (in-window only, no duplicate on re-run) + queued job dispatch in `tests/Feature/Foundation/RenewalReminderTest.php`.
-- [ ] T083 [P] [US6] Failing feature test for provider-hook channel no-op when unconfigured (in-app still delivered) in `tests/Feature/Foundation/ReminderChannelTest.php`.
-- [ ] T084 [P] [US6] Failing feature tests for `GET /notifications` + `POST /notifications/{id}/read` (own-only, unread filter, 404 foreign) in `tests/Feature/Api/V1/Notifications/NotificationTest.php`.
+- [X] T081 [P] [US6] Failing feature test for `ExpireSubscriptionsAction`/command (only past-end active → expired; frozen/stopped untouched) in `tests/Feature/Foundation/ExpireSubscriptionsTest.php`.
+- [X] T082 [P] [US6] Failing feature test for reminder command selection + idempotency (in-window only, no duplicate on re-run) + queued job dispatch in `tests/Feature/Foundation/RenewalReminderTest.php`.
+- [X] T083 [P] [US6] Failing feature test for provider-hook channel no-op when unconfigured (in-app still delivered) in `tests/Feature/Foundation/ReminderChannelTest.php`.
+- [X] T084 [P] [US6] Failing feature tests for `GET /notifications` + `POST /notifications/{id}/read` (own-only, unread filter, 404 foreign) in `tests/Feature/Api/V1/Notifications/NotificationTest.php`.
 
 ### Implementation for US6
 
-- [ ] T085 [US6] (Notifications table already created+applied in Foundational T002, review B4.) Verify it is migrated; no new migration here.
-- [ ] T086 [US6] Create `app/Notifications/SubscriptionRenewalReminder.php` (`via()` = database + conditional provider channel; `toArray` payload no PII secrets).
-- [ ] T087 [US6] Add a config-driven messaging provider flag in `config/services.php` (e.g. `messaging.driver`) that gates the external channel; safe default off.
-- [ ] T088 [US6] Create `app/Actions/Reminders/FindExpiringSubscriptions.php` (reads `settings.reminder_days`, default 7) and `SendRenewalReminders.php`.
-- [ ] T089 [US6] Create `app/Jobs/SendRenewalReminderJob.php` (queued per-subscription delivery; **idempotency via the durable `subscriptions.last_reminded_on` column — skip if already = today, set it to today after sending, review M4** — not a cache key).
-- [ ] T090 [US6] Create `app/Actions/Subscriptions/ExpireDueSubscriptions.php` (status active + end_date<today → expired).
-- [ ] T091 [US6] Create commands `app/Console/Commands/SendRenewalRemindersCommand.php` (`subscriptions:send-renewal-reminders`) and `ExpireSubscriptionsCommand.php` (`subscriptions:expire`).
-- [ ] T092 [US6] Schedule both commands daily in `routes/console.php`.
-- [ ] T093 [US6] Create `app/Http/Controllers/Api/V1/NotificationController.php` (index own + paginate, markRead) and `app/Http/Resources/NotificationResource.php`.
-- [ ] T094 [US6] Register notification routes in `routes/api.php` (auth:sanctum, own-only).
-- [ ] T095 [US6] Document reminder/notification endpoints + commands in `contracts/api.md`.
-- [ ] T096 [US6] Run focused US6 tests; all green.
+- [X] T085 [US6] (Notifications table already created+applied in Foundational T002, review B4.) Verify it is migrated; no new migration here.
+- [X] T086 [US6] Create `app/Notifications/SubscriptionRenewalReminder.php` (`via()` = database + conditional provider channel; `toArray` payload no PII secrets).
+- [X] T087 [US6] Add a config-driven messaging provider flag in `config/services.php` (e.g. `messaging.driver`) that gates the external channel; safe default off.
+- [X] T088 [US6] Create `app/Actions/Reminders/FindExpiringSubscriptions.php` (reads `settings.reminder_days`, default 7) and `SendRenewalReminders.php`.
+- [X] T089 [US6] Create `app/Jobs/SendRenewalReminderJob.php` (queued per-subscription delivery; **idempotency via the durable `subscriptions.last_reminded_on` column — skip if already = today, set it to today after sending, review M4** — not a cache key).
+- [X] T090 [US6] Create `app/Actions/Subscriptions/ExpireDueSubscriptions.php` (status active + end_date<today → expired).
+- [X] T091 [US6] Create commands `app/Console/Commands/SendRenewalRemindersCommand.php` (`subscriptions:send-renewal-reminders`) and `ExpireSubscriptionsCommand.php` (`subscriptions:expire`).
+- [X] T092 [US6] Schedule both commands daily in `routes/console.php`.
+- [X] T093 [US6] Create `app/Http/Controllers/Api/V1/NotificationController.php` (index own + paginate, markRead) and `app/Http/Resources/NotificationResource.php`.
+- [X] T094 [US6] Register notification routes in `routes/api.php` (auth:sanctum, own-only).
+- [X] T095 [US6] Document reminder/notification endpoints + commands in `contracts/api.md`.
+- [X] T096 [US6] Run focused US6 tests; all green.
 
 **Checkpoint**: Reminders fire once per in-window subscription; expiry correct; notifications retrievable/markable.
 

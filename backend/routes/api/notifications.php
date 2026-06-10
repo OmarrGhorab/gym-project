@@ -1,16 +1,9 @@
 <?php
 
-/*
-|--------------------------------------------------------------------------
-| Notifications routes — /api/v1/notifications
-|--------------------------------------------------------------------------
-|
-| Registered inside the /api/v1 prefix group defined in routes/api.php.
-| All endpoints require auth:sanctum (inherited from the outer group).
-| Own-notifications only (Policy-gated).
-|
-| Implemented by: US6 (T093–T094)
-|
-*/
+use App\Http\Controllers\Api\V1\NotificationController;
+use Illuminate\Support\Facades\Route;
 
-// US6 routes are wired here in T094 (Phase 8).
+Route::prefix('notifications')->group(function (): void {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::post('/{notification}/read', [NotificationController::class, 'markRead']);
+});
