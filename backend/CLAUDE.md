@@ -68,5 +68,5 @@ Two integration contracts to preserve across phases (see the map):
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/003-pos-products-inventory/plan.md` (Phase 2 — POS, Products & Inventory).
+`specs/004-employees-payroll-reports/plan.md` (Phase 3 — Employees, Payroll, Commissions & Reports).
 <!-- SPECKIT END -->
