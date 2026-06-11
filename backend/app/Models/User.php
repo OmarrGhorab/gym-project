@@ -74,4 +74,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Subscription::class, 'sold_by_user_id');
     }
+
+    /**
+     * Sales completed by this user (via sold_by_user_id FK on sales).
+     *
+     * @return HasMany<Sale>
+     */
+    public function salesSold(): HasMany
+    {
+        return $this->hasMany(Sale::class, 'sold_by_user_id');
+    }
 }

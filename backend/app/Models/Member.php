@@ -71,4 +71,12 @@ class Member extends Model
     {
         return $this->hasMany(Subscription::class);
     }
+
+    /**
+     * @return HasMany<Sale, $this>
+     */
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
 }

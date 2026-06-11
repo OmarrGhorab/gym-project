@@ -28,17 +28,17 @@
 
 **⚠️ CRITICAL**: All four migrations, the seeder, the permission constants, the `NewSaleEvent` broadcast skeleton, and model relations on `User`/`Member` must exist before any story phase begins.
 
-- [ ] T004 Create `app/Support/PosPermissions.php` with permission constants (`products.view`, `products.create`, `products.update`, `products.delete`, `sales.view`, `sales.create`, `sales.void`, `inventory.adjust`, `reports.view`), mirroring `app/Support/MembershipPermissions.php`.
-- [ ] T005 Create `database/seeders/PosAccessSeeder.php` registering all Phase 2 permissions (idempotent `firstOrCreate`) and assigning to roles: admin (all), manager (all), cashier (`products.view`, `sales.view`, `sales.create`), accountant (`sales.view`, `reports.view`).
-- [ ] T006 Wire `PosAccessSeeder` into `database/seeders/DatabaseSeeder.php` after `MembershipAccessSeeder`.
-- [ ] T007 [P] Create migration `database/migrations/*_create_products_table.php` per data-model (all columns, indexes on `sku` UNIQUE, `is_active`, `category`).
-- [ ] T008 [P] Create migration `database/migrations/*_create_sales_table.php` per data-model (all columns, FKs to `members`+`users`, UNIQUE index on `idempotency_key`, composite index `(status, created_at)`, index on `sold_by_user_id`, `member_id`).
-- [ ] T009 [P] Create migration `database/migrations/*_create_sale_items_table.php` per data-model (FKs to `sales` cascade + `products` restrict, composite index `(sale_id, product_id)`).
-- [ ] T010 [P] Create migration `database/migrations/*_create_inventory_movements_table.php` per data-model (FK `product_id` restrict, FK `created_by` set null, indexes on `product_id`, `created_by`, `created_at`).
-- [ ] T011 Run `php artisan migrate` to apply all four new migrations.
-- [ ] T012 Add `salesSold()` (hasMany Sale via `sold_by_user_id`) relation to `app/Models/User.php` without altering `$fillable`/`$hidden`.
-- [ ] T013 Add `sales()` (hasMany Sale via `member_id`) relation to `app/Models/Member.php` without altering existing model definition.
-- [ ] T014 Create skeleton broadcast event `app/Broadcasting/Events/NewSaleEvent.php` (implements `ShouldBroadcast`, broadcasts on `dashboard` private channel, payload: sale id, total, cashier name, timestamp). Full dispatch wired in US2.
+- [x] T004 Create `app/Support/PosPermissions.php` with permission constants (`products.view`, `products.create`, `products.update`, `products.delete`, `sales.view`, `sales.create`, `sales.void`, `inventory.adjust`, `reports.view`), mirroring `app/Support/MembershipPermissions.php`.
+- [x] T005 Create `database/seeders/PosAccessSeeder.php` registering all Phase 2 permissions (idempotent `firstOrCreate`) and assigning to roles: admin (all), manager (all), cashier (`products.view`, `sales.view`, `sales.create`), accountant (`sales.view`, `reports.view`).
+- [x] T006 Wire `PosAccessSeeder` into `database/seeders/DatabaseSeeder.php` after `MembershipAccessSeeder`.
+- [x] T007 [P] Create migration `database/migrations/*_create_products_table.php` per data-model (all columns, indexes on `sku` UNIQUE, `is_active`, `category`).
+- [x] T008 [P] Create migration `database/migrations/*_create_sales_table.php` per data-model (all columns, FKs to `members`+`users`, UNIQUE index on `idempotency_key`, composite index `(status, created_at)`, index on `sold_by_user_id`, `member_id`).
+- [x] T009 [P] Create migration `database/migrations/*_create_sale_items_table.php` per data-model (FKs to `sales` cascade + `products` restrict, composite index `(sale_id, product_id)`).
+- [x] T010 [P] Create migration `database/migrations/*_create_inventory_movements_table.php` per data-model (FK `product_id` restrict, FK `created_by` set null, indexes on `product_id`, `created_by`, `created_at`).
+- [x] T011 Run `php artisan migrate` to apply all four new migrations.
+- [x] T012 Add `salesSold()` (hasMany Sale via `sold_by_user_id`) relation to `app/Models/User.php` without altering `$fillable`/`$hidden`.
+- [x] T013 Add `sales()` (hasMany Sale via `member_id`) relation to `app/Models/Member.php` without altering existing model definition.
+- [x] T014 Create skeleton broadcast event `app/Broadcasting/Events/NewSaleEvent.php` (implements `ShouldBroadcast`, broadcasts on `dashboard` private channel, payload: sale id, total, cashier name, timestamp). Full dispatch wired in US2.
 
 **Checkpoint**: All four tables migrated, permissions seeded, role assignments ready, User/Member relations added, broadcast event skeleton in place. User story phases can now proceed.
 
