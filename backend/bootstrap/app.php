@@ -13,6 +13,7 @@ use Spatie\Permission\Exceptions\UnauthorizedException as SpatieUnauthorizedExce
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
@@ -78,6 +79,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // Spatie Permission middleware throws UnauthorizedException (HttpException 403)
         // rather than Laravel's AuthorizationException — handle it explicitly.
         $exceptions->render(function (SpatieUnauthorizedException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'forbidden',
+                        'message' => 'You do not have permission to perform this action.',
+                        'details' => (object) [],
+                    ],
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
                     'error' => [
