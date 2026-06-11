@@ -1,7 +1,5 @@
 <?php
 
-namespace Tests\Unit\Actions\Commissions;
-
 use App\Actions\Commissions\CalculateCommission;
 use App\Models\Employee;
 use App\Models\Plan;
@@ -9,77 +7,62 @@ use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class CalculateCommissionTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    private CalculateCommission $action;
+test('it resolves employee default rate and calculates commission amount', function (): void {
+    $user = User::factory()->create();
+    $employee = Employee::factory()->captain()->create([
+        'user_id' => $user->id,
+        'commission_rate' => 0.1000,
+    ]);
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->action = app(CalculateCommission::class);
-    }
+    $sale = Sale::factory()->create([
+        'sold_by_user_id' => $user->id,
+        'total' => 350.00,
+    ]);
 
-    public function test_it_resolves_employee_default_rate_and_calculates_commission_amount(): void
-    {
-        $user = User::factory()->create();
-        $employee = Employee::factory()->captain()->create([
-            'user_id' => $user->id,
-            'commission_rate' => 0.1000,
-        ]);
+    $commission = app(CalculateCommission::class)->forSource($sale);
 
-        $sale = Sale::factory()->create([
-            'sold_by_user_id' => $user->id,
-            'total' => 350.00,
-        ]);
+    expect($commission)->not->toBeNull()
+        ->and($commission->employee_id)->toBe($employee->id)
+        ->and($commission->rate)->toBe('0.1000')
+        ->and($commission->amount)->toBe('35.00');
+});
 
-        $commission = $this->action->forSource($sale);
+test('it skips calculation when user is not linked to employee', function (): void {
+    $user = User::factory()->create();
 
-        $this->assertNotNull($commission);
-        $this->assertEquals($employee->id, $commission->employee_id);
-        $this->assertEquals('0.1000', $commission->rate);
-        $this->assertEquals('35.00', $commission->amount);
-    }
+    $sale = Sale::factory()->create([
+        'sold_by_user_id' => $user->id,
+        'total' => 350.00,
+    ]);
 
-    public function test_it_skips_calculation_when_user_is_not_linked_to_employee(): void
-    {
-        $user = User::factory()->create();
+    $commission = app(CalculateCommission::class)->forSource($sale);
 
-        $sale = Sale::factory()->create([
-            'sold_by_user_id' => $user->id,
-            'total' => 350.00,
-        ]);
+    expect($commission)->toBeNull();
+});
 
-        $commission = $this->action->forSource($sale);
+test('it resolves plan override rate for subscriptions', function (): void {
+    $user = User::factory()->create();
+    Employee::factory()->captain()->create([
+        'user_id' => $user->id,
+        'commission_rate' => 0.1000,
+    ]);
 
-        $this->assertNull($commission);
-    }
+    $plan = Plan::factory()->create([
+        'commission_rate' => 0.1200,
+    ]);
 
-    public function test_it_resolves_plan_override_rate_for_subscriptions(): void
-    {
-        $user = User::factory()->create();
-        $employee = Employee::factory()->captain()->create([
-            'user_id' => $user->id,
-            'commission_rate' => 0.1000,
-        ]);
+    $subscription = Subscription::factory()->create([
+        'sold_by_user_id' => $user->id,
+        'plan_id' => $plan->id,
+        'price_paid' => 500.00,
+    ]);
 
-        $plan = Plan::factory()->create([
-            'commission_rate' => 0.1200,
-        ]);
+    $commission = app(CalculateCommission::class)->forSource($subscription);
 
-        $subscription = Subscription::factory()->create([
-            'sold_by_user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'price_paid' => 500.00,
-        ]);
-
-        $commission = $this->action->forSource($subscription);
-
-        $this->assertNotNull($commission);
-        $this->assertEquals('0.1200', $commission->rate);
-        $this->assertEquals('60.00', $commission->amount);
-    }
-}
+    expect($commission)->not->toBeNull()
+        ->and($commission->rate)->toBe('0.1200')
+        ->and($commission->amount)->toBe('60.00');
+});

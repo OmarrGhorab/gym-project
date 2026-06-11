@@ -45,10 +45,10 @@ class BackfillCommissionsCommand extends Command
 
         $subQuery = Subscription::query()->whereIn('sold_by_user_id', $linkedUserIds);
         if ($from) {
-            $subQuery->where('created_at', '>=', $from);
+            $subQuery->whereDate('created_at', '>=', $from);
         }
         if ($to) {
-            $subQuery->where('created_at', '<=', $to);
+            $subQuery->whereDate('created_at', '<=', $to);
         }
 
         $subQuery->chunkById(100, function ($subscriptions) use ($action, $dryRun, $employeesByUserId, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {
@@ -87,10 +87,10 @@ class BackfillCommissionsCommand extends Command
             ->whereIn('sold_by_user_id', $linkedUserIds)
             ->where('status', 'completed');
         if ($from) {
-            $saleQuery->where('created_at', '>=', $from);
+            $saleQuery->whereDate('created_at', '>=', $from);
         }
         if ($to) {
-            $saleQuery->where('created_at', '<=', $to);
+            $saleQuery->whereDate('created_at', '<=', $to);
         }
 
         $saleQuery->chunkById(100, function ($sales) use ($action, $dryRun, $employeesByUserId, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {

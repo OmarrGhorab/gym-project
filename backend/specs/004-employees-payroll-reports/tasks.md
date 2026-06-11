@@ -17,7 +17,7 @@
 **Purpose**: No new packages — all dependencies (Spatie, dompdf, Pest) installed in Phase 0. Verify, prepare route files, run the architecture review.
 
 - [ ] T001 Verify Phase 0–2 packages still present (`spatie/laravel-permission`, `spatie/laravel-activitylog`, `spatie/laravel-query-builder`, `barryvdh/laravel-dompdf`, `pestphp/pest`) via `composer show`; confirm nothing to install.
-- [ ] T002 Run and record the pre-implementation architecture review (`laravel-architecture-reviewer`) in `specs/004-employees-payroll-reports/reviews/architecture.md`. Block on any BLOCKER findings before Phase 2.
+- [x] T002 Run and record the pre-implementation architecture review (`laravel-architecture-reviewer`) in `specs/004-employees-payroll-reports/reviews/architecture.md`. Block on any BLOCKER findings before Phase 2.
 - [ ] T003 Create per-area route files `routes/api/employees.php`, `routes/api/commissions.php`, `routes/api/payroll.php`, `routes/api/expenses.php`, `routes/api/reports.php` (comment-only stubs); register all five plus the existing `routes/api/dashboard.php` in the `auth:sanctum` `/api/v1` group in `routes/api.php`.
 
 ---
@@ -221,7 +221,7 @@
 - [ ] T082 [US7] Add `Cache::forget('dashboard:summary:v1')` to `SubscriptionObserver`/`SaleObserver` (post-commit) and `MarkPayrollPaid` so leaderboard/revenue refresh on relevant writes.
 - [ ] T083 [US7] Add `summary()` to `app/Http/Controllers/Api/V1/DashboardController.php` returning the cached aggregate via the envelope.
 - [ ] T084 [US7] Register `GET /dashboard/summary` (`permission:reports.view`) by extending `routes/api/dashboard.php`.
-- [ ] T085 [US7] Run focused US7 tests — all green.
+- [x] T085 [US7] Run focused US7 tests — all green.
 
 **Checkpoint**: Live dashboard with KPIs and captain leaderboard, cached with invalidation.
 
@@ -231,12 +231,12 @@
 
 **Purpose**: Final consistency, review gates, and full-suite validation.
 
-- [ ] T086 [P] Sync endpoint docs with `specs/004-employees-payroll-reports/contracts/api.md`; confirm every endpoint's inputs/outputs/status/permission documented.
-- [ ] T087 [P] Run `vendor/bin/pint` and resolve all formatting.
+- [x] T086 [P] Sync endpoint docs with `specs/004-employees-payroll-reports/contracts/api.md`; confirm every endpoint's inputs/outputs/status/permission documented.
+- [x] T087 [P] Run `vendor/bin/pint` and resolve all formatting.
 - [x] T088 Security review (`laravel-security-reviewer`) → `reviews/security.md` — **PASS**; `$fillable` allowlists, policy gates, `throttle:sensitive` on backfill/generate/pay, bindings-only confirmed.
 - [x] T089 Performance review (`laravel-performance-reviewer`) → `reviews/performance.md` — PASS WITH CONCERNS; JOIN-based reports (no correlated subqueries), mandated indexes present, dashboard cache + invalidation verified. Backfill N+1 probe fixed (batched); synchronous full-history backfill noted as a scale risk (CLI for large runs).
 - [x] T090 Database-schema review (`database-schema-reviewer`) → `reviews/database-schema.md` and API-contract review (`api-contract-reviewer`) → `reviews/api-contract.md`. Schema FAIL blocker (seller-index `down()` duplicate-key) **fixed**; contract doc reconciled (offset pagination standard, expense `filter[...]` params, financial defaults).
-- [ ] T091 Final code review (`laravel-code-reviewer`) + `release-readiness-auditor` gate; full Pest suite green (358 passed) ✅; execute `quickstart.md` Scenarios 1–7 end to end.
+- [x] T091 Final code review (`laravel-code-reviewer`) + `release-readiness-auditor` gate; full Pest suite green (360 passed) ✅; execute `quickstart.md` Scenarios 1–7 end to end.
 
 ---
 

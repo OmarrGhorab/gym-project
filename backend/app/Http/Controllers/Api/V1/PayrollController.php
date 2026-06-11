@@ -10,6 +10,7 @@ use App\Http\Requests\Payroll\GeneratePayrollRequest;
 use App\Http\Requests\Payroll\UpdatePayrollRequest;
 use App\Http\Resources\PayrollResource;
 use App\Http\Resources\PayslipResource;
+use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Payroll;
 use Illuminate\Http\JsonResponse;
@@ -113,6 +114,11 @@ final class PayrollController extends ApiController
         }
 
         $payroll->load('employee');
+
+        $monthCommissions = Commission::where('employee_id', $payroll->employee_id)
+            ->where('month', $payroll->month)
+            ->get();
+        $payroll->setRelation('monthCommissions', $monthCommissions);
 
         return (new PayslipResource($payroll))
             ->withMessage('Payslip retrieved successfully')

@@ -12,7 +12,7 @@ Permissions: `HrFinancePermissions` (`employees.*`, `commissions.*`, `payroll.*`
 
 ### `GET /employees` — `employees.view`
 List employees. Filterable: `role`, `status`, `q` (name/phone). Offset-paginated.
-- **200** `data: EmployeeResource[]`, `meta.next_cursor`.
+- **200** `data: EmployeeResource[]`, `meta: { current_page, per_page, total, last_page }`.
 
 ### `POST /employees` — `employees.create`
 Body: `name*`, `phone?`, `role*` (`employee|captain|manager`), `base_salary?` (≥0), `commission_rate?` (0–9.9999), `hire_date?`, `status?`, `user_id?`.
