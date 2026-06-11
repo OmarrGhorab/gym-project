@@ -3,35 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Resources\AuditLogResource;
-use Illuminate\Http\Request;
+use App\Http\Requests\AuditLog\IndexAuditLogRequest;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\QueryBuilder\QueryBuilder;
 
 final class AuditLogController extends ApiController
 {
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(IndexAuditLogRequest $request): AnonymousResourceCollection
     {
-        $this->authorize('viewAny', Activity::class);
-
-        // Validate the filter query parameters
-        $validator = validator($request->all(), [
-            'filter.from' => ['nullable', 'date'],
-            'filter.to' => ['nullable', 'date', 'after_or_equal:filter.from'],
-            'filter.subject' => ['nullable', 'string', function ($attribute, $value, $fail): void {
-                if (! array_key_exists($value, AuditLogResource::$aliasMap)) {
-                    $fail('The selected subject alias is invalid.');
-                }
-            }],
-            'filter.causer' => ['nullable', 'integer'],
-        ]);
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
-
-        $query = Activity::query()->with(['causer', 'subject']);
+        $query   = Activity::query()->with(['causer', 'subject']);
         $filters = $request->input('filter', []);
 
         if (isset($filters['from'])) {
@@ -57,9 +38,9 @@ final class AuditLogController extends ApiController
             ->additional([
                 'meta' => [
                     'current_page' => $activities->currentPage(),
-                    'per_page' => $activities->perPage(),
-                    'total' => $activities->total(),
-                    'last_page' => $activities->lastPage(),
+                    'per_page'     => $activities->perPage(),
+                    'total'        => $activities->total(),
+                    'last_page'    => $activities->lastPage(),
                 ],
                 'message' => 'Audit logs retrieved successfully',
             ]);

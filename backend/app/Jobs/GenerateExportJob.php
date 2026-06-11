@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Export\BuildExport;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -57,8 +58,9 @@ class GenerateExportJob implements ShouldQueue
             ], now()->addHours(Config::get('export.retention_hours', 24)));
 
             // Log successful export in audit log
+            $causer = User::find($this->userId);
             activity()
-                ->causedBy($this->userId)
+                ->causedBy($causer)
                 ->log("Exported {$this->resource} in {$this->format} format");
 
         } catch (\Throwable $e) {
@@ -69,17 +71,17 @@ class GenerateExportJob implements ShouldQueue
 
             // Update cache status to failed
             Cache::put($cacheKey, [
-                'id' => $this->exportId,
+                'id'       => $this->exportId,
                 'resource' => $this->resource,
-                'format' => $this->format,
-                'status' => 'failed',
-                'user_id' => $this->userId,
-                'error' => $e->getMessage(),
+                'format'   => $this->format,
+                'status'   => 'failed',
+                'user_id'  => $this->userId,
+                'error'    => $e->getMessage(),
             ], now()->addHours(Config::get('export.retention_hours', 24)));
 
-            // Log failure in audit log
+            $causer = $causer ?? User::find($this->userId);
             activity()
-                ->causedBy($this->userId)
+                ->causedBy($causer)
                 ->log("Export job failed for {$this->resource} in {$this->format} format");
 
             throw $e;

@@ -39,7 +39,7 @@ class UpdateSettingsRequest extends FormRequest
         } elseif ($this->hasFile('gym_logo') || $this->has('gym_logo')) {
             $gym['logo'] = $this->file('gym_logo') ?: $this->input('gym_logo');
         } elseif ($this->has('gym') && is_array($this->input('gym')) && isset($this->input('gym')['logo'])) {
-            $gym['logo'] = $this->file('gym.logo') ?: ($this->file('gym.logo') ?: $this->input('gym')['logo']);
+            $gym['logo'] = $this->input('gym')['logo'];
         }
 
         $normalized = [];
@@ -85,7 +85,7 @@ class UpdateSettingsRequest extends FormRequest
         ];
 
         if ($this->hasFile('gym.logo')) {
-            $rules['gym.logo'] = ['nullable', 'image', 'max:2048'];
+            $rules['gym.logo'] = ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:2048'];
         } else {
             $rules['gym.logo'] = ['nullable', 'string'];
         }

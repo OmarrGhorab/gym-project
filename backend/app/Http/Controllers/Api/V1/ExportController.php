@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Export\BuildExport;
-use App\Support\SystemPermissions;
+use App\Http\Requests\Export\ExportRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -11,50 +11,14 @@ use Illuminate\Support\Facades\URL;
 
 class ExportController extends ApiController
 {
-    public function export(Request $request, string $resource, BuildExport $action)
+    public function export(ExportRequest $request, string $resource, BuildExport $action)
     {
-        // 1. Validate resource
-        $validResources = array_keys(SystemPermissions::EXPORT_PERMISSION_MAP);
-        if (! in_array($resource, $validResources, true)) {
-            return $this->error(
-                code: 'validation_failed',
-                message: 'The requested resource is invalid.',
-                details: ['resource' => ['The selected resource is invalid.']],
-                status: 422
-            );
-        }
-
-        // 2. Validate format
-        $format = $request->string('format')->toString();
-        if (! in_array(strtolower($format), ['xlsx', 'csv', 'pdf'], true)) {
-            return $this->error(
-                code: 'validation_failed',
-                message: 'The requested format is invalid.',
-                details: ['format' => ['The selected format is invalid.']],
-                status: 422
-            );
-        }
-
-        // 3. Authorize export
-        $permission = SystemPermissions::EXPORT_PERMISSION_MAP[$resource];
-        if (! $request->user()->can($permission)) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to export this resource.',
-                details: (object) [],
-                status: 403
-            );
-        }
-
-        $filters = $request->input('filter', $request->except(['format']));
-
-        // Call the export rate limiter (FR-027 rate limits login, POS, export)
-        // Rate limiter is defined in AppServiceProvider.
+        $format  = strtolower($request->validated('format'));
+        $filters = $request->input('filter', []);
 
         $result = $action->handle($resource, $format, $filters, $request->user());
 
         if ($result['queued']) {
-            // Generate temporary signed URL for retrieval
             $downloadUrl = URL::temporarySignedRoute(
                 'export.download',
                 now()->addHours(config('export.retention_hours', 24)),
@@ -63,8 +27,8 @@ class ExportController extends ApiController
 
             return $this->success(
                 data: [
-                    'export_id' => $result['export_id'],
-                    'status' => $result['status'],
+                    'export_id'    => $result['export_id'],
+                    'status'       => $result['status'],
                     'download_url' => $downloadUrl,
                 ],
                 message: 'Export is being processed in the background.',
@@ -72,7 +36,6 @@ class ExportController extends ApiController
             );
         }
 
-        // It is synchronous - return the download response
         return $result['response'];
     }
 
@@ -94,7 +57,7 @@ class ExportController extends ApiController
             return $this->success(
                 data: [
                     'export_id' => $exportId,
-                    'status' => 'processing',
+                    'status'    => 'processing',
                 ],
                 message: 'Export is still processing.',
                 status: 202
@@ -110,7 +73,7 @@ class ExportController extends ApiController
             );
         }
 
-        $disk = config('export.disk', 'local');
+        $disk     = config('export.disk', 'local');
         $filename = $metadata['filename'];
 
         if (! Storage::disk($disk)->exists($filename)) {
@@ -131,6 +94,8 @@ class ExportController extends ApiController
     public function status(Request $request, string $exportId)
     {
         // Ownership enforced by the can:download-export gate in middleware.
+        // The status route intentionally does not require a signed URL — the gate
+        // checks metadata['user_id'] === $user->id directly (see AppServiceProvider).
         $metadata = Cache::get("export:{$exportId}");
 
         if (! $metadata) {
@@ -145,9 +110,9 @@ class ExportController extends ApiController
         return $this->success(
             data: [
                 'export_id' => $metadata['id'],
-                'status' => $metadata['status'],
-                'resource' => $metadata['resource'],
-                'format' => $metadata['format'],
+                'status'    => $metadata['status'],
+                'resource'  => $metadata['resource'],
+                'format'    => $metadata['format'],
             ],
             message: 'Export status retrieved'
         );
