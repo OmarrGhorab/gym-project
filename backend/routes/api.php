@@ -76,5 +76,7 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/payments.php';
         require __DIR__.'/api/notifications.php';
         require __DIR__.'/api/dashboard.php';
+        require __DIR__.'/api/products.php';
+        require __DIR__.'/api/sales.php';
     });
 });

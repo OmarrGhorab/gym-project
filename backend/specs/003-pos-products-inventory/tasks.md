@@ -16,9 +16,9 @@
 
 **Purpose**: No new packages required — all dependencies (dompdf, Spatie, Pest) installed in Phase 0. Verify, prepare per-area route files, and run the architecture review.
 
-- [ ] T001 Verify Phase 0 packages still present (`barryvdh/laravel-dompdf`, `spatie/laravel-activitylog`, `spatie/laravel-query-builder`, `pestphp/pest`) via `composer show`; confirm nothing to install.
-- [ ] T002 Run and record the pre-implementation architecture review (`laravel-architecture-reviewer`) in `specs/003-pos-products-inventory/reviews/architecture.md`. Block on any BLOCKER findings before Phase 2.
-- [ ] T003 Create per-area route files `routes/api/products.php` and `routes/api/sales.php`; extend existing `routes/api/dashboard.php` for Phase 2 widgets; register all three in the `/api/v1` group in `routes/api.php`.
+- [x] T001 Verify Phase 0 packages still present (`barryvdh/laravel-dompdf`, `spatie/laravel-activitylog`, `spatie/laravel-query-builder`, `pestphp/pest`) via `composer show`; confirm nothing to install.
+- [x] T002 Run and record the pre-implementation architecture review (`laravel-architecture-reviewer`) in `specs/003-pos-products-inventory/reviews/architecture.md`. Block on any BLOCKER findings before Phase 2.
+- [x] T003 Create per-area route files `routes/api/products.php` and `routes/api/sales.php`; extend existing `routes/api/dashboard.php` for Phase 2 widgets; register all three in the `/api/v1` group in `routes/api.php`.
 
 ---
 
