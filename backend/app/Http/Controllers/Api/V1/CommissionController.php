@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Actions\Commissions\CalculateCommission;
+use App\Console\Commands\BackfillCommissionsCommand;
+use App\Http\Requests\Commissions\BackfillCommissionsRequest;
+use App\Http\Resources\CommissionResource;
+use App\Models\Commission;
+use App\Models\Employee;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+final class CommissionController extends ApiController
+{
+    public function index(Request $request, $employeeId): JsonResponse
+    {
+        // Authorize before touching the database so an unauthorized caller
+        // cannot probe employee existence via the 404/200 difference.
+        $this->authorize('viewAny', Commission::class);
+
+        $employee = Employee::findOrFail($employeeId);
+
+        $query = Commission::where('employee_id', $employee->id);
+
+        if ($request->filled('month')) {
+            $query->where('month', $request->input('month'));
+        }
+
+        $totalAmount = (string) $query->sum('amount');
+
+        $commissions = $query->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return $this->success(
+            data: CommissionResource::collection($commissions->getCollection())->resolve(),
+            message: 'Commissions retrieved',
+            meta: [
+                'current_page' => $commissions->currentPage(),
+                'per_page' => $commissions->perPage(),
+                'total' => $commissions->total(),
+                'last_page' => $commissions->lastPage(),
+                'total_amount' => number_format((float) $totalAmount, 2, '.', ''),
+            ],
+        );
+    }
+
+    public function backfill(BackfillCommissionsRequest $request, CalculateCommission $action): JsonResponse
+    {
+        // Authorization + input validation are handled by the Form Request.
+        $command = new BackfillCommissionsCommand;
+        $results = $command->executeBackfill(
+            $action,
+            $request->input('from'),
+            $request->input('to'),
+            $request->boolean('dry_run'),
+        );
+
+        return $this->success(
+            data: $results,
+            message: 'Commissions backfill completed',
+        );
+    }
+}

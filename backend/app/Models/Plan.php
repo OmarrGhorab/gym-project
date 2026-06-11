@@ -25,6 +25,7 @@ final class Plan extends Model
         'valid_from',
         'valid_to',
         'max_freeze_days',
+        'commission_rate',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ final class Plan extends Model
         'is_active' => 'boolean',
         'valid_from' => 'date',
         'valid_to' => 'date',
+        'commission_rate' => 'decimal:4',
     ];
 
     public function getActivitylogOptions(): LogOptions

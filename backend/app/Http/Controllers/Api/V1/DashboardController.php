@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Dashboard\ListExpiringSoonSubscriptions;
+use App\Actions\Reports\DashboardSummary;
 use App\Http\Requests\Dashboard\TopProductsRequest;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
@@ -99,6 +100,16 @@ class DashboardController extends ApiController
         return $this->success(
             data: $formattedProducts->toArray(),
             message: 'Top products retrieved',
+        );
+    }
+
+    public function summary(DashboardSummary $action): JsonResponse
+    {
+        $summary = $action->execute();
+
+        return $this->success(
+            data: $summary,
+            message: 'Dashboard summary retrieved'
         );
     }
 }
