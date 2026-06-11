@@ -187,14 +187,14 @@
 
 **Purpose**: Integration, documentation sync, final review gates, and full suite validation.
 
-- [ ] T072 [P] Sync `specs/003-pos-products-inventory/contracts/api.md` against the final implemented routes, request rules, and response shapes — update any drifted contract details.
-- [ ] T073 [P] Complete `specs/003-pos-products-inventory/quickstart.md` validation — run all 8 scenarios manually or via the test suite and confirm each expected outcome.
-- [ ] T074 [P] Run `vendor/bin/pint` and commit formatting fixes; zero violations before merge.
-- [ ] T075 Run full Pest suite (`~/.config/herd-lite/bin/php artisan test`); all green.
-- [ ] T076 Run `laravel-security-reviewer` agent; record findings in `specs/003-pos-products-inventory/reviews/security.md`; resolve all blockers.
-- [ ] T077 Run `laravel-performance-reviewer` agent; record in `specs/003-pos-products-inventory/reviews/performance.md`; resolve all blockers.
-- [ ] T078 Run `laravel-code-reviewer` agent; record in `specs/003-pos-products-inventory/reviews/code-review.md`; resolve all blockers.
-- [ ] T079 Run `release-readiness-auditor`; record in `specs/003-pos-products-inventory/reviews/release-readiness.md`; PASS gate before merge.
+- [x] T072 [P] Sync `specs/003-pos-products-inventory/contracts/api.md` against the final implemented routes, request rules, and response shapes — update any drifted contract details.
+- [x] T073 [P] Complete `specs/003-pos-products-inventory/quickstart.md` validation — run all 8 scenarios manually or via the test suite and confirm each expected outcome.
+- [x] T074 [P] Run `vendor/bin/pint` and commit formatting fixes; zero violations before merge.
+- [x] T075 Run full Pest suite (`~/.config/herd-lite/bin/php artisan test`); all green.
+- [x] T076 Run `laravel-security-reviewer` agent; record findings in `specs/003-pos-products-inventory/reviews/security.md`; resolve all blockers.
+- [x] T077 Run `laravel-performance-reviewer` agent; record in `specs/003-pos-products-inventory/reviews/performance.md`; resolve all blockers.
+- [x] T078 Run `laravel-code-reviewer` agent; record in `specs/003-pos-products-inventory/reviews/code-review.md`; resolve all blockers.
+- [x] T079 Run `release-readiness-auditor`; record in `specs/003-pos-products-inventory/reviews/release-readiness.md`; PASS gate before merge.
 
 ---
 
