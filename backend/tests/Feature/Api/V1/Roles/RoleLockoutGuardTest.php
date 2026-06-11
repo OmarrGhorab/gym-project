@@ -35,7 +35,7 @@ test('lockout guard prevents deleting the last role holding roles.manage', funct
     $this->deleteJson("/api/v1/roles/{$customAdminRole->id}")
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed')
-        ->assertJsonPath('error.message', 'Cannot delete the last role granting role management permissions.');
+        ->assertJsonPath('error.details.role.0', 'Cannot delete the last role granting role management permissions.');
 });
 
 test('lockout guard prevents stripping roles.manage from the last role holding it', function (): void {
@@ -61,7 +61,7 @@ test('lockout guard prevents stripping roles.manage from the last role holding i
     ])
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed')
-        ->assertJsonPath('error.message', 'Cannot remove role management permission from the last role holding it.');
+        ->assertJsonPath('error.details.permissions.0', 'Cannot remove role management permission from the last role holding it.');
 });
 
 test('lockout guard prevents removing roles.manage role from the last user holding it', function (): void {
@@ -76,5 +76,5 @@ test('lockout guard prevents removing roles.manage role from the last user holdi
     ])
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed')
-        ->assertJsonPath('error.message', 'Cannot remove role management permissions from the last user holding them.');
+        ->assertJsonPath('error.details.roles.0', 'Cannot remove role management permissions from the last user holding them.');
 });

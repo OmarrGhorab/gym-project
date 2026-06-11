@@ -13,6 +13,7 @@ use Spatie\Permission\Exceptions\UnauthorizedException as SpatieUnauthorizedExce
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
@@ -96,6 +97,18 @@ return Application::configure(basePath: dirname(__DIR__))
                     'error' => [
                         'code' => 'forbidden',
                         'message' => 'You do not have permission to perform this action.',
+                        'details' => (object) [],
+                    ],
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (InvalidSignatureException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'forbidden',
+                        'message' => 'Invalid or expired URL.',
                         'details' => (object) [],
                     ],
                 ], 403);
