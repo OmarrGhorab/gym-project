@@ -19,15 +19,13 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Drop exactly what up() added — nothing else. The FK-backing indexes
+        // created by Phase 1/2 `constrained()` are left intact.
         Schema::table('sales', function (Blueprint $table): void {
-            $table->index('sold_by_user_id');
             $table->dropIndex(['sold_by_user_id', 'created_at']);
         });
 
         Schema::table('subscriptions', function (Blueprint $table): void {
-            // We can drop it, but if it's the foreign key index, MySQL might complain too.
-            // Let's index it first just in case, or drop it safely.
-            $table->index('sold_by_user_id', 'subscriptions_sold_by_user_id_foreign_idx');
             $table->dropIndex(['sold_by_user_id']);
         });
     }

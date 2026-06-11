@@ -233,10 +233,10 @@
 
 - [ ] T086 [P] Sync endpoint docs with `specs/004-employees-payroll-reports/contracts/api.md`; confirm every endpoint's inputs/outputs/status/permission documented.
 - [ ] T087 [P] Run `vendor/bin/pint` and resolve all formatting.
-- [ ] T088 Security review (`laravel-security-reviewer`) → `specs/004-employees-payroll-reports/reviews/security.md`; verify `$fillable` allowlists, policy gates, throttling on backfill/generate/pay, no raw SQL.
-- [ ] T089 Performance review (`laravel-performance-reviewer`) → `reviews/performance.md`; verify JOIN-based reports (no correlated subqueries/N+1), composite indexes used, cursor pagination, dashboard cache + invalidation. (Heaviest queries in the project — explicit focus.)
-- [ ] T090 Database-schema review (`database-schema-reviewer`) on the seven migrations and API-contract review (`api-contract-reviewer`) on the new endpoints.
-- [ ] T091 Final code review (`laravel-code-reviewer`) + `release-readiness-auditor` gate; then run the full Pest suite (`composer test`) green and execute `quickstart.md` Scenarios 1–7 end to end.
+- [x] T088 Security review (`laravel-security-reviewer`) → `reviews/security.md` — **PASS**; `$fillable` allowlists, policy gates, `throttle:sensitive` on backfill/generate/pay, bindings-only confirmed.
+- [x] T089 Performance review (`laravel-performance-reviewer`) → `reviews/performance.md` — PASS WITH CONCERNS; JOIN-based reports (no correlated subqueries), mandated indexes present, dashboard cache + invalidation verified. Backfill N+1 probe fixed (batched); synchronous full-history backfill noted as a scale risk (CLI for large runs).
+- [x] T090 Database-schema review (`database-schema-reviewer`) → `reviews/database-schema.md` and API-contract review (`api-contract-reviewer`) → `reviews/api-contract.md`. Schema FAIL blocker (seller-index `down()` duplicate-key) **fixed**; contract doc reconciled (offset pagination standard, expense `filter[...]` params, financial defaults).
+- [ ] T091 Final code review (`laravel-code-reviewer`) + `release-readiness-auditor` gate; full Pest suite green (358 passed) ✅; execute `quickstart.md` Scenarios 1–7 end to end.
 
 ---
 

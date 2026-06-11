@@ -57,7 +57,13 @@ class PayrollActionsTest extends TestCase
     public function test_mark_payroll_paid_creates_expense_record(): void
     {
         $user = User::factory()->create();
+        // No pending commissions exist, so the pay-time reconciliation yields
+        // net = base + bonuses - deductions = 1750 + 0 - 0.
         $payroll = Payroll::factory()->create([
+            'base_salary' => 1750.00,
+            'commissions_total' => 0.00,
+            'bonuses' => 0.00,
+            'deductions' => 0.00,
             'net_salary' => 1750.00,
             'status' => 'pending',
         ]);

@@ -17,8 +17,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('payments', function (Blueprint $table): void {
-            $table->dropIndex(['status', 'paid_at']);
-            $table->dropIndex(['payable_type', 'payable_id', 'status']);
+            $table->dropIndex('payments_status_paid_at_index');
+            $table->dropIndex('payments_payable_type_payable_id_status_index');
         });
     }
 };

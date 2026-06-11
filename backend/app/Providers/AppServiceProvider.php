@@ -35,16 +35,27 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Define the application's rate limiters.
      *
-     * "auth"  — tight limit on login/sensitive auth endpoints to mitigate
-     *           brute-force attacks. 10 attempts per minute per IP.
+     * "auth"      — tight limit on login/sensitive auth endpoints to mitigate
+     *               brute-force attacks. 10 attempts per minute per IP.
      *
-     * "api"   — general API limit. 60 requests per minute per authenticated
-     *           user or IP.
+     * "sensitive" — tight limit on write-heavy / financial operations
+     *               (commission backfill, payroll generation, payroll payout)
+     *               that are expensive or money-moving and must not be hammered.
+     *               10 requests per minute per authenticated user or IP.
+     *
+     * "api"       — general API limit. 60 requests per minute per authenticated
+     *               user or IP.
      */
     private function configureRateLimiters(): void
     {
         RateLimiter::for('auth', function (Request $request): Limit {
             return Limit::perMinute(10)->by($request->ip());
+        });
+
+        RateLimiter::for('sensitive', function (Request $request): Limit {
+            return Limit::perMinute(10)->by(
+                optional($request->user())->id ?: $request->ip(),
+            );
         });
 
         RateLimiter::for('api', function (Request $request): Limit {

@@ -1,3 +1,4 @@
 - [Project Release Standards](project_release_standards.md) — Constitution v1.0.0 NON-NEGOTIABLEs, where tests/migrations/contracts/docs live, CI commands
 - [PHP 8.4 Test Binary](reference_php84_binary.md) — must use herd-lite 8.4 php to run the suite; default PATH php is 8.2 and fails platform_check
 - [Recurring Readiness Gaps](feedback_recurring_gaps.md) — patterns seen across Phase 0 audits (record-task gaps, UserResource lazy-load, throttle keying)
+- [Phase 3 Audit](phase3_audit.md) — HR/Finance gate: blockers remediated in code post-review; B1 backfill accepted as CLI-safe; DoD record-task gaps were the blocker

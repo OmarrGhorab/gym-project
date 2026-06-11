@@ -1,15 +1,17 @@
 # API Contracts — Phase 3: Employees, Payroll, Commissions & Reports
 
-All routes are under `/api/v1`, require `auth:sanctum`, and are permission-gated. Success envelope `{ data, meta, message }`; error envelope `{ error: { code, message, details } }`. Money returned as `"0.00"` strings; `rate` as a decimal string; `month` as `YYYY-MM`. Lists use cursor pagination (`meta.next_cursor`) consistent with Phase 2.
+All routes are under `/api/v1`, require `auth:sanctum`, and are permission-gated. Success envelope `{ data, meta, message }`; error envelope `{ error: { code, message, details } }`. Money returned as `"0.00"` strings; `rate` as a decimal string; `month` as `YYYY-MM`.
 
-Permissions: `HrFinancePermissions` (`employees.*`, `commissions.*`, `payroll.*`, `expenses.*`) + reused `reports.view`. Write-heavy endpoints (`backfill`, `payroll/generate`) carry `throttle`.
+**Pagination**: list endpoints use **offset pagination** (`paginate(15)` → `meta: { current_page, per_page, total, last_page }`), consistent with the Phase 1–2 baseline. Two read-only report-style lists — `GET /expenses` and `GET /reports/employees` — use **cursor pagination** (`meta.next_cursor`) as they are append-heavy/large. (Implementation note: the offset standard was chosen to match the existing codebase; the earlier "cursor everywhere" intent in research.md D7 was superseded by codebase consistency.)
+
+Permissions: `HrFinancePermissions` (`employees.*`, `commissions.*`, `payroll.*`, `expenses.*`) + reused `reports.view`. Write-heavy/financial endpoints (`commissions/backfill`, `payroll/generate`, `payroll/{id}/pay`) carry the tighter `throttle:sensitive` (10/min) limiter.
 
 ---
 
 ## Employees
 
 ### `GET /employees` — `employees.view`
-List employees. Filterable: `role`, `status`, `q` (name/phone). Cursor-paginated.
+List employees. Filterable: `role`, `status`, `q` (name/phone). Offset-paginated.
 - **200** `data: EmployeeResource[]`, `meta.next_cursor`.
 
 ### `POST /employees` — `employees.create`
@@ -28,7 +30,7 @@ Body: any of `name, phone, role, base_salary, commission_rate, hire_date, status
 - **204** when no dependent commissions/payroll. **409/422** when financial history exists (restrict).
 
 ### `GET /employees/{id}/commissions?month=YYYY-MM` — `commissions.view`
-Employee's commissions, optional `month` filter. Cursor-paginated.
+Employee's commissions, optional `month` filter. Offset-paginated.
 - **200** `data: CommissionResource[]`, `meta` (incl. `total_amount` for the filter). **404** unknown employee.
 
 ### `GET /employees/{id}/performance?from=&to=` — `reports.view`
@@ -50,10 +52,10 @@ Generates commissions for historical subscriptions + sales attributed to a linke
 
 ### `POST /payroll/generate?month=YYYY-MM` — `payroll.generate` (throttled)
 Generates payroll for all active employees for `month`. Idempotent per `(employee_id, month)`.
-- **200/201** `data: PayrollResource[]`, `meta: { month, generated, skipped_existing }`. **422** bad month format.
+- **200** `data: PayrollResource[]`, `meta: { month, generated, skipped_existing }`. **422** bad month format.
 
 ### `GET /payroll?month=YYYY-MM` — `payroll.view`
-List payroll entries (optional `month`, `status`, `employee_id`). Cursor-paginated.
+List payroll entries (optional `month`, `status`, `employee_id`). Offset-paginated.
 - **200** `data: PayrollResource[]`.
 
 ### `PUT /payroll/{id}` — `payroll.update` *(reuses `payroll.generate` if `update` not seeded)*
@@ -71,9 +73,9 @@ Atomic: `status=paid`, `paid_at`, included commissions → `paid`, expense payou
 
 ## Expenses
 
-### `GET /expenses?from=&to=&category=` — `expenses.view`
-Cursor-paginated, filterable by date range + category.
-- **200** `data: ExpenseResource[]`, `meta` (incl. `total_amount`).
+### `GET /expenses?filter[start_date]=&filter[end_date]=&filter[category]=` — `expenses.view`
+Cursor-paginated, filterable by date range + category (Spatie QueryBuilder `filter[...]` params: `start_date`, `end_date`, `category`).
+- **200** `data: ExpenseResource[]`, `meta` (incl. `next_cursor`, `total_amount`).
 
 ### `POST /expenses` — `expenses.create`
 Body: `category*`, `amount*` (>0), `description?`, `date*`.
@@ -87,12 +89,12 @@ Body: `category*`, `amount*` (>0), `description?`, `date*`.
 ## Reports
 
 ### `GET /reports/financial?from=&to=&group_by=day|month` — `reports.view`
-Revenue (paid payments) − expenses = net profit, grouped.
+Revenue (paid payments) − expenses = net profit, grouped. **All three params are optional**: when omitted, `from`/`to` default to the current month and `group_by` defaults to `day`.
 - **200** `data: [{ period, revenue, expenses, net_profit }]`, `meta: { from, to, group_by, totals: { revenue, expenses, net_profit } }`. Empty period → zeros, not error. Totals reconcile exactly (SC-004).
 
 ### `GET /reports/employees?from=&to=` — `reports.view`
 Per-employee performance across the range.
-- **200** `data: [{ employee_id, name, role, sales_count, subscriptions_count, commissions_earned }]`. Cursor-paginated if large.
+- **200** `data: [{ employee_id, name, role, sales_count, subscriptions_count, commissions_earned }]`. Cursor-paginated (`meta.next_cursor`).
 
 ---
 

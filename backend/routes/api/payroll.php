@@ -14,13 +14,13 @@ Route::prefix('payroll')->group(function (): void {
         ->middleware('permission:payroll.view');
 
     Route::post('/generate', [PayrollController::class, 'generate'])
-        ->middleware(['permission:payroll.generate', 'throttle:api']);
+        ->middleware(['permission:payroll.generate', 'throttle:sensitive']);
 
     Route::put('/{payroll}', [PayrollController::class, 'update'])
         ->middleware(['permission:payroll.generate', 'throttle:api']);
 
     Route::post('/{payroll}/pay', [PayrollController::class, 'pay'])
-        ->middleware(['permission:payroll.pay', 'throttle:api']);
+        ->middleware(['permission:payroll.pay', 'throttle:sensitive']);
 
     Route::get('/{payroll}/payslip', [PayrollController::class, 'payslip'])
         ->middleware('permission:payroll.view');

@@ -11,5 +11,5 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('commissions')->group(function (): void {
     Route::post('/backfill', [CommissionController::class, 'backfill'])
-        ->middleware(['permission:commissions.backfill', 'throttle:api']);
+        ->middleware(['permission:commissions.backfill', 'throttle:sensitive']);
 });

@@ -46,18 +46,24 @@ test('users without reports.view permission cannot view financial report', funct
         ->assertStatus(403);
 });
 
-test('financial report request validates parameters', function (): void {
+test('financial report defaults to the current month when no range is supplied', function (): void {
     $accountant = User::factory()->create();
     $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
     Sanctum::actingAs($accountant);
 
-    // Missing parameters
+    // Per the contract, omitting the range defaults to the current month (day grouping).
     $this->getJson('/api/v1/reports/financial')
-        ->assertStatus(422)
-        ->assertJsonPath('error.code', 'validation_failed')
-        ->assertJsonStructure(['error' => ['details' => ['from', 'to', 'group_by']]]);
+        ->assertStatus(200)
+        ->assertJsonPath('meta.from', now()->startOfMonth()->toDateString())
+        ->assertJsonPath('meta.to', now()->toDateString())
+        ->assertJsonPath('meta.group_by', 'day');
+});
 
-    // Invalid parameters
+test('financial report rejects invalid parameters', function (): void {
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
     $this->getJson('/api/v1/reports/financial?from=not-a-date&to=2026-06-01&group_by=invalid')
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed')

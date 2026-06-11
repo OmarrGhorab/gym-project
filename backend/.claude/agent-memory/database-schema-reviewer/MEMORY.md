@@ -1,0 +1,1 @@
+- [Project Schema Conventions](project_schema_conventions.md) — MySQL/SQLite engines, naming, FK on-delete patterns, decimal types, recurring down() mistake

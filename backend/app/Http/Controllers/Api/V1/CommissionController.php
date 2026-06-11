@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Commissions\CalculateCommission;
 use App\Console\Commands\BackfillCommissionsCommand;
+use App\Http\Requests\Commissions\BackfillCommissionsRequest;
 use App\Http\Resources\CommissionResource;
 use App\Models\Commission;
 use App\Models\Employee;
@@ -14,8 +15,11 @@ final class CommissionController extends ApiController
 {
     public function index(Request $request, $employeeId): JsonResponse
     {
-        $employee = Employee::findOrFail($employeeId);
+        // Authorize before touching the database so an unauthorized caller
+        // cannot probe employee existence via the 404/200 difference.
         $this->authorize('viewAny', Commission::class);
+
+        $employee = Employee::findOrFail($employeeId);
 
         $query = Commission::where('employee_id', $employee->id);
 
@@ -42,16 +46,15 @@ final class CommissionController extends ApiController
         );
     }
 
-    public function backfill(Request $request, CalculateCommission $action): JsonResponse
+    public function backfill(BackfillCommissionsRequest $request, CalculateCommission $action): JsonResponse
     {
-        $this->authorize('backfill', Commission::class);
-
+        // Authorization + input validation are handled by the Form Request.
         $command = new BackfillCommissionsCommand;
         $results = $command->executeBackfill(
             $action,
             $request->input('from'),
             $request->input('to'),
-            $request->input('dry_run', false) ? true : false
+            $request->boolean('dry_run'),
         );
 
         return $this->success(

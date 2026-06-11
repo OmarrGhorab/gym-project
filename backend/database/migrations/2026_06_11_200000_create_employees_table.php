@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('name', 255);
             $table->string('phone', 30)->nullable();
             $table->string('role', 20)->default('employee')->index();
-            $table->decimal('base_salary', 10, 2)->default(0.00);
-            $table->decimal('commission_rate', 5, 4)->default(0.0000);
+            $table->decimal('base_salary', 10, 2)->default('0.00');
+            $table->decimal('commission_rate', 5, 4)->default('0.0000');
             $table->date('hire_date')->nullable();
             $table->string('status', 20)->default('active')->index();
             $table->timestamps();

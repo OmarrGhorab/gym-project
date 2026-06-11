@@ -79,6 +79,33 @@ test('backfill dry_run returns scanned info without persisting commissions', fun
     expect(Commission::count())->toBe(0);
 });
 
+test('backfill rejects malformed range parameters with 422', function (): void {
+    $adminUser = User::factory()->create();
+    $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($adminUser);
+
+    $this->postJson('/api/v1/commissions/backfill', [
+        'from' => 'not-a-date',
+        'to' => ['nested'],
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJsonStructure(['error' => ['details' => ['from', 'to']]]);
+});
+
+test('backfill rejects a to date earlier than from with 422', function (): void {
+    $adminUser = User::factory()->create();
+    $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($adminUser);
+
+    $this->postJson('/api/v1/commissions/backfill', [
+        'from' => '2026-06-30',
+        'to' => '2026-06-01',
+    ])
+        ->assertStatus(422)
+        ->assertJsonStructure(['error' => ['details' => ['to']]]);
+});
+
 test('accountant cannot trigger backfill and receives 403', function (): void {
     $accountant = User::factory()->create();
     $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
