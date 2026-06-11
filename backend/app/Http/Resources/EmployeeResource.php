@@ -9,6 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class EmployeeResource extends JsonResource
 {
     use WrapsApiResponse;
+
     public function toArray(Request $request): array
     {
         return [

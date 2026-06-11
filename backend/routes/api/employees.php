@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CommissionController;
 use App\Http\Controllers\Api\V1\EmployeeController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,4 +25,10 @@ Route::prefix('employees')->group(function (): void {
 
     Route::delete('/{employee}', [EmployeeController::class, 'destroy'])
         ->middleware(['permission:employees.delete', 'throttle:api']);
+
+    Route::get('/{employee}/commissions', [CommissionController::class, 'index'])
+        ->middleware('permission:commissions.view');
+
+    Route::get('/{employee}/performance', [EmployeeController::class, 'performance'])
+        ->middleware('permission:reports.view');
 });

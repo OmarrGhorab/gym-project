@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Sale;
+use App\Models\Subscription;
+use App\Observers\SaleObserver;
+use App\Observers\SubscriptionObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -23,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiters();
+
+        Subscription::observe(SubscriptionObserver::class);
+        Sale::observe(SaleObserver::class);
     }
 
     /**

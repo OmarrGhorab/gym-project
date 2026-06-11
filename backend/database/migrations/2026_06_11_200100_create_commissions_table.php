@@ -13,12 +13,12 @@ return new class extends Migration
             $table->foreignId('employee_id')
                 ->constrained('employees')
                 ->restrictOnDelete();
-            
+
             // Morphs equivalent with a unique index.
             $table->string('source_type', 150);
             $table->unsignedBigInteger('source_id');
             $table->unique(['source_type', 'source_id']);
-            
+
             $table->decimal('rate', 5, 4);
             $table->decimal('amount', 10, 2);
             $table->char('month', 7); // YYYY-MM

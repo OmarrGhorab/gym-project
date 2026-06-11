@@ -14,6 +14,7 @@ class UpdateEmployeeRequest extends FormRequest
         if (! $employee instanceof Employee) {
             $employee = Employee::find($this->route('id') ?? $this->route('employee'));
         }
+
         return $employee ? $this->user()->can('update', $employee) : false;
     }
 

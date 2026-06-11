@@ -8,20 +8,29 @@ namespace App\Support;
 final class HrFinancePermissions
 {
     public const PERM_EMPLOYEES_VIEW = 'employees.view';
+
     public const PERM_EMPLOYEES_CREATE = 'employees.create';
+
     public const PERM_EMPLOYEES_UPDATE = 'employees.update';
+
     public const PERM_EMPLOYEES_DELETE = 'employees.delete';
 
     public const PERM_COMMISSIONS_VIEW = 'commissions.view';
+
     public const PERM_COMMISSIONS_BACKFILL = 'commissions.backfill';
 
     public const PERM_PAYROLL_VIEW = 'payroll.view';
+
     public const PERM_PAYROLL_GENERATE = 'payroll.generate';
+
     public const PERM_PAYROLL_PAY = 'payroll.pay';
 
     public const PERM_EXPENSES_VIEW = 'expenses.view';
+
     public const PERM_EXPENSES_CREATE = 'expenses.create';
+
     public const PERM_EXPENSES_UPDATE = 'expenses.update';
+
     public const PERM_EXPENSES_DELETE = 'expenses.delete';
 
     /** All Phase 3 HR and Finance permissions in seeding order. */

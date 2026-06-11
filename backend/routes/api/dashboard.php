@@ -13,5 +13,6 @@ Route::prefix('dashboard')->group(function (): void {
     Route::middleware('permission:reports.view')->group(function (): void {
         Route::get('/sales-today', [DashboardController::class, 'salesToday']);
         Route::get('/top-products', [DashboardController::class, 'topProducts']);
+        Route::get('/summary', [DashboardController::class, 'summary']);
     });
 });

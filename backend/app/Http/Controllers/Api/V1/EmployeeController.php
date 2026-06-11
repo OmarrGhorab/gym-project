@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Employees\StoreEmployee;
 use App\Actions\Employees\UpdateEmployee;
+use App\Actions\Reports\EmployeePerformanceReport;
 use App\Http\Requests\Employees\StoreEmployeeRequest;
 use App\Http\Requests\Employees\UpdateEmployeeRequest;
+use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +30,7 @@ final class EmployeeController extends ApiController
                     $value = trim($value);
                     $query->where(function ($q) use ($value): void {
                         $q->where('name', 'like', "%{$value}%")
-                          ->orWhere('phone', 'like', "%{$value}%");
+                            ->orWhere('phone', 'like', "%{$value}%");
                     });
                 })
             )
@@ -98,5 +100,22 @@ final class EmployeeController extends ApiController
         $employee->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function performance(EmployeePerformanceRequest $request, Employee $employee, EmployeePerformanceReport $action): JsonResponse
+    {
+        $params = $request->validated();
+        $params['employee_id'] = $employee->id;
+
+        $report = $action->execute($params);
+
+        if (! $report) {
+            return $this->error('employee_not_found', 'Employee performance not found', [], 404);
+        }
+
+        return $this->success(
+            data: $report,
+            message: 'Employee performance report retrieved'
+        );
     }
 }
