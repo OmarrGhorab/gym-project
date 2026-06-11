@@ -1,0 +1,811 @@
+{
+  "info": {
+    "name": "003-pos-products-inventory",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "GET /products - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products?category=&is_active=&is_low_stock=&search=&sort=name,-stock_quantity&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": ""
+                },
+                {
+                  "key": "is_active",
+                  "value": ""
+                },
+                {
+                  "key": "is_low_stock",
+                  "value": ""
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "sort",
+                  "value": "name,-stock_quantity"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Lists all products in the catalog with status, sorting, and low stock filters."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /products - Success (with Image)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Whey Protein 1kg",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "supplements",
+                  "type": "text"
+                },
+                {
+                  "key": "sku",
+                  "value": "WHEY-PRO-1KG",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "850.00",
+                  "type": "text"
+                },
+                {
+                  "key": "cost",
+                  "value": "500.00",
+                  "type": "text"
+                },
+                {
+                  "key": "stock_quantity",
+                  "value": "25",
+                  "type": "text"
+                },
+                {
+                  "key": "low_stock_threshold",
+                  "value": "5",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "description": "Product image file (jpg, jpeg, png, webp under 2MB)."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "Creates a new product with image file payload using multipart form data."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /products - Validation Failed (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"sku\": \"\",\n  \"price\": \"-10.00\",\n  \"stock_quantity\": -5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "Triggers 422 error by submitting negative price, negative stock, and empty fields."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /products/{id} - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}"
+              ]
+            },
+            "description": "Retrieves detail parameters of a specific product."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /products/{id} - Success",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Whey Protein 1kg Premium\",\n  \"price\": \"890.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}"
+              ]
+            },
+            "description": "Updates text fields of an existing product."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /products/{id}/toggle - Success",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/toggle",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "toggle"
+              ]
+            },
+            "description": "Flips active status configuration on the product."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /products/{id}/stock - Success (Adjustment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"in\",\n  \"quantity\": 10,\n  \"reason\": \"Inventory restock check\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/stock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "stock"
+              ]
+            },
+            "description": "Adjusts stock count in, out, or adjust. Updates current inventory level."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /products/{id}/stock - Excess Outflow (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"out\",\n  \"quantity\": 99999,\n  \"reason\": \"Triggers insufficient stock error\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/stock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "stock"
+              ]
+            },
+            "description": "Triggers 422 error by trying to deduct more inventory items than currently available."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /products/{id}/image - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "*/*"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/image",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "image"
+              ]
+            },
+            "description": "Streams the product image file content. Returns 404 if no image exists."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "POST /sales - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idempotency_key\": \"11111111-2222-3333-4444-555555555555\",\n  \"member_id\": {{member_id}},\n  \"items\": [\n    {\n      \"product_id\": {{product_id}},\n      \"quantity\": 1\n    }\n  ],\n  \"discount\": \"0.00\",\n  \"payment_method\": \"cash\",\n  \"notes\": \"Direct POS checkout\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/sales",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "Records a new point of sale checkout transaction. Generates transaction rows and reduces stock."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /sales - Idempotency Replay (Success 201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idempotency_key\": \"11111111-2222-3333-4444-555555555555\",\n  \"member_id\": {{member_id}},\n  \"items\": [\n    {\n      \"product_id\": {{product_id}},\n      \"quantity\": 1\n    }\n  ],\n  \"discount\": \"0.00\",\n  \"payment_method\": \"cash\",\n  \"notes\": \"Replaying identical idempotency key returns original sale without duplicating database records\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/sales",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "Verifies that submitting the same request with a duplicate idempotency key correctly maps back to the previously created sale."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /sales - Validation Failed (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idempotency_key\": \"not-a-uuid\",\n  \"items\": [],\n  \"discount\": \"-15.00\",\n  \"payment_method\": \"invalid_method\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/sales",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales"
+              ]
+            },
+            "description": "Triggers 422 error by submitting bad UUID, empty item selection, negative discount, and bad payment method."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales?status=completed&from=&to=&member_id=&sold_by=&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "from",
+                  "value": ""
+                },
+                {
+                  "key": "to",
+                  "value": ""
+                },
+                {
+                  "key": "member_id",
+                  "value": ""
+                },
+                {
+                  "key": "sold_by",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Retrieves a paginated list of sales matching search filters."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales/{id} - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales/{{sale_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "{{sale_id}}"
+              ]
+            },
+            "description": "Retrieves detail elements of a specific sale record."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales/{id}/receipt - HTML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales/{{sale_id}}/receipt",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "{{sale_id}}",
+                "receipt"
+              ]
+            },
+            "description": "Returns the printable HTML layout view of the sales receipt."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales/{id}/receipt - PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/pdf"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales/{{sale_id}}/receipt",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "{{sale_id}}",
+                "receipt"
+              ]
+            },
+            "description": "Returns the PDF document format binary stream of the receipt."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /sales/{id}/void - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Refund requested by customer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/sales/{{sale_id}}/void",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "{{sale_id}}",
+                "void"
+              ]
+            },
+            "description": "Voids a completed transaction. Stock quantities are automatically restored."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales/daily - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales/daily?date=2026-06-11",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "daily"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-06-11"
+                }
+              ]
+            },
+            "description": "Retrieves daily revenue and count summary metrics. Restricted to roles with reports view permission."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales/report - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales/report?from=2026-06-01&to=2026-06-30&group_by=product&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "report"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-06-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-06-30"
+                },
+                {
+                  "key": "group_by",
+                  "value": "product"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Generates a detailed sales analysis report grouped by day, cashier, or product."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /sales/report - Validation Failed (422)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sales/report?from=2026-06-30&to=2026-06-01",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sales",
+                "report"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-06-30"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-06-01"
+                }
+              ]
+            },
+            "description": "Triggers 422 error by passing a start date ('from') that is after the end date ('to')."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard Widgets",
+      "item": [
+        {
+          "name": "GET /dashboard/sales-today - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/sales-today",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "sales-today"
+              ]
+            },
+            "description": "Returns aggregate count and financial revenue data of sales completed today."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /dashboard/top-products - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard/top-products?limit=5&period=week",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard",
+                "top-products"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "period",
+                  "value": "week"
+                }
+              ]
+            },
+            "description": "Returns top performing products ranked by revenue generated within a period option."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  }
+}
