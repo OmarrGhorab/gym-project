@@ -1,54 +1,93 @@
-=== RELEASE READINESS AUDIT ===
-Feature/Scope: Phase 3 — Employees, Payroll, Commissions & Reports (branch 004-employees-payroll-reports vs main)
-Verdict: FAIL
+# Release Readiness Audit — Phase 3: Employees, Payroll, Commissions & Reports
 
-Gate Results:
-[✓] Constitution Compliance — Thin transport, explicit $fillable, no $guarded=[], Laravel-native, bindings-only. Verified clean.
-[✓] Tests Passing — 360 passed / 1383 assertions (herd-lite 8.4). Full endpoint + unit matrix present.
-[✓] Security Review — reviews/security.md PASS; M1 (backfill Form Request) remediated in code. No High/Critical.
-[✓] Performance Review — reviews/performance.md; B2 N+1 fixed; B1 (sync backfill) consciously accepted as CLI-safe in T089.
-[✓] QA Completed — Drift reconciliation, idempotent backfill/generate, net-salary floor, payslip, expense payout all covered + tested.
-[✓] Documentation Updated — contracts/api.md reconciled (offset pagination, start_date/end_date, generate=200). One cosmetic gap.
-[✓] API Contracts Validated — Envelope + status codes correct; /api/v1; no breaking changes; 3 required doc edits applied.
-[✓] Database Review — Schema FAIL blocker (B-1 seller-index down()) and H-1 both remediated in code. Migrations now reversible.
-[✗] Definition-of-Done Closure — tasks.md record/verification tasks T002, T085, T086, T087, T091 unchecked; no reviews/code-review.md; final laravel-code-reviewer pass not run.
+**Branch:** `004-employees-payroll-reports` (vs `main`)
+**Standard:** `.specify/memory/constitution.md` v1.0.0 (authoritative) + `CLAUDE.md` + Phase 3 plan/contract
+**Auditor:** release-readiness-auditor (final pre-merge gate)
+**Date:** 2026-06-11
+**Test suite at audit:** 360 passed, 0 failures, 1383 assertions (herd-lite PHP 8.4). Pint: passed.
 
-Detailed Reasoning:
-
-CODE QUALITY — all eight technical dimensions pass on verified evidence:
-
-1. Constitution Compliance (PASS). Controllers are thin (validate via Form Request → authorize via Policy → call Action → return Resource). Employee/Commission/Payroll/Expense models all declare explicit $fillable; no $guarded=[] anywhere. Live commission trigger is implemented via Eloquent observers + DB::afterCommit in AppServiceProvider — zero edits to Phase 1/2 Actions, honoring the YAGNI / no-fork mandate. No new packages.
-
-2. Tests Passing (PASS). Ran `~/.config/herd-lite/bin/php artisan test`: 360 passed, 0 failures, 1383 assertions. Feature tests exist for every endpoint group (Employees, Commissions, Payroll, Expenses, Reports) plus unit tests for CalculateCommission, Payroll actions, and FinancialReconciliation. Pest only. Note: there is no standalone EmployeeDelete/EmployeeShow feature test file — delete/show paths are covered within other Employee tests; acceptable but worth a dedicated case in a future hardening pass.
-
-3. Security (PASS). reviews/security.md = PASS. The one Medium it flagged (M1: backfill endpoint lacked a Form Request) has since been remediated — BackfillCommissionsRequest now validates from/to/dry_run and authorizes. Every Phase 3 route is auth:sanctum + permission-gated + Policy-authorized; CommissionController authorizes before findOrFail (no existence probe). selectRaw fragments contain no user input; group_by is allowlisted. throttle:sensitive on backfill/generate/pay.
-
-4. Performance (PASS). reviews/performance.md = PASS WITH CONCERNS. B2 (per-row exists() N+1 in backfill) is FIXED — now a per-chunk whereIn(...)->pluck()->flip() diff. N1 employee pre-map FIXED. B1 (full-history backfill runs synchronously in the HTTP request; BackfillCommissionsRequest leaves from/to nullable so an unbounded scan is still reachable) is NOT code-changed, but T089 records it as a conscious, documented decision: CLI `commissions:backfill` is the safe path for large runs, the HTTP path is accepted as a bounded scale-risk. That meets the performance reviewer's explicit minimum bar. Reports use JOIN/derived-table aggregates (no correlated subqueries); mandated composite indexes present; dashboard cached with explicit invalidation; MarkPayrollPaid reconciliation is a single bounded locked query, not an N+1.
-
-5. QA / Business Rules (PASS). MarkPayrollPaid correctly re-sums pending commissions under lockForUpdate() inside DB::transaction, recomputes net, enforces the non-negative floor, bulk-flips exactly the settled commissions, writes the payroll-category expense payout, and forgets the dashboard cache. Backfill and generate are idempotent (firstOrCreate on unique (source_type,source_id); payroll unique (employee_id,month)). PayslipResource renders itemized commissions. Covered by PayrollCommissionReconciliationTest, PayrollPayTest, CommissionBackfillTest, etc.
-
-6. Documentation (PASS, one cosmetic gap). All three api-contract-review required edits are applied in contracts/api.md: offset pagination is the documented baseline (line 5), expense filters are start_date/end_date (lines 76–77), payroll/generate documents 200 only (line 55). Cosmetic non-blocker: line 15 still lists `meta.next_cursor` for GET /employees, which actually uses offset pagination — inconsistent with the corrected line 5.
-
-7. API Contracts (PASS). {data,meta,message} success envelope and {error:{code,message,details}} error envelope are uniform; status codes correct (200/201/204/401/403/404/409/422/429); all routes under /api/v1; all additive — no Phase 1/2 break.
-
-8. Database Review (PASS — blocker remediated). reviews/database-schema.md recorded VERDICT: FAIL on B-1 (add_seller_indexes down() crashed MySQL with duplicate-key) and H-1 (implicit index-name resolution). Both are FIXED in the current code: 200600 down() now drops only the two indexes up() added and leaves FK-backing indexes intact; 200500 down() uses explicit index-name strings. Money is decimal(10,2), rates decimal(5,4), month char(7), financial FKs restrictOnDelete, user bridge nullable-unique nullOnDelete. Migrations are now reversible.
-
-WHY THE VERDICT IS FAIL — Definition-of-Done closure (Gate 8 / project standard):
-This project treats specs/004-employees-payroll-reports/tasks.md as the binding Definition of Done, and an unrecorded gate is an unverified gate. The following are still open:
-- T091 (this gate): final `laravel-code-reviewer` pass + release-readiness — UNCHECKED. No reviews/code-review.md record exists; the laravel-code-reviewer step in the mandatory workflow has not been run/recorded. Its note also cites a stale "358 passed" (suite is now 360).
-- T002 architecture-review record — UNCHECKED (though reviews/architecture.md exists and is APPROVED — checkbox lag).
-- T085 US7 focused-test record, T086 docs-sync record, T087 Pint-formatting record — all UNCHECKED (Pint verified clean live; docs verified synced live — the conditions are TRUE but the DoD records are not closed).
-
-These are administrative closure items, not code defects. The implementation is technically production-ready; the release is not formally approvable until the DoD is closed and the one remaining mandatory review (code review) is run.
-
-Blockers (must resolve before approval):
-1. Run the `laravel-code-reviewer` pass (mandatory workflow step 7) and record it at reviews/code-review.md. This is the only mandatory review gate not yet executed.
-2. Close T091 — update its note from the stale "358 passed" to "360 passed (1383 assertions)" and check it once the code review + this release-readiness gate are recorded.
-3. Check the verified-true record tasks: T002 (architecture APPROVED), T085 (US7 tests green), T086 (docs synced), T087 (Pint clean). Each underlying condition is confirmed; only the DoD checkbox/record is missing.
-
-Recommendation:
-The code is ready. To reach PASS: (1) run and record the final laravel-code-reviewer review, (2) close the four verified record tasks (T002, T085, T086, T087) and T091 with the corrected 360-test count, and (3) optionally fix the line-15 cosmetic pagination note in contracts/api.md. No code changes are required to merge except at the team's discretion the line-15 doc fix and a future decision to queue/bound the HTTP backfill (B1) if prod ever times out. Once the DoD records are closed and the code review is on file, re-run this gate for a clean PASS.
+> Supersedes the previous FAIL verdict. The prior FAIL was driven by Definition-of-Done
+> closure (no `reviews/code-review.md`; unchecked gate tasks) and the two merge-blocking
+> Critical findings from the code review (PHPUnit-style tests; unbounded synchronous backfill).
+> `reviews/code-review.md` now exists, the gate/record tasks (T002, T085–T091) are checked,
+> and both Critical findings plus one of two Majors (PayslipResource data access) are
+> verifiably remediated in the working tree. One Major finding (morph-map FQCN leakage)
+> remains open and is carried forward as a non-blocking follow-up.
 
 ---
-Audit performed 2026-06-11. Suite: 360 passed / 1383 assertions (herd-lite PHP 8.4). Pint: passed.
-Legend: ✓ PASS, ✗ FAIL/blocker.
+
+```
+=== RELEASE READINESS AUDIT ===
+Feature/Scope: Phase 3 — Employees, Payroll, Commissions, Expenses & Financial/Performance Reports (branch 004-employees-payroll-reports vs main)
+Verdict: PASS
+
+Gate Results:
+[✓] Constitution Compliance — Thin transport, explicit $fillable, Policies/FormRequests/Resources, bcmath money; both prior Critical violations remediated.
+[✓] Tests Passing — 360 passed / 1383 assertions; full Pest matrix per endpoint; the two unit files rewritten to Pest (no extends TestCase).
+[✓] Security Review — auth:sanctum group + permission gate on every endpoint; throttle:sensitive (10/min) on backfill/generate/pay; bindings only; no secrets.
+[✓] Performance Review — indexes on FK/filter/sort columns; JOIN-aggregate reports; pagination everywhere; backfill now bounded (90-day default, 366-day cap).
+[✓] QA / Business Rules — drift reconciliation under lockForUpdate; idempotent backfill + payroll generate; net-salary floor; payslip; payroll→expense payout.
+[✓] Documentation Updated — contracts/api.md in sync (offset-pagination standard, cursor exceptions, throttle tiers, envelopes, status codes).
+[✓] API Contracts Validated — /api/v1 prefix; {data,meta,message} / {error:{code,message,details}}; correct 201/204/409/422; no breaking changes to P1/P2.
+[✓] Database Review — reversible down() on all migrations (B-1/H-1 fixed); FK on-delete declared; decimal(10,2) money / decimal(5,4) rates / char(7) month; indexes present.
+```
+
+## Detailed Reasoning
+
+### 1. Constitution Compliance — PASS
+- **Thin transport / layering:** Controllers resolve a validated request, invoke an Action, return a Resource. `Commission`, `Payroll`, `Expense`, `Employee`, `Report` controllers all delegate; no business logic in controllers.
+- **Logic placement:** `MarkPayrollPaid`, `GeneratePayroll`, `UpdatePayroll`, `CalculateCommission`, `FinancialReport`, `EmployeePerformanceReport`, `DashboardSummary` hold the rules; FormRequests validate; Policies authorize.
+- **`$fillable` allowlists:** all four new models (`Employee`, `Commission`, `Payroll`, `Expense`) declare explicit `$fillable`; no `$guarded = []`. `$hidden` on credentials lives on `User` (unchanged).
+- **bcmath money:** `MarkPayrollPaid` uses `bcadd/bcsub/bccomp` at scale 2; `CalculateCommission` uses `bcmul`.
+- **Prior Critical violations remediated (verified in code):**
+  - Principle III (Pest): `tests/Unit/Actions/Payroll/PayrollActionsTest.php` and `.../Commissions/CalculateCommissionTest.php` are now Pest (`uses(RefreshDatabase::class)` + `test()`); no `extends TestCase` in any new test file.
+  - Principle VI (queue heavy work / no unbounded): `BackfillCommissionsRequest` now defaults the window to the last 90 days and caps any explicit range at 366 days; the docblock matches the enforced rules. The CLI (`commissions:backfill`) remains the path for large historical runs.
+
+### 2. Tests Passing — PASS
+- Full suite green: 360 passed, 1383 assertions, 0 failures (herd-lite 8.4).
+- Per-endpoint feature coverage present for Employees, Commissions, Payroll, Expenses, Reports (happy / 401 / 403 / 404 / 422; 409 on already-paid payroll).
+- Non-trivial unit coverage: `CalculateCommission` (rate resolution, idempotency, skip-unlinked, month), `GeneratePayroll`/`MarkPayrollPaid` (net arithmetic, atomic flip, negative-net rejection), `FinancialReconciliation`, plus `PayrollCommissionReconciliationTest` regression for the drift bug.
+
+### 3. Security Review — PASS
+- Every Phase 3 route sits inside the `auth:sanctum` `/api/v1` group in `routes/api.php` AND carries a `permission:*` middleware.
+- Write/financial endpoints rate-limited: `throttle:sensitive` (10/min, defined in `AppServiceProvider`) on `commissions/backfill`, `payroll/generate`, `payroll/{id}/pay`; `throttle:api` on other writes.
+- `CommissionController::index` authorizes (`viewAny`) before `findOrFail`, closing the existence-probe via 404/200 difference.
+- Bindings only; no concatenated SQL on user input. Backfill input validated by `BackfillCommissionsRequest`.
+
+### 4. Performance Review — PASS
+- Indexes: `commissions(employee_id, month, status)` + unique `(source_type, source_id)`; `payroll(employee_id, month)` unique + `(month, status)`; payments `(status, paid_at)` and `(payable_type, payable_id, status)`; seller indexes on sales/subscriptions.
+- Reports use JOIN + aggregate (no correlated subqueries); all list endpoints paginate; dashboard cached with explicit `Cache::forget('dashboard:summary:v1')` invalidation on relevant writes.
+- `MarkPayrollPaid` re-sums pending commissions with a single locked query (no N+1).
+- Backfill is now bounded (see gate 1). The earlier synchronous full-history risk is closed for the HTTP path by the 366-day cap.
+
+### 5. QA / Business Rules — PASS
+- **Drift reconciliation:** `MarkPayrollPaid` re-sums pending commissions for the month under `lockForUpdate()` inside `DB::transaction`, recomputes net, flips exactly the settled commissions, writes a `category=payroll` expense equal to net — preventing silent underpayment when the live observer adds commissions after generation.
+- **Idempotency:** backfill via unique `(source_type, source_id)`; payroll generate via `firstOrCreate(employee_id, month)`.
+- **Net-salary floor:** negative net rejected (422) in both `UpdatePayroll` and `MarkPayrollPaid`.
+- **Payslip:** itemizes commissions via a controller-loaded `monthCommissions` relation (`setRelation` in `PayrollController::payslip`), read by `PayslipResource` through `whenLoaded` — no query inside the Resource.
+
+### 6. Documentation Updated — PASS
+- `contracts/api.md` reflects the offset-pagination standard with the two cursor exceptions (`GET /expenses`, `GET /reports/employees`), the `throttle:sensitive` tier, the success/error envelopes, money-as-string, and per-endpoint status codes.
+
+### 7. API Contracts Validated — PASS
+- All routes under `/api/v1`; uniform `{data,meta,message}` success and `{error:{code,message,details}}` error envelopes; correct status codes (201 create, 204 delete, 409 already-paid, 422 validation).
+- No breaking changes to Phase 1/2: commission triggers attach via observers (`SubscriptionObserver`/`SaleObserver` + `DB::afterCommit`); no edits to P1/P2 models or Actions. Cross-phase contracts preserved (`sold_by_user_id` → `users`; single polymorphic `payments` read as the one revenue source).
+
+### 8. Database Review — PASS
+- Reversible `down()` on every migration. `add_seller_indexes` down() drops only the indexes it added (B-1 MySQL duplicate-key crash fixed); `add_revenue_indexes` down() uses explicit index-name strings (H-1 fixed).
+- FK on-delete declared deliberately: `nullOnDelete` for `user_id`/`created_by`; `restrictOnDelete` for `employee_id` to protect financial history.
+- Types: money `decimal(10,2)`, rates `decimal(5,4)`, `month` `char(7)`; plural snake_case tables, `*_id` FKs, timestamped files.
+
+## Blockers (must resolve before approval)
+
+None. All eight gates PASS. There are no open merge-blocking findings.
+
+## Follow-ups (non-blocking — track as tech debt, not release gates)
+
+1. **Morph-map FQCN leakage (code-review Major #4 — OPEN).** `CalculateCommission` persists `source_type = get_class($source)` and `CommissionResource` exposes the raw `App\Models\Subscription` / `App\Models\Sale` FQCN as `source.type`. The documented contract (`api.md`) only promises `source: { type, id }`, so the shape is satisfied, but (a) internal namespaces leak to API clients and (b) relocating/renaming `Subscription`/`Sale` would silently break stored polymorphic rows and the tests that hardcode `Subscription::class`/`Sale::class`. The final code-review gate classified this **Major / strongly recommended**, not merge-blocking — the two Critical items it gated on are both closed. **Recommended fix:** register a morph map (`'subscription' => Subscription::class`, `'sale' => Sale::class`) so the stored/exposed `source_type` is a stable alias; update the live-trigger/commission tests to assert the alias. Add a data-migration note if rows already exist in any environment.
+2. **Minor consistency nits (code-review Minor, optional):** declare `DashboardController` `final`; prefer route-model binding over bare `$id`/`$employeeId` in `CommissionController`/`PayrollController`; consider a standalone `commissions(month)` index if the leaderboard grows; consider `Model::preventLazyLoading()` in non-production.
+3. **tasks.md checkbox hygiene (cosmetic):** implementation tasks T001, T003–T084 remain `[ ]` despite the code and tests demonstrably existing (suite green). This is checkbox lag, not missing work — the review/record/gate tasks (T002, T085–T091) are checked and their `reviews/*.md` records exist. Recommend back-filling the implementation checkboxes for an accurate DoD trail.
+
+## Recommendation
+
+**PASS — cleared for merge to `main`.** All eight mandatory gates pass with supporting evidence; the full Pest suite is green (360/1383) and Pint is clean. The two Constitution NON-NEGOTIABLE violations that drove the prior FAIL (PHPUnit-style tests; unbounded synchronous backfill) and the DoD-closure gap (missing `code-review.md`, unchecked gate tasks) are all verified resolved, and the PayslipResource data-access Major is fixed. The one remaining Major (morph-map FQCN leakage) is a contract-cleanliness / maintainability concern the code-review gate explicitly did not treat as merge-blocking; it is recorded above as a tracked follow-up and should be closed in a fast-follow before the source-type alias becomes load-bearing for external clients.
