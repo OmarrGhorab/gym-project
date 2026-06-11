@@ -141,21 +141,21 @@
 
 ### Tests for US4
 
-- [ ] T054 [P] [US4] Failing feature tests for `GET /sales/{id}/receipt` (200 PDF stream, 200 HTML view, 404, 403) in `tests/Feature/Api/V1/Sales/SaleReceiptTest.php`.
-- [ ] T055 [P] [US4] Failing feature tests for `GET /sales/daily` (200 correct total and list, 422 invalid date, 403) in `tests/Feature/Api/V1/Sales/DailySalesTest.php`.
-- [ ] T056 [P] [US4] Failing feature tests for `GET /sales/report` (200 grouped by product, by cashier, by day; totals reconcile with payments; 422 missing date / `from > to` / range > 366 days; 403) in `tests/Feature/Api/V1/Sales/SaleReportTest.php`.
+- [x] T054 [P] [US4] Failing feature tests for `GET /sales/{id}/receipt` (200 PDF stream, 200 HTML view, 404, 403) in `tests/Feature/Api/V1/Sales/SaleReceiptTest.php`.
+- [x] T055 [P] [US4] Failing feature tests for `GET /sales/daily` (200 correct total and list, 422 invalid date, 403) in `tests/Feature/Api/V1/Sales/DailySalesTest.php`.
+- [x] T056 [P] [US4] Failing feature tests for `GET /sales/report` (200 grouped by product, by cashier, by day; totals reconcile with payments; 422 missing date / `from > to` / range > 366 days; 403) in `tests/Feature/Api/V1/Sales/SaleReportTest.php`.
 
 ### Implementation for US4
 
-- [ ] T057 [US4] Create receipt Blade view `resources/views/receipts/sale.blade.php` (line items table, discount, total, payment method, cashier, member name if linked, date, VAT rate from `settings('vat_rate', 0)`, currency symbol from `settings('currency_symbol', 'LE')`).
-- [ ] T058 [US4] Create `app/Actions/Sales/GenerateReceipt.php`: load sale with eager-loaded items and product names; render Blade view; if `Accept: application/pdf` use dompdf to stream PDF; otherwise return HTML view. Receipt generation failure must NOT roll back or affect the sale — wrap in try/catch and surface a 500 on failure.
-- [ ] T059 [US4] Create `app/Actions/Reports/DailySalesReport.php`: query `sales` where `status=completed` and `date(created_at) = $date`; JOIN `payments` to derive total; return list + aggregate.
-- [ ] T060 [US4] Create `app/Actions/Reports/PeriodSalesReport.php`: accept `from`, `to`, optional `product_id`, `cashier_id`, `group_by`; build JOIN query with `groupBy`/`selectRaw` aggregate (SUM revenue, COUNT sales, SUM units per group); use `cursorPaginate(50)` for grouped results; validate max range 366 days.
-- [ ] T061 [US4] Add `receipt`, `daily`, and `report` methods to `app/Http/Controllers/Api/V1/SaleController.php`.
-- [ ] T062 [P] [US4] Create `app/Http/Requests/Sales/DailySalesRequest.php` (authorize `reports.view`; optional `date` validated as date).
-- [ ] T063 [P] [US4] Create `app/Http/Requests/Sales/PeriodSalesRequest.php` (authorize `reports.view`; required `from`/`to` dates; `from <= to`; max range 366 days; optional `product_id`, `cashier_id`, `group_by` in:product,cashier,day).
-- [ ] T064 [US4] Register `GET /sales/{id}/receipt`, `GET /sales/daily`, `GET /sales/report` in `routes/api/sales.php`.
-- [ ] T065 [US4] Run focused US4 tests — all green.
+- [x] T057 [US4] Create receipt Blade view `resources/views/receipts/sale.blade.php` (line items table, discount, total, payment method, cashier, member name if linked, date, VAT rate from `settings('vat_rate', 0)`, currency symbol from `settings('currency_symbol', 'LE')`).
+- [x] T058 [US4] Create `app/Actions/Sales/GenerateReceipt.php`: load sale with eager-loaded items and product names; render Blade view; if `Accept: application/pdf` use dompdf to stream PDF; otherwise return HTML view. Receipt generation failure must NOT roll back or affect the sale — wrap in try/catch and surface a 500 on failure.
+- [x] T059 [US4] Create `app/Actions/Reports/DailySalesReport.php`: query `sales` where `status=completed` and `date(created_at) = $date`; JOIN `payments` to derive total; return list + aggregate.
+- [x] T060 [US4] Create `app/Actions/Reports/PeriodSalesReport.php`: accept `from`, `to`, optional `product_id`, `cashier_id`, `group_by`; build JOIN query with `groupBy`/`selectRaw` aggregate (SUM revenue, COUNT sales, SUM units per group); use `cursorPaginate(50)` for grouped results; validate max range 366 days.
+- [x] T061 [US4] Add `receipt`, `daily`, and `report` methods to `app/Http/Controllers/Api/V1/SaleController.php`.
+- [x] T062 [P] [US4] Create `app/Http/Requests/Sales/DailySalesRequest.php` (authorize `reports.view`; optional `date` validated as date).
+- [x] T063 [P] [US4] Create `app/Http/Requests/Sales/PeriodSalesRequest.php` (authorize `reports.view`; required `from`/`to` dates; `from <= to`; max range 366 days; optional `product_id`, `cashier_id`, `group_by` in:product,cashier,day).
+- [x] T064 [US4] Register `GET /sales/{id}/receipt`, `GET /sales/daily`, `GET /sales/report` in `routes/api/sales.php`.
+- [x] T065 [US4] Run focused US4 tests — all green.
 
 **Checkpoint**: Receipts available for every completed sale; daily and periodic reports accurate and reconciled with payments.
 
