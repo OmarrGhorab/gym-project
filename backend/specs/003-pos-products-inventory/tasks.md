@@ -52,26 +52,26 @@
 
 ### Tests for US1
 
-- [ ] T015 [P] [US1] Failing feature tests for `GET /products` (list, filters `is_active`/`is_low_stock`/`category`/`search`, pagination, 200/401/403) in `tests/Feature/Api/V1/Products/ProductIndexTest.php`.
-- [ ] T016 [P] [US1] Failing feature tests for `POST /products` (201, 422 duplicate SKU/invalid fields, 403) in `tests/Feature/Api/V1/Products/ProductStoreTest.php`.
-- [ ] T017 [P] [US1] Failing feature tests for `PUT /products/{id}` and `PATCH /products/{id}/toggle` (200, 404, 422, 403) in `tests/Feature/Api/V1/Products/ProductUpdateTest.php`.
-- [ ] T018 [P] [US1] Failing feature tests for `POST /products/{id}/stock` (201, 422 over-deduct, 403 without `inventory.adjust`) and `GET /products/{id}/image` (200 stream, 403, 404) in `tests/Feature/Api/V1/Products/ProductStockTest.php`.
+- [x] T015 [P] [US1] Failing feature tests for `GET /products` (list, filters `is_active`/`is_low_stock`/`category`/`search`, pagination, 200/401/403) in `tests/Feature/Api/V1/Products/ProductIndexTest.php`.
+- [x] T016 [P] [US1] Failing feature tests for `POST /products` (201, 422 duplicate SKU/invalid fields, 403) in `tests/Feature/Api/V1/Products/ProductStoreTest.php`.
+- [x] T017 [P] [US1] Failing feature tests for `PUT /products/{id}` and `PATCH /products/{id}/toggle` (200, 404, 422, 403) in `tests/Feature/Api/V1/Products/ProductUpdateTest.php`.
+- [x] T018 [P] [US1] Failing feature tests for `POST /products/{id}/stock` (201, 422 over-deduct, 403 without `inventory.adjust`) and `GET /products/{id}/image` (200 stream, 403, 404) in `tests/Feature/Api/V1/Products/ProductStockTest.php`.
 
 ### Implementation for US1
 
-- [ ] T019 [US1] Create `app/Models/Product.php` (explicit `$fillable`, decimal casts, `LogsActivity`, `active()` and `lowStock()` scopes, `is_low_stock` computed accessor, relations: `saleItems`, `inventoryMovements`).
-- [ ] T020 [P] [US1] Create `database/factories/ProductFactory.php` (realistic gym product data: name, sku, price, cost, stock, threshold, category).
-- [ ] T021 [P] [US1] Create `app/Policies/ProductPolicy.php` (viewAny/view/create/update/delete mapped to `products.*`; image stream uses `view`).
-- [ ] T022 [P] [US1] Create `app/Http/Requests/Products/StoreProductRequest.php` (authorize via `ProductPolicy@create`; rules: name, category, sku unique, price gt:0, cost gte:0, stock gte:0, threshold gte:0, image mimes/size optional).
-- [ ] T023 [P] [US1] Create `app/Http/Requests/Products/UpdateProductRequest.php` (authorize via `ProductPolicy@update`; same rules, sku unique excluding current).
-- [ ] T024 [P] [US1] Create `app/Http/Resources/ProductResource.php` (envelope-compatible; includes `is_low_stock` computed boolean, `image_url` pointing to `/api/v1/products/{id}/image`; `whenLoaded` guards on relations).
-- [ ] T025 [P] [US1] Create `app/Models/InventoryMovement.php` (explicit `$fillable`, `LogsActivity`, relations: `product`, `createdBy`).
-- [ ] T026 [P] [US1] Create `app/Http/Resources/InventoryMovementResource.php`.
-- [ ] T027 [P] [US1] Create `database/factories/InventoryMovementFactory.php`.
-- [ ] T028 [US1] Create Actions in `app/Actions/Products/`: `StoreProduct` (handle image upload to local disk, persist path), `UpdateProduct` (replace image if provided), `ToggleProduct`, `AdjustStock` (validate `type=out` does not exceed current stock, decrement/increment `stock_quantity`, write `InventoryMovement` row, all in `DB::transaction`).
-- [ ] T029 [US1] Create `app/Http/Controllers/Api/V1/ProductController.php` (index with Spatie Query Builder filters/sorts, store, show, update, toggle, stock-adjust, image-stream via Policy-gated `Storage::disk('local')->get`).
-- [ ] T030 [US1] Register product routes in `routes/api/products.php` under `auth:sanctum`; write routes throttled.
-- [ ] T031 [US1] Run focused US1 tests — all green.
+- [x] T019 [US1] Create `app/Models/Product.php` (explicit `$fillable`, decimal casts, `LogsActivity`, `active()` and `lowStock()` scopes, `is_low_stock` computed accessor, relations: `saleItems`, `inventoryMovements`).
+- [x] T020 [P] [US1] Create `database/factories/ProductFactory.php` (realistic gym product data: name, sku, price, cost, stock, threshold, category).
+- [x] T021 [P] [US1] Create `app/Policies/ProductPolicy.php` (viewAny/view/create/update/delete mapped to `products.*`; image stream uses `view`).
+- [x] T022 [P] [US1] Create `app/Http/Requests/Products/StoreProductRequest.php` (authorize via `ProductPolicy@create`; rules: name, category, sku unique, price gt:0, cost gte:0, stock gte:0, threshold gte:0, image mimes/size optional).
+- [x] T023 [P] [US1] Create `app/Http/Requests/Products/UpdateProductRequest.php` (authorize via `ProductPolicy@update`; same rules, sku unique excluding current).
+- [x] T024 [P] [US1] Create `app/Http/Resources/ProductResource.php` (envelope-compatible; includes `is_low_stock` computed boolean, `image_url` pointing to `/api/v1/products/{id}/image`; `whenLoaded` guards on relations).
+- [x] T025 [P] [US1] Create `app/Models/InventoryMovement.php` (explicit `$fillable`, `LogsActivity`, relations: `product`, `createdBy`).
+- [x] T026 [P] [US1] Create `app/Http/Resources/InventoryMovementResource.php`.
+- [x] T027 [P] [US1] Create `database/factories/InventoryMovementFactory.php`.
+- [x] T028 [US1] Create Actions in `app/Actions/Products/`: `StoreProduct` (handle image upload to local disk, persist path), `UpdateProduct` (replace image if provided), `ToggleProduct`, `AdjustStock` (validate `type=out` does not exceed current stock, decrement/increment `stock_quantity`, write `InventoryMovement` row, all in `DB::transaction`).
+- [x] T029 [US1] Create `app/Http/Controllers/Api/V1/ProductController.php` (index with Spatie Query Builder filters/sorts, store, show, update, toggle, stock-adjust, image-stream via Policy-gated `Storage::disk('local')->get`).
+- [x] T030 [US1] Register product routes in `routes/api/products.php` under `auth:sanctum`; write routes throttled.
+- [x] T031 [US1] Run focused US1 tests — all green.
 
 **Checkpoint**: Product catalog fully functional and independently testable. Managers can maintain the full catalog with images and stock control.
 
