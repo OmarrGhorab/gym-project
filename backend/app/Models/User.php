@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -50,5 +51,27 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // -------------------------------------------------------------------------
+    // Relations
+    // -------------------------------------------------------------------------
+
+    /**
+     * Subscriptions sold by this user (via sold_by_user_id FK on subscriptions).
+     *
+     * The Subscription model is defined in Phase 1 (US3, T044). This relation
+     * is declared here now so the User model is ready when subscriptions are
+     * introduced, without requiring a model-level change in a later story.
+     *
+     * Why sold_by_user_id → users (not employees)?
+     * The integration map mandates that sold_by_user_id references users
+     * directly; Phase 3 (commissions) links via employees.user_id + backfill.
+     *
+     * @return HasMany<Subscription>
+     */
+    public function subscriptionsSold(): HasMany
+    {
+        return $this->hasMany(Subscription::class, 'sold_by_user_id');
     }
 }

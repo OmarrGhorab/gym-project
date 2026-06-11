@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Http\Requests\Subscriptions;
+
+use App\Models\Subscription;
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreSubscriptionRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('create', Subscription::class);
+    }
+
+    public function rules(): array
+    {
+        return [
+            'member_id' => ['required', 'integer', 'exists:members,id'],
+            'plan_id' => ['required', 'integer', 'exists:plans,id'],
+            'start_date' => ['required', 'date'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'payment.amount' => ['required', 'numeric', 'gt:0'],
+            'payment.method' => ['required', 'string', 'max:50'],
+            'payment.paid_at' => ['nullable', 'date'],
+        ];
+    }
+}
