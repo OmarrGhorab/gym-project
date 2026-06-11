@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Actions\Settings\StoreSetting;
+use App\Actions\Settings\UpdateSettings;
 use App\Http\Requests\Settings\IndexSettingsRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Http\Resources\SettingResource;
@@ -20,7 +20,7 @@ class SettingController extends ApiController
             ->response();
     }
 
-    public function update(UpdateSettingsRequest $request, StoreSetting $storeSetting): JsonResponse
+    public function update(UpdateSettingsRequest $request, UpdateSettings $action): JsonResponse
     {
         $validated = $request->validated();
 
@@ -54,17 +54,7 @@ class SettingController extends ApiController
             $flatSettings['receipt_template'] = $validated['receipt_template'];
         }
 
-        foreach ($flatSettings as $key => $value) {
-            $storeSetting->execute($key, $value);
-        }
-
-        // Log settings update in the audit log
-        activity()
-            ->causedBy($request->user())
-            ->log('Updated system settings');
-
-        // Fetch fresh settings and return
-        $settings = Setting::all()->pluck('value', 'key')->toArray();
+        $settings = $action->handle($flatSettings, $request->user());
 
         return (new SettingResource($settings))
             ->withMessage('Settings updated successfully')

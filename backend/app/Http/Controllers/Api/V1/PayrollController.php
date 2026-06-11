@@ -7,6 +7,7 @@ use App\Actions\Payroll\GeneratePayslip;
 use App\Actions\Payroll\MarkPayrollPaid;
 use App\Actions\Payroll\UpdatePayroll;
 use App\Http\Requests\Payroll\GeneratePayrollRequest;
+use App\Http\Requests\Payroll\IndexPayrollRequest;
 use App\Http\Requests\Payroll\UpdatePayrollRequest;
 use App\Http\Resources\PayrollResource;
 use App\Http\Resources\PayslipResource;
@@ -19,10 +20,8 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 final class PayrollController extends ApiController
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexPayrollRequest $request): JsonResponse
     {
-        $this->authorize('viewAny', Payroll::class);
-
         $query = Payroll::query()->with('employee');
 
         if ($request->filled('month')) {

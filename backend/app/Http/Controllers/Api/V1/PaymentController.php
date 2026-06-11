@@ -14,8 +14,6 @@ class PaymentController extends ApiController
 {
     public function index(IndexPaymentRequest $request): JsonResponse
     {
-        $this->authorize('viewAny', Payment::class);
-
         $status = $request->string('status')->toString();
 
         if ($status === 'due') {
