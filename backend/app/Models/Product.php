@@ -63,9 +63,11 @@ class Product extends Model
      */
     public function scopeSearch(Builder $query, string $search): Builder
     {
-        return $query->where(function (Builder $q) use ($search): void {
-            $q->where('name', 'like', "%{$search}%")
-                ->orWhere('sku', 'like', "%{$search}%");
+        $escaped = str_replace(['%', '_'], ['\%', '\_'], $search);
+
+        return $query->where(function (Builder $q) use ($escaped): void {
+            $q->where('name', 'like', "%{$escaped}%")
+                ->orWhere('sku', 'like', "%{$escaped}%");
         });
     }
 

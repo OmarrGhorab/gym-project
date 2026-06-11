@@ -44,17 +44,16 @@ class DashboardController extends ApiController
      */
     public function salesToday(): JsonResponse
     {
-        $query = DB::table('sales')
+        $result = DB::table('sales')
             ->whereDate('created_at', now()->toDateString())
-            ->where('status', 'completed');
-
-        $count = $query->count();
-        $revenue = $query->sum('total');
+            ->where('status', 'completed')
+            ->selectRaw('COUNT(*) as count, COALESCE(SUM(total), 0) as revenue')
+            ->first();
 
         return $this->success(
             data: [
-                'count' => $count,
-                'revenue' => number_format((float) $revenue, 2, '.', ''),
+                'count' => $result->count,
+                'revenue' => number_format((float) $result->revenue, 2, '.', ''),
             ],
             message: "Today's sales retrieved",
         );

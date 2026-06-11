@@ -34,6 +34,7 @@ class StoreSaleRequest extends FormRequest
             'items.*.product_id' => [
                 'required',
                 'integer',
+                'distinct',
                 Rule::exists('products', 'id')->where(function ($query) {
                     $query->where('is_active', true);
                 }),

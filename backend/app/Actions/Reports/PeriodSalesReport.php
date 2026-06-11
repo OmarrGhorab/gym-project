@@ -47,6 +47,7 @@ class PeriodSalesReport
         } elseif ($groupBy === 'cashier') {
             $query = DB::table('sales')
                 ->join('users', 'users.id', '=', 'sales.sold_by_user_id')
+                ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.status', 'completed')
                 ->whereBetween('sales.created_at', [$from.' 00:00:00', $to.' 23:59:59']);
 
@@ -54,25 +55,21 @@ class PeriodSalesReport
                 $query->where('sales.sold_by_user_id', $cashierId);
             }
             if ($productId) {
-                $query->whereExists(function ($q) use ($productId): void {
-                    $q->select(DB::raw(1))
-                        ->from('sale_items')
-                        ->whereColumn('sale_items.sale_id', 'sales.id')
-                        ->where('sale_items.product_id', $productId);
-                });
+                $query->where('sale_items.product_id', $productId);
             }
 
             $query->groupBy('sales.sold_by_user_id', 'users.name')
                 ->selectRaw('
                     sales.sold_by_user_id,
                     users.name as cashier_name,
-                    SUM(sales.total) as revenue,
-                    COUNT(sales.id) as sales_count,
-                    CAST(SUM((select SUM(quantity) from sale_items where sale_id = sales.id)) AS SIGNED) as units_sold
+                    SUM(DISTINCT sales.total) as revenue,
+                    COUNT(DISTINCT sales.id) as sales_count,
+                    CAST(SUM(sale_items.quantity) AS SIGNED) as units_sold
                 ')
                 ->orderBy('sales.sold_by_user_id');
         } else { // day
             $query = DB::table('sales')
+                ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.status', 'completed')
                 ->whereBetween('sales.created_at', [$from.' 00:00:00', $to.' 23:59:59']);
 
@@ -80,20 +77,15 @@ class PeriodSalesReport
                 $query->where('sales.sold_by_user_id', $cashierId);
             }
             if ($productId) {
-                $query->whereExists(function ($q) use ($productId): void {
-                    $q->select(DB::raw(1))
-                        ->from('sale_items')
-                        ->whereColumn('sale_items.sale_id', 'sales.id')
-                        ->where('sale_items.product_id', $productId);
-                });
+                $query->where('sale_items.product_id', $productId);
             }
 
             $query->groupBy(DB::raw('DATE(sales.created_at)'))
                 ->selectRaw('
                     DATE(sales.created_at) as date,
-                    SUM(sales.total) as revenue,
-                    COUNT(sales.id) as sales_count,
-                    CAST(SUM((select SUM(quantity) from sale_items where sale_id = sales.id)) AS SIGNED) as units_sold
+                    SUM(DISTINCT sales.total) as revenue,
+                    COUNT(DISTINCT sales.id) as sales_count,
+                    CAST(SUM(sale_items.quantity) AS SIGNED) as units_sold
                 ')
                 ->orderBy('date', 'desc');
         }

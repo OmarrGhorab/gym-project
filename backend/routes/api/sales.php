@@ -23,5 +23,5 @@ Route::prefix('sales')->group(function (): void {
         ->middleware(['throttle:api', 'permission:sales.void']);
 
     Route::get('/{sale}/receipt', [SaleController::class, 'receipt'])
-        ->middleware('permission:sales.view');
+        ->middleware(['throttle:api', 'permission:sales.view']);
 });
