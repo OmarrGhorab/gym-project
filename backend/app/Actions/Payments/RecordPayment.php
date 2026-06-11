@@ -18,13 +18,11 @@ class RecordPayment
         return DB::transaction(function () use ($subscription, $data, $creator): Payment {
             $lockedSubscription = Subscription::query()
                 ->lockForUpdate()
-                ->with('payments')
                 ->findOrFail($subscription->id);
 
-            $paidSoFar = $lockedSubscription->payments
-                ->reduce(fn (string $carry, Payment $payment) => bcadd($carry, (string) $payment->amount, 2), '0.00');
+            $paidSoFar = bcadd((string) $lockedSubscription->payments()->sum('amount'), '0.00', 2);
 
-            $amount = number_format((float) $data['amount'], 2, '.', '');
+            $amount = bcadd((string) $data['amount'], '0.00', 2);
             $newTotal = bcadd($paidSoFar, $amount, 2);
             $owed = (string) $lockedSubscription->price_paid;
 
@@ -36,7 +34,7 @@ class RecordPayment
 
             if (bccomp($newTotal, $owed, 2) === 1) {
                 throw ValidationException::withMessages([
-                    'payment.amount' => 'Payment amount exceeds the outstanding balance.',
+                    'amount' => 'Payment amount exceeds the outstanding balance.',
                 ]);
             }
 

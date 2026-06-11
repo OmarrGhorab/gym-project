@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Requests\Notifications\IndexNotificationRequest;
 use App\Http\Resources\NotificationResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class NotificationController extends ApiController
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexNotificationRequest $request): JsonResponse
     {
         $notifications = $request->user()
             ->notifications()

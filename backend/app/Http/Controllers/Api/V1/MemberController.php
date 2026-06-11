@@ -28,13 +28,16 @@ final class MemberController extends ApiController
     {
         $this->authorize('viewAny', Member::class);
 
-        $members = QueryBuilder::for(Member::class)
+        $members = QueryBuilder::for($this->memberQueryWithTotalPaid())
             ->allowedFilters(
                 AllowedFilter::exact('status'),
                 AllowedFilter::callback('search', function ($query, string $value): void {
+                    $value = trim($value);
+
                     $query->where(function ($q) use ($value): void {
-                        $q->where('name', 'like', "%{$value}%")
-                            ->orWhere('phone', 'like', "%{$value}%");
+                        $q->where('name', 'like', "{$value}%")
+                            ->orWhere('phone', 'like', "{$value}%")
+                            ->orWhere('phone', 'like', '+'.$value.'%');
                     });
                 }),
             )
@@ -73,6 +76,10 @@ final class MemberController extends ApiController
     public function show(Request $request, Member $member): JsonResponse
     {
         $this->authorize('view', $member);
+
+        $member = $this->memberQueryWithTotalPaid()
+            ->whereKey($member->id)
+            ->firstOrFail();
 
         return (new MemberResource($member))
             ->withMessage('Member retrieved')
@@ -131,6 +138,15 @@ final class MemberController extends ApiController
 
     public function payments(Request $request, Member $member): JsonResponse
     {
+        if (! $request->user()->can('view', $member) || ! $request->user()->can('viewAny', Payment::class)) {
+            return $this->error(
+                code: 'forbidden',
+                message: 'You do not have permission to perform this action.',
+                details: (object) [],
+                status: 403,
+            );
+        }
+
         $payments = Payment::query()
             ->whereHasMorph(
                 'payable',
@@ -151,5 +167,21 @@ final class MemberController extends ApiController
                 'last_page' => $payments->lastPage(),
             ],
         );
+    }
+
+    private function memberQueryWithTotalPaid()
+    {
+        return Member::query()
+            ->select('members.*')
+            ->selectSub(
+                Payment::query()
+                    ->selectRaw('COALESCE(SUM(payments.amount), 0)')
+                    ->join('subscriptions', function ($join): void {
+                        $join->on('subscriptions.id', '=', 'payments.payable_id')
+                            ->where('payments.payable_type', '=', Subscription::class);
+                    })
+                    ->whereColumn('subscriptions.member_id', 'members.id'),
+                'total_paid',
+            );
     }
 }

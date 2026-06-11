@@ -6,12 +6,6 @@ use App\Http\Resources\Concerns\WrapsApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/**
- * Shapes the Member API response.
- *
- * Dues totals would use withSum('payments','amount') aggregate (M2) once the
- * payments table exists. Until then, total_paid defaults to 0.
- */
 final class MemberResource extends JsonResource
 {
     use WrapsApiResponse;
@@ -31,8 +25,7 @@ final class MemberResource extends JsonResource
             'notes' => $this->notes,
             'has_photo' => (bool) $this->photo_path,
             'created_by' => $this->created_by,
-            // Dues aggregate: 0 until payments table is available (graceful degradation).
-            'total_paid' => 0,
+            'total_paid' => bcadd((string) ($this->total_paid ?? '0.00'), '0.00', 2),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

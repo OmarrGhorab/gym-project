@@ -59,3 +59,44 @@ test('dues list returns subscriptions with outstanding balances only', function 
     expect($ids)->toContain($dueSubscription->id)
         ->not->toContain($paidSubscription->id);
 });
+
+test('payment index filters by payment status when status is not due', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+    ]);
+
+    $paid = Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'status' => 'paid',
+    ]);
+
+    Payment::factory()->partial()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'status' => 'partial',
+    ]);
+
+    $response = $this->getJson('/api/v1/payments?status=paid')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 1);
+
+    expect(collect($response->json('data'))->pluck('id')->all())->toBe([$paid->id]);
+});
+
+test('payment index rejects invalid status filter', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/payments?status=unknown')
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});

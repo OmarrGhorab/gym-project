@@ -1,7 +1,7 @@
 # Members, Subscriptions & Plans — Release Readiness Audit (T109)
 
 **Auditor:** release-readiness-auditor
-**Date:** 2026-06-10
+**Date:** 2026-06-11
 **Scope:** Spec `002-members-subscriptions-plans` backend slice only
 **Authority:** `.specify/memory/constitution.md`, `specs/002-members-subscriptions-plans/tasks.md`
 
@@ -25,15 +25,14 @@ Phase 10 requirements are complete and the feature is release-ready for the impl
 
 ## Evidence
 
-- `vendor/bin/pint --test` surfaced only style issues, which were fixed with `vendor/bin/pint`
-- `~/.config/herd-lite/bin/php artisan test` passed with **190 tests / 664 assertions**
+- `vendor/bin/pint --test` passed
+- `~/.config/herd-lite/bin/php artisan test` passed with **202 tests / 703 assertions**
 - Review artifacts now exist under `specs/002-members-subscriptions-plans/reviews/`
-- `tasks.md` Phase 10 can be marked complete with no open blockers
+- `tasks.md` Phase 10 remains complete with no open blockers
 
 ## Residual Risk
 
-- `GET /dashboard/expiring-soon` currently shares reminder-eligibility semantics and in-memory pagination behavior; acceptable for this phase, but worth refining before scale grows.
-- Notification inbox routes are auth-scoped and own-user safe, but not explicitly gated by the seeded `notifications.view` permission.
+- The stale-request regression tests prove the actions re-read locked state before accepting freeze/payment writes. They are not multi-process load tests, which is appropriate for the local SQLite test strategy.
 
 ## Conclusion
 

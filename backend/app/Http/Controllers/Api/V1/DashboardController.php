@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Actions\Reminders\FindExpiringSubscriptions;
+use App\Actions\Dashboard\ListExpiringSoonSubscriptions;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
@@ -21,20 +21,18 @@ class DashboardController extends ApiController
         );
     }
 
-    public function expiringSoon(FindExpiringSubscriptions $finder): JsonResponse
+    public function expiringSoon(ListExpiringSoonSubscriptions $action): JsonResponse
     {
-        $subscriptions = $finder->handle()
-            ->sortBy('end_date')
-            ->values();
+        $subscriptions = $action->handle();
 
         return $this->success(
-            data: SubscriptionResource::collection($subscriptions)->resolve(),
+            data: SubscriptionResource::collection($subscriptions->getCollection())->resolve(),
             message: 'Expiring subscriptions retrieved',
             meta: [
-                'current_page' => 1,
-                'per_page' => $subscriptions->count(),
-                'total' => $subscriptions->count(),
-                'last_page' => 1,
+                'current_page' => $subscriptions->currentPage(),
+                'per_page' => $subscriptions->perPage(),
+                'total' => $subscriptions->total(),
+                'last_page' => $subscriptions->lastPage(),
             ],
         );
     }

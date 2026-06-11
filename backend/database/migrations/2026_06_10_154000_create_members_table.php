@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('members', function (Blueprint $table): void {
             $table->id();
-            $table->string('name', 150);
+            $table->string('name', 150)->index();
             $table->string('phone', 30)->index();
             $table->string('email', 150)->nullable()->unique();
             $table->string('gender', 10)->nullable();
@@ -25,6 +25,8 @@ return new class extends Migration
                 ->constrained('users')
                 ->nullOnDelete();
             $table->timestamps();
+
+            $table->index('created_at');
         });
     }
 

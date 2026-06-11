@@ -77,3 +77,23 @@ test('user cannot mark another users notification as read', function (): void {
         ->assertStatus(404)
         ->assertJsonPath('error.code', 'not_found');
 });
+
+test('user without notifications view permission receives 403', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/notifications')
+        ->assertStatus(403)
+        ->assertJsonPath('error.code', 'forbidden');
+});
+
+test('notification index rejects invalid unread filter', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/notifications?unread=definitely')
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});

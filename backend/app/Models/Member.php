@@ -46,7 +46,8 @@ class Member extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logFillable()
+            ->useLogName('members')
+            ->logOnly(['status', 'created_by'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }

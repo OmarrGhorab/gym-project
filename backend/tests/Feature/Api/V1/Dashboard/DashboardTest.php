@@ -64,7 +64,7 @@ test('dashboard expiring soon endpoint returns in window subscriptions with pagi
         'member_id' => $member->id,
         'plan_id' => $plan->id,
         'end_date' => '2026-06-15',
-        'last_reminded_on' => null,
+        'last_reminded_on' => '2026-06-10',
     ]);
 
     Subscription::factory()->active()->create([
@@ -77,11 +77,20 @@ test('dashboard expiring soon endpoint returns in window subscriptions with pagi
     $this->getJson('/api/v1/dashboard/expiring-soon')
         ->assertStatus(200)
         ->assertJsonPath('data.0.id', $inWindow->id)
+        ->assertJsonPath('meta.current_page', 1)
+        ->assertJsonPath('meta.per_page', 15)
+        ->assertJsonPath('meta.total', 1)
         ->assertJsonStructure([
             'data',
             'meta' => ['current_page', 'per_page', 'total', 'last_page'],
             'message',
         ]);
+});
+
+test('dashboard expiring soon endpoint returns 401 when unauthenticated', function (): void {
+    $this->getJson('/api/v1/dashboard/expiring-soon')
+        ->assertStatus(401)
+        ->assertJsonPath('error.code', 'unauthenticated');
 });
 
 test('user without dashboard permission receives 403', function (): void {

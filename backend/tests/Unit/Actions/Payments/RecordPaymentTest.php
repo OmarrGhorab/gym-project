@@ -95,3 +95,23 @@ test('record payment rejects settled subscriptions', function (): void {
         'method' => 'cash',
     ]))->toThrow(ValidationException::class);
 });
+
+test('record payment re-reads locked subscription payments before accepting a stale request', function (): void {
+    $subscription = makePaymentSubscription([
+        'price_paid' => '300.00',
+    ]);
+
+    $staleSubscription = Subscription::query()->findOrFail($subscription->id);
+
+    Payment::factory()->partial()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '250.00',
+    ]);
+
+    expect(fn () => app(RecordPayment::class)->handle($staleSubscription, [
+        'amount' => '60.00',
+        'method' => 'cash',
+    ]))->toThrow(ValidationException::class)
+        ->and(Payment::where('payable_id', $subscription->id)->count())->toBe(1);
+});

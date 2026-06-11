@@ -56,7 +56,7 @@ All endpoints reuse the Phase 0 envelope. Every non-public endpoint requires `au
 **Auth**: `members.view` (Policy-gated stream — SEC-M3). Streams the private file. **404** if none.
 
 ### GET /members/{id}/payments
-**Auth**: `payments.view`. Paginated `PaymentResource` for the member's subscriptions.
+**Auth**: `members.view` + `payments.view`. Paginated `PaymentResource` for the member's subscriptions.
 
 ---
 
@@ -115,14 +115,14 @@ Server derives `end_date = start_date + plan.duration_days`, sets `status=active
 ## Payments
 
 ### POST /payments
-**Auth**: `payments.create`. **Request**:
+**Auth**: `payments.create` + `subscriptions.view` on the target subscription. **Request**:
 ```json
 { "subscription_id": 5, "amount": "150.00", "method": "cash", "paid_at": "2026-06-10" }
 ```
-Records a payment against the subscription; sets payment `status` (`paid` clears balance, `partial` leaves a due). **201**: `PaymentResource`. **422** on overpayment / settled subscription. **404** if subscription missing. **403** without permission.
+Records a payment against the subscription; sets payment `status` (`paid` clears balance, `partial` leaves a due). **201**: `PaymentResource`. **422** on invalid status filter/overpayment/settled subscription. **404** if subscription missing. **403** without payment create permission or target subscription visibility.
 
-### GET /payments?status=due
-**Auth**: `payments.view`. **Query**: `?status=paid|partial|due`, `?page=`.
+### GET /payments
+**Auth**: `payments.view`. **Query**: `?status=paid|partial|due`, `?page=`. Invalid `status` returns **422**.
 
 When `status=due`, the response is a paginated outstanding-subscriptions view, not `PaymentResource` items:
 ```json
@@ -161,10 +161,10 @@ For other statuses, the endpoint returns paginated `PaymentResource` items.
 ## Notifications
 
 ### GET /notifications
-**Auth**: authenticated (own notifications). **Query**: `?unread=true`, `?page=`. Paginated `NotificationResource` for the current user.
+**Auth**: `notifications.view` (own notifications). **Query**: `?unread=true`, `?page=`. Paginated `NotificationResource` for the current user.
 
 ### POST /notifications/{id}/read
-**Auth**: authenticated (own). Sets `read_at`. **200**. **404** if not the user's notification.
+**Auth**: `notifications.view` (own). Sets `read_at`. **200**. **404** if not the user's notification.
 
 ---
 
@@ -176,7 +176,7 @@ For other statuses, the endpoint returns paginated `PaymentResource` items.
 ### GET /dashboard/expiring-soon
 **Auth**: `dashboard.view`. **Query**: `?page=`.
 
-Current shipped behavior returns a single-page `SubscriptionResource` collection for active subscriptions whose `end_date` is within `settings.reminder_days` **and** whose `last_reminded_on` is not today, because it reuses the reminder finder. The response still includes pagination-shaped `meta`, but `current_page`, `per_page`, `total`, and `last_page` are all derived from that in-memory collection.
+Returns a paginated `SubscriptionResource` collection for active subscriptions whose `end_date` is within `settings.reminder_days`. Dashboard visibility is independent from reminder idempotency, so subscriptions already reminded today still appear here.
 
 ---
 

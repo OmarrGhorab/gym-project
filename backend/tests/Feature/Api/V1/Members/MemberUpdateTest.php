@@ -1,12 +1,16 @@
 <?php
 
 use App\Models\Member;
+use App\Models\Payment;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
@@ -32,6 +36,48 @@ test('admin can show a member', function (): void {
             ->where('data.id', $member->id)
             ->where('data.name', 'Sara Ali')
         );
+});
+
+test('member show includes aggregate total paid for their subscriptions', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create();
+    $otherMember = Member::factory()->create();
+    $plan = Plan::factory()->active()->create();
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+    ]);
+
+    $otherSubscription = Subscription::factory()->active()->create([
+        'member_id' => $otherMember->id,
+        'plan_id' => $plan->id,
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '125.50',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '74.50',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $otherSubscription->id,
+        'amount' => '999.00',
+    ]);
+
+    $this->getJson("/api/v1/members/{$member->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.total_paid', '200.00');
 });
 
 test('show returns 404 for non-existent member', function (): void {
@@ -81,6 +127,43 @@ test('admin can update member fields', function (): void {
             ->where('data.name', 'New Name')
             ->etc()
         );
+});
+
+test('member audit log does not store sensitive pii values', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create([
+        'phone' => '+201234567890',
+        'email' => 'sara@example.com',
+        'national_id' => '29504120012345',
+        'notes' => 'Sensitive note',
+    ]);
+
+    $this->putJson("/api/v1/members/{$member->id}", [
+        'name' => $member->name,
+        'phone' => '+201111111111',
+        'email' => 'updated@example.com',
+        'national_id' => '29999999999999',
+        'notes' => 'Updated sensitive note',
+    ])->assertStatus(200);
+
+    $propertiesJson = Activity::query()
+        ->where('subject_type', Member::class)
+        ->latest()
+        ->value('properties')
+        ->toJson();
+
+    expect($propertiesJson)
+        ->not->toContain('+201234567890')
+        ->not->toContain('+201111111111')
+        ->not->toContain('sara@example.com')
+        ->not->toContain('updated@example.com')
+        ->not->toContain('29504120012345')
+        ->not->toContain('29999999999999')
+        ->not->toContain('Sensitive note')
+        ->not->toContain('Updated sensitive note');
 });
 
 test('update returns 404 for non-existent member', function (): void {

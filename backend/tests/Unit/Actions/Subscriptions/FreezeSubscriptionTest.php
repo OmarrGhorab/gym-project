@@ -81,3 +81,33 @@ test('freeze subscription rejects invalid status', function (): void {
         'freeze_end' => '2026-06-12',
     ], $user))->toThrow(ValidationException::class);
 });
+
+test('freeze subscription re-reads locked freeze totals before accepting a stale request', function (): void {
+    $user = User::factory()->create();
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'max_freeze_days' => 5,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-30',
+    ]);
+
+    $staleSubscription = Subscription::query()->findOrFail($subscription->id);
+
+    app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-01',
+        'freeze_end' => '2026-06-03',
+        'reason' => 'first freeze',
+    ], $user);
+
+    $subscription->refresh()->update(['status' => 'active']);
+
+    expect(fn () => app(FreezeSubscription::class)->handle($staleSubscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+        'reason' => 'stale second freeze',
+    ], $user))->toThrow(ValidationException::class)
+        ->and(SubscriptionFreeze::where('subscription_id', $subscription->id)->count())->toBe(1);
+});

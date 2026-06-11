@@ -6,6 +6,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use App\Support\MembershipPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,12 +93,28 @@ test('payment store returns 404 for missing subscription', function (): void {
         'subscription_id' => 99999,
         'amount' => '60.00',
         'method' => 'cash',
-    ])->assertStatus(422);
+    ])->assertStatus(404)
+        ->assertJsonPath('error.code', 'not_found');
 });
 
 test('user without payments create permission receives 403', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
+    Sanctum::actingAs($user);
+
+    $subscription = makePayableSubscription();
+
+    $this->postJson('/api/v1/payments', [
+        'subscription_id' => $subscription->id,
+        'amount' => '60.00',
+        'method' => 'cash',
+    ])->assertStatus(403)
+        ->assertJsonPath('error.code', 'forbidden');
+});
+
+test('user with payments create but without subscription view cannot record payment', function (): void {
+    $user = User::factory()->create();
+    $user->givePermissionTo(MembershipPermissions::PERM_PAYMENTS_CREATE);
     Sanctum::actingAs($user);
 
     $subscription = makePayableSubscription();

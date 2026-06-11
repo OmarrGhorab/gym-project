@@ -22,8 +22,6 @@ return new class extends Migration
                 ->constrained('users')
                 ->nullOnDelete();
             $table->timestamps();
-
-            $table->index('subscription_id');
         });
     }
 

@@ -76,7 +76,7 @@ $PHP artisan subscriptions:expire
 ### 8. Dashboard read models (US7)
 `GET /dashboard/active-subscriptions` → count matches active rows.
 `GET /dashboard/expiring-soon` → exactly the in-window subscriptions, paginated.
-**Expected**: the current implementation returns a single-page envelope of active subscriptions within `settings.reminder_days` that have **not** already been reminded today.
+**Expected**: active subscriptions within `settings.reminder_days` are returned with real pagination, even if they were already reminded today.
 
 ---
 
