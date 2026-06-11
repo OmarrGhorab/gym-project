@@ -69,7 +69,7 @@ Route::prefix('v1')->group(function (): void {
     // Auth middleware is declared inside each file or inherited here.
     // All areas require authentication; public health/auth above opt out.
     // ------------------------------------------------------------------
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function (): void {
         require __DIR__.'/api/members.php';
         require __DIR__.'/api/plans.php';
         require __DIR__.'/api/subscriptions.php';
@@ -83,5 +83,9 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/payroll.php';
         require __DIR__.'/api/expenses.php';
         require __DIR__.'/api/reports.php';
+        require __DIR__.'/api/roles.php';
+        require __DIR__.'/api/settings.php';
+        require __DIR__.'/api/audit.php';
+        require __DIR__.'/api/export.php';
     });
 });

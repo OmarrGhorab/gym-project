@@ -85,9 +85,8 @@ class CheckInfrastructureReadiness
     }
 
     /**
-     * Queue readiness is proven by the FoundationProbeJob test (QueueProbeTest).
-     * Here we report true if the configured driver name is resolvable — a basic
-     * configuration sanity check without dispatching a job inline.
+     * Queue readiness is a configuration sanity check: returns true when the
+     * configured driver name is a non-empty string.
      */
     private function checkQueue(): bool
     {

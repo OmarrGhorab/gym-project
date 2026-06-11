@@ -68,5 +68,5 @@ Two integration contracts to preserve across phases (see the map):
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/004-employees-payroll-reports/plan.md` (Phase 3 — Employees, Payroll, Commissions & Reports).
+`specs/005-permissions-audit-branding/plan.md` (Phase 4 — Permissions Matrix, Audit, Export, Branding & QA).
 <!-- SPECKIT END -->

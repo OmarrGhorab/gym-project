@@ -14,8 +14,6 @@ class PaymentController extends ApiController
 {
     public function index(IndexPaymentRequest $request): JsonResponse
     {
-        $this->authorize('viewAny', Payment::class);
-
         $status = $request->string('status')->toString();
 
         if ($status === 'due') {
@@ -92,14 +90,7 @@ class PaymentController extends ApiController
     {
         $subscription = Subscription::query()->findOrFail($request->integer('subscription_id'));
 
-        if (! $request->user()->can('view', $subscription)) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to perform this action.',
-                details: (object) [],
-                status: 403,
-            );
-        }
+        $this->authorize('view', $subscription);
 
         $payment = $action->handle($subscription, $request->validated(), $request->user());
 

@@ -6,10 +6,17 @@ use App\Models\Sale;
 use App\Models\Subscription;
 use App\Observers\SaleObserver;
 use App\Observers\SubscriptionObserver;
+use App\Policies\AuditLogPolicy;
+use App\Policies\RolePolicy;
+use App\Support\SystemPermissions;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +37,28 @@ class AppServiceProvider extends ServiceProvider
 
         Subscription::observe(SubscriptionObserver::class);
         Sale::observe(SaleObserver::class);
+
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Activity::class, AuditLogPolicy::class);
+
+        // Ownership check for signed export download/status routes.
+        // The signed URL already limits forgery; this gate ensures only the
+        // requesting user can download their own export (FR-019/V).
+        Gate::define('download-export', function ($user, string $exportId) {
+            $metadata = Cache::get("export:{$exportId}");
+
+            return $metadata !== null && $metadata['user_id'] === $user->id;
+        });
+
+        Gate::define('export-resource', function ($user, string $resource) {
+            $validResources = array_keys(SystemPermissions::EXPORT_PERMISSION_MAP);
+            if (! in_array($resource, $validResources, true)) {
+                return true; // Let Controller validate and return 422
+            }
+            $permission = SystemPermissions::EXPORT_PERMISSION_MAP[$resource];
+
+            return $user->can($permission);
+        });
     }
 
     /**
@@ -60,6 +89,12 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('api', function (Request $request): Limit {
             return Limit::perMinute(60)->by(
+                optional($request->user())->id ?: $request->ip(),
+            );
+        });
+
+        RateLimiter::for('export', function (Request $request): Limit {
+            return Limit::perMinute(5)->by(
                 optional($request->user())->id ?: $request->ip(),
             );
         });

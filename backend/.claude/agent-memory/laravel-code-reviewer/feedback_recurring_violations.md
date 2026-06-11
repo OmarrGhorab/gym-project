@@ -15,4 +15,9 @@ Recurring issues found in Phase 3; verify they have not recurred or regressed be
 - **Synchronous unbounded backfill via HTTP.** `CommissionController::backfill` runs the whole historical scan inline with `from`/`to` only `nullable`. The performance review marked this blocking (B1) and it was NOT remediated even though the suite was green and other B-findings were fixed. A green suite + prior "PASS with concerns" does NOT mean blocking findings were closed — re-verify each prior blocking finding against current code.
 - **FQCN leaked as polymorphic `source_type`.** Commissions store `get_class($source)` and the Resource exposes it; no morph map is enforced. Recommend `Relation::enforceMorphMap`.
 
+**Phase 4 (005-permissions-audit-branding) additions — verify these do not recur:**
+- **Inline `if (!$user->can()) return 403` in controllers.** `ExportController::export` (resource permission) and `PaymentController::store` (subscription ownership) hand-roll authz in the controller body instead of a Form Request `authorize()` / Policy / `can` middleware. Constitution §II forbids this. Grep new controllers for `->can(` and `status: 403`.
+- **`activity()->causedBy(int)`.** `GenerateExportJob` passes `$this->userId` (int) to `causedBy()`, which expects a Model — causer is silently dropped, so queued exports log with a null causer (audit gap). Pass a resolved `User::find($id)` or serialize the User.
+- **Resource leaking raw `properties`.** `AuditLogResource` returns `$this->properties` verbatim — if any future logged model stores secrets/PII in activity properties it leaks. Acceptable now (no sensitive subjects logged) but flag if payment/auth events get activity logging.
+
 **General lesson:** prior review artifacts in `specs/*/reviews/` may say PASS/remediated, but blocking findings can remain open. Read each prior review's blocking section and confirm remediation in the actual code, not the verdict line. See [[project-constitution-gates]].
