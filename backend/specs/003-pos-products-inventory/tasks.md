@@ -169,15 +169,15 @@
 
 ### Tests for US5
 
-- [ ] T066 [P] [US5] Failing feature tests for `GET /dashboard/sales-today` (200 correct values, updates after new sale, 403) in `tests/Feature/Api/V1/Dashboard/DashboardSalesTest.php`.
-- [ ] T067 [P] [US5] Failing feature tests for `GET /dashboard/top-products` (200 correct ranking for today/week/month, limit respected, 422 invalid period/limit, 403) in `tests/Feature/Api/V1/Dashboard/DashboardTopProductsTest.php`.
+- [x] T066 [P] [US5] Failing feature tests for `GET /dashboard/sales-today` (200 correct values, updates after new sale, 403) in `tests/Feature/Api/V1/Dashboard/DashboardSalesTest.php`.
+- [x] T067 [P] [US5] Failing feature tests for `GET /dashboard/top-products` (200 correct ranking for today/week/month, limit respected, 422 invalid period/limit, 403) in `tests/Feature/Api/V1/Dashboard/DashboardTopProductsTest.php`.
 
 ### Implementation for US5
 
-- [ ] T068 [P] [US5] Create `app/Http/Requests/Dashboard/TopProductsRequest.php` (authorize `reports.view`; `limit` integer 1–20 default 5; `period` in:today,week,month default:week).
-- [ ] T069 [US5] Add `salesToday()` and `topProducts()` methods to `app/Http/Controllers/Api/V1/DashboardController.php` (extend Phase 1 controller; `salesToday` uses `DB::table('sales')->whereDate('created_at', today())->where('status','completed')`; `topProducts` JOINs `sale_items` on `sales` for the period, groups by `product_id`, orders by SUM revenue DESC, limits to `$request->limit`).
-- [ ] T070 [US5] Register `GET /dashboard/sales-today` and `GET /dashboard/top-products` in `routes/api/dashboard.php` under `auth:sanctum`.
-- [ ] T071 [US5] Run focused US5 tests — all green.
+- [x] T068 [P] [US5] Create `app/Http/Requests/Dashboard/TopProductsRequest.php` (authorize `reports.view`; `limit` integer 1–20 default 5; `period` in:today,week,month default:week).
+- [x] T069 [US5] Add `salesToday()` and `topProducts()` methods to `app/Http/Controllers/Api/V1/DashboardController.php` (extend Phase 1 controller; `salesToday` uses `DB::table('sales')->whereDate('created_at', today())->where('status','completed')`; `topProducts` JOINs `sale_items` on `sales` for the period, groups by `product_id`, orders by SUM revenue DESC, limits to `$request->limit`).
+- [x] T070 [US5] Register `GET /dashboard/sales-today` and `GET /dashboard/top-products` in `routes/api/dashboard.php` under `auth:sanctum`.
+- [x] T071 [US5] Run focused US5 tests — all green.
 
 **Checkpoint**: Dashboard widgets live; managers have at-a-glance revenue and product insights.
 
