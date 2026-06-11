@@ -3,25 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Settings\StoreSetting;
+use App\Http\Requests\Settings\IndexSettingsRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Http\Resources\SettingResource;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class SettingController extends ApiController
 {
-    public function index(Request $request): JsonResponse
+    public function index(IndexSettingsRequest $request): JsonResponse
     {
-        if (! $request->user()->can('settings.manage')) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to manage settings.',
-                details: (object) [],
-                status: 403
-            );
-        }
-
         $settings = Setting::all()->pluck('value', 'key')->toArray();
 
         return (new SettingResource($settings))
@@ -31,15 +22,6 @@ class SettingController extends ApiController
 
     public function update(UpdateSettingsRequest $request, StoreSetting $storeSetting): JsonResponse
     {
-        if (! $request->user()->can('settings.manage')) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to manage settings.',
-                details: (object) [],
-                status: 403
-            );
-        }
-
         $validated = $request->validated();
 
         $flatSettings = [];

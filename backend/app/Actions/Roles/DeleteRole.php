@@ -5,7 +5,7 @@ namespace App\Actions\Roles;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use App\Support\SystemPermissions;
-use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -17,15 +17,9 @@ final class DeleteRole
 
         // 1. Refuse deleting preset roles
         if (in_array($role->name, FoundationPermissions::ALL_ROLES, true)) {
-            throw new HttpResponseException(
-                response()->json([
-                    'error' => [
-                        'code' => 'validation_failed',
-                        'message' => 'Preset roles cannot be deleted.',
-                        'details' => (object) [],
-                    ],
-                ], 422)
-            );
+            throw ValidationException::withMessages([
+                'role' => ['Preset roles cannot be deleted.'],
+            ]);
         }
 
         // 2. Lock-out guard
@@ -48,15 +42,9 @@ final class DeleteRole
             }
 
             if (! $anyUserRetains) {
-                throw new HttpResponseException(
-                    response()->json([
-                        'error' => [
-                            'code' => 'validation_failed',
-                            'message' => 'Cannot delete the last role granting role management permissions.',
-                            'details' => (object) [],
-                        ],
-                    ], 422)
-                );
+                throw ValidationException::withMessages([
+                    'role' => ['Cannot delete the last role granting role management permissions.'],
+                ]);
             }
         }
 

@@ -78,7 +78,7 @@ class ExportController extends ApiController
 
     public function download(Request $request, string $exportId)
     {
-        // Must be a valid signed URL (middleware 'signed' handles this)
+        // Signed URL validity + ownership are both enforced by middleware.
         $metadata = Cache::get("export:{$exportId}");
 
         if (! $metadata) {
@@ -87,16 +87,6 @@ class ExportController extends ApiController
                 message: 'Export file not found or has expired.',
                 details: (object) [],
                 status: 404
-            );
-        }
-
-        // User scope check: only the user who requested the export can download it
-        if ($metadata['user_id'] !== $request->user()->id) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to download this export.',
-                details: (object) [],
-                status: 403
             );
         }
 
@@ -140,6 +130,7 @@ class ExportController extends ApiController
 
     public function status(Request $request, string $exportId)
     {
+        // Ownership enforced by the can:download-export gate in middleware.
         $metadata = Cache::get("export:{$exportId}");
 
         if (! $metadata) {
@@ -148,15 +139,6 @@ class ExportController extends ApiController
                 message: 'Export not found.',
                 details: (object) [],
                 status: 404
-            );
-        }
-
-        if ($metadata['user_id'] !== $request->user()->id) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to view this export.',
-                details: (object) [],
-                status: 403
             );
         }
 

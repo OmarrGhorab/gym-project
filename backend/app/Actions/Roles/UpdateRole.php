@@ -4,7 +4,7 @@ namespace App\Actions\Roles;
 
 use App\Models\User;
 use App\Support\SystemPermissions;
-use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -37,15 +37,9 @@ final class UpdateRole
             }
 
             if (! $anyUserRetains) {
-                throw new HttpResponseException(
-                    response()->json([
-                        'error' => [
-                            'code' => 'validation_failed',
-                            'message' => 'Cannot remove role management permission from the last role holding it.',
-                            'details' => (object) [],
-                        ],
-                    ], 422)
-                );
+                throw ValidationException::withMessages([
+                    'permissions' => ['Cannot remove role management permission from the last role holding it.'],
+                ]);
             }
         }
 

@@ -8,8 +8,7 @@ class UpdateSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Checked in Controller to ensure standard API error shape on unauthorized
-        return true;
+        return $this->user()->can('settings.manage');
     }
 
     protected function prepareForValidation(): void
@@ -78,8 +77,9 @@ class UpdateSettingsRequest extends FormRequest
             'gym.colors' => ['nullable', 'array'],
             'gym.colors.primary' => ['nullable', 'string', 'regex:/^#([a-fA-F0-9]{3}){1,2}$/'],
             'gym.colors.secondary' => ['nullable', 'string', 'regex:/^#([a-fA-F0-9]{3}){1,2}$/'],
+            'gym.colors.accent' => ['nullable', 'string', 'regex:/^#([a-fA-F0-9]{3}){1,2}$/'],
             'reminder_days' => ['nullable', 'integer', 'min:0'],
-            'currency' => ['nullable', 'string', 'max:10'],
+            'currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'receipt_template' => ['nullable', 'string', 'max:1000'],
         ];

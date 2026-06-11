@@ -72,7 +72,7 @@ final class AuditLogResource extends JsonResource
                 'name' => $this->causer->name,
             ] : null,
             'causer_type' => $causerType,
-            'changes' => $this->attribute_changes ?? (object) [],
+            'changes' => $this->changes ?? (object) [],
             'properties' => $this->properties ?? (object) [],
             'created_at' => $this->created_at?->toDateTimeString(),
         ];

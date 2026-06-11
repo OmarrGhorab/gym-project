@@ -4,7 +4,7 @@ namespace App\Actions\Roles;
 
 use App\Models\User;
 use App\Support\SystemPermissions;
-use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -35,15 +35,9 @@ final class SyncUserRoles
                 }
 
                 if (! $hasDirect && ! $anyNewRoleGrants) {
-                    throw new HttpResponseException(
-                        response()->json([
-                            'error' => [
-                                'code' => 'validation_failed',
-                                'message' => 'Cannot remove role management permissions from the last user holding them.',
-                                'details' => (object) [],
-                            ],
-                        ], 422)
-                    );
+                    throw ValidationException::withMessages([
+                        'roles' => ['Cannot remove role management permissions from the last user holding them.'],
+                    ]);
                 }
             }
         }
