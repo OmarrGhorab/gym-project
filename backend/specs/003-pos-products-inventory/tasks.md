@@ -85,24 +85,24 @@
 
 ### Tests for US2
 
-- [ ] T032 [P] [US2] Failing feature tests for `POST /sales` happy path (201, correct totals, stock decremented, payment created, idempotency, member-linked variant, 401/403) in `tests/Feature/Api/V1/Sales/SaleStoreTest.php`.
-- [ ] T033 [P] [US2] Failing feature tests for `POST /sales` failure paths (422 insufficient stock per item, inactive product, inactive member, negative total after discount, invalid payment method) in `tests/Feature/Api/V1/Sales/SaleStoreValidationTest.php`.
-- [ ] T034 [P] [US2] Failing feature tests for `GET /sales` (list, filters, pagination, 200/401/403) and `GET /sales/{id}` (200, 404, 403) in `tests/Feature/Api/V1/Sales/SaleIndexTest.php`.
-- [ ] T035 [P] [US2] Failing unit tests for `CreateSaleAction`: totals computation, discount guard (total must be > 0), stock lock, idempotency return, concurrent stock decrement, payment creation, broadcast dispatch in `tests/Unit/Actions/Sales/CreateSaleTest.php`.
+- [x] T032 [P] [US2] Failing feature tests for `POST /sales` happy path (201, correct totals, stock decremented, payment created, idempotency, member-linked variant, 401/403) in `tests/Feature/Api/V1/Sales/SaleStoreTest.php`.
+- [x] T033 [P] [US2] Failing feature tests for `POST /sales` failure paths (422 insufficient stock per item, inactive product, inactive member, negative total after discount, invalid payment method) in `tests/Feature/Api/V1/Sales/SaleStoreValidationTest.php`.
+- [x] T034 [P] [US2] Failing feature tests for `GET /sales` (list, filters, pagination, 200/401/403) and `GET /sales/{id}` (200, 404, 403) in `tests/Feature/Api/V1/Sales/SaleIndexTest.php`.
+- [x] T035 [P] [US2] Failing unit tests for `CreateSaleAction`: totals computation, discount guard (total must be > 0), stock lock, idempotency return, concurrent stock decrement, payment creation, broadcast dispatch in `tests/Unit/Actions/Sales/CreateSaleTest.php`.
 
 ### Implementation for US2
 
-- [ ] T036 [US2] Create `app/Models/Sale.php` (explicit `$fillable`, decimal casts, `LogsActivity`, `completed()` and `voided()` scopes, relations: `items`, `payment` morphOne, `member`, `soldBy`, `inventoryMovements` through sale items).
-- [ ] T037 [P] [US2] Create `app/Models/SaleItem.php` (explicit `$fillable`, decimal casts, relations: `sale`, `product`).
-- [ ] T038 [P] [US2] Create `database/factories/SaleFactory.php` and `database/factories/SaleItemFactory.php`.
-- [ ] T039 [P] [US2] Create `app/Policies/SalePolicy.php` (viewAny/view mapped to `sales.view`; create to `sales.create`; void to `sales.void`).
-- [ ] T040 [P] [US2] Create `app/Http/Requests/Sales/StoreSaleRequest.php` (authorize via `SalePolicy@create`; rules: `idempotency_key` uuid required, `member_id` nullable exists active member, `items` array min:1, `items.*.product_id` exists active product, `items.*.quantity` integer gt:0, `discount` nullable decimal gte:0, `payment_method` in:cash,card,bank_transfer, `notes` nullable max:500).
-- [ ] T041 [P] [US2] Create `app/Http/Resources/SaleResource.php` (full resource with eager-loaded items via `SaleItemResource`, payment, member summary, cashier summary; `whenLoaded` guards).
-- [ ] T042 [P] [US2] Create `app/Http/Resources/SaleItemResource.php` (sale item with product name snapshot).
-- [ ] T043 [US2] Create `app/Actions/Sales/CreateSaleAction.php`: wrap entirely in `DB::transaction`; re-read each product with `lockForUpdate()`; validate stock per item (throw `ValidationException` with key `items.{n}.quantity` on overflow); compute `subtotal` and `total` with `bcmath`; reject if `discount >= subtotal`; decrement `stock_quantity` per product; write one `InventoryMovement(type=out)` per item; check `idempotency_key` and return existing sale if found; create `Sale` + `SaleItems` + `Payment(payable_type=Sale, status=paid)`; dispatch `NewSaleEvent` **after** the transaction commits (not inside it).
-- [ ] T044 [US2] Create `app/Http/Controllers/Api/V1/SaleController.php` (store, index with Spatie Query Builder, show).
-- [ ] T045 [US2] Register sale routes (store, index, show) in `routes/api/sales.php` under `auth:sanctum`; `POST /sales` throttled.
-- [ ] T046 [US2] Run focused US2 tests — all green.
+- [x] T036 [US2] Create `app/Models/Sale.php` (explicit `$fillable`, decimal casts, `LogsActivity`, `completed()` and `voided()` scopes, relations: `items`, `payment` morphOne, `member`, `soldBy`, `inventoryMovements` through sale items).
+- [x] T037 [P] [US2] Create `app/Models/SaleItem.php` (explicit `$fillable`, decimal casts, relations: `sale`, `product`).
+- [x] T038 [P] [US2] Create `database/factories/SaleFactory.php` and `database/factories/SaleItemFactory.php`.
+- [x] T039 [P] [US2] Create `app/Policies/SalePolicy.php` (viewAny/view mapped to `sales.view`; create to `sales.create`; void to `sales.void`).
+- [x] T040 [P] [US2] Create `app/Http/Requests/Sales/StoreSaleRequest.php` (authorize via `SalePolicy@create`; rules: `idempotency_key` uuid required, `member_id` nullable exists active member, `items` array min:1, `items.*.product_id` exists active product, `items.*.quantity` integer gt:0, `discount` nullable decimal gte:0, `payment_method` in:cash,card,bank_transfer, `notes` nullable max:500).
+- [x] T041 [P] [US2] Create `app/Http/Resources/SaleResource.php` (full resource with eager-loaded items via `SaleItemResource`, payment, member summary, cashier summary; `whenLoaded` guards).
+- [x] T042 [P] [US2] Create `app/Http/Resources/SaleItemResource.php` (sale item with product name snapshot).
+- [x] T043 [US2] Create `app/Actions/Sales/CreateSaleAction.php`: wrap entirely in `DB::transaction`; re-read each product with `lockForUpdate()`; validate stock per item (throw `ValidationException` with key `items.{n}.quantity` on overflow); compute `subtotal` and `total` with `bcmath`; reject if `discount >= subtotal`; decrement `stock_quantity` per product; write one `InventoryMovement(type=out)` per item; check `idempotency_key` and return existing sale if found; create `Sale` + `SaleItems` + `Payment(payable_type=Sale, status=paid)`; dispatch `NewSaleEvent` **after** the transaction commits (not inside it).
+- [x] T044 [US2] Create `app/Http/Controllers/Api/V1/SaleController.php` (store, index with Spatie Query Builder, show).
+- [x] T045 [US2] Register sale routes (store, index, show) in `routes/api/sales.php` under `auth:sanctum`; `POST /sales` throttled.
+- [x] T046 [US2] Run focused US2 tests — all green.
 
 **Checkpoint**: POS checkout fully operational. Cashiers can ring up sales; stock is always accurate after checkout; duplicates are idempotency-guarded.
 

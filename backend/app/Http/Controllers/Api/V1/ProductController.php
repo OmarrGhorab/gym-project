@@ -16,7 +16,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Storage;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * US1 — Product Catalog Management
@@ -126,7 +126,7 @@ class ProductController extends ApiController
     /**
      * GET /api/v1/products/{product}/image
      */
-    public function streamImage(Product $product): \Symfony\Component\HttpFoundation\Response
+    public function streamImage(Product $product): Response
     {
         $this->authorize('view', $product);
 
