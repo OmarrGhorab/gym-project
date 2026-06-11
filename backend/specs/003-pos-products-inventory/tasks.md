@@ -116,16 +116,16 @@
 
 ### Tests for US3
 
-- [ ] T047 [P] [US3] Failing feature tests for `POST /sales/{id}/void` (200 happy, 422 already-voided, 403 without `sales.void`, 404) in `tests/Feature/Api/V1/Sales/SaleVoidTest.php`.
-- [ ] T048 [P] [US3] Failing unit tests for `VoidSaleAction`: atomicity (partial failure rolls back), stock restoration per item, payment status update, reversal inventory movements, double-void guard in `tests/Unit/Actions/Sales/VoidSaleTest.php`.
+- [x] T047 [P] [US3] Failing feature tests for `POST /sales/{id}/void` (200 happy, 422 already-voided, 403 without `sales.void`, 404) in `tests/Feature/Api/V1/Sales/SaleVoidTest.php`.
+- [x] T048 [P] [US3] Failing unit tests for `VoidSaleAction`: atomicity (partial failure rolls back), stock restoration per item, payment status update, reversal inventory movements, double-void guard in `tests/Unit/Actions/Sales/VoidSaleTest.php`.
 
 ### Implementation for US3
 
-- [ ] T049 [US3] Create `app/Actions/Sales/VoidSaleAction.php`: wrap in `DB::transaction`; re-read sale with `lockForUpdate()`; guard `status=voided` (throw 422 `sale_already_voided`); for each sale item, re-read product with `lockForUpdate()`, increment `stock_quantity`, write `InventoryMovement(type=in, reason="void #{sale_id}")`; update payment `status=voided`; set `sale.status=voided`.
-- [ ] T050 [P] [US3] Create `app/Http/Requests/Sales/VoidSaleRequest.php` (authorize via `SalePolicy@void`; optional `reason` string max:255).
-- [ ] T051 [US3] Add `void` method to `app/Http/Controllers/Api/V1/SaleController.php`.
-- [ ] T052 [US3] Register `POST /sales/{id}/void` route in `routes/api/sales.php` under `auth:sanctum`; throttled.
-- [ ] T053 [US3] Run focused US3 tests — all green.
+- [x] T049 [US3] Create `app/Actions/Sales/VoidSaleAction.php`: wrap in `DB::transaction`; re-read sale with `lockForUpdate()`; guard `status=voided` (throw 422 `sale_already_voided`); for each sale item, re-read product with `lockForUpdate()`, increment `stock_quantity`, write `InventoryMovement(type=in, reason="void #{sale_id}")`; update payment `status=voided`; set `sale.status=voided`.
+- [x] T050 [P] [US3] Create `app/Http/Requests/Sales/VoidSaleRequest.php` (authorize via `SalePolicy@void`; optional `reason` string max:255).
+- [x] T051 [US3] Add `void` method to `app/Http/Controllers/Api/V1/SaleController.php`.
+- [x] T052 [US3] Register `POST /sales/{id}/void` route in `routes/api/sales.php` under `auth:sanctum`; throttled.
+- [x] T053 [US3] Run focused US3 tests — all green.
 
 **Checkpoint**: Void flow complete. Managers can correct POS errors with full stock and payment integrity.
 

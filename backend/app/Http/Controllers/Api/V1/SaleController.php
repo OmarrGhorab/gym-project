@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Sales\CreateSaleAction;
+use App\Actions\Sales\VoidSaleAction;
 use App\Http\Requests\Sales\StoreSaleRequest;
+use App\Http\Requests\Sales\VoidSaleRequest;
 use App\Http\Resources\SaleResource;
 use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
@@ -70,6 +72,19 @@ class SaleController extends ApiController
 
         return (new SaleResource($sale))
             ->withMessage('Sale retrieved')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    /**
+     * POST /api/v1/sales/{sale}/void
+     */
+    public function void(VoidSaleRequest $request, Sale $sale, VoidSaleAction $action): JsonResponse
+    {
+        $sale = $action->execute($sale, $request->validated(), $request->user());
+
+        return (new SaleResource($sale))
+            ->withMessage('Sale voided')
             ->response()
             ->setStatusCode(200);
     }

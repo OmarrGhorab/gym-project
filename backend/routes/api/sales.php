@@ -12,4 +12,7 @@ Route::prefix('sales')->group(function (): void {
 
     Route::get('/{sale}', [SaleController::class, 'show'])
         ->middleware('permission:sales.view');
+
+    Route::post('/{sale}/void', [SaleController::class, 'void'])
+        ->middleware(['throttle:api', 'permission:sales.void']);
 });
