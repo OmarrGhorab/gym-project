@@ -35,6 +35,11 @@ class HrFinanceAccessSeeder extends Seeder
             );
         }
 
+        // Ensure reports.view exists.
+        Permission::firstOrCreate(
+            ['name' => PosPermissions::PERM_REPORTS_VIEW, 'guard_name' => 'web'],
+        );
+
         // Retrieve existing roles or create them.
         $admin = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_ADMIN, 'guard_name' => 'web']);
         $manager = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_MANAGER, 'guard_name' => 'web']);
