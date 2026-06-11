@@ -78,5 +78,10 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/dashboard.php';
         require __DIR__.'/api/products.php';
         require __DIR__.'/api/sales.php';
+        require __DIR__.'/api/employees.php';
+        require __DIR__.'/api/commissions.php';
+        require __DIR__.'/api/payroll.php';
+        require __DIR__.'/api/expenses.php';
+        require __DIR__.'/api/reports.php';
     });
 });

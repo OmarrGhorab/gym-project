@@ -20,5 +20,6 @@ class DatabaseSeeder extends Seeder
         $this->call(FoundationAccessSeeder::class);
         $this->call(MembershipAccessSeeder::class);
         $this->call(PosAccessSeeder::class);
+        $this->call(HrFinanceAccessSeeder::class);
     }
 }
