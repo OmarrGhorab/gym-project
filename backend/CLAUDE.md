@@ -68,5 +68,5 @@ Two integration contracts to preserve across phases (see the map):
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/002-members-subscriptions-plans/plan.md` (Phase 1 — Members, Subscriptions & Plans).
+`specs/003-pos-products-inventory/plan.md` (Phase 2 — POS, Products & Inventory).
 <!-- SPECKIT END -->
