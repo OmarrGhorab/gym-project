@@ -35,10 +35,10 @@ final class AuditLogController extends ApiController
         $filters = $request->input('filter', []);
 
         if (isset($filters['from'])) {
-            $query->whereDate('created_at', '>=', $filters['from']);
+            $query->where('created_at', '>=', $filters['from'].' 00:00:00');
         }
         if (isset($filters['to'])) {
-            $query->whereDate('created_at', '<=', $filters['to']);
+            $query->where('created_at', '<=', $filters['to'].' 23:59:59');
         }
         if (isset($filters['subject'])) {
             $fqcn = AuditLogResource::$aliasMap[$filters['subject']];

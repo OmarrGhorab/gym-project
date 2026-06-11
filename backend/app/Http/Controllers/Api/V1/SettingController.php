@@ -8,12 +8,14 @@ use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Http\Resources\SettingResource;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class SettingController extends ApiController
 {
     public function index(IndexSettingsRequest $request): JsonResponse
     {
-        $settings = Setting::all()->pluck('value', 'key')->toArray();
+        $settings = Cache::rememberForever('settings.all', fn () =>
+            Setting::all()->pluck('value', 'key')->toArray());
 
         return (new SettingResource($settings))
             ->withMessage('Settings retrieved successfully')

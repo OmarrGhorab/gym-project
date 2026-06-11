@@ -4,6 +4,7 @@ namespace App\Actions\Settings;
 
 use App\Models\Setting;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 
 final class UpdateSettings
 {
@@ -22,10 +23,13 @@ final class UpdateSettings
             $this->store->execute($key, $value);
         }
 
+        Cache::forget('settings.all');
+
         activity()
             ->causedBy($user)
             ->log('Updated system settings');
 
-        return Setting::all()->pluck('value', 'key')->toArray();
+        return Cache::rememberForever('settings.all', fn () =>
+            Setting::all()->pluck('value', 'key')->toArray());
     }
 }

@@ -73,13 +73,12 @@ class BuildExport
     private function getExportCount($exportClass): int
     {
         if (method_exists($exportClass, 'query')) {
-            return $exportClass->query()->count();
+            return $exportClass->query()->toBase()->getCountForPagination();
         }
 
-        if (method_exists($exportClass, 'collection')) {
-            return $exportClass->collection()->count();
-        }
-
+        // FromCollection exports (e.g. ReportExport) produce inherently small,
+        // aggregated result sets. Materialising the collection just to count it
+        // defeats the purpose of the threshold gate, so always run them sync.
         return 0;
     }
 

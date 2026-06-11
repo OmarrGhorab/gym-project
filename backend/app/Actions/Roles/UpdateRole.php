@@ -12,14 +12,14 @@ final class UpdateRole
 {
     public function handle(Role $role, array $data): Role
     {
-        app()[PermissionRegistrar::class]->forgetCachedPermissions();
-
         // Lock-out guard: refuse stripping roles.manage if it's the last role holding it
         $hasRolesManage = $role->hasPermissionTo(SystemPermissions::PERM_ROLES_MANAGE);
         $willHaveRolesManage = in_array(SystemPermissions::PERM_ROLES_MANAGE, $data['permissions'] ?? [], true);
 
         if ($hasRolesManage && ! $willHaveRolesManage) {
-            $usersWithPerm = User::permission(SystemPermissions::PERM_ROLES_MANAGE)->get();
+            $usersWithPerm = User::permission(SystemPermissions::PERM_ROLES_MANAGE)
+                ->with('roles.permissions')
+                ->get();
             $anyUserRetains = false;
 
             foreach ($usersWithPerm as $user) {
@@ -27,9 +27,11 @@ final class UpdateRole
                     $anyUserRetains = true;
                     break;
                 }
-                $otherRoles = $user->roles()->where('roles.id', '!=', $role->id)->get();
-                foreach ($otherRoles as $otherRole) {
-                    if ($otherRole->hasPermissionTo(SystemPermissions::PERM_ROLES_MANAGE)) {
+                foreach ($user->roles as $otherRole) {
+                    if ($otherRole->id === $role->id) {
+                        continue;
+                    }
+                    if ($otherRole->permissions->contains('name', SystemPermissions::PERM_ROLES_MANAGE)) {
                         $anyUserRetains = true;
                         break 2;
                     }

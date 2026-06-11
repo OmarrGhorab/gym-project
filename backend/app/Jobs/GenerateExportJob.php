@@ -17,13 +17,19 @@ class GenerateExportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $timeout = 600;
+
+    public int $tries = 1;
+
     public function __construct(
         protected string $exportId,
         protected string $resource,
         protected string $format,
         protected array $filters,
         protected int $userId
-    ) {}
+    ) {
+        $this->onQueue('exports');
+    }
 
     public function handle(): void
     {

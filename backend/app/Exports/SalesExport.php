@@ -21,7 +21,7 @@ class SalesExport implements FromQuery, WithHeadings, WithMapping
 
     public function query()
     {
-        $query = Sale::query()->with(['items.product', 'payment', 'member', 'soldBy']);
+        $query = Sale::query()->with(['member', 'soldBy']);
         $customRequest = new Request(['filter' => $this->filters]);
 
         return QueryBuilder::for($query, $customRequest)

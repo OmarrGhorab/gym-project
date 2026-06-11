@@ -12,8 +12,6 @@ final class SyncUserRoles
 {
     public function handle(User $user, array $data): User
     {
-        app()[PermissionRegistrar::class]->forgetCachedPermissions();
-
         // Lock-out guard: check if user currently has roles.manage
         if ($user->hasPermissionTo(SystemPermissions::PERM_ROLES_MANAGE)) {
             // Count OTHER users with roles.manage
