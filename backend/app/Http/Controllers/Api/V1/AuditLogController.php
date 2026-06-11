@@ -12,21 +12,24 @@ final class AuditLogController extends ApiController
 {
     public function index(IndexAuditLogRequest $request): AnonymousResourceCollection
     {
-        $query   = Activity::query()->with(['causer', 'subject']);
-        $filters = $request->input('filter', []);
+        $query = Activity::query()->with(['causer', 'subject']);
 
-        if (isset($filters['from'])) {
-            $query->where('created_at', '>=', $filters['from'].' 00:00:00');
+        $from    = $request->validated('filter.from');
+        $to      = $request->validated('filter.to');
+        $subject = $request->validated('filter.subject');
+        $causer  = $request->validated('filter.causer');
+
+        if ($from) {
+            $query->where('created_at', '>=', $from.' 00:00:00');
         }
-        if (isset($filters['to'])) {
-            $query->where('created_at', '<=', $filters['to'].' 23:59:59');
+        if ($to) {
+            $query->where('created_at', '<=', $to.' 23:59:59');
         }
-        if (isset($filters['subject'])) {
-            $fqcn = AuditLogResource::$aliasMap[$filters['subject']];
-            $query->where('subject_type', $fqcn);
+        if ($subject) {
+            $query->where('subject_type', AuditLogResource::$aliasMap[$subject]);
         }
-        if (isset($filters['causer'])) {
-            $query->where('causer_id', $filters['causer']);
+        if ($causer) {
+            $query->where('causer_id', $causer);
         }
 
         $activities = QueryBuilder::for($query)

@@ -11,12 +11,22 @@ use Illuminate\Support\Facades\URL;
 
 class ExportController extends ApiController
 {
-    public function export(ExportRequest $request, string $resource, BuildExport $action)
+    public function export(ExportRequest $request, BuildExport $action)
     {
-        $format  = strtolower($request->validated('format'));
+        $resource = $request->validated('resource');
+        $format   = strtolower($request->validated('format'));
         $filters = $request->input('filter', []);
 
         $result = $action->handle($resource, $format, $filters, $request->user());
+
+        if (! empty($result['error'])) {
+            return $this->error(
+                code: 'export_failed',
+                message: 'The export could not be generated.',
+                details: ['error' => $result['message'] ?? 'Unknown error'],
+                status: 500
+            );
+        }
 
         if ($result['queued']) {
             $downloadUrl = URL::temporarySignedRoute(

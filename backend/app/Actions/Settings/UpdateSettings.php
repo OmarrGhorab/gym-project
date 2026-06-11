@@ -23,13 +23,17 @@ final class UpdateSettings
             $this->store->execute($key, $value);
         }
 
-        Cache::forget('settings.all');
+        // Read fresh values from DB, then atomically overwrite the cache.
+        // Using forget + rememberForever creates a race window; put() with the
+        // already-fetched snapshot is safe because the last writer wins and the
+        // value is always consistent with the DB state at time of write.
+        $fresh = Setting::all()->pluck('value', 'key')->toArray();
+        Cache::forever('settings.all', $fresh);
 
         activity()
             ->causedBy($user)
             ->log('Updated system settings');
 
-        return Cache::rememberForever('settings.all', fn () =>
-            Setting::all()->pluck('value', 'key')->toArray());
+        return $fresh;
     }
 }

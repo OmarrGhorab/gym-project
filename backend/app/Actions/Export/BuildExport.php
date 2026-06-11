@@ -51,9 +51,19 @@ class BuildExport
             ->causedBy($user)
             ->log("Exported {$resource} in {$format} format");
 
+        try {
+            $response = Excel::download($exportClass, "{$resource}.{$format}", $writerType);
+        } catch (\Throwable $e) {
+            return [
+                'queued'  => false,
+                'error'   => true,
+                'message' => $e->getMessage(),
+            ];
+        }
+
         return [
-            'queued' => false,
-            'response' => Excel::download($exportClass, "{$resource}.{$format}", $writerType),
+            'queued'   => false,
+            'response' => $response,
         ];
     }
 
