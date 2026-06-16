@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import {
   getFieldErrors,
@@ -30,15 +31,11 @@ export function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(null);
     setFieldErrors({});
 
     const validationErrors = validateWithSchema(
@@ -64,10 +61,10 @@ export function ResetPasswordForm() {
         password,
         password_confirmation: passwordConfirmation,
       });
-      setSuccess(result.message);
+      toast.success(t("successTitle"), { description: result.message });
       setTimeout(() => router.push(`/${locale}/login`), 2000);
     } catch (err) {
-      setError(getFriendlyError(err));
+      toast.error(t("errorTitle"), { description: getFriendlyError(err) });
       setFieldErrors(getFieldErrors(err) ?? {});
     } finally {
       setLoading(false);
@@ -163,18 +160,6 @@ export function ResetPasswordForm() {
             </p>
           )}
         </div>
-
-        {error && (
-          <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        {success && (
-          <p className="rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400">
-            {success}
-          </p>
-        )}
 
         <Button
           type="submit"

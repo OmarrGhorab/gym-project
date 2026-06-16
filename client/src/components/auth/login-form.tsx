@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import {
   getFieldErrors,
@@ -27,13 +28,11 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setError(null);
     setFieldErrors({});
 
     const validationErrors = validateWithSchema(
@@ -51,7 +50,7 @@ export function LoginForm() {
       await login({ email, password, remember });
       router.push(`/${locale}`);
     } catch (err) {
-      setError(getFriendlyError(err));
+      toast.error(t("errorTitle"), { description: getFriendlyError(err) });
       setFieldErrors(getFieldErrors(err) ?? {});
     } finally {
       setLoading(false);
@@ -132,12 +131,6 @@ export function LoginForm() {
             {t("forgotPassword")}
           </Link>
         </div>
-
-        {error && (
-          <p className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </p>
-        )}
 
         <div className="space-y-3">
           <Button
