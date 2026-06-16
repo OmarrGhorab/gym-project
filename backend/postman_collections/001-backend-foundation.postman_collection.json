@@ -35,23 +35,6 @@
       "item": [
         {
           "name": "POST /auth/login - Admin (Success)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var jsonData = pm.response.json();",
-                  "if (jsonData.data && jsonData.data.token) {",
-                  "    pm.environment.set(\"token\", jsonData.data.token);",
-                  "    pm.test(\"Token successfully stored in environment!\", function () {",
-                  "        pm.expect(jsonData.data.token).to.be.a('string');",
-                  "    });",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "auth": {
               "type": "noauth"
@@ -67,6 +50,17 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates as Admin. Stores admin_token and token in the environment.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
@@ -75,23 +69,9 @@
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Authenticates as an Admin. Stores the returned token into the environment automatically."
+            }
           },
-          "response": []
-        },
-        {
-          "name": "POST /auth/login - Cashier (Success)",
+          "response": [],
           "event": [
             {
               "listen": "test",
@@ -99,13 +79,18 @@
                 "exec": [
                   "var jsonData = pm.response.json();",
                   "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.environment.set(\"admin_token\", jsonData.data.token);",
                   "    pm.environment.set(\"token\", jsonData.data.token);",
-                  "}"
+                  "}",
+                  "pm.test(\"admin token stored\", function () { pm.expect(pm.environment.get(\"admin_token\")).to.be.a('string'); });"
                 ],
                 "type": "text/javascript"
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "POST /auth/login - Manager (Success)",
           "request": {
             "auth": {
               "type": "noauth"
@@ -121,15 +106,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{cashier_email}}\",\n  \"password\": \"{{cashier_password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/auth/login",
               "host": [
@@ -140,9 +116,198 @@
                 "login"
               ]
             },
-            "description": "Authenticates as a Cashier. Useful to verify endpoint authorization restrictions."
+            "description": "Authenticates as Manager. Stores manager_token in the environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{manager_email}}\",\n  \"password\": \"{{manager_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.environment.set(\"manager_token\", jsonData.data.token);",
+                  "}",
+                  "pm.test(\"manager token stored\", function () { pm.expect(pm.environment.get(\"manager_token\")).to.be.a('string'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login - Cashier (Success)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates as Cashier. Stores cashier_token in the environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{cashier_email}}\",\n  \"password\": \"{{cashier_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.environment.set(\"cashier_token\", jsonData.data.token);",
+                  "}",
+                  "pm.test(\"cashier token stored\", function () { pm.expect(pm.environment.get(\"cashier_token\")).to.be.a('string'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login - Captain (Success)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates as Captain. Stores captain_token in the environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{captain_email}}\",\n  \"password\": \"{{captain_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.environment.set(\"captain_token\", jsonData.data.token);",
+                  "}",
+                  "pm.test(\"captain token stored\", function () { pm.expect(pm.environment.get(\"captain_token\")).to.be.a('string'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login - Accountant (Success)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates as Accountant. Stores accountant_token in the environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{accountant_email}}\",\n  \"password\": \"{{accountant_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.environment.set(\"accountant_token\", jsonData.data.token);",
+                  "}",
+                  "pm.test(\"accountant token stored\", function () { pm.expect(pm.environment.get(\"accountant_token\")).to.be.a('string'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "POST /auth/login - Validation Failed (422)",
