@@ -1,0 +1,17 @@
+{
+  "Home": {
+    "brand": "ATP Gym",
+    "subtitle": "Branch operations and admin platform",
+    "cta": "Start",
+    "eyebrow": "Localized app foundation ready to scale",
+    "title": "The frontend base is ready for the full gym system.",
+    "description": "Next.js App Router, Arabic and English localization, RTL support, and shadcn/ui are now structured so we can build real product screens without fighting the foundation.",
+    "primaryAction": "Open dashboard",
+    "secondaryAction": "Review structure",
+    "stats": {
+      "revenue": "Revenue today",
+      "salesToday": "Sales today",
+      "activeSubscriptions": "Active subscriptions"
+    }
+  }
+}
