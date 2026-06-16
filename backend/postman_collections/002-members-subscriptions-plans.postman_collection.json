@@ -46,7 +46,115 @@
             },
             "description": "Lists paginated members with search/status filters."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Lists paginated members with search/status filters.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": ""
+                    },
+                    {
+                      "key": "status",
+                      "value": "active"
+                    },
+                    {
+                      "key": "sort",
+                      "value": ""
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:13 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "58"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[{\"id\":4,\"name\":\"Sara Ali 1781622675\",\"phone\":\"+201231781622675\",\"email\":\"sara.1781622675@example.com\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"1781622675123456\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Regular fitness enthusiast\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T15:11:15+00:00\",\"updated_at\":\"2026-06-16T15:11:15+00:00\"},{\"id\":3,\"name\":\"Sara Ali 1781622366\",\"phone\":\"+201231781622366\",\"email\":\"sara.1781622366@example.com\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"1781622366123456\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Regular fitness enthusiast\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T15:06:05+00:00\",\"updated_at\":\"2026-06-16T15:06:05+00:00\"},{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"780.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},{\"id\":2,\"name\":\"Postman CRUD Member\",\"phone\":\"+201234567891\",\"email\":\"postman.member.crud@gym.test\",\"gender\":\"male\",\"birth_date\":\"1993-08-20\",\"national_id\":\"29308200102031\",\"join_date\":\"2026-06-11\",\"status\":\"inactive\",\"notes\":\"Separate seeded member for member CRUD\\/deactivate requests.\",\"has_photo\":true,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:06:07+00:00\"}],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":4,\"last_page\":1},\"message\":\"Members retrieved\"}"
+            }
+          ]
         },
         {
           "name": "POST /members - Success",
@@ -64,7 +172,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Sara Ali\",\n  \"phone\": \"+201234567890\",\n  \"email\": \"sara@example.com\",\n  \"gender\": \"female\",\n  \"birth_date\": \"1995-04-12\",\n  \"national_id\": \"29504120102030\",\n  \"join_date\": \"2026-06-10\",\n  \"notes\": \"Regular fitness enthusiast\"\n}",
+              "raw": "{\n  \"name\": \"Sara Ali {{$timestamp}}\",\n  \"phone\": \"+20123{{$timestamp}}\",\n  \"email\": \"sara.{{$timestamp}}@example.com\",\n  \"gender\": \"female\",\n  \"birth_date\": \"1995-04-12\",\n  \"national_id\": \"{{$timestamp}}123456\",\n  \"join_date\": \"2026-06-10\",\n  \"notes\": \"Regular fitness enthusiast\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -82,7 +190,111 @@
             },
             "description": "Creates a new member. Requires unique email and national_id."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Creates a new member. Requires unique email and national_id.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Sara Ali 1781622914\",\n  \"phone\": \"+201231781622914\",\n  \"email\": \"sara.1781622914@example.com\",\n  \"gender\": \"female\",\n  \"birth_date\": \"1995-04-12\",\n  \"national_id\": \"1781622914123456\",\n  \"join_date\": \"2026-06-10\",\n  \"notes\": \"Regular fitness enthusiast\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:13 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "57"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":5,\"name\":\"Sara Ali 1781622914\",\"phone\":\"+201231781622914\",\"email\":\"sara.1781622914@example.com\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"1781622914123456\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Regular fitness enthusiast\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T15:15:13+00:00\",\"updated_at\":\"2026-06-16T15:15:13+00:00\"},\"meta\":{},\"message\":\"Member created\"}"
+            }
+          ]
         },
         {
           "name": "POST /members - Validation Failed (422)",
@@ -118,7 +330,111 @@
             },
             "description": "Triggers 422 validation failure with missing fields, bad email format, and birth_date in the future."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 validation failure with missing fields, bad email format, and birth_date in the future.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"email\": \"invalid-email-format\",\n  \"birth_date\": \"2030-01-01\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:13 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "56"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"name\":[\"The name field is required.\"],\"phone\":[\"The phone field is required.\"],\"email\":[\"The email field must be a valid email address.\"]}}}"
+            }
+          ]
         },
         {
           "name": "GET /members/{id} - Success",
@@ -131,18 +447,110 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/members/{{member_id}}",
+              "raw": "{{base_url}}/members/{{member_crud_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "members",
-                "{{member_id}}"
+                "{{member_crud_id}}"
               ]
             },
             "description": "Returns full details of a specific member including subscription history summary."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Returns full details of a specific member including subscription history summary.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "2"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:14 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "55"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":2,\"name\":\"Postman CRUD Member\",\"phone\":\"+201234567891\",\"email\":\"postman.member.crud@gym.test\",\"gender\":\"male\",\"birth_date\":\"1993-08-20\",\"national_id\":\"29308200102031\",\"join_date\":\"2026-06-11\",\"status\":\"inactive\",\"notes\":\"Separate seeded member for member CRUD\\/deactivate requests.\",\"has_photo\":true,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:06:07+00:00\"},\"meta\":{},\"message\":\"Member retrieved\"}"
+            }
+          ]
         },
         {
           "name": "GET /members/{id} - Not Found (404)",
@@ -166,7 +574,99 @@
             },
             "description": "Triggers 404 Not Found error by querying a non-existent member ID."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Not Found (404)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 404 Not Found error by querying a non-existent member ID.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "99999"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:14 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "54"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"not_found\",\"message\":\"The requested resource was not found.\",\"details\":{}}}"
+            }
+          ]
         },
         {
           "name": "PUT /members/{id} - Success",
@@ -184,7 +684,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Sara Ali Updated\",\n  \"notes\": \"Prefers afternoon training sessions\"\n}",
+              "raw": "{\n  \"name\": \"Sara Ali Updated\",\n  \"phone\": \"+201234567891\",\n  \"email\": \"postman.member.crud@gym.test\",\n  \"gender\": \"male\",\n  \"birth_date\": \"1993-08-20\",\n  \"national_id\": \"29308200102031\",\n  \"join_date\": \"2026-06-11\",\n  \"notes\": \"Prefers afternoon training sessions\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -192,18 +692,123 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/members/{{member_id}}",
+              "raw": "{{base_url}}/members/{{member_crud_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "members",
-                "{{member_id}}"
+                "{{member_crud_id}}"
               ]
             },
             "description": "Updates member fields."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Updates member fields.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "2"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PUT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Sara Ali Updated\",\n  \"phone\": \"+201234567891\",\n  \"email\": \"postman.member.crud@gym.test\",\n  \"gender\": \"male\",\n  \"birth_date\": \"1993-08-20\",\n  \"national_id\": \"29308200102031\",\n  \"join_date\": \"2026-06-11\",\n  \"notes\": \"Prefers afternoon training sessions\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:14 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "53"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":2,\"name\":\"Sara Ali Updated\",\"phone\":\"+201234567891\",\"email\":\"postman.member.crud@gym.test\",\"gender\":\"male\",\"birth_date\":\"1993-08-20\",\"national_id\":\"29308200102031\",\"join_date\":\"2026-06-11\",\"status\":\"inactive\",\"notes\":\"Prefers afternoon training sessions\",\"has_photo\":true,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:14+00:00\"},\"meta\":{},\"message\":\"Member updated\"}"
+            }
+          ]
         },
         {
           "name": "POST /members/{id}/photo - Success",
@@ -221,24 +826,132 @@
                 {
                   "key": "photo",
                   "type": "file",
+                  "src": "{{member_photo_path}}",
                   "description": "Select an image file (jpg, jpeg, png, webp) under 5MB."
                 }
               ]
             },
             "url": {
-              "raw": "{{base_url}}/members/{{member_id}}/photo",
+              "raw": "{{base_url}}/members/{{member_crud_id}}/photo",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "members",
-                "{{member_id}}",
+                "{{member_crud_id}}",
                 "photo"
               ]
             },
             "description": "Uploads member photo using multipart form data."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Uploads member photo using multipart form data.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "2",
+                    "photo"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "description": {
+                        "content": "Select an image file (jpg, jpeg, png, webp) under 5MB.",
+                        "type": "text/plain"
+                      },
+                      "key": "photo",
+                      "type": "file",
+                      "src": "D:\\Gym-project\\backend\\postman_collections\\fixtures\\member-photo.png"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:15 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "52"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":2,\"name\":\"Sara Ali Updated\",\"phone\":\"+201234567891\",\"email\":\"postman.member.crud@gym.test\",\"gender\":\"male\",\"birth_date\":\"1993-08-20\",\"national_id\":\"29308200102031\",\"join_date\":\"2026-06-11\",\"status\":\"inactive\",\"notes\":\"Prefers afternoon training sessions\",\"has_photo\":true,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:15+00:00\"},\"meta\":{},\"message\":\"Photo uploaded\"}"
+            }
+          ]
         },
         {
           "name": "GET /members/{id}/photo - Success",
@@ -251,19 +964,116 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/members/{{member_id}}/photo",
+              "raw": "{{base_url}}/members/{{member_crud_id}}/photo",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "members",
-                "{{member_id}}",
+                "{{member_crud_id}}",
                 "photo"
               ]
             },
             "description": "Retrieves the member photo binary stream. Returns 404 if no photo is configured."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves the member photo binary stream. Returns 404 if no photo is configured.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "2",
+                    "photo"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "*/*"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "image/png"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "inline"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:15 GMT"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "51"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "�PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0000\u0001\u0000\u0000\u0000\u0001\b\u0004\u0000\u0000\u0000�\u001c\f\u0002\u0000\u0000\u0000\u000bIDATx�c��\u001f\u0000\u0002�\u0001�iG�\u0000\u0000\u0000\u0000IEND�B`�"
+            }
+          ]
         },
         {
           "name": "GET /members/{id}/payments - Success",
@@ -276,13 +1086,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/members/{{member_id}}/payments?page=1",
+              "raw": "{{base_url}}/members/{{member_crud_id}}/payments?page=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "members",
-                "{{member_id}}",
+                "{{member_crud_id}}",
                 "payments"
               ],
               "query": [
@@ -294,7 +1104,105 @@
             },
             "description": "Retrieves paginated payments for the member's subscriptions."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves paginated payments for the member's subscriptions.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "2",
+                    "payments"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:15 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "50"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":0,\"last_page\":1},\"message\":\"Member payments retrieved\"}"
+            }
+          ]
         },
         {
           "name": "DELETE /members/{id} - Success",
@@ -307,18 +1215,110 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/members/{{member_id}}",
+              "raw": "{{base_url}}/members/{{member_crud_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "members",
-                "{{member_id}}"
+                "{{member_crud_id}}"
               ]
             },
             "description": "Deactivates the member (soft delete / status=inactive). Retains financial history."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Deactivates the member (soft delete / status=inactive). Retains financial history.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "2"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "DELETE",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:16 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "49"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":2,\"name\":\"Sara Ali Updated\",\"phone\":\"+201234567891\",\"email\":\"postman.member.crud@gym.test\",\"gender\":\"male\",\"birth_date\":\"1993-08-20\",\"national_id\":\"29308200102031\",\"join_date\":\"2026-06-11\",\"status\":\"inactive\",\"notes\":\"Prefers afternoon training sessions\",\"has_photo\":true,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:15+00:00\"},\"meta\":{},\"message\":\"Member deactivated\"}"
+            }
+          ]
         }
       ]
     },
@@ -364,7 +1364,115 @@
             },
             "description": "Retrieves paginated membership and offer plans."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves paginated membership and offer plans.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "plans"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": ""
+                    },
+                    {
+                      "key": "is_active",
+                      "value": "true"
+                    },
+                    {
+                      "key": "sort",
+                      "value": ""
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:16 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "48"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[{\"id\":1,\"name\":\"Postman Standard Monthly\",\"description\":\"Stable plan used by Postman scenarios.\",\"price\":\"300.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":false,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":false,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:06:09+00:00\"},{\"id\":2,\"name\":\"Postman Premium Monthly\",\"description\":\"Secondary plan for list\\/report coverage.\",\"price\":\"450.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":10,\"is_sellable\":true,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},{\"id\":3,\"name\":\"Standard Monthly\",\"description\":\"Full gym access for 30 days\",\"price\":\"300.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":true,\"created_at\":\"2026-06-16T14:43:28+00:00\",\"updated_at\":\"2026-06-16T14:43:28+00:00\"},{\"id\":4,\"name\":\"Standard Monthly\",\"description\":\"Full gym access for 30 days\",\"price\":\"300.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":true,\"created_at\":\"2026-06-16T14:47:26+00:00\",\"updated_at\":\"2026-06-16T14:47:26+00:00\"},{\"id\":5,\"name\":\"Standard Monthly\",\"description\":\"Full gym access for 30 days\",\"price\":\"300.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":true,\"created_at\":\"2026-06-16T15:06:09+00:00\",\"updated_at\":\"2026-06-16T15:06:09+00:00\"},{\"id\":6,\"name\":\"Standard Monthly\",\"description\":\"Full gym access for 30 days\",\"price\":\"300.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":true,\"created_at\":\"2026-06-16T15:12:15+00:00\",\"updated_at\":\"2026-06-16T15:12:15+00:00\"}],\"links\":{\"first\":\"http:\\/\\/127.0.0.1:8000\\/api\\/v1\\/plans?page=1\",\"last\":\"http:\\/\\/127.0.0.1:8000\\/api\\/v1\\/plans?page=1\",\"prev\":null,\"next\":null},\"meta\":{\"current_page\":[1,1],\"from\":1,\"last_page\":[1,1],\"links\":[{\"url\":null,\"label\":\"&laquo; Previous\",\"page\":null,\"active\":false},{\"url\":\"http:\\/\\/127.0.0.1:8000\\/api\\/v1\\/plans?page=1\",\"label\":\"1\",\"page\":1,\"active\":true},{\"url\":null,\"label\":\"Next &raquo;\",\"page\":null,\"active\":false}],\"path\":\"http:\\/\\/127.0.0.1:8000\\/api\\/v1\\/plans\",\"per_page\":[15,15],\"to\":6,\"total\":[6,6]},\"message\":\"Plans retrieved\"}"
+            }
+          ]
         },
         {
           "name": "POST /plans - Success",
@@ -400,7 +1508,111 @@
             },
             "description": "Creates a new plan. Validates that max_freeze_days is less than duration_days."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Creates a new plan. Validates that max_freeze_days is less than duration_days.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "plans"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Standard Monthly\",\n  \"description\": \"Full gym access for 30 days\",\n  \"price\": \"300.00\",\n  \"duration_days\": 30,\n  \"sessions_count\": null,\n  \"type\": \"membership\",\n  \"is_active\": true,\n  \"valid_from\": \"2026-06-01\",\n  \"valid_to\": \"2026-12-31\",\n  \"max_freeze_days\": 7\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:16 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "47"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":7,\"name\":\"Standard Monthly\",\"description\":\"Full gym access for 30 days\",\"price\":\"300.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":true,\"created_at\":\"2026-06-16T15:15:16+00:00\",\"updated_at\":\"2026-06-16T15:15:16+00:00\"},\"meta\":{},\"message\":\"Plan created\"}"
+            }
+          ]
         },
         {
           "name": "POST /plans - Validation Failed (422)",
@@ -436,7 +1648,111 @@
             },
             "description": "Triggers 422 validation failure with missing name, negative price, and max_freeze_days exceeding duration_days."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 validation failure with missing name, negative price, and max_freeze_days exceeding duration_days.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "plans"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"price\": \"-50.00\",\n  \"duration_days\": 30,\n  \"max_freeze_days\": 40\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:17 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "46"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"name\":[\"The name field is required.\"],\"price\":[\"The price field must be at least 0.\"],\"type\":[\"The type field is required.\"],\"max_freeze_days\":[\"The max freeze days field must be less than or equal to 30.\"]}}}"
+            }
+          ]
         },
         {
           "name": "PUT /plans/{id} - Success",
@@ -454,7 +1770,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Standard Monthly Premium\",\n  \"price\": \"350.00\"\n}",
+              "raw": "{\n  \"name\": \"Standard Monthly Premium\",\n  \"description\": \"Full gym access for 30 days with premium perks\",\n  \"price\": \"350.00\",\n  \"duration_days\": 30,\n  \"sessions_count\": null,\n  \"type\": \"membership\",\n  \"is_active\": true,\n  \"valid_from\": \"2026-06-01\",\n  \"valid_to\": \"2026-12-31\",\n  \"max_freeze_days\": 7\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -473,7 +1789,112 @@
             },
             "description": "Updates details of an existing plan."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Updates details of an existing plan.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "plans",
+                    "1"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PUT",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Standard Monthly Premium\",\n  \"description\": \"Full gym access for 30 days with premium perks\",\n  \"price\": \"350.00\",\n  \"duration_days\": 30,\n  \"sessions_count\": null,\n  \"type\": \"membership\",\n  \"is_active\": true,\n  \"valid_from\": \"2026-06-01\",\n  \"valid_to\": \"2026-12-31\",\n  \"max_freeze_days\": 7\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:17 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "45"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":1,\"name\":\"Standard Monthly Premium\",\"description\":\"Full gym access for 30 days with premium perks\",\"price\":\"350.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":true,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:17+00:00\"},\"meta\":{},\"message\":\"Plan updated\"}"
+            }
+          ]
         },
         {
           "name": "PATCH /plans/{id}/toggle - Success",
@@ -498,7 +1919,100 @@
             },
             "description": "Flips the plan's is_active boolean value."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Flips the plan's is_active boolean value.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "plans",
+                    "1",
+                    "toggle"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "PATCH",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:17 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "44"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":1,\"name\":\"Standard Monthly Premium\",\"description\":\"Full gym access for 30 days with premium perks\",\"price\":\"350.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":false,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":false,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:17+00:00\"},\"meta\":{},\"message\":\"Plan status toggled\"}"
+            }
+          ]
         }
       ]
     },
@@ -544,7 +2058,115 @@
             },
             "description": "Retrieves paginated subscription records, eager loading members, plans, and selling agents."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves paginated subscription records, eager loading members, plans, and selling agents.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "member_id",
+                      "value": ""
+                    },
+                    {
+                      "key": "status",
+                      "value": "active"
+                    },
+                    {
+                      "key": "sort",
+                      "value": ""
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:18 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "43"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[{\"id\":4,\"status\":\"active\",\"start_date\":\"2026-07-11\",\"end_date\":\"2026-08-10\",\"price_paid\":\"280.00\",\"discount\":\"20.00\",\"last_reminded_on\":null,\"member\":{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"plan\":{\"id\":1,\"name\":\"Standard Monthly Premium\",\"description\":\"Full gym access for 30 days with premium perks\",\"price\":\"350.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":false,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":false,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:17+00:00\"},\"sold_by\":{\"id\":1,\"name\":\"Admin User\"},\"created_at\":\"2026-06-16T14:47:27+00:00\",\"updated_at\":\"2026-06-16T14:47:27+00:00\"},{\"id\":3,\"status\":\"active\",\"start_date\":\"2026-06-10\",\"end_date\":\"2026-07-10\",\"price_paid\":\"300.00\",\"discount\":\"0.00\",\"last_reminded_on\":null,\"member\":{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"plan\":{\"id\":1,\"name\":\"Standard Monthly Premium\",\"description\":\"Full gym access for 30 days with premium perks\",\"price\":\"350.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":false,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":false,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:17+00:00\"},\"sold_by\":{\"id\":1,\"name\":\"Admin User\"},\"created_at\":\"2026-06-16T14:47:26+00:00\",\"updated_at\":\"2026-06-16T14:47:26+00:00\"},{\"id\":1,\"status\":\"stopped\",\"start_date\":\"2026-06-10\",\"end_date\":\"2026-07-10\",\"price_paid\":\"150.00\",\"discount\":\"0.00\",\"last_reminded_on\":null,\"member\":{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"plan\":{\"id\":1,\"name\":\"Standard Monthly Premium\",\"description\":\"Full gym access for 30 days with premium perks\",\"price\":\"350.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":false,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":false,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:17+00:00\"},\"sold_by\":{\"id\":3,\"name\":\"Cashier User\"},\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:43:30+00:00\"},{\"id\":2,\"status\":\"active\",\"start_date\":\"2026-05-15\",\"end_date\":\"2026-06-18\",\"price_paid\":\"450.00\",\"discount\":\"0.00\",\"last_reminded_on\":null,\"member\":{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"plan\":{\"id\":2,\"name\":\"Postman Premium Monthly\",\"description\":\"Secondary plan for list\\/report coverage.\",\"price\":\"450.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":10,\"is_sellable\":true,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"sold_by\":{\"id\":2,\"name\":\"Manager User\"},\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"}],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":4,\"last_page\":1},\"message\":\"Subscriptions retrieved\"}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions - Success",
@@ -580,7 +2202,111 @@
             },
             "description": "Subscribes a member to a plan. Computes end date, price paid (minus discount), and registers a payment."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Subscribes a member to a plan. Computes end date, price paid (minus discount), and registers a payment.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"member_id\": 1,\n  \"plan_id\": 1,\n  \"start_date\": \"2026-06-10\",\n  \"discount\": \"0.00\",\n  \"payment\": {\n    \"amount\": \"300.00\",\n    \"method\": \"cash\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:18 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "42"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"plan_id\":[\"The selected plan is not currently sellable.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions - Validation Failed (422)",
@@ -616,7 +2342,111 @@
             },
             "description": "Triggers 422 error on negative discount, negative payment amount, and invalid payment method."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 error on negative discount, negative payment amount, and invalid payment method.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"member_id\": 1,\n  \"plan_id\": 1,\n  \"start_date\": \"\",\n  \"discount\": \"-10.00\",\n  \"payment\": {\n    \"amount\": \"-10.00\",\n    \"method\": \"invalid_method\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:18 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "41"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"start_date\":[\"The start date field is required.\"],\"discount\":[\"The discount field must be at least 0.\"],\"payment.amount\":[\"The payment.amount field must be greater than 0.\"]}}}"
+            }
+          ]
         },
         {
           "name": "GET /subscriptions/{id} - Success",
@@ -640,7 +2470,99 @@
             },
             "description": "Retrieves the subscription resource with freezes and payments."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves the subscription resource with freezes and payments.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:19 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "40"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":1,\"status\":\"stopped\",\"start_date\":\"2026-06-10\",\"end_date\":\"2026-07-10\",\"price_paid\":\"150.00\",\"discount\":\"0.00\",\"last_reminded_on\":null,\"member\":{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"plan\":{\"id\":1,\"name\":\"Standard Monthly Premium\",\"description\":\"Full gym access for 30 days with premium perks\",\"price\":\"350.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":false,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":7,\"is_sellable\":false,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T15:15:17+00:00\"},\"sold_by\":{\"id\":3,\"name\":\"Cashier User\"},\"payments\":[{\"id\":1,\"amount\":\"150.00\",\"method\":\"cash\",\"status\":\"partial\",\"paid_at\":\"2026-06-10T10:00:00+00:00\",\"due_date\":\"2026-06-20\",\"created_by\":3},{\"id\":2,\"amount\":\"50.00\",\"method\":\"cash\",\"status\":\"due\",\"paid_at\":null,\"due_date\":\"2026-06-25\",\"created_by\":3}],\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:43:30+00:00\"},\"meta\":{},\"message\":\"Subscription retrieved\"}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions/{id}/renew - Success",
@@ -678,7 +2600,113 @@
             },
             "description": "Renews the subscription, keeping subscription history rows."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Renews the subscription, keeping subscription history rows.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1",
+                    "renew"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"plan_id\": 1,\n  \"discount\": \"20.00\",\n  \"payment\": {\n    \"amount\": \"280.00\",\n    \"method\": \"card\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:19 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "39"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"plan_id\":[\"The selected plan is not currently sellable.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions/{id}/freeze - Success",
@@ -716,7 +2744,113 @@
             },
             "description": "Freezes subscription, sets status to frozen and extends the subscription end date."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Freezes subscription, sets status to frozen and extends the subscription end date.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1",
+                    "freeze"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"freeze_start\": \"2026-07-01\",\n  \"freeze_end\": \"2026-07-07\",\n  \"reason\": \"vacation travel\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:19 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "38"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription\":[\"Only active subscriptions can be frozen.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions/{id}/freeze - Limit Exceeded (422)",
@@ -754,7 +2888,113 @@
             },
             "description": "Triggers 422 by attempting to freeze a subscription for more days than the plan's max_freeze_days (e.g. 7 days)."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 by attempting to freeze a subscription for more days than the plan's max_freeze_days (e.g. 7 days).",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1",
+                    "freeze"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"freeze_start\": \"2026-07-01\",\n  \"freeze_end\": \"2026-07-20\",\n  \"reason\": \"exceeds 7 days max allowance\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:20 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "37"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription\":[\"Only active subscriptions can be frozen.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions/{id}/unfreeze - Success",
@@ -779,7 +3019,100 @@
             },
             "description": "Unfreezes a currently frozen subscription and restores status to active."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Unfreezes a currently frozen subscription and restores status to active.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1",
+                    "unfreeze"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:20 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "36"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription\":[\"Only frozen subscriptions can be unfrozen.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions/{id}/unfreeze - Validation Failed (422)",
@@ -804,7 +3137,100 @@
             },
             "description": "Triggers 422 if attempting to unfreeze a subscription that is not frozen."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 if attempting to unfreeze a subscription that is not frozen.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1",
+                    "unfreeze"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:20 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "35"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription\":[\"Only frozen subscriptions can be unfrozen.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /subscriptions/{id}/stop - Success",
@@ -829,7 +3255,100 @@
             },
             "description": "Stops the subscription and sets status to stopped."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Stops the subscription and sets status to stopped.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "subscriptions",
+                    "1",
+                    "stop"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:20 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "34"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription\":[\"This subscription cannot be stopped from its current state.\"]}}}"
+            }
+          ]
         }
       ]
     },
@@ -867,7 +3386,107 @@
             },
             "description": "Lists paginated payments matching status paid or partial."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Lists paginated payments matching status paid or partial.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "paid"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:21 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "33"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[{\"id\":6,\"amount\":\"850.00\",\"method\":\"cash\",\"status\":\"paid\",\"paid_at\":\"2026-06-16T14:47:31+00:00\",\"due_date\":null,\"created_by\":1},{\"id\":5,\"amount\":\"280.00\",\"method\":\"card\",\"status\":\"paid\",\"paid_at\":\"2026-06-16T14:47:27+00:00\",\"due_date\":null,\"created_by\":1},{\"id\":4,\"amount\":\"300.00\",\"method\":\"cash\",\"status\":\"paid\",\"paid_at\":\"2026-06-16T14:47:26+00:00\",\"due_date\":null,\"created_by\":1}],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":3,\"last_page\":1},\"message\":\"Payments retrieved\"}"
+            }
+          ]
         },
         {
           "name": "GET /payments?status=due - Success",
@@ -900,7 +3519,107 @@
             },
             "description": "Lists outstanding subscription balances (dues view)."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Lists outstanding subscription balances (dues view).",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "due"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:21 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "32"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[{\"subscription\":{\"id\":2,\"status\":\"active\",\"start_date\":\"2026-05-15\",\"end_date\":\"2026-06-18\"},\"member\":{\"id\":1,\"name\":\"Postman Member\"},\"balance\":\"450.00\",\"paid_total\":\"0.00\",\"price_paid\":\"450.00\"}],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":1,\"last_page\":1},\"message\":\"Dues retrieved\"}"
+            }
+          ]
         },
         {
           "name": "POST /payments - Success",
@@ -936,7 +3655,111 @@
             },
             "description": "Records a payment against a subscription to clear a due balance."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Records a payment against a subscription to clear a due balance.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subscription_id\": 1,\n  \"amount\": \"150.00\",\n  \"method\": \"cash\",\n  \"paid_at\": \"2026-06-10\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:21 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "31"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription_id\":[\"This subscription is already settled.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /payments - Overpayment Error (422)",
@@ -972,7 +3795,111 @@
             },
             "description": "Triggers 422 error by trying to record a payment exceeding the remaining outstanding subscription balance."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 error by trying to record a payment exceeding the remaining outstanding subscription balance.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subscription_id\": 1,\n  \"amount\": \"99999.00\",\n  \"method\": \"cash\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:22 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "30"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"subscription_id\":[\"This subscription is already settled.\"]}}}"
+            }
+          ]
         }
       ]
     },
@@ -1010,7 +3937,107 @@
             },
             "description": "Retrieves the authenticated user's notifications."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves the authenticated user's notifications.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "unread",
+                      "value": "true"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:22 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "29"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":0,\"last_page\":1},\"message\":\"Notifications retrieved\"}"
+            }
+          ]
         },
         {
           "name": "POST /notifications/{id}/read - Success",
@@ -1035,7 +4062,100 @@
             },
             "description": "Marks a specific notification belonging to the current user as read."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Marks a specific notification belonging to the current user as read.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications",
+                    "38de1de6-be9f-481b-8e37-2af9348208cf",
+                    "read"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:22 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "28"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":\"38de1de6-be9f-481b-8e37-2af9348208cf\",\"type\":\"App\\\\Notifications\\\\SubscriptionRenewalReminder\",\"data\":{\"subscription_id\":1,\"member_name\":\"Postman Member\",\"end_date\":\"2026-06-18\",\"message\":\"Subscription renewal reminder.\"},\"read_at\":\"2026-06-16T14:43:31+00:00\",\"created_at\":\"2026-06-16T14:32:37+00:00\"},\"meta\":{},\"message\":\"Notification marked as read\"}"
+            }
+          ]
         }
       ]
     },
@@ -1064,7 +4184,99 @@
             },
             "description": "Retrieves total active subscription count statistics."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Retrieves total active subscription count statistics.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "dashboard",
+                    "active-subscriptions"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:23 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "27"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"count\":3},\"meta\":{},\"message\":\"Active subscriptions retrieved\"}"
+            }
+          ]
         },
         {
           "name": "GET /dashboard/expiring-soon - Success",
@@ -1094,7 +4306,104 @@
             },
             "description": "Lists active subscriptions expiring soon within the reminder window."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Lists active subscriptions expiring soon within the reminder window.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "dashboard",
+                    "expiring-soon"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "49|ste7rOOj6FTos9BAG1mR0ZTNvsV6HbLCRqAznev19bb3f810",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:23 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "26"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":[{\"id\":2,\"status\":\"active\",\"start_date\":\"2026-05-15\",\"end_date\":\"2026-06-18\",\"price_paid\":\"450.00\",\"discount\":\"0.00\",\"last_reminded_on\":null,\"member\":{\"id\":1,\"name\":\"Postman Member\",\"phone\":\"+201234567890\",\"email\":\"postman.member@gym.test\",\"gender\":\"female\",\"birth_date\":\"1995-04-12\",\"national_id\":\"29504120102030\",\"join_date\":\"2026-06-10\",\"status\":\"active\",\"notes\":\"Primary seeded member for Postman flows.\",\"has_photo\":false,\"created_by\":1,\"total_paid\":\"0.00\",\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"plan\":{\"id\":2,\"name\":\"Postman Premium Monthly\",\"description\":\"Secondary plan for list\\/report coverage.\",\"price\":\"450.00\",\"duration_days\":30,\"sessions_count\":null,\"type\":\"membership\",\"is_active\":true,\"valid_from\":\"2026-06-01\",\"valid_to\":\"2026-12-31\",\"max_freeze_days\":10,\"is_sellable\":true,\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"},\"sold_by\":{\"id\":2,\"name\":\"Manager User\"},\"created_at\":\"2026-06-16T14:32:37+00:00\",\"updated_at\":\"2026-06-16T14:32:37+00:00\"}],\"meta\":{\"current_page\":1,\"per_page\":15,\"total\":1,\"last_page\":1},\"message\":\"Expiring subscriptions retrieved\"}"
+            }
+          ]
         }
       ]
     }

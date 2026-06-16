@@ -28,7 +28,84 @@
         },
         "description": "Public health check endpoint to verify system availability."
       },
-      "response": []
+      "response": [
+        {
+          "name": "GET /health",
+          "originalRequest": {
+            "description": {
+              "content": "Public health check endpoint to verify system availability.",
+              "type": "text/plain"
+            },
+            "url": {
+              "protocol": "http",
+              "port": "8000",
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ],
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Host",
+              "value": "127.0.0.1:8000"
+            },
+            {
+              "key": "Connection",
+              "value": "close"
+            },
+            {
+              "key": "X-Powered-By",
+              "value": "PHP/8.4.0"
+            },
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, private"
+            },
+            {
+              "key": "Date",
+              "value": "Tue, 16 Jun 2026 15:15:04 GMT"
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Access-Control-Allow-Origin",
+              "value": "http://localhost:5173"
+            },
+            {
+              "key": "Access-Control-Allow-Credentials",
+              "value": "true"
+            }
+          ],
+          "cookie": [],
+          "body": "{\"data\":{\"status\":\"ok\"},\"meta\":{},\"message\":\"Service is healthy\"}"
+        }
+      ]
     },
     {
       "name": "Auth",
@@ -71,7 +148,106 @@
               }
             }
           },
-          "response": [],
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Authenticates as Admin. Stores admin_token and token in the environment.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@gym.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:04 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "9"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"user\":{\"id\":1,\"name\":\"Admin User\",\"email\":\"admin@gym.test\",\"roles\":[\"Admin\"],\"permissions\":[\"foundation.access-sample\",\"members.view\",\"members.create\",\"members.update\",\"members.delete\",\"plans.view\",\"plans.create\",\"plans.update\",\"plans.delete\",\"subscriptions.view\",\"subscriptions.create\",\"subscriptions.renew\",\"subscriptions.freeze\",\"subscriptions.stop\",\"payments.view\",\"payments.create\",\"notifications.view\",\"dashboard.view\",\"products.view\",\"products.create\",\"products.update\",\"products.delete\",\"sales.view\",\"sales.create\",\"sales.void\",\"inventory.adjust\",\"reports.view\",\"employees.view\",\"employees.create\",\"employees.update\",\"employees.delete\",\"commissions.view\",\"commissions.backfill\",\"payroll.view\",\"payroll.generate\",\"payroll.pay\",\"expenses.view\",\"expenses.create\",\"expenses.update\",\"expenses.delete\",\"roles.manage\",\"settings.manage\",\"audit.view\",\"export.members\",\"export.subscriptions\",\"export.sales\",\"export.payments\",\"export.payroll\",\"export.reports\"]},\"token\":\"44|mvnDOyEbQXgRaXqspOm7ustMD3n5shfVvPyANXxS9d6d4ebf\"},\"meta\":{},\"message\":\"Authenticated\"}"
+            }
+          ],
           "event": [
             {
               "listen": "test",
@@ -127,7 +303,106 @@
               }
             }
           },
-          "response": [],
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Authenticates as Manager. Stores manager_token in the environment.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"manager@gym.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:05 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "8"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"user\":{\"id\":2,\"name\":\"Manager User\",\"email\":\"manager@gym.test\",\"roles\":[\"Manager\"],\"permissions\":[\"members.view\",\"members.create\",\"members.update\",\"members.delete\",\"plans.view\",\"plans.create\",\"plans.update\",\"plans.delete\",\"subscriptions.view\",\"subscriptions.create\",\"subscriptions.renew\",\"subscriptions.freeze\",\"subscriptions.stop\",\"payments.view\",\"payments.create\",\"notifications.view\",\"dashboard.view\",\"products.view\",\"products.create\",\"products.update\",\"products.delete\",\"sales.view\",\"sales.create\",\"sales.void\",\"inventory.adjust\",\"reports.view\",\"employees.view\",\"employees.create\",\"employees.update\",\"employees.delete\",\"commissions.view\",\"commissions.backfill\",\"payroll.view\",\"payroll.generate\",\"payroll.pay\",\"expenses.view\",\"expenses.create\",\"expenses.update\",\"expenses.delete\",\"audit.view\",\"export.members\",\"export.subscriptions\",\"export.sales\",\"export.payments\",\"export.payroll\",\"export.reports\"]},\"token\":\"45|DTuBo19W3ZppRhqCN0iCT2QkqhurxAIszm2ViaE878f02810\"},\"meta\":{},\"message\":\"Authenticated\"}"
+            }
+          ],
           "event": [
             {
               "listen": "test",
@@ -182,7 +457,106 @@
               }
             }
           },
-          "response": [],
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Authenticates as Cashier. Stores cashier_token in the environment.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"cashier@gym.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:06 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "7"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"user\":{\"id\":3,\"name\":\"Cashier User\",\"email\":\"cashier@gym.test\",\"roles\":[\"Cashier\"],\"permissions\":[\"members.view\",\"members.create\",\"members.update\",\"plans.view\",\"subscriptions.view\",\"subscriptions.create\",\"subscriptions.renew\",\"payments.view\",\"payments.create\",\"notifications.view\",\"dashboard.view\",\"products.view\",\"sales.view\",\"sales.create\",\"export.members\",\"export.subscriptions\",\"export.sales\",\"export.payments\"]},\"token\":\"46|VB5n89ZMLXHO9AXTZ53PE4Is57I8EqiXVflbeJw4ff1471df\"},\"meta\":{},\"message\":\"Authenticated\"}"
+            }
+          ],
           "event": [
             {
               "listen": "test",
@@ -237,7 +611,106 @@
               }
             }
           },
-          "response": [],
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Authenticates as Captain. Stores captain_token in the environment.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"captain@gym.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:06 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "6"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"user\":{\"id\":4,\"name\":\"Captain User\",\"email\":\"captain@gym.test\",\"roles\":[\"Captain\"],\"permissions\":[\"members.view\",\"plans.view\",\"subscriptions.view\",\"dashboard.view\",\"commissions.view\",\"export.members\",\"export.subscriptions\"]},\"token\":\"47|C3DxYB3p2ziZIAwak9Tj7wXisKK4yaCV9EcquRwg0e5b99be\"},\"meta\":{},\"message\":\"Authenticated\"}"
+            }
+          ],
           "event": [
             {
               "listen": "test",
@@ -292,7 +765,106 @@
               }
             }
           },
-          "response": [],
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Authenticates as Accountant. Stores accountant_token in the environment.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"accountant@gym.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:07 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "5"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"user\":{\"id\":5,\"name\":\"Accountant User\",\"email\":\"accountant@gym.test\",\"roles\":[\"Accountant\"],\"permissions\":[\"plans.view\",\"payments.view\",\"dashboard.view\",\"products.view\",\"sales.view\",\"reports.view\",\"employees.view\",\"commissions.view\",\"payroll.view\",\"expenses.view\",\"expenses.create\",\"expenses.update\",\"expenses.delete\",\"audit.view\",\"export.sales\",\"export.payments\",\"export.payroll\",\"export.reports\"]},\"token\":\"48|IhBgjcOsSUq5MyMRnuSibWcsunRHcw1amCWpMcdp633389f6\"},\"meta\":{},\"message\":\"Authenticated\"}"
+            }
+          ],
           "event": [
             {
               "listen": "test",
@@ -347,7 +919,106 @@
             },
             "description": "Triggers 422 validation failure by submitting empty email and missing password."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Validation Failed (422)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 422 validation failure by submitting empty email and missing password.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:07 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "4"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"email\":[\"The email field is required.\"],\"password\":[\"The password field is required.\"]}}}"
+            }
+          ]
         },
         {
           "name": "POST /auth/login - Invalid Credentials (401)",
@@ -387,7 +1058,184 @@
             },
             "description": "Triggers 401 unauthenticated response by providing incorrect credentials."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Invalid Credentials (401)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 401 unauthenticated response by providing incorrect credentials.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@gym.test\",\n  \"password\": \"wrongpassword\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:07 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "3"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"invalid_credentials\",\"message\":\"The provided credentials are incorrect.\",\"details\":{}}}"
+            },
+            {
+              "name": "Throttled (429)",
+              "originalRequest": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"wrongpassword\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Triggers 401 unauthenticated response by providing incorrect credentials."
+              },
+              "status": "Too Many Requests",
+              "code": 429,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "access-control-allow-credentials",
+                  "value": "true"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "cache-control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "connection",
+                  "value": "close"
+                },
+                {
+                  "key": "content-type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "date",
+                  "value": "Tue, 16 Jun 2026 14:52:51 GMT"
+                },
+                {
+                  "key": "host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "x-powered-by",
+                  "value": "PHP/8.4.0"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"too_many_requests\",\"message\":\"Too many requests. Please slow down.\",\"details\":{}}}"
+            }
+          ]
         },
         {
           "name": "GET /auth/me - Success",
@@ -411,7 +1259,91 @@
             },
             "description": "Returns details of the currently authenticated user session."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Returns details of the currently authenticated user session.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "me"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "44|mvnDOyEbQXgRaXqspOm7ustMD3n5shfVvPyANXxS9d6d4ebf",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:07 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"id\":1,\"name\":\"Admin User\",\"email\":\"admin@gym.test\",\"roles\":[\"Admin\"],\"permissions\":[\"foundation.access-sample\",\"members.view\",\"members.create\",\"members.update\",\"members.delete\",\"plans.view\",\"plans.create\",\"plans.update\",\"plans.delete\",\"subscriptions.view\",\"subscriptions.create\",\"subscriptions.renew\",\"subscriptions.freeze\",\"subscriptions.stop\",\"payments.view\",\"payments.create\",\"notifications.view\",\"dashboard.view\",\"products.view\",\"products.create\",\"products.update\",\"products.delete\",\"sales.view\",\"sales.create\",\"sales.void\",\"inventory.adjust\",\"reports.view\",\"employees.view\",\"employees.create\",\"employees.update\",\"employees.delete\",\"commissions.view\",\"commissions.backfill\",\"payroll.view\",\"payroll.generate\",\"payroll.pay\",\"expenses.view\",\"expenses.create\",\"expenses.update\",\"expenses.delete\",\"roles.manage\",\"settings.manage\",\"audit.view\",\"export.members\",\"export.subscriptions\",\"export.sales\",\"export.payments\",\"export.payroll\",\"export.reports\"]},\"meta\":{},\"message\":\"Current user\"}"
+            }
+          ]
         },
         {
           "name": "GET /auth/me - Unauthenticated (401)",
@@ -438,7 +1370,85 @@
             },
             "description": "Verifies that accessing profile details without a Bearer token returns 401."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Invalid Credentials (401)",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies that accessing profile details without a Bearer token returns 401.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "me"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:08 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"Authentication required.\",\"details\":{}}}"
+            }
+          ]
         },
         {
           "name": "POST /auth/logout - Success",
@@ -462,7 +1472,99 @@
             },
             "description": "Invalidates the current Sanctum token."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Invalidates the current Sanctum token.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "logout"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "44|mvnDOyEbQXgRaXqspOm7ustMD3n5shfVvPyANXxS9d6d4ebf",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:08 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "X-RateLimit-Limit",
+                  "value": "60"
+                },
+                {
+                  "key": "X-RateLimit-Remaining",
+                  "value": "59"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{},\"meta\":{},\"message\":\"Signed out\"}"
+            }
+          ]
         },
         {
           "name": "POST /auth/logout - Unauthenticated (401)",
@@ -489,7 +1591,85 @@
             },
             "description": "Verifies that logging out without an active session/token returns 401."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Invalid Credentials (401)",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies that logging out without an active session/token returns 401.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "logout"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:08 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"Authentication required.\",\"details\":{}}}"
+            }
+          ]
         }
       ]
     },
@@ -518,7 +1698,91 @@
             },
             "description": "Returns 200 to confirm current user possesses the required permission."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Returns 200 to confirm current user possesses the required permission.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "foundation",
+                    "protected-sample"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "44|mvnDOyEbQXgRaXqspOm7ustMD3n5shfVvPyANXxS9d6d4ebf",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:08 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"Authentication required.\",\"details\":{}}}"
+            }
+          ]
         },
         {
           "name": "GET /foundation/protected-sample - Forbidden (403)",
@@ -542,7 +1806,91 @@
             },
             "description": "Triggers 403 Forbidden. Run this as Cashier (which has no access) to verify restrictions."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Forbidden (403)",
+              "originalRequest": {
+                "description": {
+                  "content": "Triggers 403 Forbidden. Run this as Cashier (which has no access) to verify restrictions.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "foundation",
+                    "protected-sample"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "type": "string",
+                      "value": "44|mvnDOyEbQXgRaXqspOm7ustMD3n5shfVvPyANXxS9d6d4ebf",
+                      "key": "token"
+                    }
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:08 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"Authentication required.\",\"details\":{}}}"
+            }
+          ]
         },
         {
           "name": "GET /foundation/protected-sample - Unauthenticated (401)",
@@ -569,7 +1917,85 @@
             },
             "description": "Verifies that trying to access sample permission resource without a token returns 401."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Invalid Credentials (401)",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies that trying to access sample permission resource without a token returns 401.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "foundation",
+                    "protected-sample"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "GET",
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Host",
+                  "value": "127.0.0.1:8000"
+                },
+                {
+                  "key": "Connection",
+                  "value": "close"
+                },
+                {
+                  "key": "X-Powered-By",
+                  "value": "PHP/8.4.0"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-cache, private"
+                },
+                {
+                  "key": "Date",
+                  "value": "Tue, 16 Jun 2026 15:15:08 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Access-Control-Allow-Origin",
+                  "value": "http://localhost:5173"
+                },
+                {
+                  "key": "Access-Control-Allow-Credentials",
+                  "value": "true"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"unauthenticated\",\"message\":\"Authentication required.\",\"details\":{}}}"
+            }
+          ]
         }
       ]
     }

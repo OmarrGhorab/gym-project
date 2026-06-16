@@ -23,5 +23,6 @@ class DatabaseSeeder extends Seeder
         $this->call(HrFinanceAccessSeeder::class);
         $this->call(RoleMatrixSeeder::class);
         $this->call(RoleUserSeeder::class);
+        $this->call(PostmanScenarioSeeder::class);
     }
 }
