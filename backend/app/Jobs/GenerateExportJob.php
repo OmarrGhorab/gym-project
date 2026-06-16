@@ -35,24 +35,24 @@ class GenerateExportJob implements ShouldQueue
     public function handle(): void
     {
         $cacheKey = "export:{$this->exportId}";
-        $causer   = User::find($this->userId);
+        $causer = User::find($this->userId);
 
         try {
-            $builder     = new BuildExport;
+            $builder = new BuildExport;
             $exportClass = $builder->getExportClass($this->resource, $this->filters);
-            $writerType  = $builder->getWriterType($this->format);
+            $writerType = $builder->getWriterType($this->format);
 
             $filename = "exports/{$this->exportId}.{$this->format}";
-            $disk     = Config::get('export.disk', 'local');
+            $disk = Config::get('export.disk', 'local');
 
             Excel::store($exportClass, $filename, $disk, $writerType);
 
             Cache::put($cacheKey, [
-                'id'       => $this->exportId,
+                'id' => $this->exportId,
                 'resource' => $this->resource,
-                'format'   => $this->format,
-                'status'   => 'completed',
-                'user_id'  => $this->userId,
+                'format' => $this->format,
+                'status' => 'completed',
+                'user_id' => $this->userId,
                 'filename' => $filename,
             ], now()->addHours(Config::get('export.retention_hours', 24)));
 
@@ -67,12 +67,12 @@ class GenerateExportJob implements ShouldQueue
             ]);
 
             Cache::put($cacheKey, [
-                'id'       => $this->exportId,
+                'id' => $this->exportId,
                 'resource' => $this->resource,
-                'format'   => $this->format,
-                'status'   => 'failed',
-                'user_id'  => $this->userId,
-                'error'    => $e->getMessage(),
+                'format' => $this->format,
+                'status' => 'failed',
+                'user_id' => $this->userId,
+                'error' => $e->getMessage(),
             ], now()->addHours(Config::get('export.retention_hours', 24)));
 
             activity()

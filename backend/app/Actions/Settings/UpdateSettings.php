@@ -15,7 +15,7 @@ final class UpdateSettings
      *
      * @param  array<string, mixed>  $flatSettings  Dot-notation key → value map
      *                                              (file paths already resolved by caller).
-     * @return array<string, mixed>  Fresh key → value snapshot after update.
+     * @return array<string, mixed> Fresh key → value snapshot after update.
      */
     public function handle(array $flatSettings, User $user): array
     {

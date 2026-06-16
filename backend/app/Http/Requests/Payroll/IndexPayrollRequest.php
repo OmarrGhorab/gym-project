@@ -16,8 +16,8 @@ class IndexPayrollRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'month'       => ['nullable', 'string', 'date_format:Y-m'],
-            'status'      => ['nullable', 'string', Rule::in(['pending', 'paid'])],
+            'month' => ['nullable', 'string', 'date_format:Y-m'],
+            'status' => ['nullable', 'string', Rule::in(['pending', 'paid'])],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
         ];
     }

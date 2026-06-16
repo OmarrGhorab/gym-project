@@ -8,12 +8,14 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Exceptions\InvalidStateException;
+use League\OAuth1\Client\Credentials\CredentialsException;
 use Spatie\Permission\Exceptions\UnauthorizedException as SpatieUnauthorizedException;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
-use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
@@ -160,6 +162,31 @@ return Application::configure(basePath: dirname(__DIR__))
                         'details' => (object) [],
                     ],
                 ], 429);
+            }
+        });
+
+        // Socialite / OAuth failures: invalid state, cancelled consent, or provider errors.
+        $exceptions->render(function (InvalidStateException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'social_login_failed',
+                        'message' => 'Invalid or expired OAuth state. Please try again.',
+                        'details' => (object) [],
+                    ],
+                ], 400);
+            }
+        });
+
+        $exceptions->render(function (CredentialsException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'social_login_failed',
+                        'message' => 'OAuth provider rejected the request. Please try again.',
+                        'details' => (object) [],
+                    ],
+                ], 400);
             }
         });
 

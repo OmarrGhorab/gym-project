@@ -21,11 +21,11 @@ beforeEach(function (): void {
 function fakeExport(string $exportId, array $overrides = [], bool $withFile = false): void
 {
     $meta = array_merge([
-        'id'       => $exportId,
+        'id' => $exportId,
         'resource' => 'members',
-        'format'   => 'xlsx',
-        'status'   => 'completed',
-        'user_id'  => 1,
+        'format' => 'xlsx',
+        'status' => 'completed',
+        'user_id' => 1,
         'filename' => "exports/{$exportId}.xlsx",
     ], $overrides);
 

@@ -9,6 +9,7 @@ use Database\Seeders\RoleMatrixSeeder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
@@ -24,14 +25,14 @@ test('job writes completed status to cache and stores the file', function (): vo
 
     $exportId = 'job-test-complete';
     $resource = 'members';
-    $format   = 'csv';
+    $format = 'csv';
 
     Cache::put("export:{$exportId}", [
-        'id'       => $exportId,
+        'id' => $exportId,
         'resource' => $resource,
-        'format'   => $format,
-        'status'   => 'processing',
-        'user_id'  => $user->id,
+        'format' => $format,
+        'status' => 'processing',
+        'user_id' => $user->id,
     ], now()->addHour());
 
     GenerateExportJob::dispatchSync($exportId, $resource, $format, [], $user->id);
@@ -52,15 +53,15 @@ test('job writes failed status to cache when excel store throws', function (): v
     $exportId = 'job-test-fail';
 
     Cache::put("export:{$exportId}", [
-        'id'      => $exportId,
-        'status'  => 'processing',
+        'id' => $exportId,
+        'status' => 'processing',
         'user_id' => $user->id,
     ], now()->addHour());
 
     // Force an error by using an invalid resource name directly
     try {
         GenerateExportJob::dispatchSync($exportId, 'invalid_resource', 'csv', [], $user->id);
-    } catch (\Throwable) {
+    } catch (Throwable) {
         // expected — job rethrows
     }
 
@@ -80,14 +81,14 @@ test('job attributes audit log entry to the triggering user', function (): void 
     Config::set('activitylog.enabled', true);
 
     Cache::put("export:{$exportId}", [
-        'id'      => $exportId,
-        'status'  => 'processing',
+        'id' => $exportId,
+        'status' => 'processing',
         'user_id' => $user->id,
     ], now()->addHour());
 
     GenerateExportJob::dispatchSync($exportId, 'members', 'csv', [], $user->id);
 
-    $log = \Spatie\Activitylog\Models\Activity::where('causer_id', $user->id)
+    $log = Activity::where('causer_id', $user->id)
         ->where('causer_type', User::class)
         ->latest()
         ->first();
@@ -103,11 +104,11 @@ test('job with deleted user still completes without throwing', function (): void
     Member::factory()->count(1)->create();
 
     $exportId = 'job-test-deleted-user';
-    $userId   = $user->id;
+    $userId = $user->id;
 
     Cache::put("export:{$exportId}", [
-        'id'      => $exportId,
-        'status'  => 'processing',
+        'id' => $exportId,
+        'status' => 'processing',
         'user_id' => $userId,
     ], now()->addHour());
 

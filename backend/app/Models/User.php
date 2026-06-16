@@ -95,4 +95,14 @@ class User extends Authenticatable
     {
         return $this->hasOne(Employee::class);
     }
+
+    /**
+     * Social accounts linked to this user (OAuth providers).
+     *
+     * @return HasMany<SocialAccount>
+     */
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
 }

@@ -14,7 +14,7 @@ class ExportController extends ApiController
     public function export(ExportRequest $request, BuildExport $action)
     {
         $resource = $request->validated('resource');
-        $format   = strtolower($request->validated('format'));
+        $format = strtolower($request->validated('format'));
         $filters = $request->input('filter', []);
 
         $result = $action->handle($resource, $format, $filters, $request->user());
@@ -37,8 +37,8 @@ class ExportController extends ApiController
 
             return $this->success(
                 data: [
-                    'export_id'    => $result['export_id'],
-                    'status'       => $result['status'],
+                    'export_id' => $result['export_id'],
+                    'status' => $result['status'],
                     'download_url' => $downloadUrl,
                 ],
                 message: 'Export is being processed in the background.',
@@ -67,7 +67,7 @@ class ExportController extends ApiController
             return $this->success(
                 data: [
                     'export_id' => $exportId,
-                    'status'    => 'processing',
+                    'status' => 'processing',
                 ],
                 message: 'Export is still processing.',
                 status: 202
@@ -83,7 +83,7 @@ class ExportController extends ApiController
             );
         }
 
-        $disk     = config('export.disk', 'local');
+        $disk = config('export.disk', 'local');
         $filename = $metadata['filename'];
 
         if (! Storage::disk($disk)->exists($filename)) {
@@ -120,9 +120,9 @@ class ExportController extends ApiController
         return $this->success(
             data: [
                 'export_id' => $metadata['id'],
-                'status'    => $metadata['status'],
-                'resource'  => $metadata['resource'],
-                'format'    => $metadata['format'],
+                'status' => $metadata['status'],
+                'resource' => $metadata['resource'],
+                'format' => $metadata['format'],
             ],
             message: 'Export status retrieved'
         );

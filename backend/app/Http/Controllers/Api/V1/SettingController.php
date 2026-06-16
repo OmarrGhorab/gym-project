@@ -14,8 +14,7 @@ class SettingController extends ApiController
 {
     public function index(IndexSettingsRequest $request): JsonResponse
     {
-        $settings = Cache::rememberForever('settings.all', fn () =>
-            Setting::all()->pluck('value', 'key')->toArray());
+        $settings = Cache::rememberForever('settings.all', fn () => Setting::all()->pluck('value', 'key')->toArray());
 
         return (new SettingResource($settings))
             ->withMessage('Settings retrieved successfully')

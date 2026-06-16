@@ -55,14 +55,14 @@ class BuildExport
             $response = Excel::download($exportClass, "{$resource}.{$format}", $writerType);
         } catch (\Throwable $e) {
             return [
-                'queued'  => false,
-                'error'   => true,
+                'queued' => false,
+                'error' => true,
                 'message' => $e->getMessage(),
             ];
         }
 
         return [
-            'queued'   => false,
+            'queued' => false,
             'response' => $response,
         ];
     }

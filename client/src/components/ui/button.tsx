@@ -1,3 +1,6 @@
+"use client"
+
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -44,14 +47,35 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  asChild = false,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  if (asChild) {
+    const child = React.Children.toArray(children).find(
+      React.isValidElement
+    ) as React.ReactElement<{ className?: string }> | undefined
+
+    if (!child) {
+      throw new Error("Button with asChild expects a single React element child.")
+    }
+
+    return React.cloneElement(child, {
+      className: cn(buttonVariants({ variant, size, className }), child.props.className),
+    })
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {children}
+    </ButtonPrimitive>
   )
 }
 

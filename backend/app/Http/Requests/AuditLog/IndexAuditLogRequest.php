@@ -16,15 +16,15 @@ class IndexAuditLogRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'filter.from'    => ['nullable', 'date'],
-            'filter.to'      => ['nullable', 'date', 'after_or_equal:filter.from'],
+            'filter.from' => ['nullable', 'date'],
+            'filter.to' => ['nullable', 'date', 'after_or_equal:filter.from'],
             'filter.subject' => ['nullable', 'string', function ($attribute, $value, $fail): void {
                 if (! array_key_exists($value, AuditLogResource::$aliasMap)) {
                     $fail('The selected subject alias is invalid.');
                 }
             }],
-            'filter.causer'  => ['nullable', 'integer'],
-            'sort'           => ['nullable', 'string', 'in:created_at,-created_at'],
+            'filter.causer' => ['nullable', 'integer'],
+            'sort' => ['nullable', 'string', 'in:created_at,-created_at'],
         ];
     }
 }

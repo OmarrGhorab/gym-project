@@ -43,9 +43,21 @@ Route::prefix('v1')->group(function (): void {
     // US2 — Authentication (public + protected)
     // ------------------------------------------------------------------
     Route::prefix('auth')->group(function (): void {
-        // Rate-limit login to reduce brute-force exposure.
+        // Rate-limit registration, login, and password reset to reduce brute-force exposure.
+        Route::post('register', [AuthController::class, 'register'])
+            ->middleware('throttle:auth');
         Route::post('login', [AuthController::class, 'login'])
             ->middleware('throttle:auth');
+        Route::post('forgot-password', [AuthController::class, 'forgotPassword'])
+            ->middleware('throttle:auth');
+        Route::post('reset-password', [AuthController::class, 'resetPassword'])
+            ->middleware('throttle:auth');
+
+        // Social login routes are public but restricted to Google only.
+        Route::get('{provider}/redirect', [AuthController::class, 'socialRedirect'])
+            ->whereIn('provider', ['google']);
+        Route::get('{provider}/callback', [AuthController::class, 'socialCallback'])
+            ->whereIn('provider', ['google']);
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('me', [AuthController::class, 'me']);
