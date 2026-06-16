@@ -12,6 +12,10 @@ import {
   getFriendlyError,
   resetPassword,
 } from "@/lib/auth";
+import {
+  createResetPasswordSchema,
+  validateWithSchema,
+} from "@/lib/auth-validation";
 import { AuthHeader } from "./auth-header";
 
 export function ResetPasswordForm() {
@@ -34,6 +38,22 @@ export function ResetPasswordForm() {
     setError(null);
     setSuccess(null);
     setFieldErrors({});
+
+    const validationErrors = validateWithSchema(
+      createResetPasswordSchema({
+        passwordMismatch: t("passwordMismatch"),
+      }),
+      {
+        password,
+        password_confirmation: passwordConfirmation,
+      }
+    );
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setLoading(false);
+      return;
+    }
 
     try {
       const result = await resetPassword({
@@ -99,10 +119,15 @@ export function ResetPasswordForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             aria-invalid={!!fieldErrors.password}
+            aria-describedby={
+              fieldErrors.password ? "password-error" : undefined
+            }
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.password && (
-            <p className="text-sm text-destructive">{fieldErrors.password}</p>
+            <p id="password-error" className="text-sm text-destructive">
+              {fieldErrors.password}
+            </p>
           )}
         </div>
 
@@ -120,10 +145,18 @@ export function ResetPasswordForm() {
             value={passwordConfirmation}
             onChange={(e) => setPasswordConfirmation(e.target.value)}
             aria-invalid={!!fieldErrors.password_confirmation}
+            aria-describedby={
+              fieldErrors.password_confirmation
+                ? "password-confirmation-error"
+                : undefined
+            }
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.password_confirmation && (
-            <p className="text-sm text-destructive">
+            <p
+              id="password-confirmation-error"
+              className="text-sm text-destructive"
+            >
               {fieldErrors.password_confirmation}
             </p>
           )}

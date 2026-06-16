@@ -1,4 +1,26 @@
 {
+  "Metadata": {
+    "Home": {
+      "title": "الرئيسية",
+      "description": "منصة ATP Gym لتشغيل الفروع والإدارة."
+    },
+    "Login": {
+      "title": "تسجيل الدخول",
+      "description": "سجل الدخول إلى ATP Gym لإدارة الفروع والأعضاء والاشتراكات والمبيعات."
+    },
+    "Register": {
+      "title": "إنشاء حساب",
+      "description": "أنشئ حساب ATP Gym للوصول إلى لوحة إدارة الفروع والأعضاء."
+    },
+    "ForgotPassword": {
+      "title": "نسيت كلمة المرور",
+      "description": "اطلب رابط إعادة تعيين كلمة المرور لحسابك في ATP Gym."
+    },
+    "ResetPassword": {
+      "title": "إعادة تعيين كلمة المرور",
+      "description": "عيّن كلمة مرور جديدة لحسابك في ATP Gym."
+    }
+  },
   "Home": {
     "brand": "ATP Gym",
     "subtitle": "منصة تشغيل الفروع والإدارة",
@@ -21,6 +43,7 @@
     "emailPlaceholder": "أدخل بريدك الإلكتروني",
     "passwordLabel": "كلمة المرور",
     "passwordPlaceholder": "أدخل كلمة المرور",
+    "invalidEmail": "أدخل بريدًا إلكترونيًا صالحًا.",
     "rememberMe": "تذكرني",
     "forgotPassword": "نسيت كلمة المرور؟",
     "submit": "تسجيل الدخول",
@@ -47,6 +70,8 @@
     "passwordPlaceholder": "أنشئ كلمة مرور قوية",
     "passwordConfirmationLabel": "تأكيد كلمة المرور",
     "passwordConfirmationPlaceholder": "أعد إدخال كلمة المرور",
+    "invalidEmail": "أدخل بريدًا إلكترونيًا صالحًا.",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين.",
     "submit": "إنشاء الحساب",
     "submitLoading": "جاري إنشاء الحساب...",
     "hasAccount": "لديك حساب بالفعل؟",
@@ -64,6 +89,7 @@
     "posterHighlight": "تكتشفي قوتك",
     "emailLabel": "البريد الإلكتروني",
     "emailPlaceholder": "أدخل بريدك الإلكتروني",
+    "invalidEmail": "أدخل بريدًا إلكترونيًا صالحًا.",
     "submit": "إرسال رابط الاستعادة",
     "submitLoading": "جاري الإرسال...",
     "rememberPassword": "تذكرت كلمة المرور؟",
@@ -82,6 +108,7 @@
     "passwordPlaceholder": "أدخل كلمة المرور الجديدة",
     "passwordConfirmationLabel": "تأكيد كلمة المرور الجديدة",
     "passwordConfirmationPlaceholder": "أعد إدخال كلمة المرور الجديدة",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين.",
     "submit": "حفظ كلمة المرور",
     "submitLoading": "جاري الحفظ...",
     "invalidLink": "رابط إعادة التعيين غير صالح أو منتهي الصلاحية.",
@@ -90,7 +117,12 @@
     "signIn": "تسجيل الدخول"
   },
   "GoogleCallback": {
+    "loading": "جاري التحميل...",
     "processing": "جاري إكمال تسجيل الدخول...",
     "success": "تم تسجيل الدخول بنجاح."
+  },
+  "NotFound": {
+    "title": "الصفحة غير موجودة",
+    "description": "المسار غير موجود أو اللغة غير مهيأة بعد."
   }
 }

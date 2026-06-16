@@ -11,6 +11,10 @@ import {
   getFieldErrors,
   getFriendlyError,
 } from "@/lib/auth";
+import {
+  createForgotPasswordSchema,
+  validateWithSchema,
+} from "@/lib/auth-validation";
 import { AuthHeader } from "./auth-header";
 
 export function ForgotPasswordForm() {
@@ -28,6 +32,17 @@ export function ForgotPasswordForm() {
     setError(null);
     setSuccess(null);
     setFieldErrors({});
+
+    const validationErrors = validateWithSchema(
+      createForgotPasswordSchema({ invalidEmail: t("invalidEmail") }),
+      { email }
+    );
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setLoading(false);
+      return;
+    }
 
     try {
       const result = await forgotPassword({ email });
@@ -62,10 +77,13 @@ export function ForgotPasswordForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.email && (
-            <p className="text-sm text-destructive">{fieldErrors.email}</p>
+            <p id="email-error" className="text-sm text-destructive">
+              {fieldErrors.email}
+            </p>
           )}
         </div>
 

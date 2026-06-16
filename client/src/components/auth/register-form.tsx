@@ -12,6 +12,10 @@ import {
   getFriendlyError,
   register as registerUser,
 } from "@/lib/auth";
+import {
+  createRegisterSchema,
+  validateWithSchema,
+} from "@/lib/auth-validation";
 import { GoogleButton } from "./google-button";
 import { AuthHeader } from "./auth-header";
 
@@ -32,6 +36,25 @@ export function RegisterForm() {
     setLoading(true);
     setError(null);
     setFieldErrors({});
+
+    const validationErrors = validateWithSchema(
+      createRegisterSchema({
+        invalidEmail: t("invalidEmail"),
+        passwordMismatch: t("passwordMismatch"),
+      }),
+      {
+        name,
+        email,
+        password,
+        password_confirmation: passwordConfirmation,
+      }
+    );
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setLoading(false);
+      return;
+    }
 
     try {
       await registerUser({
@@ -70,10 +93,13 @@ export function RegisterForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             aria-invalid={!!fieldErrors.name}
+            aria-describedby={fieldErrors.name ? "name-error" : undefined}
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.name && (
-            <p className="text-sm text-destructive">{fieldErrors.name}</p>
+            <p id="name-error" className="text-sm text-destructive">
+              {fieldErrors.name}
+            </p>
           )}
         </div>
 
@@ -89,10 +115,13 @@ export function RegisterForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.email && (
-            <p className="text-sm text-destructive">{fieldErrors.email}</p>
+            <p id="email-error" className="text-sm text-destructive">
+              {fieldErrors.email}
+            </p>
           )}
         </div>
 
@@ -108,10 +137,15 @@ export function RegisterForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             aria-invalid={!!fieldErrors.password}
+            aria-describedby={
+              fieldErrors.password ? "password-error" : undefined
+            }
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.password && (
-            <p className="text-sm text-destructive">{fieldErrors.password}</p>
+            <p id="password-error" className="text-sm text-destructive">
+              {fieldErrors.password}
+            </p>
           )}
         </div>
 
@@ -129,10 +163,18 @@ export function RegisterForm() {
             value={passwordConfirmation}
             onChange={(e) => setPasswordConfirmation(e.target.value)}
             aria-invalid={!!fieldErrors.password_confirmation}
+            aria-describedby={
+              fieldErrors.password_confirmation
+                ? "password-confirmation-error"
+                : undefined
+            }
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.password_confirmation && (
-            <p className="text-sm text-destructive">
+            <p
+              id="password-confirmation-error"
+              className="text-sm text-destructive"
+            >
               {fieldErrors.password_confirmation}
             </p>
           )}

@@ -12,7 +12,11 @@ export async function generateMetadata({
   const { locale } = await params;
 
   return {
-    title: locale === "ar" ? "ATP Gym | لوحة التحكم" : "ATP Gym | Dashboard",
+    title: {
+      default: "ATP Gym",
+      template:
+        locale === "ar" ? "ATP Gym | %s" : "ATP Gym | %s",
+    },
     description:
       locale === "ar"
         ? "واجهة تشغيل وإدارة فروع ATP Gym"

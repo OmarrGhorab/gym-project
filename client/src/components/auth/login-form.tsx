@@ -13,6 +13,7 @@ import {
   getFriendlyError,
   login,
 } from "@/lib/auth";
+import { createLoginSchema, validateWithSchema } from "@/lib/auth-validation";
 import { GoogleButton } from "./google-button";
 import { AuthHeader } from "./auth-header";
 
@@ -32,6 +33,17 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
     setFieldErrors({});
+
+    const validationErrors = validateWithSchema(
+      createLoginSchema({ invalidEmail: t("invalidEmail") }),
+      { email, password, remember }
+    );
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setLoading(false);
+      return;
+    }
 
     try {
       await login({ email, password, remember });
@@ -65,10 +77,13 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "email-error" : undefined}
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.email && (
-            <p className="text-sm text-destructive">{fieldErrors.email}</p>
+            <p id="email-error" className="text-sm text-destructive">
+              {fieldErrors.email}
+            </p>
           )}
         </div>
 
@@ -84,10 +99,15 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             aria-invalid={!!fieldErrors.password}
+            aria-describedby={
+              fieldErrors.password ? "password-error" : undefined
+            }
             className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
           />
           {fieldErrors.password && (
-            <p className="text-sm text-destructive">{fieldErrors.password}</p>
+            <p id="password-error" className="text-sm text-destructive">
+              {fieldErrors.password}
+            </p>
           )}
         </div>
 

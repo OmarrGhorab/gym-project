@@ -1,10 +1,3 @@
-"use client";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
-
-const TOKEN_KEY = "atp_auth_token";
-
 export type ApiError = {
   code: string;
   message: string;
@@ -19,25 +12,10 @@ export type AuthResponse = {
       email: string;
       [key: string]: unknown;
     };
-    token: string;
+    token?: string;
   };
   message: string;
 };
-
-export function saveToken(token: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function removeToken(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_KEY);
-}
 
 function getErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
@@ -49,19 +27,15 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken();
   const headers = new Headers(options.headers);
 
   headers.set("Accept", "application/json");
   headers.set("Content-Type", "application/json");
 
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(path, {
     ...options,
     headers,
+    credentials: "same-origin",
   });
 
   const data = (await response.json().catch(() => ({}))) as Record<
@@ -89,16 +63,10 @@ export async function login(payload: {
   password: string;
   remember?: boolean;
 }): Promise<AuthResponse> {
-  const data = await apiFetch<AuthResponse>("/auth/login", {
+  return apiFetch<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-
-  if (data.data?.token) {
-    saveToken(data.data.token);
-  }
-
-  return data;
 }
 
 export async function register(payload: {
@@ -107,22 +75,16 @@ export async function register(payload: {
   password: string;
   password_confirmation: string;
 }): Promise<AuthResponse> {
-  const data = await apiFetch<AuthResponse>("/auth/register", {
+  return apiFetch<AuthResponse>("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-
-  if (data.data?.token) {
-    saveToken(data.data.token);
-  }
-
-  return data;
 }
 
 export async function forgotPassword(payload: {
   email: string;
 }): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>("/auth/forgot-password", {
+  return apiFetch<{ message: string }>("/api/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -134,14 +96,14 @@ export async function resetPassword(payload: {
   password: string;
   password_confirmation: string;
 }): Promise<{ message: string }> {
-  return apiFetch<{ message: string }>("/auth/reset-password", {
+  return apiFetch<{ message: string }>("/api/auth/reset-password", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export function getGoogleRedirectUrl(): string {
-  return `${API_BASE_URL}/auth/google/redirect`;
+  return "/api/auth/google/redirect";
 }
 
 export async function googleCallback(
@@ -149,15 +111,9 @@ export async function googleCallback(
 ): Promise<AuthResponse> {
   const query = searchParams.toString();
 
-  const data = await apiFetch<AuthResponse>(`/auth/google/callback?${query}`, {
+  return apiFetch<AuthResponse>(`/api/auth/google/callback?${query}`, {
     method: "GET",
   });
-
-  if (data.data?.token) {
-    saveToken(data.data.token);
-  }
-
-  return data;
 }
 
 export function getFieldErrors(

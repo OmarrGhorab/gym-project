@@ -1,6 +1,21 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Metadata.Home" });
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function LocaleHomePage({
   params,
