@@ -118,6 +118,7 @@ final class AuthController extends ApiController
         $result = $action->handle(
             email: $request->validated('email'),
             password: $request->validated('password'),
+            remember: (bool) $request->validated('remember', false),
         );
 
         $userResource = (new UserResource($result['user']))->toArray($request);

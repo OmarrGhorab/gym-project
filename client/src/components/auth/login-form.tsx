@@ -22,6 +22,7 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -33,7 +34,7 @@ export function LoginForm() {
     setFieldErrors({});
 
     try {
-      await login({ email, password });
+      await login({ email, password, remember });
       router.push("/");
     } catch (err) {
       setError(getFriendlyError(err));
@@ -95,7 +96,11 @@ export function LoginForm() {
             htmlFor="remember"
             className="flex cursor-pointer items-center gap-2 text-muted-foreground"
           >
-            <Checkbox id="remember" />
+            <Checkbox
+              id="remember"
+              checked={remember}
+              onCheckedChange={(checked) => setRemember(checked === true)}
+            />
             <span>{t("rememberMe")}</span>
           </Label>
           <Link

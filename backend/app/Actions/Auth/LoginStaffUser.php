@@ -4,6 +4,7 @@ namespace App\Actions\Auth;
 
 use App\Exceptions\InvalidCredentialsException;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -28,7 +29,7 @@ final class LoginStaffUser
      *
      * @throws AuthenticationException
      */
-    public function handle(string $email, string $password): array
+    public function handle(string $email, string $password, bool $remember = false): array
     {
         $user = User::where('email', $email)->first();
 
@@ -38,7 +39,9 @@ final class LoginStaffUser
             throw new InvalidCredentialsException;
         }
 
-        $token = $user->createToken('staff-token')->plainTextToken;
+        $expiresAt = $remember ? Carbon::now()->addDays(30) : null;
+
+        $token = $user->createToken('staff-token', ['*'], $expiresAt)->plainTextToken;
 
         return [
             'user' => $user,

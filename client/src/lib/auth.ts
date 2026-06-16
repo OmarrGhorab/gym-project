@@ -87,6 +87,7 @@ export async function apiFetch<T>(
 export async function login(payload: {
   email: string;
   password: string;
+  remember?: boolean;
 }): Promise<AuthResponse> {
   const data = await apiFetch<AuthResponse>("/auth/login", {
     method: "POST",

@@ -111,3 +111,51 @@ test('invalid email format returns 422 validation error', function (): void {
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed');
 });
+
+test('login with remember creates a long-lived token', function (): void {
+    $user = User::factory()->create([
+        'email' => 'staff@gym.test',
+        'password' => bcrypt('secret123'),
+    ]);
+
+    $this->postJson('/api/v1/auth/login', [
+        'email' => 'staff@gym.test',
+        'password' => 'secret123',
+        'remember' => true,
+    ])
+        ->assertStatus(200)
+        ->assertJsonPath('message', 'Authenticated');
+
+    $token = $user->tokens()->first();
+    expect($token)->not->toBeNull();
+    expect($token->expires_at)->not->toBeNull();
+    expect(now()->diffInDays($token->expires_at))->toBeGreaterThanOrEqual(29);
+});
+
+test('login without remember creates a token without expiration', function (): void {
+    $user = User::factory()->create([
+        'email' => 'staff@gym.test',
+        'password' => bcrypt('secret123'),
+    ]);
+
+    $this->postJson('/api/v1/auth/login', [
+        'email' => 'staff@gym.test',
+        'password' => 'secret123',
+    ])
+        ->assertStatus(200);
+
+    $token = $user->tokens()->first();
+    expect($token)->not->toBeNull();
+    expect($token->expires_at)->toBeNull();
+});
+
+test('invalid remember value returns 422 validation error', function (): void {
+    $this->postJson('/api/v1/auth/login', [
+        'email' => 'staff@gym.test',
+        'password' => 'secret123',
+        'remember' => 'not-a-boolean',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJsonPath('error.details.remember.0', 'The remember field must be true or false.');
+});
