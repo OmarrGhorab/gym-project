@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
 import { googleCallback, getFriendlyError } from "@/lib/auth";
 
 export function GoogleCallbackHandler() {
   const t = useTranslations("GoogleCallback");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -23,7 +25,7 @@ export function GoogleCallbackHandler() {
         if (!cancelled) {
           setStatus("success");
           setMessage(t("success"));
-          router.push("/");
+          router.push(`/${locale}`);
         }
       } catch (err) {
         if (!cancelled) {
@@ -38,7 +40,7 @@ export function GoogleCallbackHandler() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams, router, t]);
+  }, [searchParams, router, t, locale]);
 
   return (
     <div className="flex flex-col items-center justify-center space-y-4 text-center">

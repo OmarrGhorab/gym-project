@@ -1,8 +1,8 @@
 {
   "Metadata": {
-    "Home": {
-      "title": "Home",
-      "description": "ATP Gym branch operations and admin platform."
+    "Dashboard": {
+      "title": "Dashboard",
+      "description": "Private ATP Gym operations dashboard for branches, members, subscriptions, and revenue."
     },
     "Login": {
       "title": "Login",
@@ -21,15 +21,66 @@
       "description": "Set a new password for your ATP Gym account."
     }
   },
-  "Home": {
-    "brand": "ATP Gym",
-    "subtitle": "Branch operations and admin platform",
-    "cta": "Login",
-    "eyebrow": "ATP Gym platform",
-    "title": "The admin client is ready to move.",
-    "description": "The foundation is now organized with localization, App Router, and shadcn. The real entry point starts from the dedicated login screen.",
-    "primaryAction": "Open login screen",
-    "secondaryAction": "Review the UI"
+  "Dashboard": {
+    "eyebrow": "Private workspace",
+    "title": "Dashboard",
+    "description": "Track branch activity, memberships, subscriptions, and daily revenue from one focused operations view.",
+    "today": "Today overview",
+    "stats": {
+      "members": {
+        "label": "Active members",
+        "value": "1,284",
+        "hint": "+48 this month"
+      },
+      "revenue": {
+        "label": "Monthly revenue",
+        "value": "EGP 284K",
+        "hint": "+12% from last month"
+      },
+      "subscriptions": {
+        "label": "Renewals due",
+        "value": "76",
+        "hint": "Next 7 days"
+      },
+      "branches": {
+        "label": "Open branches",
+        "value": "4",
+        "hint": "All locations online"
+      }
+    },
+    "activity": {
+      "title": "Recent activity",
+      "checkins": {
+        "title": "Member check-ins",
+        "description": "Peak traffic is trending around evening classes.",
+        "status": "Live"
+      },
+      "renewals": {
+        "title": "Subscription renewals",
+        "description": "Follow up with members whose plans expire this week.",
+        "status": "Review"
+      },
+      "payments": {
+        "title": "Payments",
+        "description": "Daily payment reconciliation is ready for review.",
+        "status": "Ready"
+      }
+    },
+    "actions": {
+      "title": "Priority actions",
+      "members": {
+        "title": "Review new members",
+        "description": "Check recently created profiles before branch assignment."
+      },
+      "subscriptions": {
+        "title": "Renew subscriptions",
+        "description": "Contact members with expiring plans and pending payments."
+      },
+      "reports": {
+        "title": "Export branch report",
+        "description": "Prepare a daily summary for managers."
+      }
+    }
   },
   "Login": {
     "brand": "ATP Gym",

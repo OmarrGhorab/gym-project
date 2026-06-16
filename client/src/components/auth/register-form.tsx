@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import { AuthHeader } from "./auth-header";
 
 export function RegisterForm() {
   const t = useTranslations("Register");
+  const locale = useLocale();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -63,7 +65,7 @@ export function RegisterForm() {
         password,
         password_confirmation: passwordConfirmation,
       });
-      router.push("/");
+      router.push(`/${locale}`);
     } catch (err) {
       setError(getFriendlyError(err));
       setFieldErrors(getFieldErrors(err) ?? {});

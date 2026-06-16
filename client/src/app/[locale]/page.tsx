@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireAuth } from "@/lib/session";
+import type { AppLocale } from "@/i18n/routing";
 
 export async function generateMetadata({
   params,
@@ -9,7 +11,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "Metadata.Home" });
+  const t = await getTranslations({ locale, namespace: "Metadata.Dashboard" });
 
   return {
     title: t("title"),
@@ -23,37 +25,93 @@ export default async function LocaleHomePage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  await requireAuth(locale as AppLocale);
   setRequestLocale(locale);
-  const t = await getTranslations("Home");
+  const t = await getTranslations("Dashboard");
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,232,96,0.14),_transparent_24%),linear-gradient(180deg,_#090909_0%,_#111111_100%)] px-4 py-6 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-6xl items-center justify-center">
-        <section className="w-full max-w-4xl rounded-[32px] border border-white/10 bg-white/6 px-8 py-12 shadow-[0_40px_120px_rgba(0,0,0,0.45)] backdrop-blur sm:px-12">
-          <div className="space-y-6">
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#ffe46b]">
+    <main className="min-h-screen bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="flex flex-col gap-3 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <Badge variant="secondary" className="w-fit">
               {t("eyebrow")}
-            </p>
-            <div className="space-y-4">
-              <h1 className="max-w-3xl text-5xl font-semibold leading-[1.05] sm:text-6xl">
+            </Badge>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-semibold tracking-normal sm:text-4xl">
                 {t("title")}
               </h1>
-              <p className="max-w-2xl text-lg leading-8 text-white/70">
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 {t("description")}
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                asChild
-                className="rounded-full bg-[#ffe800] px-5 text-black hover:bg-[#f5de00]"
-              >
-                <Link href="/login">{t("primaryAction")}</Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-full px-5">
-                <Link href="/login">{t("secondaryAction")}</Link>
-              </Button>
-            </div>
           </div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {t("today")}
+          </p>
+        </header>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {["members", "revenue", "subscriptions", "branches"].map((key) => (
+            <Card key={key} className="rounded-lg">
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t(`stats.${key}.label`)}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-3xl font-semibold">
+                  {t(`stats.${key}.value`)}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t(`stats.${key}.hint`)}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>{t("activity.title")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {["checkins", "renewals", "payments"].map((key) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between gap-4 border-b border-border pb-4 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <p className="font-medium">{t(`activity.${key}.title`)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t(`activity.${key}.description`)}
+                    </p>
+                  </div>
+                  <Badge variant="outline">{t(`activity.${key}.status`)}</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>{t("actions.title")}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {["members", "subscriptions", "reports"].map((key) => (
+                <div
+                  key={key}
+                  className="rounded-md border border-border bg-muted/40 p-4"
+                >
+                  <p className="font-medium">{t(`actions.${key}.title`)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t(`actions.${key}.description`)}
+                  </p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </section>
       </div>
     </main>

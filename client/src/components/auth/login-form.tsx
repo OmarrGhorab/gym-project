@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +20,7 @@ import { AuthHeader } from "./auth-header";
 
 export function LoginForm() {
   const t = useTranslations("Login");
+  const locale = useLocale();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -47,7 +49,7 @@ export function LoginForm() {
 
     try {
       await login({ email, password, remember });
-      router.push("/");
+      router.push(`/${locale}`);
     } catch (err) {
       setError(getFriendlyError(err));
       setFieldErrors(getFieldErrors(err) ?? {});

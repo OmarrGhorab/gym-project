@@ -2,5 +2,5 @@ import { redirect } from "next/navigation";
 import { routing } from "@/i18n/routing";
 
 export default function RootRedirectPage() {
-  redirect(`/${routing.defaultLocale}/login`);
+  redirect(`/${routing.defaultLocale}`);
 }

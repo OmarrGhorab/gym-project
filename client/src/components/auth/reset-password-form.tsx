@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import { AuthHeader } from "./auth-header";
 
 export function ResetPasswordForm() {
   const t = useTranslations("ResetPassword");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -63,7 +65,7 @@ export function ResetPasswordForm() {
         password_confirmation: passwordConfirmation,
       });
       setSuccess(result.message);
-      setTimeout(() => router.push("/login"), 2000);
+      setTimeout(() => router.push(`/${locale}/login`), 2000);
     } catch (err) {
       setError(getFriendlyError(err));
       setFieldErrors(getFieldErrors(err) ?? {});

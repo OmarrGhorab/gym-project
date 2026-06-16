@@ -21,6 +21,9 @@ export async function generateMetadata({
       locale === "ar"
         ? "واجهة تشغيل وإدارة فروع ATP Gym"
         : "Operations and branch management dashboard for ATP Gym",
+    icons: {
+      icon: "/logo.jpeg",
+    },
   };
 }
 
