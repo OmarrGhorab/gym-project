@@ -1264,7 +1264,7 @@
                 "register"
               ]
             },
-            "description": "Registers a new staff user and returns a Sanctum token.",
+            "description": "Registers a new staff user as unverified and sends an email verification OTP.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@gym.test\",\n  \"password\": \"Secret123!\",\n  \"password_confirmation\": \"Secret123!\"\n}",
@@ -1279,10 +1279,10 @@
             {
               "name": "Success",
               "originalRequest": {
-                "description": {
-                  "content": "Registers a new staff user and returns a Sanctum token.",
-                  "type": "text/plain"
-                },
+                  "description": {
+                    "content": "Registers a new staff user as unverified and sends an email verification OTP.",
+                    "type": "text/plain"
+                  },
                 "url": {
                   "protocol": "http",
                   "port": "8000",
@@ -1336,7 +1336,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"data\":{\"user\":{\"id\":99,\"name\":\"New User\",\"email\":\"newuser@gym.test\",\"roles\":[],\"permissions\":[]},\"token\":\"99|exampleToken\"},\"meta\":{},\"message\":\"Registered\"}"
+              "body": "{\"data\":{\"user\":{\"id\":99,\"name\":\"New User\",\"email\":\"newuser@gym.test\",\"roles\":[],\"permissions\":[]}},\"meta\":{},\"message\":\"Registered. Please check your email for a verification code.\"}"
             }
           ]
         },
@@ -1440,6 +1440,274 @@
               ],
               "cookie": [],
               "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"The given data was invalid.\",\"details\":{\"email\":[\"The email field must be a valid email address.\"],\"name\":[\"The name field is required.\"],\"password\":[\"The password field is required.\"]}}}"
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/verify-email - Success",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/verify-email",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-email"
+              ]
+            },
+            "description": "Verifies the email verification OTP and returns a Sanctum token on success.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@gym.test\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies the email verification OTP and returns a Sanctum token on success.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-email"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"newuser@gym.test\",\n  \"otp\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"user\":{\"id\":99,\"name\":\"New User\",\"email\":\"newuser@gym.test\",\"roles\":[],\"permissions\":[]},\"token\":\"99|exampleToken\"},\"meta\":{},\"message\":\"Email verified. You are now signed in.\"}"
+            },
+            {
+              "name": "Invalid OTP (400)",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies the email verification OTP and returns a Sanctum token on success.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-email"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"newuser@gym.test\",\n  \"otp\": \"000000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"invalid_otp\",\"message\":\"The code is invalid or has expired.\",\"details\":{}}}"
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/resend-verification - Success",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/resend-verification",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "resend-verification"
+              ]
+            },
+            "description": "Resends the email verification OTP for an unverified account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@gym.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Resends the email verification OTP for an unverified account.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "resend-verification"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"newuser@gym.test\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{},\"meta\":{},\"message\":\"If the account exists and is unverified, a new code has been sent.\"}"
             }
           ]
         },

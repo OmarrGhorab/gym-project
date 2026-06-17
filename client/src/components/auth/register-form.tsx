@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +12,12 @@ import {
   getFieldErrors,
   getFriendlyError,
   register as registerUser,
+  resendVerificationOtp,
+  verifyEmailOtp,
 } from "@/lib/auth";
 import {
   createRegisterSchema,
+  createVerifyEmailOtpSchema,
   validateWithSchema,
 } from "@/lib/auth-validation";
 import { GoogleButton } from "./google-button";
@@ -26,14 +28,18 @@ export function RegisterForm() {
   const locale = useLocale();
   const router = useRouter();
 
+  const [step, setStep] = useState<"details" | "otp">("details");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleDetailsSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     setLoading(true);
     setFieldErrors({});
@@ -58,16 +64,65 @@ export function RegisterForm() {
     }
 
     try {
-      await registerUser({
+      const result = await registerUser({
         name,
         email,
         password,
         password_confirmation: passwordConfirmation,
       });
+      toast.success(t("verificationSentTitle"), {
+        description: result.message,
+      });
+      setStep("otp");
+    } catch (err) {
+      toast.error(t("errorTitle"), { description: getFriendlyError(err) });
+      setFieldErrors(getFieldErrors(err) ?? {});
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleOtpSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setFieldErrors({});
+
+    const validationErrors = validateWithSchema(
+      createVerifyEmailOtpSchema({
+        invalidEmail: t("invalidEmail"),
+        invalidOtp: t("invalidOtp"),
+      }),
+      { email, otp }
+    );
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const result = await verifyEmailOtp({ email, otp });
+      toast.success(t("verifiedTitle"), { description: result.message });
       router.push(`/${locale}`);
     } catch (err) {
       toast.error(t("errorTitle"), { description: getFriendlyError(err) });
       setFieldErrors(getFieldErrors(err) ?? {});
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setLoading(true);
+
+    try {
+      const result = await resendVerificationOtp({ email });
+      toast.success(t("verificationSentTitle"), {
+        description: result.message,
+      });
+    } catch (err) {
+      toast.error(t("errorTitle"), { description: getFriendlyError(err) });
     } finally {
       setLoading(false);
     }
@@ -78,132 +133,180 @@ export function RegisterForm() {
       <AuthHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
-        description={t("description")}
+        description={
+          step === "details" ? t("description") : t("otpDescription")
+        }
       />
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="name">{t("nameLabel")}</Label>
-          <Input
-            id="name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            required
-            placeholder={t("namePlaceholder")}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-invalid={!!fieldErrors.name}
-            aria-describedby={fieldErrors.name ? "name-error" : undefined}
-            className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
-          />
-          {fieldErrors.name && (
-            <p id="name-error" className="text-sm text-destructive">
-              {fieldErrors.name}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="email">{t("emailLabel")}</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            placeholder={t("emailPlaceholder")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            aria-invalid={!!fieldErrors.email}
-            aria-describedby={fieldErrors.email ? "email-error" : undefined}
-            className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
-          />
-          {fieldErrors.email && (
-            <p id="email-error" className="text-sm text-destructive">
-              {fieldErrors.email}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password">{t("passwordLabel")}</Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            placeholder={t("passwordPlaceholder")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-invalid={!!fieldErrors.password}
-            aria-describedby={
-              fieldErrors.password ? "password-error" : undefined
-            }
-            className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
-          />
-          {fieldErrors.password && (
-            <p id="password-error" className="text-sm text-destructive">
-              {fieldErrors.password}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="password_confirmation">
-            {t("passwordConfirmationLabel")}
-          </Label>
-          <Input
-            id="password_confirmation"
-            name="password_confirmation"
-            type="password"
-            autoComplete="new-password"
-            required
-            placeholder={t("passwordConfirmationPlaceholder")}
-            value={passwordConfirmation}
-            onChange={(e) => setPasswordConfirmation(e.target.value)}
-            aria-invalid={!!fieldErrors.password_confirmation}
-            aria-describedby={
-              fieldErrors.password_confirmation
-                ? "password-confirmation-error"
-                : undefined
-            }
-            className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
-          />
-          {fieldErrors.password_confirmation && (
-            <p
-              id="password-confirmation-error"
-              className="text-sm text-destructive"
-            >
-              {fieldErrors.password_confirmation}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-xl bg-[#ffe800] text-base font-semibold text-black shadow-[0_18px_35px_rgba(255,232,0,0.28)] hover:bg-[#f5de00]"
-          >
-            {loading ? t("submitLoading") : t("submit")}
-          </Button>
-
-          <div className="relative py-1">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border/70" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[#fffcf2] px-2 text-muted-foreground dark:bg-[#161616]">
-                {t("orContinueWith")}
-              </span>
-            </div>
+      {step === "details" ? (
+        <form onSubmit={handleDetailsSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="name">{t("nameLabel")}</Label>
+            <Input
+              id="name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              required
+              placeholder={t("namePlaceholder")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={!!fieldErrors.name}
+              aria-describedby={fieldErrors.name ? "name-error" : undefined}
+              className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
+            />
+            {fieldErrors.name && (
+              <p id="name-error" className="text-sm text-destructive">
+                {fieldErrors.name}
+              </p>
+            )}
           </div>
 
-          <GoogleButton label={t("googleButton")} />
-        </div>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="email">{t("emailLabel")}</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              placeholder={t("emailPlaceholder")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!!fieldErrors.email}
+              aria-describedby={fieldErrors.email ? "email-error" : undefined}
+              className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
+            />
+            {fieldErrors.email && (
+              <p id="email-error" className="text-sm text-destructive">
+                {fieldErrors.email}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">{t("passwordLabel")}</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              placeholder={t("passwordPlaceholder")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={!!fieldErrors.password}
+              aria-describedby={
+                fieldErrors.password ? "password-error" : undefined
+              }
+              className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
+            />
+            {fieldErrors.password && (
+              <p id="password-error" className="text-sm text-destructive">
+                {fieldErrors.password}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password_confirmation">
+              {t("passwordConfirmationLabel")}
+            </Label>
+            <Input
+              id="password_confirmation"
+              name="password_confirmation"
+              type="password"
+              autoComplete="new-password"
+              required
+              placeholder={t("passwordConfirmationPlaceholder")}
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              aria-invalid={!!fieldErrors.password_confirmation}
+              aria-describedby={
+                fieldErrors.password_confirmation
+                  ? "password-confirmation-error"
+                  : undefined
+              }
+              className="h-12 rounded-xl bg-white/90 px-4 dark:bg-white/6"
+            />
+            {fieldErrors.password_confirmation && (
+              <p
+                id="password-confirmation-error"
+                className="text-sm text-destructive"
+              >
+                {fieldErrors.password_confirmation}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-12 w-full rounded-xl bg-[#ffe800] text-base font-semibold text-black shadow-[0_18px_35px_rgba(255,232,0,0.28)] hover:bg-[#f5de00]"
+            >
+              {loading ? t("submitLoading") : t("submit")}
+            </Button>
+
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/70" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-[#fffcf2] px-2 text-muted-foreground dark:bg-[#161616]">
+                  {t("orContinueWith")}
+                </span>
+              </div>
+            </div>
+
+            <GoogleButton label={t("googleButton")} />
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleOtpSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="otp">{t("otpLabel")}</Label>
+            <Input
+              id="otp"
+              name="otp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              maxLength={6}
+              placeholder={t("otpPlaceholder")}
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              aria-invalid={!!fieldErrors.otp}
+              aria-describedby={fieldErrors.otp ? "otp-error" : undefined}
+              className="h-12 rounded-xl bg-white/90 px-4 text-center text-2xl tracking-[0.5em] dark:bg-white/6"
+            />
+            {fieldErrors.otp && (
+              <p id="otp-error" className="text-sm text-destructive">
+                {fieldErrors.otp}
+              </p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading || otp.length !== 6}
+            className="h-12 w-full rounded-xl bg-[#ffe800] text-base font-semibold text-black shadow-[0_18px_35px_rgba(255,232,0,0.28)] hover:bg-[#f5de00]"
+          >
+            {loading ? t("verifyLoading") : t("verifySubmit")}
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={loading}
+            onClick={handleResend}
+            className="h-12 w-full"
+          >
+            {t("resendCode")}
+          </Button>
+        </form>
+      )}
 
       <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground">
         <span>{t("hasAccount")}</span>

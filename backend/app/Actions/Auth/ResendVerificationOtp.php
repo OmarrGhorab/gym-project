@@ -6,27 +6,24 @@ use App\Models\User;
 use App\Notifications\Auth\SendEmailVerificationOtp;
 use App\Support\Otp;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 /**
- * Registers a new staff user and sends an email verification OTP.
+ * Resends the email verification OTP for an unverified user.
  *
- * The user is created with a null email_verified_at timestamp. A one-time
- * code is emailed to the provided address; the user must verify it via the
- * verify-email endpoint before a Sanctum token is issued.
- *
- * Returns the created User. No token is returned here.
+ * Silently does nothing if the user does not exist or is already verified,
+ * to avoid account enumeration.
  */
-final class RegisterUser
+final class ResendVerificationOtp
 {
-    public function handle(string $name, string $email, string $password): User
+    public function handle(string $email): void
     {
-        $user = User::create([
-            'name' => $name,
-            'email' => $email,
-            'password' => Hash::make($password),
-            'email_verified_at' => null,
-        ]);
+        $user = User::where('email', $email)
+            ->whereNull('email_verified_at')
+            ->first();
+
+        if ($user === null) {
+            return;
+        }
 
         $otp = Otp::generate();
 
@@ -45,7 +42,5 @@ final class RegisterUser
         });
 
         $user->notify(new SendEmailVerificationOtp($otp));
-
-        return $user;
     }
 }

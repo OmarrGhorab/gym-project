@@ -44,6 +44,26 @@ export function createForgotPasswordSchema(messages: { invalidEmail: string }) {
   });
 }
 
+export function createVerifyOtpSchema(messages: {
+  invalidEmail: string;
+  invalidOtp: string;
+}) {
+  return z.object({
+    email: z.email(messages.invalidEmail).trim(),
+    otp: z
+      .string()
+      .length(6, messages.invalidOtp)
+      .regex(/^\d{6}$/, messages.invalidOtp),
+  });
+}
+
+export function createVerifyEmailOtpSchema(messages: {
+  invalidEmail: string;
+  invalidOtp: string;
+}) {
+  return createVerifyOtpSchema(messages);
+}
+
 export function createResetPasswordSchema(messages: {
   passwordMismatch: string;
 }) {

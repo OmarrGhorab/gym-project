@@ -2,6 +2,7 @@
 
 namespace App\Actions\Auth;
 
+use App\Exceptions\EmailNotVerifiedException;
 use App\Exceptions\InvalidCredentialsException;
 use App\Models\User;
 use Carbon\Carbon;
@@ -37,6 +38,10 @@ final class LoginStaffUser
             // Same response for "user not found" and "wrong password" to
             // prevent account enumeration attacks.
             throw new InvalidCredentialsException;
+        }
+
+        if ($user->email_verified_at === null) {
+            throw new EmailNotVerifiedException;
         }
 
         $expiresAt = $remember ? Carbon::now()->addDays(30) : null;

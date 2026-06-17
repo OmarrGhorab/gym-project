@@ -46,6 +46,10 @@ Route::prefix('v1')->group(function (): void {
         // Rate-limit registration, login, and password reset to reduce brute-force exposure.
         Route::post('register', [AuthController::class, 'register'])
             ->middleware('throttle:auth');
+        Route::post('verify-email', [AuthController::class, 'verifyEmail'])
+            ->middleware('throttle:auth');
+        Route::post('resend-verification', [AuthController::class, 'resendVerification'])
+            ->middleware('throttle:auth');
         Route::post('login', [AuthController::class, 'login'])
             ->middleware('throttle:auth');
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])

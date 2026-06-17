@@ -74,8 +74,30 @@ export async function register(payload: {
   email: string;
   password: string;
   password_confirmation: string;
+}): Promise<{ data: { user: AuthResponse["data"]["user"] }; message: string }> {
+  return apiFetch<{ data: { user: AuthResponse["data"]["user"] }; message: string }>(
+    "/api/auth/register",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function verifyEmailOtp(payload: {
+  email: string;
+  otp: string;
 }): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>("/api/auth/register", {
+  return apiFetch<AuthResponse>("/api/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resendVerificationOtp(payload: {
+  email: string;
+}): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/auth/resend-verification", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -88,6 +110,19 @@ export async function forgotPassword(payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function verifyOtp(payload: {
+  email: string;
+  otp: string;
+}): Promise<{ data: { reset_token: string }; message: string }> {
+  return apiFetch<{ data: { reset_token: string }; message: string }>(
+    "/api/auth/verify-otp",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
 }
 
 export async function resetPassword(payload: {

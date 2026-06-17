@@ -6,13 +6,17 @@ use App\Actions\Auth\HandleSocialLogin;
 use App\Actions\Auth\LoginStaffUser;
 use App\Actions\Auth\LogoutStaffUser;
 use App\Actions\Auth\RegisterUser;
+use App\Actions\Auth\ResendVerificationOtp;
 use App\Actions\Auth\ResetUserPassword;
 use App\Actions\Auth\SendPasswordResetOtp;
+use App\Actions\Auth\VerifyEmailOtp;
 use App\Actions\Auth\VerifyPasswordResetOtp;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResendVerificationRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\VerifyEmailRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
@@ -45,15 +49,46 @@ final class AuthController extends ApiController
      * POST /api/v1/auth/register
      *
      * Validates the registration payload via RegisterRequest, creates the user
-     * via RegisterUser, and returns a one-time plain-text Sanctum token.
+     * via RegisterUser, and sends an email verification OTP. The user must
+     * verify their email via POST /api/v1/auth/verify-email before a token
+     * is issued.
      */
     public function register(RegisterRequest $request, RegisterUser $action): JsonResponse
     {
-        $result = $action->handle(
+        $user = $action->handle(
             name: $request->validated('name'),
             email: $request->validated('email'),
             password: $request->validated('password'),
         );
+
+        $userResource = (new UserResource($user))->toArray($request);
+
+        return $this->success(
+            data: ['user' => $userResource],
+            message: 'Registered. Please check your email for a verification code.',
+        );
+    }
+
+    /**
+     * POST /api/v1/auth/verify-email
+     *
+     * Verifies the email verification OTP entered by the user and issues a
+     * Sanctum token on success.
+     */
+    public function verifyEmail(VerifyEmailRequest $request, VerifyEmailOtp $action): JsonResponse
+    {
+        $result = $action->handle(
+            email: $request->validated('email'),
+            otp: $request->validated('otp'),
+        );
+
+        if (! $result['valid']) {
+            return $this->error(
+                code: 'invalid_otp',
+                message: 'The code is invalid or has expired.',
+                status: 400,
+            );
+        }
 
         $userResource = (new UserResource($result['user']))->toArray($request);
 
@@ -62,7 +97,23 @@ final class AuthController extends ApiController
                 'user' => $userResource,
                 'token' => $result['token'],
             ],
-            message: 'Registered',
+            message: 'Email verified. You are now signed in.',
+        );
+    }
+
+    /**
+     * POST /api/v1/auth/resend-verification
+     *
+     * Resends the email verification OTP. Always returns a success envelope
+     * to prevent account enumeration.
+     */
+    public function resendVerification(ResendVerificationRequest $request, ResendVerificationOtp $action): JsonResponse
+    {
+        $action->handle($request->validated('email'));
+
+        return $this->success(
+            data: null,
+            message: 'If the account exists and is unverified, a new code has been sent.',
         );
     }
 

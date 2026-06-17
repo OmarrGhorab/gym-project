@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\EmailNotVerifiedException;
 use App\Exceptions\InvalidCredentialsException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -52,6 +53,18 @@ return Application::configure(basePath: dirname(__DIR__))
                         'details' => (object) [],
                     ],
                 ], 401);
+            }
+        });
+
+        $exceptions->render(function (EmailNotVerifiedException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'email_not_verified',
+                        'message' => 'Please verify your email address before signing in.',
+                        'details' => (object) [],
+                    ],
+                ], 403);
             }
         });
 
