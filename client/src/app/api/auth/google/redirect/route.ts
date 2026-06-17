@@ -1,10 +1,13 @@
-import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
+import { buildApiUrl } from "../../_lib";
+import { getRequestedGoogleAuthLocale, setGoogleAuthLocale } from "../_lib";
 
-const API_BASE_URL =
-  process.env.API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000/api/v1";
+const GOOGLE_REDIRECT_PATH = "/auth/google/redirect";
 
-export function GET() {
-  redirect(`${API_BASE_URL}/auth/google/redirect`);
+export function GET(request: Request) {
+  const locale = getRequestedGoogleAuthLocale(request);
+  const response = NextResponse.redirect(buildApiUrl(GOOGLE_REDIRECT_PATH));
+
+  setGoogleAuthLocale(response, locale);
+  return response;
 }

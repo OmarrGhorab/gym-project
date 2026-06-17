@@ -1,7 +1,5 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
-import { GoogleCallbackHandler } from "@/components/auth/google-callback-handler";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +8,21 @@ export const metadata: Metadata = {
   description: "Complete Google sign in for ATP Gym.",
 };
 
-export default async function GoogleCallbackPage() {
-  const t = await getTranslations("GoogleCallback");
+export default async function GoogleCallbackPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
 
-  return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(255,232,96,0.16),_transparent_26%),linear-gradient(180deg,_#090909_0%,_#111111_100%)] px-4">
-      <Suspense
-        fallback={
-          <div className="flex flex-col items-center justify-center space-y-4 text-center">
-            <div className="size-12 animate-spin rounded-full border-4 border-[#ffe800] border-t-transparent" />
-            <p className="text-lg font-medium text-white">{t("loading")}</p>
-          </div>
-        }
-      >
-        <GoogleCallbackHandler />
-      </Suspense>
-    </main>
-  );
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      value.forEach((item) => query.append(key, item));
+    } else if (value !== undefined) {
+      query.set(key, value);
+    }
+  }
+
+  redirect(`/api/auth/google/callback?${query.toString()}`);
 }

@@ -191,7 +191,10 @@
   "GoogleCallback": {
     "loading": "Loading...",
     "processing": "Completing sign in...",
-    "success": "Signed in successfully."
+    "success": "Signed in successfully.",
+    "missingCode": "Google did not return an authorization code.",
+    "accessDenied": "Google sign in was cancelled or denied.",
+    "backToLogin": "Back to login"
   },
   "NotFound": {
     "title": "Page not found",

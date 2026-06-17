@@ -191,7 +191,10 @@
   "GoogleCallback": {
     "loading": "جاري التحميل...",
     "processing": "جاري إكمال تسجيل الدخول...",
-    "success": "تم تسجيل الدخول بنجاح."
+    "success": "تم تسجيل الدخول بنجاح.",
+    "missingCode": "لم يُرجع Google رمز تفويض.",
+    "accessDenied": "تم إلغاء أو رفض تسجيل الدخول عبر Google.",
+    "backToLogin": "العودة لتسجيل الدخول"
   },
   "NotFound": {
     "title": "الصفحة غير موجودة",

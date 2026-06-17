@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { getGoogleRedirectUrl } from "@/lib/auth";
 
@@ -8,6 +9,8 @@ export type GoogleButtonProps = {
 };
 
 export function GoogleButton({ label }: GoogleButtonProps) {
+  const locale = useLocale();
+
   return (
     <Button
       type="button"
@@ -15,7 +18,7 @@ export function GoogleButton({ label }: GoogleButtonProps) {
       className="h-12 w-full rounded-xl border-border/80 bg-white/90 px-4 text-base font-medium hover:bg-white dark:bg-white/6 dark:hover:bg-white/10"
       asChild
     >
-      <a href={getGoogleRedirectUrl()} className="inline-flex items-center gap-3">
+      <a href={getGoogleRedirectUrl(locale)} className="inline-flex items-center gap-3">
         <GoogleIcon />
         {label}
       </a>

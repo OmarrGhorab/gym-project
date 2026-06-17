@@ -137,18 +137,10 @@ export async function resetPassword(payload: {
   });
 }
 
-export function getGoogleRedirectUrl(): string {
-  return "/api/auth/google/redirect";
-}
+export function getGoogleRedirectUrl(locale?: string): string {
+  const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
 
-export async function googleCallback(
-  searchParams: URLSearchParams
-): Promise<AuthResponse> {
-  const query = searchParams.toString();
-
-  return apiFetch<AuthResponse>(`/api/auth/google/callback?${query}`, {
-    method: "GET",
-  });
+  return `/api/auth/google/redirect${query}`;
 }
 
 export function getFieldErrors(
