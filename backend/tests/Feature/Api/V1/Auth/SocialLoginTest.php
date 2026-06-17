@@ -78,6 +78,8 @@ test('unsupported provider redirect returns 404', function (): void {
 });
 
 test('social callback creates a new user and returns a token', function (): void {
+    $this->freezeTime();
+
     $socialiteUser = makeSocialiteUser([
         'id' => 'google-123',
         'email' => 'social@gym.test',
@@ -101,7 +103,43 @@ test('social callback creates a new user and returns a token', function (): void
     $user = User::where('email', 'social@gym.test')->first();
     expect($user)->not->toBeNull();
     expect($user->password)->toBeNull();
+    expect($user->email_verified_at)->not->toBeNull();
+    expect($user->email_verified_at->isSameSecond(now()))->toBeTrue();
     expect($user->socialAccounts()->where('provider', 'google')->exists())->toBeTrue();
+});
+
+test('social callback verifies an existing unverified user with matching email', function (): void {
+    $this->freezeTime();
+
+    $existingUser = User::factory()->unverified()->create([
+        'email' => 'unverified-existing@gym.test',
+        'password' => bcrypt('secret'),
+    ]);
+
+    $socialiteUser = makeSocialiteUser([
+        'id' => 'google-unverified-existing',
+        'email' => 'unverified-existing@gym.test',
+        'name' => 'Verified By Google',
+    ]);
+
+    mockSocialiteDriver('google', $socialiteUser);
+
+    $this->getJson('/api/v1/auth/google/callback')
+        ->assertStatus(200)
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('data.user')
+            ->has('data.token')
+            ->has('meta')
+            ->has('message')
+            ->where('data.user.id', $existingUser->id)
+            ->where('data.user.email', 'unverified-existing@gym.test')
+        );
+
+    $verifiedUser = $existingUser->fresh();
+
+    expect($verifiedUser->email_verified_at)->not->toBeNull();
+    expect($verifiedUser->email_verified_at->isSameSecond(now()))->toBeTrue();
+    expect($verifiedUser->socialAccounts()->where('provider', 'google')->exists())->toBeTrue();
 });
 
 test('social callback links existing user with matching email', function (): void {

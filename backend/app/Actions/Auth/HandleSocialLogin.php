@@ -55,8 +55,11 @@ final class HandleSocialLogin
                         'name' => $socialiteUser->getName() ?? $socialiteUser->getNickname() ?? explode('@', $email)[0],
                         'email' => $email,
                         'password' => null,
-                        'email_verified_at' => now(),
                     ]);
+                }
+
+                if ($user->email_verified_at === null) {
+                    $user->forceFill(['email_verified_at' => now()])->save();
                 }
 
                 $socialAccount = $this->createSocialAccount($user, $provider, $socialiteUser);
