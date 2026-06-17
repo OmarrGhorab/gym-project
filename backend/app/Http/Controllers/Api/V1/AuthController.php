@@ -7,11 +7,13 @@ use App\Actions\Auth\LoginStaffUser;
 use App\Actions\Auth\LogoutStaffUser;
 use App\Actions\Auth\RegisterUser;
 use App\Actions\Auth\ResetUserPassword;
-use App\Actions\Auth\SendPasswordResetLink;
+use App\Actions\Auth\SendPasswordResetOtp;
+use App\Actions\Auth\VerifyPasswordResetOtp;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -67,16 +69,43 @@ final class AuthController extends ApiController
     /**
      * POST /api/v1/auth/forgot-password
      *
-     * Sends a password reset link to the provided email address.
+     * Sends a one-time password (OTP) to the provided email address.
      * Always returns a success envelope to prevent account enumeration.
      */
-    public function forgotPassword(ForgotPasswordRequest $request, SendPasswordResetLink $action): JsonResponse
+    public function forgotPassword(ForgotPasswordRequest $request, SendPasswordResetOtp $action): JsonResponse
     {
         $action->handle($request->validated('email'));
 
         return $this->success(
             data: null,
-            message: 'If the email exists, a reset link has been sent.',
+            message: 'If the email exists, a password reset code has been sent.',
+        );
+    }
+
+    /**
+     * POST /api/v1/auth/verify-otp
+     *
+     * Verifies the OTP entered by the user and issues a short-lived reset
+     * token that can be used to set a new password.
+     */
+    public function verifyOtp(VerifyOtpRequest $request, VerifyPasswordResetOtp $action): JsonResponse
+    {
+        $result = $action->handle(
+            email: $request->validated('email'),
+            otp: $request->validated('otp'),
+        );
+
+        if (! $result['valid']) {
+            return $this->error(
+                code: 'invalid_otp',
+                message: 'The code is invalid or has expired.',
+                status: 400,
+            );
+        }
+
+        return $this->success(
+            data: ['reset_token' => $result['token']],
+            message: 'Code verified. You may now reset your password.',
         );
     }
 
@@ -96,7 +125,7 @@ final class AuthController extends ApiController
         if ($status !== Password::PASSWORD_RESET) {
             return $this->error(
                 code: 'password_reset_failed',
-                message: 'The password reset link is invalid or expired.',
+                message: 'The password reset token is invalid or expired.',
                 status: 400,
             );
         }

@@ -1470,7 +1470,7 @@
                 "forgot-password"
               ]
             },
-            "description": "Sends a password reset link to the provided email address. Always returns 200 to prevent account enumeration.",
+              "description": "Sends a one-time password (OTP) to the provided email address when the account exists. Always returns 200 to prevent account enumeration.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{admin_email}}\"\n}",
@@ -1485,10 +1485,10 @@
             {
               "name": "Success",
               "originalRequest": {
-                "description": {
-                  "content": "Sends a password reset link to the provided email address. Always returns 200 to prevent account enumeration.",
-                  "type": "text/plain"
-                },
+                  "description": {
+                    "content": "Sends a one-time password (OTP) to the provided email address when the account exists. Always returns 200 to prevent account enumeration.",
+                    "type": "text/plain"
+                  },
                 "url": {
                   "protocol": "http",
                   "port": "8000",
@@ -1542,7 +1542,172 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"data\":{},\"meta\":{},\"message\":\"If the email exists, a reset link has been sent.\"}"
+              "body": "{\"data\":{},\"meta\":{},\"message\":\"If the email exists, a password reset code has been sent.\"}"
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/verify-otp - Success",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "Verifies the OTP entered by the user and returns a reset token that can be used with POST /auth/reset-password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies the OTP entered by the user and returns a reset token that can be used with POST /auth/reset-password.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-otp"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@gym.test\",\n  \"otp\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"data\":{\"reset_token\":\"example-reset-token\"},\"meta\":{},\"message\":\"Code verified. You may now reset your password.\"}"
+            },
+            {
+              "name": "Invalid OTP (400)",
+              "originalRequest": {
+                "description": {
+                  "content": "Verifies the OTP entered by the user and returns a reset token that can be used with POST /auth/reset-password.",
+                  "type": "text/plain"
+                },
+                "url": {
+                  "protocol": "http",
+                  "port": "8000",
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "verify-otp"
+                  ],
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@gym.test\",\n  \"otp\": \"000000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "noauth",
+                  "noauth": []
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\"error\":{\"code\":\"invalid_otp\",\"message\":\"The code is invalid or has expired.\",\"details\":{}}}"
             }
           ]
         },
@@ -1573,7 +1738,7 @@
                 "reset-password"
               ]
             },
-            "description": "Resets a user's password using a valid reset token.",
+            "description": "Resets a user's password using the reset token returned by POST /auth/verify-otp.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"token\": \"replace-with-token-from-email\",\n  \"password\": \"NewPassword123!\",\n  \"password_confirmation\": \"NewPassword123!\"\n}",
@@ -1588,10 +1753,10 @@
             {
               "name": "Success",
               "originalRequest": {
-                "description": {
-                  "content": "Resets a user's password using a valid reset token.",
-                  "type": "text/plain"
-                },
+                  "description": {
+                    "content": "Resets a user's password using the reset token returned by POST /auth/verify-otp.",
+                    "type": "text/plain"
+                  },
                 "url": {
                   "protocol": "http",
                   "port": "8000",
@@ -1650,10 +1815,10 @@
             {
               "name": "Reset Failed (400)",
               "originalRequest": {
-                "description": {
-                  "content": "Resets a user's password using a valid reset token.",
-                  "type": "text/plain"
-                },
+                  "description": {
+                    "content": "Resets a user's password using the reset token returned by POST /auth/verify-otp.",
+                    "type": "text/plain"
+                  },
                 "url": {
                   "protocol": "http",
                   "port": "8000",
@@ -1707,7 +1872,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"error\":{\"code\":\"password_reset_failed\",\"message\":\"The password reset link is invalid or expired.\",\"details\":{}}}"
+              "body": "{\"error\":{\"code\":\"password_reset_failed\",\"message\":\"The password reset token is invalid or expired.\",\"details\":{}}}"
             }
           ]
         },

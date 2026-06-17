@@ -50,6 +50,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:auth');
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])
             ->middleware('throttle:auth');
+        Route::post('verify-otp', [AuthController::class, 'verifyOtp'])
+            ->middleware('throttle:auth');
         Route::post('reset-password', [AuthController::class, 'resetPassword'])
             ->middleware('throttle:auth');
 

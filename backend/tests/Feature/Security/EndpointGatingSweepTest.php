@@ -9,6 +9,7 @@ test('every non-public route in api v1 has auth:sanctum and a permission or role
         'api/v1/auth/login',
         'api/v1/auth/register',
         'api/v1/auth/forgot-password',
+        'api/v1/auth/verify-otp',
         'api/v1/auth/reset-password',
         'api/v1/auth/{provider}/redirect',
         'api/v1/auth/{provider}/callback',

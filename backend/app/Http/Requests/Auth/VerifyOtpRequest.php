@@ -5,12 +5,12 @@ namespace App\Http\Requests\Auth;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Validates the forgot-password payload before the controller or action sees it.
+ * Validates the OTP verification payload before the controller or action sees it.
  */
-final class ForgotPasswordRequest extends FormRequest
+final class VerifyOtpRequest extends FormRequest
 {
     /**
-     * Forgot password is a public endpoint; any caller may attempt it.
+     * OTP verification is a public endpoint; any caller with an OTP may attempt it.
      */
     public function authorize(): bool
     {
@@ -18,7 +18,7 @@ final class ForgotPasswordRequest extends FormRequest
     }
 
     /**
-     * Validation rules for requesting a password reset OTP.
+     * Validation rules for verifying a password reset OTP.
      *
      * @return array<string, list<string>>
      */
@@ -26,6 +26,7 @@ final class ForgotPasswordRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email'],
+            'otp' => ['required', 'string', 'digits:6'],
         ];
     }
 }

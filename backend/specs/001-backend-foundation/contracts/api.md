@@ -145,6 +145,101 @@ Base path: `/api/v1`
 - `401 unauthenticated`
 - `403 forbidden`
 
+## POST /auth/forgot-password
+
+**Auth**: Public
+
+**Request**:
+
+```json
+{
+  "email": "admin@example.com"
+}
+```
+
+**Success 200**:
+
+```json
+{
+  "data": null,
+  "meta": {},
+  "message": "If the email exists, a password reset code has been sent."
+}
+```
+
+Sends a 6-digit OTP to the user's email when the account exists. The response is identical for non-existent emails to prevent account enumeration.
+
+**Errors**:
+
+- `422 validation_failed`
+- `429 too_many_requests`
+
+## POST /auth/verify-otp
+
+**Auth**: Public
+
+**Request**:
+
+```json
+{
+  "email": "admin@example.com",
+  "otp": "123456"
+}
+```
+
+**Success 200**:
+
+```json
+{
+  "data": {
+    "reset_token": "laravel-password-reset-token"
+  },
+  "meta": {},
+  "message": "Code verified. You may now reset your password."
+}
+```
+
+Verifies the OTP entered by the user. On success, returns a short-lived reset token that must be used with `POST /auth/reset-password`. The OTP is consumed after a successful verification.
+
+**Errors**:
+
+- `400 invalid_otp`
+- `422 validation_failed`
+- `429 too_many_requests`
+
+## POST /auth/reset-password
+
+**Auth**: Public
+
+**Request**:
+
+```json
+{
+  "email": "admin@example.com",
+  "token": "laravel-password-reset-token",
+  "password": "NewPassword123!",
+  "password_confirmation": "NewPassword123!"
+}
+```
+
+**Success 200**:
+
+```json
+{
+  "data": null,
+  "meta": {},
+  "message": "Password reset successfully."
+}
+```
+
+Resets the user's password using the reset token returned by `POST /auth/verify-otp`. The token is consumed after a successful reset.
+
+**Errors**:
+
+- `400 password_reset_failed`
+- `422 validation_failed`
+- `429 too_many_requests`
+
 ## Standard 422 Validation Error
 
 ```json
