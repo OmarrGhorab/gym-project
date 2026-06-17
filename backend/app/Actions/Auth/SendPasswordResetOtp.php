@@ -4,8 +4,8 @@ namespace App\Actions\Auth;
 
 use App\Models\User;
 use App\Notifications\Auth\SendPasswordResetOtp as SendPasswordResetOtpNotification;
+use App\Support\Otp;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 /**
  * Generates and sends a one-time password (OTP) for password reset.
@@ -16,10 +16,6 @@ use Illuminate\Support\Facades\Hash;
  */
 final class SendPasswordResetOtp
 {
-    private const OTP_LENGTH = 6;
-
-    private const EXPIRY_MINUTES = 15;
-
     public function handle(string $email): void
     {
         $user = User::where('email', $email)->first();
@@ -28,7 +24,7 @@ final class SendPasswordResetOtp
             return;
         }
 
-        $otp = $this->generateOtp();
+        $otp = Otp::generate();
 
         DB::transaction(function () use ($email, $otp): void {
             DB::table('password_reset_otps')
@@ -37,21 +33,13 @@ final class SendPasswordResetOtp
 
             DB::table('password_reset_otps')->insert([
                 'email' => $email,
-                'otp_hash' => Hash::make($otp),
-                'expires_at' => now()->addMinutes(self::EXPIRY_MINUTES),
+                'otp_hash' => Otp::hash($otp),
+                'expires_at' => Otp::expiry(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
         });
 
         $user->notify(new SendPasswordResetOtpNotification($otp));
-    }
-
-    private function generateOtp(): string
-    {
-        return (string) random_int(
-            10 ** (self::OTP_LENGTH - 1),
-            (10 ** self::OTP_LENGTH) - 1,
-        );
     }
 }

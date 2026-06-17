@@ -3,8 +3,8 @@
 namespace App\Actions\Auth;
 
 use App\Models\User;
+use App\Support\Otp;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 
 /**
@@ -26,7 +26,7 @@ final class VerifyPasswordResetOtp
             ->latest('created_at')
             ->first();
 
-        if ($record === null || ! Hash::check($otp, $record->otp_hash)) {
+        if ($record === null || ! Otp::verify($otp, $record->otp_hash)) {
             return [
                 'valid' => false,
                 'token' => null,

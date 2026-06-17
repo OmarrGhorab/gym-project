@@ -114,4 +114,17 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Local OTP Debugging
+    |--------------------------------------------------------------------------
+    |
+    | Keep this disabled outside local development. When enabled locally, OTPs
+    | are stored plainly in the otp_hash column so they can be read from the
+    | database if email delivery is unavailable.
+    |
+    */
+
+    'store_plain_otps' => env('AUTH_STORE_PLAIN_OTPS', false),
+
 ];

@@ -3,6 +3,7 @@
 namespace App\Notifications\Auth;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
  * Sends a one-time password (OTP) that the recipient can use to verify
  * ownership of their email address before resetting their password.
  */
-class SendPasswordResetOtp extends Notification
+class SendPasswordResetOtp extends Notification implements ShouldQueue
 {
     use Queueable;
 

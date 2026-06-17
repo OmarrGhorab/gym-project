@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Notifications\Auth\SendPasswordResetOtp;
+use App\Support\Otp;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
@@ -58,7 +59,7 @@ test('forgot password stores an otp record and sends a notification for existing
         $user,
         SendPasswordResetOtp::class,
         function (SendPasswordResetOtp $notification) use ($record): bool {
-            return Hash::check($notification->otp, $record->otp_hash);
+            return Otp::verify($notification->otp, $record->otp_hash);
         }
     );
 });
@@ -87,7 +88,7 @@ test('verify otp returns a reset token for a valid otp', function (): void {
 
     DB::table('password_reset_otps')->insert([
         'email' => 'reset@gym.test',
-        'otp_hash' => Hash::make($otp),
+        'otp_hash' => Otp::hash($otp),
         'expires_at' => now()->addMinutes(15),
         'created_at' => now(),
         'updated_at' => now(),
@@ -112,7 +113,7 @@ test('verify otp with invalid otp returns 400', function (): void {
 
     DB::table('password_reset_otps')->insert([
         'email' => 'reset@gym.test',
-        'otp_hash' => Hash::make('123456'),
+        'otp_hash' => Otp::hash('123456'),
         'expires_at' => now()->addMinutes(15),
         'created_at' => now(),
         'updated_at' => now(),
@@ -134,7 +135,7 @@ test('verify otp with expired otp returns 400', function (): void {
 
     DB::table('password_reset_otps')->insert([
         'email' => 'reset@gym.test',
-        'otp_hash' => Hash::make('123456'),
+        'otp_hash' => Otp::hash('123456'),
         'expires_at' => now()->subMinute(),
         'created_at' => now()->subMinutes(16),
         'updated_at' => now()->subMinutes(16),

@@ -19,6 +19,10 @@
     "ResetPassword": {
       "title": "إعادة تعيين كلمة المرور",
       "description": "عيّن كلمة مرور جديدة لحسابك في ATP Gym."
+    },
+    "VerifyEmail": {
+      "title": "التحقق من البريد الإلكتروني",
+      "description": "أدخل رمز التحقق المرسل إلى بريدك الإلكتروني لتفعيل حسابك في ATP Gym."
     }
   },
   "Dashboard": {
@@ -113,6 +117,8 @@
     "title": "ابدأي رحلتك",
     "description": "أنشئ حسابك في ATP Gym للوصول إلى لوحة إدارة الفروع والأعضاء.",
     "otpDescription": "أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى بريدك الإلكتروني لتفعيل حسابك.",
+    "otpLabel": "رمز التحقق",
+    "otpPlaceholder": "000000",
     "posterTitle": "خدي أول خطوة عشان",
     "posterHighlight": "تكتشفي قوتك",
     "nameLabel": "الاسم الكامل",
@@ -185,6 +191,25 @@
     "submitLoading": "جاري الحفظ...",
     "invalidLink": "رمز إعادة التعيين غير صالح أو منتهي الصلاحية.",
     "requestNewLink": "طلب رمز جديد",
+    "rememberPassword": "تذكرت كلمة المرور؟",
+    "signIn": "تسجيل الدخول"
+  },
+  "VerifyEmail": {
+    "eyebrow": "التحقق من بريدك الإلكتروني",
+    "title": "راجع صندوق الوارد",
+    "description": "أدخل الرمز المكوّن من 6 أرقام الذي أرسلناه إلى بريدك الإلكتروني لتفعيل حسابك.",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "أدخل بريدك الإلكتروني",
+    "otpLabel": "رمز التحقق",
+    "otpPlaceholder": "000000",
+    "errorTitle": "فشل التحقق",
+    "invalidEmail": "أدخل بريدًا إلكترونيًا صالحًا.",
+    "invalidOtp": "أدخل الرمز المكوّن من 6 أرقام.",
+    "verifySubmit": "تحقق من البريد",
+    "verifyLoading": "جاري التحقق...",
+    "verificationSentTitle": "راجع بريدك الإلكتروني",
+    "verifiedTitle": "تم التحقق من البريد",
+    "resendCode": "إعادة إرسال الرمز",
     "rememberPassword": "تذكرت كلمة المرور؟",
     "signIn": "تسجيل الدخول"
   },

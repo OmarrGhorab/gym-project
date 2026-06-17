@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import {
+  getErrorCode,
   getFieldErrors,
   getFriendlyError,
   login,
@@ -50,6 +51,13 @@ export function LoginForm() {
       await login({ email, password, remember });
       router.push(`/${locale}`);
     } catch (err) {
+      if (getErrorCode(err) === "email_not_verified") {
+        router.push(
+          `/${locale}/verify-email?email=${encodeURIComponent(email)}`
+        );
+        return;
+      }
+
       toast.error(t("errorTitle"), { description: getFriendlyError(err) });
       setFieldErrors(getFieldErrors(err) ?? {});
     } finally {

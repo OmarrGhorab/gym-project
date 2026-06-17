@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Notifications\Auth\SendEmailVerificationOtp;
+use App\Support\Otp;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -48,7 +49,12 @@ test('valid registration returns 200 with user and sends verification otp', func
 
     Notification::assertSentTo(
         $user,
-        SendEmailVerificationOtp::class
+        SendEmailVerificationOtp::class,
+        function (SendEmailVerificationOtp $notification): bool {
+            $record = DB::table('email_verification_otps')->where('email', 'new@gym.test')->first();
+
+            return $record !== null && Otp::verify($notification->otp, $record->otp_hash);
+        }
     );
 
     expect(DB::table('email_verification_otps')->where('email', 'new@gym.test')->exists())->toBeTrue();
@@ -94,7 +100,7 @@ test('verify email returns token for valid otp', function (): void {
     $otp = '123456';
     DB::table('email_verification_otps')->insert([
         'email' => 'new@gym.test',
-        'otp_hash' => Hash::make($otp),
+        'otp_hash' => Otp::hash($otp),
         'expires_at' => now()->addMinutes(15),
         'created_at' => now(),
         'updated_at' => now(),
@@ -121,7 +127,7 @@ test('verify email with invalid otp returns 400', function (): void {
 
     DB::table('email_verification_otps')->insert([
         'email' => 'new@gym.test',
-        'otp_hash' => Hash::make('123456'),
+        'otp_hash' => Otp::hash('123456'),
         'expires_at' => now()->addMinutes(15),
         'created_at' => now(),
         'updated_at' => now(),
@@ -143,7 +149,7 @@ test('verify email with expired otp returns 400', function (): void {
 
     DB::table('email_verification_otps')->insert([
         'email' => 'new@gym.test',
-        'otp_hash' => Hash::make('123456'),
+        'otp_hash' => Otp::hash('123456'),
         'expires_at' => now()->subMinute(),
         'created_at' => now()->subMinutes(16),
         'updated_at' => now()->subMinutes(16),

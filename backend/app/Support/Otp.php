@@ -28,16 +28,29 @@ final class Otp
 
     public static function hash(string $otp): string
     {
+        if (self::storesPlainText()) {
+            return $otp;
+        }
+
         return Hash::make($otp);
     }
 
     public static function verify(string $otp, string $hash): bool
     {
+        if (self::storesPlainText()) {
+            return hash_equals($hash, $otp);
+        }
+
         return Hash::check($otp, $hash);
     }
 
     public static function expiry(): Carbon
     {
         return now()->addMinutes(self::EXPIRY_MINUTES);
+    }
+
+    private static function storesPlainText(): bool
+    {
+        return app()->environment('local') && config('auth.store_plain_otps');
     }
 }
