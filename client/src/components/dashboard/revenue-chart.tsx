@@ -9,7 +9,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Card, CardContent } from "@/components/ui/card";
 import type { FinancialReportRow } from "@/lib/api/dashboard";
 
 const chartConfig = {

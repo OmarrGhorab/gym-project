@@ -26,6 +26,12 @@ final class MemberResource extends JsonResource
             'has_photo' => (bool) $this->photo_path,
             'created_by' => $this->created_by,
             'total_paid' => bcadd((string) ($this->total_paid ?? '0.00'), '0.00', 2),
+            'latest_subscription' => $this->latestSubscription ? [
+                'id' => $this->latestSubscription->id,
+                'plan_name' => $this->latestSubscription->plan?->name,
+                'end_date' => $this->latestSubscription->end_date?->toDateString(),
+                'status' => $this->latestSubscription->status,
+            ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

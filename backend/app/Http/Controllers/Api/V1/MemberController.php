@@ -28,9 +28,10 @@ final class MemberController extends ApiController
     {
         $this->authorize('viewAny', Member::class);
 
-        $members = QueryBuilder::for($this->memberQueryWithTotalPaid())
+        $members = QueryBuilder::for($this->memberQueryWithTotalPaid()->with(['latestSubscription.plan']))
             ->allowedFilters(
                 AllowedFilter::exact('status'),
+                AllowedFilter::exact('gender'),
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
 
@@ -38,6 +39,11 @@ final class MemberController extends ApiController
                         $q->where('name', 'like', "{$value}%")
                             ->orWhere('phone', 'like', "{$value}%")
                             ->orWhere('phone', 'like', '+'.$value.'%');
+                    });
+                }),
+                AllowedFilter::callback('plan_id', function ($query, $value): void {
+                    $query->whereHas('subscriptions', function ($q) use ($value): void {
+                        $q->where('plan_id', $value);
                     });
                 }),
             )
@@ -78,6 +84,7 @@ final class MemberController extends ApiController
         $this->authorize('view', $member);
 
         $member = $this->memberQueryWithTotalPaid()
+            ->with(['latestSubscription.plan'])
             ->whereKey($member->id)
             ->firstOrFail();
 

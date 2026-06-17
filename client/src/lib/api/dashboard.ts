@@ -62,6 +62,19 @@ export type Member = {
   phone?: string;
   email?: string;
   status: string;
+  gender?: string;
+  birth_date?: string;
+  national_id?: string;
+  join_date?: string;
+  notes?: string;
+  total_paid?: string;
+  has_photo?: boolean;
+  latest_subscription?: {
+    id: number;
+    plan_name: string;
+    end_date: string;
+    status: string;
+  } | null;
 };
 
 export type Plan = {
@@ -154,7 +167,7 @@ async function fetchEnvelope<T>(
       Authorization: `Bearer ${token}`,
       ...(options.headers ?? {}),
     },
-    cache: "no-store",
+    cache: options.cache ?? "no-store",
   });
 
   const payload = (await response
@@ -282,4 +295,51 @@ export async function getFinancialReport(
       }) as FinancialReport["meta"]["totals"],
     },
   };
+}
+
+export async function getMembers(options: {
+  page?: number;
+  search?: string;
+  status?: string;
+  gender?: string;
+  planId?: string;
+} = {}): Promise<Paginated<Member>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.search) params.set("filter[search]", options.search);
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.gender) params.set("filter[gender]", options.gender);
+  if (options.planId) params.set("filter[plan_id]", options.planId);
+
+  const envelope = await fetchEnvelope<Member[]>(
+    `/members?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["members"], revalidate: 60 },
+    }
+  );
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta),
+  };
+}
+
+export async function getPlans(): Promise<Plan[]> {
+  const envelope = await fetchEnvelope<Plan[]>("/plans?per_page=100", {
+    cache: "force-cache",
+    next: { tags: ["plans"], revalidate: 300 },
+  });
+  return envelope.data;
+}
+
+export async function getMember(id: number): Promise<Member | null> {
+  try {
+    const envelope = await fetchEnvelope<Member>(`/members/${id}`, {
+      cache: "force-cache",
+      next: { tags: [`member-${id}`], revalidate: 60 },
+    });
+    return envelope.data;
+  } catch {
+    return null;
+  }
 }
