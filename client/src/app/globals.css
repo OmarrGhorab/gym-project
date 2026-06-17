@@ -75,13 +75,13 @@
   --chart-4: oklch(0.76 0.11 145);
   --chart-5: oklch(0.54 0.09 20);
   --radius: 0.9rem;
-  --sidebar: oklch(0.13 0.012 84);
+  --sidebar: oklch(0.18 0.018 88);
   --sidebar-foreground: oklch(0.97 0.01 95);
   --sidebar-primary: oklch(0.9 0.19 101);
   --sidebar-primary-foreground: oklch(0.14 0.012 84);
-  --sidebar-accent: oklch(0.22 0.012 84);
+  --sidebar-accent: oklch(0.27 0.018 88);
   --sidebar-accent-foreground: oklch(0.97 0.01 95);
-  --sidebar-border: oklch(0.26 0.012 84);
+  --sidebar-border: oklch(0.34 0.018 88);
   --sidebar-ring: oklch(0.88 0.19 101);
 }
 
@@ -109,20 +109,27 @@
   --chart-3: oklch(0.82 0.02 95);
   --chart-4: oklch(0.74 0.11 145);
   --chart-5: oklch(0.58 0.11 22);
-  --sidebar: oklch(0.1 0.01 84);
-  --sidebar-foreground: oklch(0.97 0.008 96);
+  --sidebar: oklch(0.88 0.018 96);
+  --sidebar-foreground: oklch(0.17 0.01 84);
   --sidebar-primary: oklch(0.9 0.19 101);
   --sidebar-primary-foreground: oklch(0.14 0.01 84);
-  --sidebar-accent: oklch(0.21 0.012 84);
-  --sidebar-accent-foreground: oklch(0.97 0.008 96);
-  --sidebar-border: oklch(1 0 0 / 0.08);
+  --sidebar-accent: oklch(0.82 0.022 92);
+  --sidebar-accent-foreground: oklch(0.19 0.01 84);
+  --sidebar-border: oklch(0.74 0.018 92);
   --sidebar-ring: oklch(0.9 0.19 101);
 }
 
 @layer base {
-  * {
+  *,
+  *::before,
+  *::after {
     @apply border-border outline-ring/50;
+    transition-property: color, background-color, border-color,
+      text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -132,5 +139,11 @@
 
   body {
     text-align: start;
+  }
+
+  button:not(:disabled),
+  a[href],
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
   }
 }

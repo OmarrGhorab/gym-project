@@ -86,6 +86,31 @@
       }
     }
   },
+  "DashboardShell": {
+    "mainContent": "محتوى لوحة التحكم",
+    "sidebarSubtitle": "إدارة الجيم",
+    "search": "ابحث عن أعضاء، فواتير، مدربين...",
+    "openSidebar": "فتح تنقل لوحة التحكم",
+    "notifications": "الإشعارات",
+    "themeSwitch": "تبديل المظهر",
+    "languageSwitch": "تبديل اللغة",
+    "navSections": {
+      "overview": "نظرة عامة",
+      "operations": "التشغيل",
+      "finance": "المالية"
+    },
+    "nav": {
+      "dashboard": "الرئيسية",
+      "members": "الأعضاء",
+      "attendance": "الحضور",
+      "subscriptions": "الاشتراكات",
+      "teams": "الفِرق",
+      "trainers": "المدربون",
+      "payments": "المدفوعات",
+      "reports": "التقارير",
+      "settings": "الإعدادات"
+    }
+  },
   "Login": {
     "brand": "ATP Gym",
     "subtitle": "منصة تشغيل الفروع والإدارة",

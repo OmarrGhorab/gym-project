@@ -86,6 +86,31 @@
       }
     }
   },
+  "DashboardShell": {
+    "mainContent": "Dashboard content",
+    "sidebarSubtitle": "Gym admin",
+    "search": "Search members, invoices, trainers...",
+    "openSidebar": "Open dashboard navigation",
+    "notifications": "Notifications",
+    "themeSwitch": "Switch theme",
+    "languageSwitch": "Switch language",
+    "navSections": {
+      "overview": "Overview",
+      "operations": "Operations",
+      "finance": "Finance"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "members": "Members",
+      "attendance": "Attendance",
+      "subscriptions": "Subscriptions",
+      "teams": "Teams",
+      "trainers": "Trainers",
+      "payments": "Payments",
+      "reports": "Reports",
+      "settings": "Settings"
+    }
+  },
   "Login": {
     "brand": "ATP Gym",
     "subtitle": "Branch operations and admin platform",
