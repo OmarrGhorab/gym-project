@@ -129,6 +129,49 @@ test('admin can update member fields', function (): void {
         );
 });
 
+test('admin can update all editable member fields and receives them back', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create([
+        'name' => 'Old Name',
+        'phone' => '+201000000001',
+        'email' => 'old@example.com',
+        'gender' => 'male',
+        'birth_date' => '1990-01-01',
+        'national_id' => '11111111111111',
+        'join_date' => '2026-01-01',
+        'notes' => 'Old notes',
+        'status' => 'active',
+    ]);
+
+    $this->putJson("/api/v1/members/{$member->id}", [
+        'name' => 'New Name',
+        'phone' => '+201000000002',
+        'email' => 'new@example.com',
+        'gender' => 'female',
+        'birth_date' => '1992-02-02',
+        'national_id' => '22222222222222',
+        'join_date' => '2026-02-02',
+        'notes' => 'Updated notes',
+        'status' => 'inactive',
+    ])
+        ->assertStatus(200)
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->where('data.name', 'New Name')
+            ->where('data.phone', '+201000000002')
+            ->where('data.email', 'new@example.com')
+            ->where('data.gender', 'female')
+            ->where('data.birth_date', '1992-02-02')
+            ->where('data.national_id', '22222222222222')
+            ->where('data.join_date', '2026-02-02')
+            ->where('data.notes', 'Updated notes')
+            ->where('data.status', 'inactive')
+            ->etc()
+        );
+});
+
 test('member audit log does not store sensitive pii values', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
@@ -236,7 +279,8 @@ test('admin can deactivate a member via DELETE', function (): void {
     $member = Member::factory()->create(['status' => 'active']);
 
     $this->deleteJson("/api/v1/members/{$member->id}")
-        ->assertStatus(200);
+        ->assertStatus(200)
+        ->assertJsonPath('data.status', 'inactive');
 
     $member->refresh();
     expect($member->status)->toBe('inactive');

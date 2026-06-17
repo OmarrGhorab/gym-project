@@ -28,6 +28,7 @@ type DatePickerProps = {
   className?: string;
   disabled?: boolean;
   id?: string;
+  portalContainer?: HTMLElement | null;
 };
 
 export function DatePicker({
@@ -40,18 +41,21 @@ export function DatePicker({
   className,
   disabled,
   id,
+  portalContainer,
 }: DatePickerProps) {
   const dateLocale = locales[locale as keyof typeof locales] ?? enUS;
   const [isOpen, setIsOpen] = React.useState(false);
+  const isControlled = value !== undefined;
 
   const [internalValue, setInternalValue] = React.useState<string | undefined>(
     value ?? defaultValue
   );
 
+  const currentValue = isControlled ? value : internalValue;
+
   const selectedDate = React.useMemo(() => {
-    const currentValue = value ?? internalValue;
     return currentValue ? parseISO(currentValue) : undefined;
-  }, [value, internalValue]);
+  }, [currentValue]);
 
   function handleSelect(date: Date | undefined) {
     const dateStr = date ? format(date, "yyyy-MM-dd") : undefined;
@@ -84,7 +88,12 @@ export function DatePicker({
           </Button>
         }
       />
-      <PopoverContent align="start" className="w-auto p-0" side="bottom">
+      <PopoverContent
+        align="start"
+        className="w-auto p-0"
+        side="bottom"
+        container={portalContainer}
+      >
         <Calendar
           locale={dateLocale}
           mode="single"
@@ -94,12 +103,7 @@ export function DatePicker({
         />
       </PopoverContent>
       {name && (
-        <input
-          name={name}
-          type="hidden"
-          value={internalValue ?? ""}
-          onChange={() => {}}
-        />
+        <input name={name} type="hidden" value={currentValue ?? ""} readOnly />
       )}
     </Popover>
   );

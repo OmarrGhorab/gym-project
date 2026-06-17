@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Eye, Loader2, Pencil, UserX } from "lucide-react";
+import { Eye, Loader2, Pencil, SquareMinus, UserX } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import { deactivateMember } from "@/lib/actions/members";
+import { deactivateMember, stopSubscription } from "@/lib/actions/members";
 import {
   Tooltip,
   TooltipContent,
@@ -32,6 +32,7 @@ export function MemberRowActions({
   const isArabic = locale === "ar";
 
   const [isPending, setIsPending] = React.useState(false);
+  const [isStopPending, setIsStopPending] = React.useState(false);
 
   async function handleDeactivate() {
     const confirmed = window.confirm(
@@ -52,6 +53,35 @@ export function MemberRowActions({
     }
   }
 
+  async function handleStopSubscription() {
+    const subscriptionId = member.latest_subscription?.id;
+
+    if (!subscriptionId) return;
+
+    const confirmed = window.confirm(
+      t("stopSubscriptionDescription", { name: member.name })
+    );
+
+    if (!confirmed) return;
+
+    setIsStopPending(true);
+
+    try {
+      await stopSubscription(subscriptionId, locale as AppLocale);
+      onMutate?.();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setIsStopPending(false);
+    }
+  }
+
+  const subscriptionStatus = member.latest_subscription?.status?.toLowerCase();
+  const canStopSubscription =
+    member.latest_subscription?.id !== undefined &&
+    subscriptionStatus !== "expired" &&
+    subscriptionStatus !== "stopped";
+
   return (
     <TooltipProvider>
       <div className={cn("flex items-center gap-1", isArabic ? "justify-start" : "justify-end")}>
@@ -70,6 +100,29 @@ export function MemberRowActions({
           />
           <TooltipContent>{t("actions.edit")}</TooltipContent>
         </Tooltip>
+
+        {member.latest_subscription?.id && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-8 rounded-md text-muted-foreground hover:bg-amber-500/10 hover:text-amber-600"
+                  onClick={handleStopSubscription}
+                  disabled={isStopPending || !canStopSubscription}
+                >
+                  {isStopPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <SquareMinus className="size-4" />
+                  )}
+                </Button>
+              }
+            />
+            <TooltipContent>{t("actions.stopSubscription")}</TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger

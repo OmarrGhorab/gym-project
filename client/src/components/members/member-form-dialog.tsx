@@ -16,9 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
-import { createMember, updateMember } from "@/lib/actions/members";
+import {
+  createMember,
+  getMemberForEdit,
+  updateMember,
+} from "@/lib/actions/members";
 import type { Member } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
+import { MemberActionError } from "@/lib/member-action-error";
 import { cn } from "@/lib/utils";
 
 type MemberFormDialogProps = {
@@ -36,32 +41,100 @@ export function MemberFormDialog({
   onOpenChange,
   onSuccess,
 }: MemberFormDialogProps) {
+  const formKey = `${mode}-${member?.id ?? "new"}-${open ? "open" : "closed"}`;
+
+  return (
+    <MemberFormDialogContent
+      key={formKey}
+      member={member}
+      mode={mode}
+      open={open}
+      onOpenChange={onOpenChange}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+type MemberFormState = {
+  name: string;
+  phone: string;
+  email: string;
+  gender: "" | "male" | "female";
+  birth_date?: string;
+  national_id: string;
+  join_date?: string;
+  notes: string;
+  status: "active" | "inactive";
+};
+
+function MemberFormDialogContent({
+  mode,
+  member,
+  open,
+  onOpenChange,
+  onSuccess,
+}: MemberFormDialogProps) {
   const locale = useLocale();
   const t = useTranslations("MembersPage");
   const isArabic = locale === "ar";
   const isEditing = mode === "edit";
+  const [portalContainer, setPortalContainer] = React.useState<HTMLDivElement | null>(null);
 
   const [isPending, setIsPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
+  const [form, setForm] = React.useState<MemberFormState>(() =>
+    toMemberFormState(member)
+  );
+
+  React.useEffect(() => {
+    if (!open || !isEditing || !member?.id) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    getMemberForEdit(member.id)
+      .then((fullMember) => {
+        if (isCancelled) return;
+        setForm(toMemberFormState(fullMember));
+        setFieldErrors({});
+      })
+      .catch((err) => {
+        if (isCancelled) return;
+        setError(err instanceof Error ? err.message : t("formError"));
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [open, isEditing, member?.id, t]);
+
+  function updateForm<K extends keyof MemberFormState>(
+    key: K,
+    value: MemberFormState[K]
+  ) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsPending(true);
     setError(null);
+    setFieldErrors({});
 
-    const formData = new FormData(event.currentTarget);
     const data = {
-      name: String(formData.get("name") ?? "").trim(),
-      phone: String(formData.get("phone") ?? "").trim(),
-      email: String(formData.get("email") ?? "").trim() || undefined,
-      gender: (formData.get("gender") as "male" | "female") || undefined,
-      birth_date: String(formData.get("birth_date") ?? "").trim() || undefined,
-      national_id: String(formData.get("national_id") ?? "").trim() || undefined,
-      join_date: String(formData.get("join_date") ?? "").trim() || undefined,
-      notes: String(formData.get("notes") ?? "").trim() || undefined,
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim() || undefined,
+      gender: form.gender || undefined,
+      birth_date: form.birth_date || undefined,
+      national_id: form.national_id.trim() || undefined,
+      join_date: form.join_date || undefined,
+      notes: form.notes.trim() || undefined,
       ...(isEditing
         ? {
-            status: (formData.get("status") as "active" | "inactive") || undefined,
+            status: form.status,
           }
         : {}),
     };
@@ -76,7 +149,12 @@ export function MemberFormDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("formError"));
+      if (err instanceof MemberActionError) {
+        setError(err.message);
+        setFieldErrors(err.details ?? {});
+      } else {
+        setError(err instanceof Error ? err.message : t("formError"));
+      }
     } finally {
       setIsPending(false);
     }
@@ -89,7 +167,10 @@ export function MemberFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("max-w-lg", isArabic && "rtl")}>
+      <DialogContent
+        ref={setPortalContainer}
+        className={cn("max-w-lg", isArabic && "rtl")}
+      >
         <DialogHeader className={cn(isArabic && "text-right")}>
           <DialogTitle>
             {isEditing ? t("editMemberTitle") : t("addMemberTitle")}
@@ -101,7 +182,7 @@ export function MemberFormDialog({
 
         <form
           id="member-form"
-          key={open ? "open" : "closed"}
+          key={`${mode}-${member?.id ?? "new"}-${open ? "open" : "closed"}`}
           onSubmit={handleSubmit}
           className="space-y-4"
         >
@@ -119,10 +200,12 @@ export function MemberFormDialog({
               <Input
                 id="name"
                 name="name"
-                defaultValue={member?.name}
+                value={form.name}
+                onChange={(event) => updateForm("name", event.target.value)}
                 required
                 className={inputClass}
               />
+              <FieldError messages={fieldErrors.name} />
             </div>
 
             <div className="space-y-1.5">
@@ -133,10 +216,12 @@ export function MemberFormDialog({
                 id="phone"
                 name="phone"
                 type="tel"
-                defaultValue={member?.phone}
+                value={form.phone}
+                onChange={(event) => updateForm("phone", event.target.value)}
                 required
                 className={inputClass}
               />
+              <FieldError messages={fieldErrors.phone} />
             </div>
 
             <div className="space-y-1.5">
@@ -147,9 +232,11 @@ export function MemberFormDialog({
                 id="email"
                 name="email"
                 type="email"
-                defaultValue={member?.email}
+                value={form.email}
+                onChange={(event) => updateForm("email", event.target.value)}
                 className={inputClass}
               />
+              <FieldError messages={fieldErrors.email} />
             </div>
 
             <div className="space-y-1.5">
@@ -159,7 +246,10 @@ export function MemberFormDialog({
               <select
                 id="gender"
                 name="gender"
-                defaultValue={member?.gender ?? ""}
+                value={form.gender}
+                onChange={(event) =>
+                  updateForm("gender", event.target.value as "" | "male" | "female")
+                }
                 className={cn(
                   "h-9 w-full rounded-md border bg-card px-2 text-sm shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/50",
                   isArabic && "text-right"
@@ -169,6 +259,7 @@ export function MemberFormDialog({
                 <option value="male">{t("filterGenderMale")}</option>
                 <option value="female">{t("filterGenderFemale")}</option>
               </select>
+              <FieldError messages={fieldErrors.gender} />
             </div>
 
             <div className="space-y-1.5">
@@ -178,11 +269,15 @@ export function MemberFormDialog({
               <DatePicker
                 id="birth_date"
                 name="birth_date"
-                defaultValue={member?.birth_date}
+                value={form.birth_date}
+                onChange={(date) => updateForm("birth_date", date)}
                 placeholder={t("formBirthDatePlaceholder")}
                 locale={locale}
+                portalContainer={portalContainer}
+                disabled={isPending}
                 className={cn(isArabic && "text-right")}
               />
+              <FieldError messages={fieldErrors.birth_date} />
             </div>
 
             <div className="space-y-1.5">
@@ -192,9 +287,11 @@ export function MemberFormDialog({
               <Input
                 id="national_id"
                 name="national_id"
-                defaultValue={member?.national_id}
+                value={form.national_id}
+                onChange={(event) => updateForm("national_id", event.target.value)}
                 className={inputClass}
               />
+              <FieldError messages={fieldErrors.national_id} />
             </div>
 
             <div className="space-y-1.5">
@@ -204,11 +301,15 @@ export function MemberFormDialog({
               <DatePicker
                 id="join_date"
                 name="join_date"
-                defaultValue={member?.join_date}
+                value={form.join_date}
+                onChange={(date) => updateForm("join_date", date)}
                 placeholder={t("formJoinDatePlaceholder")}
                 locale={locale}
+                portalContainer={portalContainer}
+                disabled={isPending}
                 className={cn(isArabic && "text-right")}
               />
+              <FieldError messages={fieldErrors.join_date} />
             </div>
 
             {isEditing && (
@@ -219,15 +320,19 @@ export function MemberFormDialog({
                 <select
                   id="status"
                   name="status"
-                  defaultValue={member?.status ?? "active"}
+                  value={form.status}
+                  onChange={(event) =>
+                    updateForm("status", event.target.value as "active" | "inactive")
+                  }
                   className={cn(
                     "h-9 w-full rounded-md border bg-card px-2 text-sm shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/50",
                     isArabic && "text-right"
                   )}
                 >
                   <option value="active">{t("statusActive")}</option>
-                  <option value="inactive">{t("statusExpired")}</option>
+                  <option value="inactive">{t("statusInactive")}</option>
                 </select>
+                <FieldError messages={fieldErrors.status} />
               </div>
             )}
           </div>
@@ -239,10 +344,12 @@ export function MemberFormDialog({
             <Textarea
               id="notes"
               name="notes"
-              defaultValue={member?.notes}
+              value={form.notes}
+              onChange={(event) => updateForm("notes", event.target.value)}
               rows={3}
               className={cn("w-full resize-none", isArabic && "text-right")}
             />
+            <FieldError messages={fieldErrors.notes} />
           </div>
         </form>
 
@@ -255,7 +362,11 @@ export function MemberFormDialog({
           >
             {t("formCancel")}
           </Button>
-          <Button type="submit" form="member-form" disabled={isPending}>
+          <Button
+            type="submit"
+            form="member-form"
+            disabled={isPending}
+          >
             {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
             {isEditing ? t("formSave") : t("formAdd")}
           </Button>
@@ -263,4 +374,29 @@ export function MemberFormDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function toMemberFormState(member?: Member | null): MemberFormState {
+  return {
+    name: member?.name ?? "",
+    phone: member?.phone ?? "",
+    email: member?.email ?? "",
+    gender:
+      member?.gender === "male" || member?.gender === "female"
+        ? member.gender
+        : "",
+    birth_date: member?.birth_date ?? undefined,
+    national_id: member?.national_id ?? "",
+    join_date: member?.join_date ?? undefined,
+    notes: member?.notes ?? "",
+    status: member?.status === "inactive" ? "inactive" : "active",
+  };
+}
+
+function FieldError({ messages }: { messages?: string[] }) {
+  if (!messages?.length) {
+    return null;
+  }
+
+  return <p className="text-xs font-medium text-destructive">{messages[0]}</p>;
 }

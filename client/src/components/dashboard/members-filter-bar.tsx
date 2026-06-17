@@ -100,8 +100,7 @@ export function MembersFilterBar({ plans = [] }: { plans?: Plan[] }) {
             >
               <SelectItem value="all">{t("filterStatus")}</SelectItem>
               <SelectItem value="active">{t("filterStatusActive")}</SelectItem>
-              <SelectItem value="expired">{t("filterStatusExpired")}</SelectItem>
-              <SelectItem value="frozen">{t("filterStatusSuspended")}</SelectItem>
+              <SelectItem value="inactive">{t("filterStatusInactive")}</SelectItem>
             </SelectContent>
           </Select>
         </div>

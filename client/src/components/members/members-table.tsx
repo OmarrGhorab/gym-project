@@ -69,6 +69,42 @@ export function MembersTable({
         ),
       },
       {
+        accessorKey: "gender",
+        header: t("tableHeaderGender"),
+        cell: ({ row }) => (
+          <span className="text-xs font-semibold text-muted-foreground">
+            {getGenderLabel(row.original.gender, t)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "join_date",
+        header: t("tableHeaderJoinDate"),
+        cell: ({ row }) => (
+          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+            {formatDate(row.original.join_date, dateLocale)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "member_status",
+        header: t("tableHeaderMemberStatus"),
+        cell: ({ row }) => {
+          const memberStatus = row.original.status;
+          return (
+            <Badge
+              variant="outline"
+              className={cn(
+                "rounded-md px-2 py-0.5 text-xs font-bold border shadow-2xs",
+                getMemberStatusStyles(memberStatus)
+              )}
+            >
+              {getMemberStatusLabel(memberStatus, t)}
+            </Badge>
+          );
+        },
+      },
+      {
         accessorKey: "latest_subscription",
         header: t("tableHeaderPlan"),
         cell: ({ row }) => {
@@ -81,20 +117,19 @@ export function MembersTable({
         },
       },
       {
-        accessorKey: "status",
-        header: t("tableHeaderStatus"),
+        accessorKey: "subscription_status",
+        header: t("tableHeaderSubscriptionStatus"),
         cell: ({ row }) => {
-          const member = row.original;
-          const activeStatus = member.latest_subscription?.status || member.status;
+          const subscriptionStatus = getEffectiveSubscriptionStatus(row.original);
           return (
             <Badge
               variant="outline"
               className={cn(
                 "rounded-md px-2 py-0.5 text-xs font-bold border shadow-2xs",
-                getStatusStyles(activeStatus)
+                getSubscriptionStatusStyles(subscriptionStatus)
               )}
             >
-              {getStatusLabel(activeStatus, t)}
+              {getSubscriptionStatusLabel(subscriptionStatus, t)}
             </Badge>
           );
         },
@@ -145,6 +180,54 @@ export function MembersTable({
   );
 }
 
+function getEffectiveSubscriptionStatus(member: Member) {
+  const subscription = member.latest_subscription;
+
+  if (!subscription) {
+    return "none";
+  }
+
+  if (subscription.status?.toLowerCase() !== "active" || !subscription.end_date) {
+    return subscription.status || member.status;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const expiryDate = new Date(subscription.end_date);
+  if (Number.isNaN(expiryDate.getTime())) {
+    return subscription.status || member.status;
+  }
+
+  expiryDate.setHours(0, 0, 0, 0);
+
+  return expiryDate < today ? "expired" : subscription.status;
+}
+
+function formatDate(value: string | undefined, locale: string) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleDateString(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function getGenderLabel(gender: string | undefined, t: (key: string) => string) {
+  switch (gender?.toLowerCase()) {
+    case "male":
+      return t("filterGenderMale");
+    case "female":
+      return t("filterGenderFemale");
+    default:
+      return "-";
+  }
+}
+
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -166,35 +249,65 @@ function getAvatarGradient(id: number) {
   return avatarGradients[id % avatarGradients.length];
 }
 
-function getStatusStyles(statusValue: string) {
+function getMemberStatusStyles(statusValue: string) {
+  switch (statusValue?.toLowerCase()) {
+    case "active":
+    case "نشط":
+      return "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-500/20";
+    case "inactive":
+    case "غير نشط":
+      return "bg-slate-500/15 text-slate-600 dark:bg-slate-500/10 dark:text-slate-300 border-slate-500/20";
+    default:
+      return "bg-muted text-muted-foreground border-muted-foreground/25";
+  }
+}
+
+function getSubscriptionStatusStyles(statusValue: string) {
   switch (statusValue?.toLowerCase()) {
     case "active":
     case "نشط":
       return "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-500/20";
     case "expired":
-    case "inactive":
     case "منتهي":
       return "bg-rose-500/15 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-500/20";
     case "frozen":
     case "suspended":
     case "معلق":
       return "bg-amber-500/15 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border-amber-500/20";
+    case "stopped":
+      return "bg-slate-500/15 text-slate-600 dark:bg-slate-500/10 dark:text-slate-300 border-slate-500/20";
+    case "none":
+      return "bg-muted text-muted-foreground border-muted-foreground/25";
     default:
       return "bg-muted text-muted-foreground border-muted-foreground/25";
   }
 }
 
-function getStatusLabel(statusValue: string, t: (key: string) => string) {
+function getMemberStatusLabel(statusValue: string, t: (key: string) => string) {
+  switch (statusValue?.toLowerCase()) {
+    case "active":
+      return t("statusActive");
+    case "inactive":
+      return t("statusInactive");
+    default:
+      return statusValue || "-";
+  }
+}
+
+function getSubscriptionStatusLabel(statusValue: string, t: (key: string) => string) {
   switch (statusValue?.toLowerCase()) {
     case "active":
       return t("statusActive");
     case "expired":
-    case "inactive":
       return t("statusExpired");
     case "frozen":
     case "suspended":
       return t("statusSuspended");
+    case "stopped":
+      return t("statusStopped");
+    case "none":
+      return t("noSubscription");
     default:
-      return statusValue;
+      return statusValue || "-";
   }
 }
