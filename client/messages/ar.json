@@ -140,6 +140,7 @@
     "noNotifications": "لا توجد إشعارات",
     "themeSwitch": "تبديل المظهر",
     "languageSwitch": "تبديل اللغة",
+    "logout": "تسجيل الخروج",
     "navSections": {
       "overview": "نظرة عامة",
       "operations": "التشغيل",

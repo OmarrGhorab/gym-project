@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Languages, Menu, Moon, Search, Sun } from "lucide-react";
+import { Bell, Languages, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { UserAvatar } from "@/components/dashboard/user-avatar";
 import type { DashboardUser } from "@/components/dashboard/types";
 import type { Notification } from "@/lib/api/dashboard";
 import { markNotificationAsRead } from "@/lib/actions/notifications";
+import { logoutAction } from "@/lib/actions/logout";
 
 export function DashboardNavbar({
   onOpenSidebar,
@@ -52,6 +53,10 @@ export function DashboardNavbar({
     } catch {
       // Silently fail; the dropdown stays open.
     }
+  }
+
+  async function handleLogout() {
+    await logoutAction(locale as "en" | "ar");
   }
 
   return (
@@ -188,7 +193,40 @@ export function DashboardNavbar({
               <TooltipContent>{t("languageSwitch")}</TooltipContent>
             </Tooltip>
 
-            <UserAvatar user={user} />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    className="cursor-pointer rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    type="button"
+                  >
+                    <UserAvatar user={user} />
+                  </button>
+                }
+              />
+              <DropdownMenuContent
+                align="end"
+                side="bottom"
+                sideOffset={8}
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="flex flex-col items-start gap-0">
+                    <span className="text-sm font-semibold">{user.name}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {user.email}
+                    </span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="size-4" />
+                    {t("logout")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

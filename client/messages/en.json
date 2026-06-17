@@ -140,6 +140,7 @@
     "noNotifications": "No notifications",
     "themeSwitch": "Switch theme",
     "languageSwitch": "Switch language",
+    "logout": "Sign out",
     "navSections": {
       "overview": "Overview",
       "operations": "Operations",
