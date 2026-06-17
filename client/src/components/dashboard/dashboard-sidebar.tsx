@@ -71,7 +71,10 @@ export function DashboardSidebar({
 
         <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-5">
           {navItems.map((group) => (
-            <div key={group.sectionKey} className="space-y-1">
+            <div
+              key={group.sectionKey}
+              className={cn("space-y-1", group.sectionKey === "overview" && "pt-3")}
+            >
               <p className="px-3 text-xs font-bold text-sidebar-foreground/35">
                 {t(`navSections.${group.sectionKey}`)}
               </p>

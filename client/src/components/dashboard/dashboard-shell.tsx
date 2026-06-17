@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { DashboardNavbar } from "@/components/dashboard/dashboard-navbar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import type { DashboardNavItem, DashboardUser } from "@/components/dashboard/types";
-import type { Notification } from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 
 const navItems: DashboardNavItem[] = [
@@ -42,13 +41,9 @@ const fallbackUser: DashboardUser = {
 export function DashboardShell({
   children,
   user,
-  notifications,
-  unreadCount,
 }: {
   children: React.ReactNode;
   user: DashboardUser | null;
-  notifications: Notification[];
-  unreadCount: number;
 }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const locale = useLocale();
@@ -98,9 +93,7 @@ export function DashboardShell({
         <section className="min-w-0 flex-1">
           <div className={cn(isArabic ? "lg:pr-64" : "lg:pl-64")}>
             <DashboardNavbar
-              notifications={notifications}
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
-              unreadCount={unreadCount}
               user={dashboardUser}
             />
             <main aria-label={t("mainContent")}>{children}</main>

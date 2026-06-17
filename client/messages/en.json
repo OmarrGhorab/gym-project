@@ -137,6 +137,8 @@
     "search": "Search members, invoices, trainers...",
     "openSidebar": "Open dashboard navigation",
     "notifications": "Notifications",
+    "notificationsLoading": "Loading notifications...",
+    "notificationsError": "Could not load notifications",
     "noNotifications": "No notifications",
     "themeSwitch": "Switch theme",
     "languageSwitch": "Switch language",

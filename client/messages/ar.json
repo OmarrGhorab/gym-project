@@ -137,6 +137,8 @@
     "search": "ابحث عن أعضاء، فواتير، مدربين...",
     "openSidebar": "فتح تنقل لوحة التحكم",
     "notifications": "الإشعارات",
+    "notificationsLoading": "جاري تحميل الإشعارات...",
+    "notificationsError": "تعذر تحميل الإشعارات",
     "noNotifications": "لا توجد إشعارات",
     "themeSwitch": "تبديل المظهر",
     "languageSwitch": "تبديل اللغة",

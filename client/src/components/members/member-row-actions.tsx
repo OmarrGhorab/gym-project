@@ -6,6 +6,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { deactivateMember } from "@/lib/actions/members";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Member } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
@@ -47,44 +53,62 @@ export function MemberRowActions({
   }
 
   return (
-    <>
+    <TooltipProvider>
       <div className={cn("flex items-center gap-1", isArabic ? "justify-start" : "justify-end")}>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-          title={t("actions.edit")}
-          onClick={() => onEdit?.(member)}
-        >
-          <Pencil className="size-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                className="size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                onClick={() => onEdit?.(member)}
+              >
+                <Pencil className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>{t("actions.edit")}</TooltipContent>
+        </Tooltip>
 
-        <Link
-          href={`/members/${member.id}`}
-          title={t("actions.view")}
-          className={cn(
-            buttonVariants({ variant: "ghost", size: "icon-sm" }),
-            "size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          <Eye className="size-4" />
-        </Link>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href={`/members/${member.id}`}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                  "size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Eye className="size-4" />
+              </Link>
+            }
+          />
+          <TooltipContent>{t("actions.view")}</TooltipContent>
+        </Tooltip>
 
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          title={t("actions.delete")}
-          onClick={handleDeactivate}
-          disabled={isPending}
-        >
-          {isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <UserX className="size-4" />
-          )}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                className="size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={handleDeactivate}
+                disabled={isPending}
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <UserX className="size-4" />
+                )}
+              </Button>
+            }
+          />
+          <TooltipContent>{t("actions.delete")}</TooltipContent>
+        </Tooltip>
       </div>
-    </>
+    </TooltipProvider>
   );
 }

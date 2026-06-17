@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Bell, Languages, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -30,13 +31,9 @@ import { logoutAction } from "@/lib/actions/logout";
 export function DashboardNavbar({
   onOpenSidebar,
   user,
-  notifications,
-  unreadCount,
 }: {
   onOpenSidebar: () => void;
   user: DashboardUser;
-  notifications: Notification[];
-  unreadCount: number;
 }) {
   const locale = useLocale();
   const pathname = usePathname();
@@ -45,11 +42,50 @@ export function DashboardNavbar({
   const { theme, setTheme } = useAppTheme();
   const nextLocale = locale === "ar" ? "en" : "ar";
   const nextTheme = theme === "dark" ? "light" : "dark";
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [notificationsLoaded, setNotificationsLoaded] = React.useState(false);
+  const [notificationsError, setNotificationsError] = React.useState(false);
+
+  async function loadNotifications() {
+    if (notificationsLoaded) return;
+
+    try {
+      const response = await fetch("/api/dashboard/notifications?per_page=10", {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        data?: Notification[];
+        meta?: { total?: number };
+      };
+
+      if (!response.ok) {
+        throw new Error("Could not load notifications.");
+      }
+
+      setNotifications(payload.data ?? []);
+      setUnreadCount(Number(payload.meta?.total ?? 0));
+      setNotificationsLoaded(true);
+      setNotificationsError(false);
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
+      setNotificationsLoaded(true);
+      setNotificationsError(true);
+    }
+  }
 
   async function handleNotificationClick(notificationId: string) {
     try {
       await markNotificationAsRead(notificationId);
-      router.refresh();
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === notificationId
+            ? { ...notification, read_at: notification.read_at ?? new Date().toISOString() }
+            : notification
+        )
+      );
+      setUnreadCount((current) => Math.max(0, current - 1));
     } catch {
       // Silently fail; the dropdown stays open.
     }
@@ -63,16 +99,23 @@ export function DashboardNavbar({
     <TooltipProvider>
       <header className="sticky top-0 z-30 border-b bg-card/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
-          <Button
-            aria-label={t("openSidebar")}
-            className="lg:hidden"
-            size="icon-lg"
-            type="button"
-            variant="outline"
-            onClick={onOpenSidebar}
-          >
-            <Menu className="size-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={t("openSidebar")}
+                  className="lg:hidden"
+                  size="icon-lg"
+                  type="button"
+                  variant="outline"
+                  onClick={onOpenSidebar}
+                >
+                  <Menu className="size-5" />
+                </Button>
+              }
+            />
+            <TooltipContent>{t("openSidebar")}</TooltipContent>
+          </Tooltip>
 
           <div className="hidden min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border bg-background px-3 py-2 text-muted-foreground shadow-inner md:flex">
             <Search className="size-4 shrink-0" />
@@ -81,21 +124,31 @@ export function DashboardNavbar({
 
           <div className="ms-auto flex items-center gap-2">
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    className="relative"
-                    size="icon-lg"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Bell className="size-5" />
-                    {unreadCount > 0 && (
-                      <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500" />
-                    )}
-                  </Button>
-                }
-              />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          className="relative"
+                          size="icon-lg"
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            void loadNotifications();
+                          }}
+                        >
+                          <Bell className="size-5" />
+                          {unreadCount > 0 && (
+                            <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500" />
+                          )}
+                        </Button>
+                      }
+                    />
+                  }
+                />
+                <TooltipContent>{t("notifications")}</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent
                 align="end"
                 className="w-80"
@@ -112,7 +165,15 @@ export function DashboardNavbar({
                     )}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                    {notifications.length > 0 ? (
+                  {!notificationsLoaded ? (
+                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                      {t("notificationsLoading")}
+                    </div>
+                  ) : notificationsError ? (
+                    <div className="px-2 py-4 text-center text-sm text-destructive">
+                      {t("notificationsError")}
+                    </div>
+                  ) : notifications.length > 0 ? (
                     notifications.map((notification) => (
                       <DropdownMenuItem
                         key={notification.id}
@@ -194,16 +255,23 @@ export function DashboardNavbar({
             </Tooltip>
 
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    className="cursor-pointer rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    type="button"
-                  >
-                    <UserAvatar user={user} />
-                  </button>
-                }
-              />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <DropdownMenuTrigger
+                      render={
+                        <button
+                          className="cursor-pointer rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          type="button"
+                        >
+                          <UserAvatar user={user} />
+                        </button>
+                      }
+                    />
+                  }
+                />
+                <TooltipContent>{user.name}</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent
                 align="end"
                 side="bottom"
