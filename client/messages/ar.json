@@ -50,7 +50,52 @@
         "label": "الفروع المفتوحة",
         "value": "4",
         "hint": "كل المواقع تعمل"
-      }
+      },
+      "todayRevenue": "إيراد اليوم",
+      "todaySales": "مبيعات اليوم",
+      "activeSubscriptions": "الاشتراكات النشطة",
+      "expiringThisWeek": "تنتهي هذا الأسبوع"
+    },
+    "charts": {
+      "revenueTitle": "اتجاه الإيرادات",
+      "topProductsTitle": "أعلى المنتجات مبيعًا",
+      "attendanceTitle": "الحضور بالساعة",
+      "periodToday": "اليوم",
+      "periodWeek": "أسبوع",
+      "periodMonth": "شهر"
+    },
+    "panels": {
+      "expiringSoonTitle": "تنتهي قريبًا",
+      "lowStockTitle": "تنبيهات المخزون المنخفض",
+      "recentActivityTitle": "النشاط الأخير",
+      "recentSalesTitle": "أحدث المبيعات",
+      "notificationsTitle": "الإشعارات",
+      "member": "العضو",
+      "plan": "الخطة",
+      "ends": "ينتهي",
+      "renew": "تجديد",
+      "product": "المنتج",
+      "unitsSold": "الوحدات المباعة",
+      "revenue": "الإيراد",
+      "inStockHeader": "المتوفر",
+      "threshold": "الحد الأدنى",
+      "totalHeader": "الإجمالي",
+      "paymentMethod": "الطريقة",
+      "time": "الوقت",
+      "units": "{count} مباع",
+      "inStock": "{count} متوفر",
+      "saleTotal": "الإجمالي {total}",
+      "unreadNotifications": "{count} غير مقروء",
+      "noData": "لا توجد بيانات متاحة"
+    },
+    "errors": {
+      "summary": "تعذر تحميل ملخص لوحة التحكم.",
+      "revenue": "تعذر تحميل مخطط الإيرادات.",
+      "products": "تعذر تحميل أعلى المنتجات مبيعًا.",
+      "expiring": "تعذر تحميل الاشتراكات القريبة من الانتهاء.",
+      "sales": "تعذر تحميل أحدث المبيعات.",
+      "stock": "تعذر تحميل تنبيهات المخزون المنخفض.",
+      "notifications": "تعذر تحميل الإشعارات."
     },
     "activity": {
       "title": "آخر النشاط",
@@ -92,6 +137,7 @@
     "search": "ابحث عن أعضاء، فواتير، مدربين...",
     "openSidebar": "فتح تنقل لوحة التحكم",
     "notifications": "الإشعارات",
+    "noNotifications": "لا توجد إشعارات",
     "themeSwitch": "تبديل المظهر",
     "languageSwitch": "تبديل اللغة",
     "navSections": {

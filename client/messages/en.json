@@ -50,7 +50,52 @@
         "label": "Open branches",
         "value": "4",
         "hint": "All locations online"
-      }
+      },
+      "todayRevenue": "Today revenue",
+      "todaySales": "Today sales",
+      "activeSubscriptions": "Active subscriptions",
+      "expiringThisWeek": "Expiring this week"
+    },
+    "charts": {
+      "revenueTitle": "Revenue trend",
+      "topProductsTitle": "Top products",
+      "attendanceTitle": "Attendance by hour",
+      "periodToday": "Today",
+      "periodWeek": "Week",
+      "periodMonth": "Month"
+    },
+    "panels": {
+      "expiringSoonTitle": "Expiring soon",
+      "lowStockTitle": "Low stock alerts",
+      "recentActivityTitle": "Recent activity",
+      "recentSalesTitle": "Recent sales",
+      "notificationsTitle": "Notifications",
+      "member": "Member",
+      "plan": "Plan",
+      "ends": "Ends",
+      "renew": "Renew",
+      "product": "Product",
+      "unitsSold": "Units sold",
+      "revenue": "Revenue",
+      "inStockHeader": "In stock",
+      "threshold": "Threshold",
+      "totalHeader": "Total",
+      "paymentMethod": "Method",
+      "time": "Time",
+      "units": "{count} sold",
+      "inStock": "{count} in stock",
+      "saleTotal": "Total {total}",
+      "unreadNotifications": "{count} unread",
+      "noData": "No data available"
+    },
+    "errors": {
+      "summary": "Could not load dashboard summary.",
+      "revenue": "Could not load revenue chart.",
+      "products": "Could not load top products.",
+      "expiring": "Could not load expiring subscriptions.",
+      "sales": "Could not load recent sales.",
+      "stock": "Could not load low stock alerts.",
+      "notifications": "Could not load notifications."
     },
     "activity": {
       "title": "Recent activity",
@@ -92,6 +137,7 @@
     "search": "Search members, invoices, trainers...",
     "openSidebar": "Open dashboard navigation",
     "notifications": "Notifications",
+    "noNotifications": "No notifications",
     "themeSwitch": "Switch theme",
     "languageSwitch": "Switch language",
     "navSections": {

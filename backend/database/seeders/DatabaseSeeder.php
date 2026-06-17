@@ -24,5 +24,6 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleMatrixSeeder::class);
         $this->call(RoleUserSeeder::class);
         $this->call(PostmanScenarioSeeder::class);
+        $this->call(DashboardDemoSeeder::class);
     }
 }
