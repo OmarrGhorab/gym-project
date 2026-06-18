@@ -5,6 +5,7 @@ export type DashboardUser = {
   email: string;
   imageUrl?: string;
   role: DashboardRole;
+  permissions?: string[];
 };
 
 export type DashboardNavIcon =
@@ -47,6 +48,7 @@ export type DashboardNavLink = {
     | "teams"
     | "trainers";
   roles: DashboardRole[];
+  permissions?: string[];
 };
 
 export type DashboardNavItem = {

@@ -23,6 +23,7 @@ const navItems: DashboardNavItem[] = [
       { href: "/products", icon: "Package", labelKey: "products", roles: ["owner", "admin", "staff"] },
       { href: "/pos", icon: "ShoppingCart", labelKey: "pos", roles: ["owner", "admin", "staff"] },
       { href: "/sales", icon: "ReceiptText", labelKey: "sales", roles: ["owner", "admin", "staff"] },
+      { href: "/roles", icon: "ShieldCheck", labelKey: "roles", roles: ["owner", "admin"], permissions: ["roles.manage"] },
     ],
   },
   {
@@ -40,7 +41,6 @@ const navItems: DashboardNavItem[] = [
     sectionKey: "admin",
     items: [
       { href: "/notifications", icon: "Bell", labelKey: "notifications", roles: ["owner", "admin", "staff"] },
-      { href: "/roles", icon: "ShieldCheck", labelKey: "roles", roles: ["owner"] },
       { href: "/audit", icon: "ClipboardList", labelKey: "audit", roles: ["owner", "admin"] },
       { href: "/settings", icon: "Settings", labelKey: "settings", roles: ["owner"] },
     ],
@@ -77,6 +77,7 @@ export function DashboardShell({
           navItems={navItems}
           onNavigate={() => setIsMobileSidebarOpen(false)}
           userRole={dashboardUser.role}
+          userPermissions={dashboardUser.permissions ?? []}
         />
 
         <div
@@ -103,6 +104,7 @@ export function DashboardShell({
           navItems={navItems}
           onNavigate={() => setIsMobileSidebarOpen(false)}
           userRole={dashboardUser.role}
+          userPermissions={dashboardUser.permissions ?? []}
         />
 
         <section className="min-w-0 flex-1">

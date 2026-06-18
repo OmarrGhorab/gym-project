@@ -208,6 +208,15 @@ export type FinancialReportRow = {
   net_profit: string;
 };
 
+export type Role = {
+  id: number;
+  name: string;
+  is_preset: boolean;
+  permissions: string[];
+};
+
+export type PermissionCatalog = Record<string, string[]>;
+
 type ApiErrorBody = {
   error?: {
     message?: string;
@@ -492,6 +501,16 @@ export async function getFinancialReport(
       }) as FinancialReport["meta"]["totals"],
     },
   };
+}
+
+export async function getRoles(): Promise<Role[]> {
+  const envelope = await fetchEnvelope<Role[]>("/roles");
+  return envelope.data;
+}
+
+export async function getPermissions(): Promise<PermissionCatalog> {
+  const envelope = await fetchEnvelope<PermissionCatalog>("/permissions");
+  return envelope.data;
 }
 
 export async function getEmployees(options: {

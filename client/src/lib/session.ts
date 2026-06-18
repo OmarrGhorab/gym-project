@@ -11,6 +11,7 @@ type CurrentUserResponse = {
     name: string;
     email: string;
     roles?: string[];
+    permissions?: string[];
   };
 };
 
@@ -55,6 +56,7 @@ export async function getCurrentUser(): Promise<DashboardUser | null> {
       name: user.name,
       email: user.email,
       role: mapDashboardRole(user.roles),
+      permissions: user.permissions ?? [],
     };
   } catch {
     return null;

@@ -44,11 +44,13 @@ export function DashboardSidebar({
   navItems,
   onNavigate,
   userRole,
+  userPermissions,
 }: {
   className?: string;
   navItems: DashboardNavItem[];
   onNavigate?: () => void;
   userRole: DashboardRole;
+  userPermissions: string[];
 }) {
   const locale = useLocale();
   const pathname = usePathname();
@@ -93,7 +95,14 @@ export function DashboardSidebar({
                 {t(`navSections.${group.sectionKey}`)}
               </p>
               {group.items
-                .filter((item) => item.roles.includes(userRole))
+                .filter(
+                  (item) =>
+                    item.roles.includes(userRole) &&
+                    (!item.permissions?.length ||
+                      item.permissions.some((permission) =>
+                        userPermissions.includes(permission)
+                      ))
+                )
                 .map((item) => {
                   const Icon = icons[item.icon];
                   const isActive =
