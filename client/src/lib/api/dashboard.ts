@@ -84,10 +84,18 @@ export type Member = {
 export type Plan = {
   id: number;
   name: string;
-  price?: string;
-  duration_days?: number;
-  is_active?: boolean;
-  is_sellable?: boolean;
+  description?: string | null;
+  price: string;
+  duration_days: number;
+  sessions_count?: number | null;
+  type: "membership" | "offer";
+  is_active: boolean;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  max_freeze_days: number;
+  is_sellable: boolean;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type Notification = {
@@ -219,14 +227,34 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 function ensurePaginationMeta(
-  meta: Record<string, unknown> | undefined
+  meta: Record<string, unknown> | undefined,
+  fallbackTotal = 0
 ): PaginationMeta {
+  const paginationMeta =
+    (meta?.pagination as Record<string, unknown> | undefined) ??
+    (meta?.page as Record<string, unknown> | undefined) ??
+    meta;
+
   return {
-    current_page: Number(meta?.current_page ?? 0),
-    per_page: Number(meta?.per_page ?? 0),
-    total: Number(meta?.total ?? 0),
-    last_page: Number(meta?.last_page ?? 0),
+    current_page: toFiniteNumber(
+      paginationMeta?.current_page ?? paginationMeta?.currentPage,
+      1
+    ),
+    per_page: toFiniteNumber(
+      paginationMeta?.per_page ?? paginationMeta?.perPage,
+      fallbackTotal
+    ),
+    total: toFiniteNumber(paginationMeta?.total, fallbackTotal),
+    last_page: toFiniteNumber(
+      paginationMeta?.last_page ?? paginationMeta?.lastPage,
+      1
+    ),
   };
+}
+
+function toFiniteNumber(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
@@ -241,7 +269,7 @@ export async function getDashboardExpiringSoon(
   );
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -267,7 +295,7 @@ export async function getSubscriptions(options: {
 
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -298,7 +326,7 @@ export async function getNotifications(
   );
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -308,7 +336,7 @@ export async function getRecentSales(limit = 5): Promise<Paginated<Sale>> {
   );
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -326,7 +354,7 @@ export async function getLowStockProducts(
   );
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -377,7 +405,7 @@ export async function getEmployees(options: {
 
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -423,7 +451,7 @@ export async function getMembers(options: {
   );
   return {
     data: envelope.data,
-    meta: ensurePaginationMeta(envelope.meta),
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -433,6 +461,32 @@ export async function getPlans(): Promise<Plan[]> {
     next: { tags: ["plans"], revalidate: 300 },
   });
   return envelope.data;
+}
+
+export async function getPlansPaginated(options: {
+  page?: number;
+  type?: string;
+  isActive?: string;
+  sort?: "name" | "-name" | "price" | "-price" | "duration_days" | "-duration_days" | "created_at" | "-created_at";
+} = {}): Promise<Paginated<Plan>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.type) params.set("filter[type]", options.type);
+  if (options.isActive) params.set("filter[is_active]", options.isActive);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<Plan[]>(
+    `/plans?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["plans"], revalidate: 60 },
+    }
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
 }
 
 export async function getMember(id: number): Promise<Member | null> {
