@@ -315,17 +315,25 @@ export async function getSubscriptions(options: {
   if (options.sort) params.set("sort", options.sort);
 
   const envelope = await fetchEnvelope<Subscription[]>(
-    `/subscriptions?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["subscriptions"], revalidate: 60 },
-    }
+    `/subscriptions?${params.toString()}`
   );
 
   return {
     data: envelope.data,
     meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
+}
+
+export async function getAllSubscriptions(options: Omit<Parameters<typeof getSubscriptions>[0], "page"> = {}): Promise<Subscription[]> {
+  const firstPage = await getSubscriptions({ ...options, page: 1 });
+  const subscriptions = [...firstPage.data];
+
+  for (let page = 2; page <= firstPage.meta.last_page; page++) {
+    const result = await getSubscriptions({ ...options, page });
+    subscriptions.push(...result.data);
+  }
+
+  return subscriptions;
 }
 
 export async function getDashboardTopProducts(
@@ -384,11 +392,7 @@ export async function getSales(options: {
   if (options.sort) params.set("sort", options.sort);
 
   const envelope = await fetchEnvelope<Sale[]>(
-    `/sales?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["sales"], revalidate: 60 },
-    }
+    `/sales?${params.toString()}`
   );
 
   return {
@@ -434,17 +438,25 @@ export async function getProducts(options: {
   if (options.perPage) params.set("per_page", String(options.perPage));
 
   const envelope = await fetchEnvelope<Product[]>(
-    `/products?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["products"], revalidate: 60 },
-    }
+    `/products?${params.toString()}`
   );
 
   return {
     data: envelope.data,
     meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
+}
+
+export async function getAllProducts(options: Omit<Parameters<typeof getProducts>[0], "page"> = {}): Promise<Product[]> {
+  const firstPage = await getProducts({ ...options, page: 1 });
+  const products = [...firstPage.data];
+
+  for (let page = 2; page <= firstPage.meta.last_page; page++) {
+    const result = await getProducts({ ...options, page });
+    products.push(...result.data);
+  }
+
+  return products;
 }
 
 export async function getFinancialReport(
@@ -485,11 +497,7 @@ export async function getEmployees(options: {
   if (options.sort) params.set("sort", options.sort);
 
   const envelope = await fetchEnvelope<Employee[]>(
-    `/employees?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["employees"], revalidate: 60 },
-    }
+    `/employees?${params.toString()}`
   );
 
   return {
@@ -507,11 +515,7 @@ export async function getEmployeePerformance(options: {
   if (options.to) params.set("to", options.to);
 
   const envelope = await fetchEnvelope<EmployeePerformance[]>(
-    `/reports/employees?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["employee-performance"], revalidate: 60 },
-    }
+    `/reports/employees?${params.toString()}`
   );
 
   return envelope.data;
@@ -532,11 +536,7 @@ export async function getMembers(options: {
   if (options.planId) params.set("filter[plan_id]", options.planId);
 
   const envelope = await fetchEnvelope<Member[]>(
-    `/members?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["members"], revalidate: 60 },
-    }
+    `/members?${params.toString()}`
   );
   return {
     data: envelope.data,
@@ -545,10 +545,7 @@ export async function getMembers(options: {
 }
 
 export async function getPlans(): Promise<Plan[]> {
-  const envelope = await fetchEnvelope<Plan[]>("/plans?per_page=100", {
-    cache: "force-cache",
-    next: { tags: ["plans"], revalidate: 300 },
-  });
+  const envelope = await fetchEnvelope<Plan[]>("/plans?per_page=100");
   return envelope.data;
 }
 
@@ -565,11 +562,7 @@ export async function getPlansPaginated(options: {
   if (options.sort) params.set("sort", options.sort);
 
   const envelope = await fetchEnvelope<Plan[]>(
-    `/plans?${params.toString()}`,
-    {
-      cache: "force-cache",
-      next: { tags: ["plans"], revalidate: 60 },
-    }
+    `/plans?${params.toString()}`
   );
 
   return {
@@ -578,11 +571,22 @@ export async function getPlansPaginated(options: {
   };
 }
 
+export async function getAllPlans(options: Omit<Parameters<typeof getPlansPaginated>[0], "page"> = {}): Promise<Plan[]> {
+  const firstPage = await getPlansPaginated({ ...options, page: 1 });
+  const plans = [...firstPage.data];
+
+  for (let page = 2; page <= firstPage.meta.last_page; page++) {
+    const result = await getPlansPaginated({ ...options, page });
+    plans.push(...result.data);
+  }
+
+  return plans;
+}
+
 export async function getMember(id: number): Promise<Member | null> {
   try {
     const envelope = await fetchEnvelope<Member>(`/members/${id}`, {
-      cache: "force-cache",
-      next: { tags: [`member-${id}`], revalidate: 60 },
+      cache: "no-store",
     });
     return envelope.data;
   } catch {

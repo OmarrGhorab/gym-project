@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import {
   getPlansPaginated,
+  getAllPlans,
   type Paginated,
   type Plan,
 } from "@/lib/api/dashboard";
@@ -60,6 +61,7 @@ export default async function PlansPage({
   });
 
   let plans: Plan[] = [];
+  let statsPlans: Plan[] = [];
   let meta: Paginated<Plan>["meta"] = {
     current_page: 1,
     per_page: 15,
@@ -69,22 +71,26 @@ export default async function PlansPage({
   let fetchError: string | null = null;
 
   try {
-    const plansResult = await getPlansPaginated({ page, type, isActive, sort });
+    const [plansResult, statsResult] = await Promise.all([
+      getPlansPaginated({ page, type, isActive, sort }),
+      getAllPlans({ type, isActive, sort }),
+    ]);
     plans = plansResult.data;
+    statsPlans = statsResult;
     meta = plansResult.meta;
   } catch {
     fetchError = t("fetchError");
   }
 
-  const activePlans = plans.filter((plan) => plan.is_active).length;
-  const sellablePlans = plans.filter((plan) => plan.is_sellable).length;
-  const offerPlans = plans.filter((plan) => plan.type === "offer").length;
+  const activePlans = statsPlans.filter((plan) => plan.is_active).length;
+  const sellablePlans = statsPlans.filter((plan) => plan.is_sellable).length;
+  const offerPlans = statsPlans.filter((plan) => plan.type === "offer").length;
   const averagePrice =
-    plans.length > 0
-      ? plans.reduce((sum, plan) => {
+    statsPlans.length > 0
+      ? statsPlans.reduce((sum, plan) => {
           const price = Number(plan.price);
           return Number.isFinite(price) ? sum + price : sum;
-        }, 0) / plans.length
+        }, 0) / statsPlans.length
       : 0;
 
   const stats = [

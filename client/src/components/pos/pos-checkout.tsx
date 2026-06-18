@@ -32,6 +32,7 @@ export function PosCheckout({ products }: { products: Product[] }) {
   const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card" | "bank_transfer">("cash");
   const [discount, setDiscount] = React.useState("0");
   const [notes, setNotes] = React.useState("");
+  const [idempotencyKey, setIdempotencyKey] = React.useState(() => crypto.randomUUID());
   const [isPending, setIsPending] = React.useState(false);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
 
@@ -118,7 +119,7 @@ export function PosCheckout({ products }: { products: Product[] }) {
     try {
       await createSale(
         {
-          idempotency_key: crypto.randomUUID(),
+          idempotency_key: idempotencyKey,
           member_id: memberId.trim() ? Number(memberId) : undefined,
           payment_method: paymentMethod,
           discount: discount.trim() || "0",
@@ -136,6 +137,7 @@ export function PosCheckout({ products }: { products: Product[] }) {
       setDiscount("0");
       setMemberId("");
       setNotes("");
+      setIdempotencyKey(crypto.randomUUID());
       router.refresh();
     } catch (err) {
       const parsed = parseActionError(err);

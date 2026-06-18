@@ -37,6 +37,7 @@ type ProductFormState = {
   cost: string;
   stock_quantity: string;
   low_stock_threshold: string;
+  image?: File;
 };
 
 export function ProductFormDialog(props: ProductFormDialogProps) {
@@ -79,6 +80,7 @@ function ProductFormDialogContent({
         price: t("priceValidation"),
         cost: t("costValidation"),
         stock: t("stockValidation"),
+        image: t("imageValidation"),
       },
     });
 
@@ -98,6 +100,7 @@ function ProductFormDialogContent({
       cost: form.cost.trim(),
       stock_quantity: Number(form.stock_quantity || 0),
       low_stock_threshold: Number(form.low_stock_threshold || 0),
+      image: form.image,
     };
 
     try {
@@ -167,6 +170,23 @@ function ProductFormDialogContent({
             <Field id="low_stock_threshold" label={t("formThreshold")} error={fieldErrors.low_stock_threshold} isArabic={isArabic}>
               <Input id="low_stock_threshold" inputMode="numeric" value={form.low_stock_threshold} onChange={(event) => updateForm("low_stock_threshold", event.target.value)} disabled={isPending} className={inputClass} />
             </Field>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="image" className={cn(isArabic && "justify-end")}>
+                {t("formImage")}
+              </Label>
+              <Input
+                id="image"
+                type="file"
+                accept="image/*"
+                onChange={(event) => updateForm("image", event.target.files?.[0])}
+                disabled={isPending}
+                className={cn("h-9 w-full", isArabic && "text-right")}
+              />
+              <FieldError messages={fieldErrors.image} />
+              <p className="text-xs font-semibold text-muted-foreground">
+                {form.image?.name ?? product?.image ?? t("formImageHint")}
+              </p>
+            </div>
           </div>
         </form>
 
@@ -219,6 +239,7 @@ function toProductFormState(product?: Product | null): ProductFormState {
     cost: product?.cost ?? "",
     stock_quantity: String(product?.stock_quantity ?? 0),
     low_stock_threshold: String(product?.low_stock_threshold ?? 0),
+    image: undefined,
   };
 }
 
@@ -234,6 +255,7 @@ function validateProductForm({
     price: string;
     cost: string;
     stock: string;
+    image: string;
   };
 }) {
   const schema = z.object({
@@ -244,6 +266,11 @@ function validateProductForm({
     cost: z.string().trim().regex(/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/, messages.cost),
     stock_quantity: z.string().trim().regex(/^[0-9]+$/, messages.stock),
     low_stock_threshold: z.string().trim().regex(/^[0-9]+$/, messages.stock),
+    image: z
+      .instanceof(File)
+      .optional()
+      .refine((file) => !file || file.type.startsWith("image/"), messages.image)
+      .refine((file) => !file || file.size <= 2 * 1024 * 1024, messages.image),
   });
 
   const result = schema.safeParse(form);

@@ -14,6 +14,7 @@ export type ProductFormData = {
   cost: string;
   stock_quantity?: number;
   low_stock_threshold?: number;
+  image?: File;
 };
 
 export type StockAdjustmentData = {
@@ -29,12 +30,14 @@ async function productsFetch(path: string, options: RequestInit = {}) {
     throw new Error("Unauthorized");
   }
 
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
       ...(options.headers ?? {}),
     },
     cache: "no-store",
@@ -69,7 +72,7 @@ export async function createProduct(
 ): Promise<Product> {
   const payload = await productsFetch("/products", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: toProductRequestBody(data),
   });
 
   revalidateProducts(locale);
@@ -82,9 +85,10 @@ export async function updateProduct(
   data: ProductFormData,
   locale: AppLocale
 ): Promise<Product> {
+  const requestBody = toProductRequestBody(data, data.image ? "PUT" : undefined);
   const payload = await productsFetch(`/products/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(data),
+    method: data.image ? "POST" : "PUT",
+    body: requestBody,
   });
 
   revalidateProducts(locale);
@@ -126,4 +130,25 @@ function revalidateProducts(locale: AppLocale) {
   revalidatePath(`/${locale}`);
   revalidateTag("products", "max");
   revalidateTag("sales", "max");
+}
+
+function toProductRequestBody(data: ProductFormData, spoofMethod?: "PUT") {
+  if (!data.image) {
+    return JSON.stringify(data);
+  }
+
+  const formData = new FormData();
+  formData.set("name", data.name);
+  formData.set("category", data.category);
+  formData.set("sku", data.sku);
+  formData.set("price", data.price);
+  formData.set("cost", data.cost);
+  formData.set("stock_quantity", String(data.stock_quantity ?? 0));
+  formData.set("low_stock_threshold", String(data.low_stock_threshold ?? 0));
+  formData.set("image", data.image);
+  if (spoofMethod) {
+    formData.set("_method", spoofMethod);
+  }
+
+  return formData;
 }

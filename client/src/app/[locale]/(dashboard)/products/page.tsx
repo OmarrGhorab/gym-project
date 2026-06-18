@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AlertTriangle, Boxes, CircleDollarSign, PackageCheck } from "lucide-react";
-import { getProducts, type Paginated, type Product } from "@/lib/api/dashboard";
+import { getAllProducts, getProducts, type Paginated, type Product } from "@/lib/api/dashboard";
 import { ProductsFilterBar } from "@/components/products/products-filter-bar";
 import { ProductsPagination } from "@/components/products/products-pagination";
 import { ProductsTableContainer } from "@/components/products/products-table-container";
@@ -53,6 +53,7 @@ export default async function ProductsPage({
   });
 
   let products: Product[] = [];
+  let statsProducts: Product[] = [];
   let meta: Paginated<Product>["meta"] = {
     current_page: 1,
     per_page: 15,
@@ -62,16 +63,20 @@ export default async function ProductsPage({
   let fetchError: string | null = null;
 
   try {
-    const result = await getProducts({ page, search, isActive, isLowStock, sort });
+    const [result, statsResult] = await Promise.all([
+      getProducts({ page, search, isActive, isLowStock, sort }),
+      getAllProducts({ search, isActive, isLowStock, sort }),
+    ]);
     products = result.data;
+    statsProducts = statsResult;
     meta = result.meta;
   } catch {
     fetchError = t("fetchError");
   }
 
-  const activeCount = products.filter((product) => product.is_active).length;
-  const lowStockCount = products.filter((product) => product.is_low_stock).length;
-  const inventoryValue = products.reduce((sum, product) => {
+  const activeCount = statsProducts.filter((product) => product.is_active).length;
+  const lowStockCount = statsProducts.filter((product) => product.is_low_stock).length;
+  const inventoryValue = statsProducts.reduce((sum, product) => {
     const cost = Number(product.cost);
     return Number.isFinite(cost) ? sum + cost * product.stock_quantity : sum;
   }, 0);

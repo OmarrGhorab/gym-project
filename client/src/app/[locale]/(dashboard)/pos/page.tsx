@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Banknote, CreditCard, PackageSearch, ReceiptText } from "lucide-react";
-import { getProducts, getSales, type Product, type Sale } from "@/lib/api/dashboard";
+import { getAllProducts, getSales, type Product, type Sale } from "@/lib/api/dashboard";
 import { PosCheckout } from "@/components/pos/pos-checkout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,10 +43,10 @@ export default async function PosPage({
 
   try {
     const [productsResult, salesResult] = await Promise.all([
-      getProducts({ isActive: "1", sort: "name", perPage: 100 }),
+      getAllProducts({ isActive: "1", sort: "name" }),
       getSales({ sort: "-created_at" }),
     ]);
-    products = productsResult.data;
+    products = productsResult;
     recentSales = salesResult.data.slice(0, 5);
   } catch {
     fetchError = t("fetchError");

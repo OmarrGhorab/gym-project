@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import {
   getDashboardSummary,
+  getAllSubscriptions,
   getSubscriptions,
   type Paginated,
   type Subscription,
@@ -62,6 +63,7 @@ export default async function SubscriptionsPage({
   });
 
   let subscriptions: Subscription[] = [];
+  let statsSubscriptions: Subscription[] = [];
   let meta: Paginated<Subscription>["meta"] = {
     current_page: 1,
     per_page: 15,
@@ -72,25 +74,27 @@ export default async function SubscriptionsPage({
   let fetchError: string | null = null;
 
   try {
-    const [subscriptionsResult, summaryResult] = await Promise.all([
+    const [subscriptionsResult, statsResult, summaryResult] = await Promise.all([
       getSubscriptions({ page, status, memberId, sort }),
+      getAllSubscriptions({ status, memberId, sort }),
       getDashboardSummary().catch(() => null),
     ]);
 
     subscriptions = subscriptionsResult.data;
+    statsSubscriptions = statsResult;
     meta = subscriptionsResult.meta;
-    activeTotal = summaryResult?.active_subscriptions ?? countByStatus(subscriptions, "active");
+    activeTotal = summaryResult?.active_subscriptions ?? countByStatus(statsSubscriptions, "active");
   } catch {
     fetchError = t("fetchError");
   }
 
-  const expiringSoon = subscriptions.filter((subscription) => {
+  const expiringSoon = statsSubscriptions.filter((subscription) => {
     const days = getDaysLeft(subscription.end_date);
     return subscription.status === "active" && days >= 0 && days <= 7;
   }).length;
-  const frozen = countByStatus(subscriptions, "frozen");
-  const stopped = countByStatus(subscriptions, "stopped");
-  const revenue = subscriptions.reduce((sum, subscription) => {
+  const frozen = countByStatus(statsSubscriptions, "frozen");
+  const stopped = countByStatus(statsSubscriptions, "stopped");
+  const revenue = statsSubscriptions.reduce((sum, subscription) => {
     const amount = Number(subscription.price_paid);
     return Number.isFinite(amount) ? sum + amount : sum;
   }, 0);

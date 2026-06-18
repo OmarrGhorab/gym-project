@@ -97,7 +97,9 @@ export async function createMember(
   });
 
   revalidatePath(`/${locale}/members`);
+  revalidatePath(`/${locale}/subscriptions`);
   revalidateTag("members", "max");
+  revalidateTag("subscriptions", "max");
 
   return payload.data as Member;
 }
@@ -122,8 +124,10 @@ export async function updateMember(
 
   revalidatePath(`/${locale}/members`);
   revalidatePath(`/${locale}/members/${id}`);
+  revalidatePath(`/${locale}/subscriptions`);
   revalidateTag("members", "max");
   revalidateTag(`member-${id}`, "max");
+  revalidateTag("subscriptions", "max");
 
   return payload.data as Member;
 }
@@ -138,8 +142,10 @@ export async function deactivateMember(
 
   revalidatePath(`/${locale}/members`);
   revalidatePath(`/${locale}/members/${id}`);
+  revalidatePath(`/${locale}/subscriptions`);
   revalidateTag("members", "max");
   revalidateTag(`member-${id}`, "max");
+  revalidateTag("subscriptions", "max");
 
   return payload.data as Member;
 }
@@ -153,7 +159,9 @@ export async function stopSubscription(
   });
 
   revalidatePath(`/${locale}/members`);
+  revalidatePath(`/${locale}/subscriptions`);
   revalidateTag("members", "max");
+  revalidateTag("subscriptions", "max");
 
   return payload.data as Record<string, unknown>;
 }
