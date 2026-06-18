@@ -18,7 +18,7 @@ class UpdateMemberRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:150'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => ['required', 'string', 'regex:/^(?:\+20|0020|0)?1[0125][0-9]{8}$/'],
             'email' => [
                 'nullable',
                 'email',
@@ -26,11 +26,10 @@ class UpdateMemberRequest extends FormRequest
                 Rule::unique('members', 'email')->ignore($memberId),
             ],
             'gender' => ['nullable', 'in:male,female'],
-            'birth_date' => ['nullable', 'date'],
             'national_id' => [
                 'nullable',
                 'string',
-                'max:50',
+                'regex:/^[23][0-9]{13}$/',
                 Rule::unique('members', 'national_id')->ignore($memberId),
             ],
             'join_date' => ['nullable', 'date'],

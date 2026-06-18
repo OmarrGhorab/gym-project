@@ -12,7 +12,6 @@ export type MemberFormData = {
   phone: string;
   email?: string;
   gender?: "male" | "female";
-  birth_date?: string;
   national_id?: string;
   join_date?: string;
   notes?: string;
@@ -20,6 +19,7 @@ export type MemberFormData = {
   subscription?: {
     plan_id: number;
     start_date: string;
+    end_date: string;
     discount?: string;
     payment: {
       amount: string;
@@ -33,6 +33,7 @@ export type SubscriptionCreateData = {
   member_id: number;
   plan_id: number;
   start_date: string;
+  end_date?: string;
   discount?: string;
   payment: {
     amount: string;

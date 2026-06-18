@@ -31,9 +31,9 @@ final class MemberResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'gender' => $this->gender,
-            'birth_date' => $this->birth_date?->toDateString(),
             'national_id' => $this->national_id,
             'join_date' => $this->join_date?->toDateString(),
+            'expiry_date' => $latestSubscription?->end_date?->toDateString(),
             'status' => $this->status,
             'notes' => $this->notes,
             'has_photo' => (bool) $this->photo_path,
@@ -42,6 +42,7 @@ final class MemberResource extends JsonResource
             'latest_subscription' => $latestSubscription ? [
                 'id' => $latestSubscription->id,
                 'plan_name' => $latestSubscription->plan?->name,
+                'start_date' => $latestSubscription->start_date?->toDateString(),
                 'end_date' => $latestSubscription->end_date?->toDateString(),
                 'status' => $latestSubscriptionStatus,
             ] : null,

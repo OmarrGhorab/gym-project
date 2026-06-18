@@ -30,6 +30,7 @@ test('create subscription derives end date and creates linked payment', function
         'member_id' => $member->id,
         'plan_id' => $plan->id,
         'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
         'discount' => '50.00',
         'payment' => [
             'amount' => '150.00',
@@ -56,6 +57,34 @@ test('create subscription derives end date and creates linked payment', function
         ->and($payment->amount)->toBe('150.00')
         ->and($payment->status)->toBe('partial')
         ->and($payment->created_by)->toBe($seller->id);
+});
+
+test('create subscription prices multiple cycles from custom end date', function (): void {
+    $seller = User::factory()->create();
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+    ]);
+
+    $subscription = app(CreateSubscription::class)->handle([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-09-08',
+        'discount' => '50.00',
+        'payment' => [
+            'amount' => '850.00',
+            'method' => 'cash',
+        ],
+    ], $seller);
+
+    expect($subscription)
+        ->toBeInstanceOf(Subscription::class)
+        ->and($subscription->end_date->toDateString())->toBe('2026-09-08')
+        ->and($subscription->price_paid)->toBe('850.00')
+        ->and($subscription->payments()->first()?->amount)->toBe('850.00')
+        ->and($subscription->payments()->first()?->status)->toBe('paid');
 });
 
 test('create subscription rejects inactive member', function (): void {

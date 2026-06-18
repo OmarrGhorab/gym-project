@@ -63,9 +63,9 @@ export type Member = {
   email?: string;
   status: string;
   gender?: string;
-  birth_date?: string;
   national_id?: string;
   join_date?: string;
+  expiry_date?: string;
   notes?: string;
   total_paid?: string;
   has_photo?: boolean;

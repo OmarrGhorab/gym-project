@@ -24,6 +24,7 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
     public function query()
     {
         $query = Member::query()
+            ->with('latestSubscription')
             ->select('members.*')
             ->selectSub(
                 Payment::query()
@@ -60,9 +61,9 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
             'Phone',
             'Email',
             'Gender',
-            'Birth Date',
             'National ID',
             'Join Date',
+            'Expiration Date',
             'Status',
             'Total Paid',
             'Created At',
@@ -77,9 +78,9 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
             $row->phone,
             $row->email,
             $row->gender,
-            $row->birth_date?->toDateString(),
             $row->national_id,
-            $row->join_date,
+            $row->join_date?->toDateString(),
+            $row->latestSubscription?->end_date?->toDateString(),
             $row->status,
             number_format($row->total_paid, 2, '.', ''),
             $row->created_at?->toDateTimeString(),

@@ -33,6 +33,7 @@ test('admin can create a subscription and receives 201', function (): void {
         'member_id' => $member->id,
         'plan_id' => $plan->id,
         'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
         'discount' => '50.00',
         'payment' => [
             'amount' => '250.00',

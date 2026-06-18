@@ -25,7 +25,6 @@ test('admin can create a member and receives 201', function (): void {
         'phone' => '+201234567890',
         'email' => 'sara@example.com',
         'gender' => 'female',
-        'birth_date' => '1995-04-12',
         'national_id' => '29504120012345',
         'join_date' => '2026-06-10',
         'notes' => 'VIP member',
@@ -103,6 +102,23 @@ test('missing required phone returns 422', function (): void {
         );
 });
 
+test('invalid egyptian phone returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201666666666',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.phone')
+            ->etc()
+        );
+});
+
 test('duplicate email returns 422', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
@@ -143,6 +159,24 @@ test('duplicate national_id returns 422', function (): void {
         );
 });
 
+test('invalid egyptian national_id returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Sara Ali',
+        'phone' => '+201234567890',
+        'national_id' => '19504120012345',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.national_id')
+            ->etc()
+        );
+});
+
 test('invalid gender value returns 422', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
@@ -157,7 +191,7 @@ test('invalid gender value returns 422', function (): void {
         ->assertJsonPath('error.code', 'validation_failed');
 });
 
-test('invalid birth_date format returns 422', function (): void {
+test('invalid join_date format returns 422', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
@@ -165,7 +199,7 @@ test('invalid birth_date format returns 422', function (): void {
     $this->postJson('/api/v1/members', [
         'name' => 'Sara Ali',
         'phone' => '+201234567890',
-        'birth_date' => 'not-a-date',
+        'join_date' => 'not-a-date',
     ])
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed');
@@ -223,6 +257,7 @@ test('admin can create a member with initial subscription atomically', function 
         'subscription' => [
             'plan_id' => $plan->id,
             'start_date' => '2026-06-10',
+            'end_date' => '2026-07-10',
             'discount' => '10.00',
             'payment' => [
                 'amount' => '290.00',
@@ -242,6 +277,43 @@ test('admin can create a member with initial subscription atomically', function 
     expect(Subscription::query()->whereHas('member', fn ($query) => $query->where('name', 'Atomic Member'))->count())->toBe(1);
 });
 
+test('admin can create a member with custom multi-cycle subscription expiry', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Three Month Member',
+        'phone' => '+201244444444',
+        'join_date' => '2026-06-10',
+        'subscription' => [
+            'plan_id' => $plan->id,
+            'start_date' => '2026-06-10',
+            'end_date' => '2026-09-08',
+            'discount' => '0.00',
+            'payment' => [
+                'amount' => '900.00',
+                'method' => 'cash',
+            ],
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.latest_subscription.end_date', '2026-09-08');
+
+    $subscription = Subscription::query()
+        ->whereHas('member', fn ($query) => $query->where('name', 'Three Month Member'))
+        ->first();
+
+    expect($subscription)
+        ->not->toBeNull()
+        ->and($subscription?->price_paid)->toBe('900.00');
+});
+
 test('member is not created when initial subscription creation fails', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
@@ -259,6 +331,7 @@ test('member is not created when initial subscription creation fails', function 
         'subscription' => [
             'plan_id' => $plan->id,
             'start_date' => '2026-06-10',
+            'end_date' => '2026-07-10',
             'discount' => '10.00',
             'payment' => [
                 'amount' => '999.00',

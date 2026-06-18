@@ -14,14 +14,15 @@ class MemberFactory extends Factory
 
     public function definition(): array
     {
+        $mobilePrefix = fake()->randomElement(['0', '1', '2', '5']);
+
         return [
             'name' => fake()->name(),
-            'phone' => fake()->unique()->numerify('+201#########'),
+            'phone' => fake()->unique()->numerify("+201{$mobilePrefix}########"),
             'email' => fake()->unique()->optional(0.7)->safeEmail(),
             'gender' => fake()->randomElement(['male', 'female', null]),
-            'birth_date' => fake()->optional()->date(),
             'photo_path' => null,
-            'national_id' => fake()->unique()->optional(0.5)->numerify('##############'),
+            'national_id' => fake()->unique()->optional(0.5)->numerify(fake()->randomElement(['2', '3']).'#############'),
             'join_date' => now()->toDateString(),
             'status' => 'active',
             'notes' => null,

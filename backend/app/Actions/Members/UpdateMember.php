@@ -16,7 +16,6 @@ final class UpdateMember
             'phone' => $data['phone'],
             'email' => $data['email'] ?? null,
             'gender' => $data['gender'] ?? null,
-            'birth_date' => $data['birth_date'] ?? null,
             'national_id' => $data['national_id'] ?? null,
             'join_date' => $data['join_date'] ?? $member->join_date,
             'notes' => $data['notes'] ?? null,

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -63,9 +64,9 @@ type MemberFormState = {
   phone: string;
   email: string;
   gender: "" | "male" | "female";
-  birth_date?: string;
   national_id: string;
   join_date?: string;
+  subscription_end_date?: string;
   plan_id: string;
   discount: string;
   payment_amount: string;
@@ -100,11 +101,14 @@ function MemberFormDialogContent({
     [plans, form.plan_id]
   );
   const joinedDate = form.join_date;
-  const computedExpiryDate = getComputedExpiryDate(
-    joinedDate,
+  const autoExpiryDate = getComputedExpiryDate(joinedDate, selectedPlan?.duration_days);
+  const payableAmount = getSubscriptionTotal(
+    selectedPlan?.price,
+    form.discount,
+    form.join_date,
+    form.subscription_end_date,
     selectedPlan?.duration_days
   );
-  const payableAmount = getPayableAmount(selectedPlan?.price, form.discount);
 
   React.useEffect(() => {
     if (!open || !isEditing || !member?.id) {
@@ -136,7 +140,43 @@ function MemberFormDialogContent({
     key: K,
     value: MemberFormState[K]
   ) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+
+      if (isEditing) {
+        return next;
+      }
+
+      const nextPlan = plans.find((plan) => String(plan.id) === next.plan_id);
+
+      if (key === "plan_id" || key === "join_date") {
+        next.subscription_end_date =
+          next.plan_id && next.join_date
+            ? getComputedExpiryDate(next.join_date, nextPlan?.duration_days)
+            : undefined;
+      }
+
+      if (
+        key === "plan_id" ||
+        key === "join_date" ||
+        key === "subscription_end_date" ||
+        key === "discount"
+      ) {
+        const nextPaymentAmount = getSubscriptionTotal(
+          nextPlan?.price,
+          next.discount,
+          next.join_date,
+          next.subscription_end_date,
+          nextPlan?.duration_days
+        );
+
+        if (next.plan_id && nextPaymentAmount !== undefined && nextPaymentAmount >= 0) {
+          next.payment_amount = formatMoney(nextPaymentAmount);
+        }
+      }
+
+      return next;
+    });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -144,6 +184,38 @@ function MemberFormDialogContent({
     setIsPending(true);
     setError(null);
     setFieldErrors({});
+
+    const paymentAmount = parseMoney(form.payment_amount);
+    const validationErrors = validateMemberForm({
+      form,
+      isEditing,
+      hasSubscription: Boolean(form.plan_id),
+      paymentAmount,
+      payableAmount,
+      messages: {
+        name: t("nameValidation"),
+        phone: t("phoneValidation"),
+        email: t("emailValidation"),
+        gender: t("genderValidation"),
+        nationalId: t("nationalIdValidation"),
+        joinDate: t("joinDateValidation"),
+        expirationDate: t("expirationDateValidation"),
+        plan: t("planValidation"),
+        paymentAmountRequired: t("paymentAmountRequiredForSubscription"),
+        paymentAmountPositive: t("paymentAmountMustBePositive"),
+        discount: t("discountValidation"),
+        discountExceedsPlan: t("discountCannotExceedPlanPrice"),
+        notes: t("notesValidation"),
+      },
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setError(t("formError"));
+      setFieldErrors(validationErrors);
+      toast.error(t("formError"));
+      setIsPending(false);
+      return;
+    }
 
     if (!isEditing && form.plan_id && !form.join_date) {
       setError(t("formError"));
@@ -166,8 +238,6 @@ function MemberFormDialogContent({
     }
 
     if (!isEditing && form.plan_id) {
-      const paymentAmount = parseMoney(form.payment_amount);
-
       if (paymentAmount !== undefined && paymentAmount <= 0) {
         setError(t("formError"));
         setFieldErrors({
@@ -188,20 +258,6 @@ function MemberFormDialogContent({
           setIsPending(false);
           return;
         }
-
-        if (paymentAmount > payableAmount) {
-          setError(t("formError"));
-          setFieldErrors({
-            "payment.amount": [
-              t("paymentAmountExceedsBalance", {
-                amount: formatMoney(payableAmount),
-              }),
-            ],
-          });
-          toast.error(t("formError"));
-          setIsPending(false);
-          return;
-        }
       }
     }
 
@@ -210,7 +266,6 @@ function MemberFormDialogContent({
       phone: form.phone.trim(),
       email: form.email.trim() || undefined,
       gender: form.gender || undefined,
-      birth_date: form.birth_date || undefined,
       national_id: form.national_id.trim() || undefined,
       join_date: form.join_date || undefined,
       notes: form.notes.trim() || undefined,
@@ -219,6 +274,7 @@ function MemberFormDialogContent({
             subscription: {
               plan_id: Number(form.plan_id),
               start_date: form.join_date,
+              end_date: form.subscription_end_date ?? autoExpiryDate ?? form.join_date,
               discount: form.discount.trim() || "0.00",
               payment: {
                 amount: form.payment_amount.trim(),
@@ -233,12 +289,6 @@ function MemberFormDialogContent({
           }
         : {}),
     };
-
-    console.groupCollapsed("[MemberFormDialog] submit payload");
-    console.log("mode", mode);
-    console.log("form state", form);
-    console.log("request payload", data);
-    console.groupEnd();
 
     try {
       if (isEditing && member) {
@@ -403,24 +453,6 @@ function MemberFormDialogContent({
               <FieldError messages={fieldErrors.national_id} />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="birth_date" className={cn(isArabic && "justify-end")}>
-                {t("formBirthDate")}
-              </Label>
-              <DatePicker
-                id="birth_date"
-                name="birth_date"
-                value={form.birth_date}
-                onChange={(date) => updateForm("birth_date", date)}
-                placeholder={t("formBirthDatePlaceholder")}
-                locale={locale}
-                portalContainer={portalContainer}
-                disabled={isPending}
-                className={cn(isArabic && "text-right")}
-              />
-              <FieldError messages={fieldErrors.birth_date} />
-            </div>
-
             {isEditing && (
               <div className="space-y-1.5">
                 <Label htmlFor="status" className={cn(isArabic && "justify-end")}>
@@ -485,19 +517,21 @@ function MemberFormDialogContent({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="expiration_preview" className={cn(isArabic && "justify-end")}>
+                  <Label htmlFor="subscription_end_date" className={cn(isArabic && "justify-end")}>
                     {t("formExpirationDate")}
                   </Label>
-                  <Input
-                    id="expiration_preview"
-                    value={
-                      computedExpiryDate
-                        ? formatDateLabel(computedExpiryDate, locale)
-                        : t("formExpirationDatePlaceholder")
-                    }
-                    readOnly
-                    className={cn(inputClass, "text-muted-foreground")}
+                  <DatePicker
+                    id="subscription_end_date"
+                    name="subscription_end_date"
+                    value={form.subscription_end_date}
+                    onChange={(date) => updateForm("subscription_end_date", date)}
+                    placeholder={t("formExpirationDatePlaceholder")}
+                    locale={locale}
+                    portalContainer={portalContainer}
+                    disabled={!form.plan_id || !form.join_date || isPending}
+                    className={cn(isArabic && "text-right")}
                   />
+                  <FieldError messages={fieldErrors["subscription.end_date"]} />
                 </div>
 
                 <div className="space-y-1.5">
@@ -629,9 +663,9 @@ function toMemberFormState(member?: Member | null): MemberFormState {
       member?.gender === "male" || member?.gender === "female"
         ? member.gender
         : "",
-    birth_date: member?.birth_date ?? undefined,
     national_id: member?.national_id ?? "",
     join_date: member?.join_date ?? undefined,
+    subscription_end_date: undefined,
     plan_id: "",
     discount: "0.00",
     payment_amount: "",
@@ -679,6 +713,7 @@ function normalizeMemberFieldErrors(errors: Record<string, string[]>) {
   const normalized = { ...errors };
   const fieldMap: Record<string, string> = {
     "subscription.plan_id": "plan_id",
+    "subscription.end_date": "subscription.end_date",
     "subscription.discount": "discount",
     "subscription.payment.amount": "payment.amount",
     "subscription.payment.method": "payment.method",
@@ -694,6 +729,151 @@ function normalizeMemberFieldErrors(errors: Record<string, string[]>) {
   return normalized;
 }
 
+function validateMemberForm({
+  form,
+  isEditing,
+  hasSubscription,
+  paymentAmount,
+  payableAmount,
+  messages,
+}: {
+  form: MemberFormState;
+  isEditing: boolean;
+  hasSubscription: boolean;
+  paymentAmount?: number;
+  payableAmount?: number;
+  messages: {
+    name: string;
+    phone: string;
+    email: string;
+    gender: string;
+    nationalId: string;
+    joinDate: string;
+    expirationDate: string;
+    plan: string;
+    paymentAmountRequired: string;
+    paymentAmountPositive: string;
+    discount: string;
+    discountExceedsPlan: string;
+    notes: string;
+  };
+}) {
+  const schema = z
+    .object({
+      name: z.string().trim().min(2, messages.name).max(150, messages.name),
+      phone: z
+        .string()
+        .trim()
+        .regex(/^(?:\+20|0020|0)?1[0125][0-9]{8}$/, messages.phone),
+      email: z
+        .string()
+        .trim()
+        .optional()
+        .refine((value) => !value || z.email().safeParse(value).success, {
+          message: messages.email,
+        }),
+      gender: z.union([z.literal(""), z.literal("male"), z.literal("female")]),
+      national_id: z
+        .string()
+        .trim()
+        .optional()
+        .refine((value) => !value || /^[23][0-9]{13}$/.test(value), {
+          message: messages.nationalId,
+        }),
+      join_date: z.string().optional(),
+      subscription_end_date: z.string().optional(),
+      plan_id: z.string(),
+      discount: z
+        .string()
+        .trim()
+        .optional()
+        .refine((value) => !value || isMoney(value), {
+          message: messages.discount,
+        }),
+      payment_amount: z.string().trim().optional(),
+      notes: z.string().max(1000, messages.notes),
+      status: z.union([z.literal("active"), z.literal("inactive")]),
+    })
+    .superRefine((data, ctx) => {
+      if (hasSubscription) {
+        if (!data.plan_id) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["plan_id"],
+            message: messages.plan,
+          });
+        }
+
+        if (!data.join_date || !isIsoDate(data.join_date)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["join_date"],
+            message: messages.joinDate,
+          });
+        }
+
+        if (!data.subscription_end_date || !isIsoDate(data.subscription_end_date)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["subscription.end_date"],
+            message: messages.expirationDate,
+          });
+        } else if (
+          data.join_date &&
+          isIsoDate(data.join_date) &&
+          compareIsoDates(data.subscription_end_date, data.join_date) < 0
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["subscription.end_date"],
+            message: messages.expirationDate,
+          });
+        }
+
+        if (!data.payment_amount) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["payment.amount"],
+            message: messages.paymentAmountRequired,
+          });
+        } else if (!isMoney(data.payment_amount) || paymentAmount === undefined || paymentAmount <= 0) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["payment.amount"],
+            message: messages.paymentAmountPositive,
+          });
+        }
+
+        if (payableAmount !== undefined && payableAmount < 0) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["discount"],
+            message: messages.discountExceedsPlan,
+          });
+        }
+      } else if (!isEditing && data.payment_amount) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["plan_id"],
+          message: messages.plan,
+        });
+      }
+    });
+
+  const result = schema.safeParse(form);
+
+  if (result.success) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    result.error.issues.map((issue) => [
+      issue.path.join("."),
+      [issue.message],
+    ])
+  );
+}
+
 function parseMoney(value?: string) {
   if (!value?.trim()) {
     return undefined;
@@ -704,7 +884,25 @@ function parseMoney(value?: string) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function getPayableAmount(planPrice?: string, discount?: string) {
+function isMoney(value: string) {
+  return /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/.test(value);
+}
+
+function isIsoDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+function compareIsoDates(a: string, b: string) {
+  return a.localeCompare(b);
+}
+
+function getSubscriptionTotal(
+  planPrice?: string,
+  discount?: string,
+  startDate?: string,
+  endDate?: string,
+  durationDays?: number
+) {
   const price = parseMoney(planPrice);
   const discountAmount = parseMoney(discount) ?? 0;
 
@@ -712,7 +910,29 @@ function getPayableAmount(planPrice?: string, discount?: string) {
     return undefined;
   }
 
-  return price - discountAmount;
+  return price * getSubscriptionCycles(startDate, endDate, durationDays) - discountAmount;
+}
+
+function getSubscriptionCycles(
+  startDate?: string,
+  endDate?: string,
+  durationDays?: number
+) {
+  if (!startDate || !endDate || !durationDays || durationDays <= 0) {
+    return 1;
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return 1;
+  }
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  const days = Math.ceil((end.getTime() - start.getTime()) / millisecondsPerDay);
+
+  return Math.max(1, Math.ceil(days / durationDays));
 }
 
 function formatMoney(value: number) {
@@ -734,17 +954,4 @@ function getComputedExpiryDate(
 
   startDate.setDate(startDate.getDate() + Number(durationDays));
   return startDate.toISOString().slice(0, 10);
-}
-
-function formatDateLabel(value: string, locale: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString(locale === "ar" ? "ar-EG" : "en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
 }

@@ -139,8 +139,7 @@ test('admin can update all editable member fields and receives them back', funct
         'phone' => '+201000000001',
         'email' => 'old@example.com',
         'gender' => 'male',
-        'birth_date' => '1990-01-01',
-        'national_id' => '11111111111111',
+        'national_id' => '29501010000001',
         'join_date' => '2026-01-01',
         'notes' => 'Old notes',
         'status' => 'active',
@@ -151,8 +150,7 @@ test('admin can update all editable member fields and receives them back', funct
         'phone' => '+201000000002',
         'email' => 'new@example.com',
         'gender' => 'female',
-        'birth_date' => '1992-02-02',
-        'national_id' => '22222222222222',
+        'national_id' => '29501010000002',
         'join_date' => '2026-02-02',
         'notes' => 'Updated notes',
         'status' => 'inactive',
@@ -163,8 +161,7 @@ test('admin can update all editable member fields and receives them back', funct
             ->where('data.phone', '+201000000002')
             ->where('data.email', 'new@example.com')
             ->where('data.gender', 'female')
-            ->where('data.birth_date', '1992-02-02')
-            ->where('data.national_id', '22222222222222')
+            ->where('data.national_id', '29501010000002')
             ->where('data.join_date', '2026-02-02')
             ->where('data.notes', 'Updated notes')
             ->where('data.status', 'inactive')
@@ -252,6 +249,45 @@ test('update own email passes unique check', function (): void {
         'email' => 'sara@example.com',
     ])
         ->assertStatus(200);
+});
+
+test('update invalid egyptian phone returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create();
+
+    $this->putJson("/api/v1/members/{$member->id}", [
+        'name' => $member->name,
+        'phone' => '+201666666666',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.phone')
+            ->etc()
+        );
+});
+
+test('update invalid egyptian national_id returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create();
+
+    $this->putJson("/api/v1/members/{$member->id}", [
+        'name' => $member->name,
+        'phone' => $member->phone,
+        'national_id' => '19504120012345',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed')
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->has('error.details.national_id')
+            ->etc()
+        );
 });
 
 test('update without members.update permission receives 403', function (): void {
