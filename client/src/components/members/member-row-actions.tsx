@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Eye, Loader2, Pencil, SquareMinus, UserX } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { deactivateMember, stopSubscription } from "@/lib/actions/members";
@@ -45,9 +46,10 @@ export function MemberRowActions({
 
     try {
       await deactivateMember(member.id, locale as AppLocale);
+      toast.success(t("memberDeactivatedSuccess"));
       onMutate?.();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : t("formError"));
+      toast.error(err instanceof Error ? err.message : t("formError"));
     } finally {
       setIsPending(false);
     }
@@ -68,9 +70,10 @@ export function MemberRowActions({
 
     try {
       await stopSubscription(subscriptionId, locale as AppLocale);
+      toast.success(t("subscriptionStoppedSuccess"));
       onMutate?.();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : t("formError"));
+      toast.error(err instanceof Error ? err.message : t("formError"));
     } finally {
       setIsStopPending(false);
     }

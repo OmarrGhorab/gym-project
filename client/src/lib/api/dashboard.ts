@@ -72,6 +72,7 @@ export type Member = {
   latest_subscription?: {
     id: number;
     plan_name: string;
+    start_date?: string;
     end_date: string;
     status: string;
   } | null;
@@ -80,6 +81,10 @@ export type Member = {
 export type Plan = {
   id: number;
   name: string;
+  price?: string;
+  duration_days?: number;
+  is_active?: boolean;
+  is_sellable?: boolean;
 };
 
 export type Notification = {

@@ -26,6 +26,7 @@ type MembersTableContainerProps = {
 export function MembersTableContainer({
   members,
   meta,
+  plans,
   filters,
 }: MembersTableContainerProps) {
   const locale = useLocale();
@@ -76,6 +77,7 @@ export function MembersTableContainer({
 
       <MemberFormDialog
         mode="add"
+        plans={plans}
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onSuccess={handleMutate}
@@ -83,6 +85,7 @@ export function MembersTableContainer({
 
       <MemberFormDialog
         mode="edit"
+        plans={plans}
         member={editingMember}
         open={editingMember !== null}
         onOpenChange={(open) => {

@@ -17,6 +17,28 @@ export type MemberFormData = {
   join_date?: string;
   notes?: string;
   status?: "active" | "inactive";
+  subscription?: {
+    plan_id: number;
+    start_date: string;
+    discount?: string;
+    payment: {
+      amount: string;
+      method: string;
+      paid_at?: string;
+    };
+  };
+};
+
+export type SubscriptionCreateData = {
+  member_id: number;
+  plan_id: number;
+  start_date: string;
+  discount?: string;
+  payment: {
+    amount: string;
+    method: string;
+    paid_at?: string;
+  };
 };
 
 async function membersFetch(path: string, options: RequestInit = {}) {
@@ -50,7 +72,15 @@ async function membersFetch(path: string, options: RequestInit = {}) {
       (payload.message as string) ??
       response.statusText;
 
-    throw new MemberActionError(errorMessage, details);
+    const error = new MemberActionError(errorMessage, details);
+    if (details && Object.keys(details).length > 0) {
+      error.message = JSON.stringify({
+        message: errorMessage,
+        details,
+      });
+    }
+
+    throw error;
   }
 
   return payload;

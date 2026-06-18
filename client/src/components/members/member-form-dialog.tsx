@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -21,14 +22,14 @@ import {
   getMemberForEdit,
   updateMember,
 } from "@/lib/actions/members";
-import type { Member } from "@/lib/api/dashboard";
+import type { Member, Plan } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
-import { MemberActionError } from "@/lib/member-action-error";
 import { cn } from "@/lib/utils";
 
 type MemberFormDialogProps = {
   mode: "add" | "edit";
   member?: Member | null;
+  plans?: Plan[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -37,6 +38,7 @@ type MemberFormDialogProps = {
 export function MemberFormDialog({
   mode,
   member,
+  plans,
   open,
   onOpenChange,
   onSuccess,
@@ -48,6 +50,7 @@ export function MemberFormDialog({
       key={formKey}
       member={member}
       mode={mode}
+      plans={plans}
       open={open}
       onOpenChange={onOpenChange}
       onSuccess={onSuccess}
@@ -63,6 +66,10 @@ type MemberFormState = {
   birth_date?: string;
   national_id: string;
   join_date?: string;
+  plan_id: string;
+  discount: string;
+  payment_amount: string;
+  payment_method: "cash" | "card" | "bank_transfer";
   notes: string;
   status: "active" | "inactive";
 };
@@ -70,6 +77,7 @@ type MemberFormState = {
 function MemberFormDialogContent({
   mode,
   member,
+  plans = [],
   open,
   onOpenChange,
   onSuccess,
@@ -87,6 +95,17 @@ function MemberFormDialogContent({
     toMemberFormState(member)
   );
 
+  const selectedPlan = React.useMemo(
+    () => plans.find((plan) => String(plan.id) === form.plan_id),
+    [plans, form.plan_id]
+  );
+  const joinedDate = form.join_date;
+  const computedExpiryDate = getComputedExpiryDate(
+    joinedDate,
+    selectedPlan?.duration_days
+  );
+  const payableAmount = getPayableAmount(selectedPlan?.price, form.discount);
+
   React.useEffect(() => {
     if (!open || !isEditing || !member?.id) {
       return;
@@ -97,7 +116,10 @@ function MemberFormDialogContent({
     getMemberForEdit(member.id)
       .then((fullMember) => {
         if (isCancelled) return;
-        setForm(toMemberFormState(fullMember));
+        setForm((current) => ({
+          ...current,
+          ...toMemberFormState(fullMember),
+        }));
         setFieldErrors({});
       })
       .catch((err) => {
@@ -123,6 +145,66 @@ function MemberFormDialogContent({
     setError(null);
     setFieldErrors({});
 
+    if (!isEditing && form.plan_id && !form.join_date) {
+      setError(t("formError"));
+      setFieldErrors({
+        join_date: [t("joinedDateRequiredForSubscription")],
+      });
+      toast.error(t("formError"));
+      setIsPending(false);
+      return;
+    }
+
+    if (!isEditing && form.plan_id && !form.payment_amount.trim()) {
+      setError(t("formError"));
+      setFieldErrors({
+        "payment.amount": [t("paymentAmountRequiredForSubscription")],
+      });
+      toast.error(t("formError"));
+      setIsPending(false);
+      return;
+    }
+
+    if (!isEditing && form.plan_id) {
+      const paymentAmount = parseMoney(form.payment_amount);
+
+      if (paymentAmount !== undefined && paymentAmount <= 0) {
+        setError(t("formError"));
+        setFieldErrors({
+          "payment.amount": [t("paymentAmountMustBePositive")],
+        });
+        toast.error(t("formError"));
+        setIsPending(false);
+        return;
+      }
+
+      if (payableAmount !== undefined && paymentAmount !== undefined) {
+        if (payableAmount < 0) {
+          setError(t("formError"));
+          setFieldErrors({
+            discount: [t("discountCannotExceedPlanPrice")],
+          });
+          toast.error(t("formError"));
+          setIsPending(false);
+          return;
+        }
+
+        if (paymentAmount > payableAmount) {
+          setError(t("formError"));
+          setFieldErrors({
+            "payment.amount": [
+              t("paymentAmountExceedsBalance", {
+                amount: formatMoney(payableAmount),
+              }),
+            ],
+          });
+          toast.error(t("formError"));
+          setIsPending(false);
+          return;
+        }
+      }
+    }
+
     const data = {
       name: form.name.trim(),
       phone: form.phone.trim(),
@@ -132,12 +214,31 @@ function MemberFormDialogContent({
       national_id: form.national_id.trim() || undefined,
       join_date: form.join_date || undefined,
       notes: form.notes.trim() || undefined,
+      ...(!isEditing && form.plan_id && form.join_date
+        ? {
+            subscription: {
+              plan_id: Number(form.plan_id),
+              start_date: form.join_date,
+              discount: form.discount.trim() || "0.00",
+              payment: {
+                amount: form.payment_amount.trim(),
+                method: form.payment_method,
+              },
+            },
+          }
+        : {}),
       ...(isEditing
         ? {
             status: form.status,
           }
         : {}),
     };
+
+    console.groupCollapsed("[MemberFormDialog] submit payload");
+    console.log("mode", mode);
+    console.log("form state", form);
+    console.log("request payload", data);
+    console.groupEnd();
 
     try {
       if (isEditing && member) {
@@ -146,14 +247,22 @@ function MemberFormDialogContent({
         await createMember(data, locale as AppLocale);
       }
 
+      toast.success(
+        isEditing ? t("memberUpdatedSuccess") : t("memberCreatedSuccess")
+      );
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      if (err instanceof MemberActionError) {
-        setError(err.message);
-        setFieldErrors(err.details ?? {});
+      const parsedError = parseMemberActionError(err);
+
+      if (parsedError) {
+        setError(parsedError.message);
+        setFieldErrors(normalizeMemberFieldErrors(parsedError.details ?? {}));
+        toast.error(parsedError.message);
       } else {
-        setError(err instanceof Error ? err.message : t("formError"));
+        const message = err instanceof Error ? err.message : t("formError");
+        setError(message);
+        toast.error(message);
       }
     } finally {
       setIsPending(false);
@@ -263,21 +372,21 @@ function MemberFormDialogContent({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="birth_date" className={cn(isArabic && "justify-end")}>
-                {t("formBirthDate")}
+              <Label htmlFor="join_date" className={cn(isArabic && "justify-end")}>
+                {t("formJoinedDate")}
               </Label>
               <DatePicker
-                id="birth_date"
-                name="birth_date"
-                value={form.birth_date}
-                onChange={(date) => updateForm("birth_date", date)}
-                placeholder={t("formBirthDatePlaceholder")}
+                id="join_date"
+                name="join_date"
+                value={form.join_date}
+                onChange={(date) => updateForm("join_date", date)}
+                placeholder={t("formJoinedDatePlaceholder")}
                 locale={locale}
                 portalContainer={portalContainer}
                 disabled={isPending}
                 className={cn(isArabic && "text-right")}
               />
-              <FieldError messages={fieldErrors.birth_date} />
+              <FieldError messages={fieldErrors.join_date} />
             </div>
 
             <div className="space-y-1.5">
@@ -295,21 +404,21 @@ function MemberFormDialogContent({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="join_date" className={cn(isArabic && "justify-end")}>
-                {t("formJoinDate")}
+              <Label htmlFor="birth_date" className={cn(isArabic && "justify-end")}>
+                {t("formBirthDate")}
               </Label>
               <DatePicker
-                id="join_date"
-                name="join_date"
-                value={form.join_date}
-                onChange={(date) => updateForm("join_date", date)}
-                placeholder={t("formJoinDatePlaceholder")}
+                id="birth_date"
+                name="birth_date"
+                value={form.birth_date}
+                onChange={(date) => updateForm("birth_date", date)}
+                placeholder={t("formBirthDatePlaceholder")}
                 locale={locale}
                 portalContainer={portalContainer}
                 disabled={isPending}
                 className={cn(isArabic && "text-right")}
               />
-              <FieldError messages={fieldErrors.join_date} />
+              <FieldError messages={fieldErrors.birth_date} />
             </div>
 
             {isEditing && (
@@ -336,6 +445,141 @@ function MemberFormDialogContent({
               </div>
             )}
           </div>
+
+          {!isEditing && (
+            <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-4">
+              <div className="space-y-1">
+                <p className={cn("text-sm font-bold", isArabic && "text-right")}>
+                  {t("subscriptionSectionTitle")}
+                </p>
+                <p className={cn("text-xs text-muted-foreground", isArabic && "text-right")}>
+                  {t("subscriptionSectionDescription")}
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="plan_id" className={cn(isArabic && "justify-end")}>
+                    {t("formSubscriptionType")}
+                  </Label>
+                  <select
+                    id="plan_id"
+                    name="plan_id"
+                    value={form.plan_id}
+                    onChange={(event) => updateForm("plan_id", event.target.value)}
+                    className={cn(
+                      "h-9 w-full rounded-md border bg-card px-2 text-sm shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/50",
+                      isArabic && "text-right"
+                    )}
+                  >
+                    <option value="">{t("formSubscriptionTypePlaceholder")}</option>
+                    {plans
+                      .filter((plan) => plan.is_sellable !== false)
+                      .map((plan) => (
+                        <option key={plan.id} value={String(plan.id)}>
+                          {plan.name}
+                        </option>
+                      ))}
+                  </select>
+                  <FieldError messages={fieldErrors.plan_id} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="expiration_preview" className={cn(isArabic && "justify-end")}>
+                    {t("formExpirationDate")}
+                  </Label>
+                  <Input
+                    id="expiration_preview"
+                    value={
+                      computedExpiryDate
+                        ? formatDateLabel(computedExpiryDate, locale)
+                        : t("formExpirationDatePlaceholder")
+                    }
+                    readOnly
+                    className={cn(inputClass, "text-muted-foreground")}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="payment_amount" className={cn(isArabic && "justify-end")}>
+                    {t("formPaymentAmount")}
+                  </Label>
+                  <Input
+                    id="payment_amount"
+                    name="payment_amount"
+                    inputMode="decimal"
+                    value={form.payment_amount}
+                    onChange={(event) => updateForm("payment_amount", event.target.value)}
+                    disabled={!form.plan_id}
+                    className={inputClass}
+                  />
+                  <FieldError messages={fieldErrors["payment.amount"]} />
+                  {payableAmount !== undefined && payableAmount >= 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("paymentBalanceHint", {
+                        amount: formatMoney(payableAmount),
+                      })}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="payment_method" className={cn(isArabic && "justify-end")}>
+                    {t("formPaymentMethod")}
+                  </Label>
+                  <select
+                    id="payment_method"
+                    name="payment_method"
+                    value={form.payment_method}
+                    onChange={(event) =>
+                      updateForm(
+                        "payment_method",
+                        event.target.value as "cash" | "card" | "bank_transfer"
+                      )
+                    }
+                    disabled={!form.plan_id}
+                    className={cn(
+                      "h-9 w-full rounded-md border bg-card px-2 text-sm shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/50",
+                      isArabic && "text-right"
+                    )}
+                  >
+                    <option value="cash">{t("paymentMethodCash")}</option>
+                    <option value="card">{t("paymentMethodCard")}</option>
+                    <option value="bank_transfer">{t("paymentMethodBankTransfer")}</option>
+                  </select>
+                  <FieldError messages={fieldErrors["payment.method"]} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="discount" className={cn(isArabic && "justify-end")}>
+                    {t("formDiscount")}
+                  </Label>
+                  <Input
+                    id="discount"
+                    name="discount"
+                    inputMode="decimal"
+                    value={form.discount}
+                    onChange={(event) => updateForm("discount", event.target.value)}
+                    disabled={!form.plan_id}
+                    className={inputClass}
+                  />
+                  <FieldError messages={fieldErrors.discount} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="subscription_status_preview" className={cn(isArabic && "justify-end")}>
+                    {t("tableHeaderSubscriptionStatus")}
+                  </Label>
+                  <Input
+                    id="subscription_status_preview"
+                    value={form.plan_id ? t("statusActive") : t("noSubscription")}
+                    readOnly
+                    className={cn(inputClass, "text-muted-foreground")}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="notes" className={cn(isArabic && "justify-end")}>
@@ -388,6 +632,10 @@ function toMemberFormState(member?: Member | null): MemberFormState {
     birth_date: member?.birth_date ?? undefined,
     national_id: member?.national_id ?? "",
     join_date: member?.join_date ?? undefined,
+    plan_id: "",
+    discount: "0.00",
+    payment_amount: "",
+    payment_method: "cash",
     notes: member?.notes ?? "",
     status: member?.status === "inactive" ? "inactive" : "active",
   };
@@ -399,4 +647,104 @@ function FieldError({ messages }: { messages?: string[] }) {
   }
 
   return <p className="text-xs font-medium text-destructive">{messages[0]}</p>;
+}
+
+function parseMemberActionError(
+  err: unknown
+): { message: string; details?: Record<string, string[]> } | null {
+  if (!(err instanceof Error)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(err.message) as {
+      message?: string;
+      details?: Record<string, string[]>;
+    };
+
+    if (parsed.message) {
+      return {
+        message: parsed.message,
+        details: parsed.details,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function normalizeMemberFieldErrors(errors: Record<string, string[]>) {
+  const normalized = { ...errors };
+  const fieldMap: Record<string, string> = {
+    "subscription.plan_id": "plan_id",
+    "subscription.discount": "discount",
+    "subscription.payment.amount": "payment.amount",
+    "subscription.payment.method": "payment.method",
+    amount: "payment.amount",
+  };
+
+  for (const [from, to] of Object.entries(fieldMap)) {
+    if (normalized[from] && !normalized[to]) {
+      normalized[to] = normalized[from];
+    }
+  }
+
+  return normalized;
+}
+
+function parseMoney(value?: string) {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function getPayableAmount(planPrice?: string, discount?: string) {
+  const price = parseMoney(planPrice);
+  const discountAmount = parseMoney(discount) ?? 0;
+
+  if (price === undefined) {
+    return undefined;
+  }
+
+  return price - discountAmount;
+}
+
+function formatMoney(value: number) {
+  return value.toFixed(2);
+}
+
+function getComputedExpiryDate(
+  joinedDate?: string,
+  durationDays?: number
+) {
+  if (!joinedDate || !durationDays) {
+    return undefined;
+  }
+
+  const startDate = new Date(joinedDate);
+  if (Number.isNaN(startDate.getTime())) {
+    return undefined;
+  }
+
+  startDate.setDate(startDate.getDate() + Number(durationDays));
+  return startDate.toISOString().slice(0, 10);
+}
+
+function formatDateLabel(value: string, locale: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(locale === "ar" ? "ar-EG" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }

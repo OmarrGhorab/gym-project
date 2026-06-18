@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Member;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -202,4 +204,70 @@ test('null email does not conflict with another null email', function (): void {
         'name' => 'Second Member',
         'phone' => '+201234567891',
     ])->assertStatus(201);
+});
+
+test('admin can create a member with initial subscription atomically', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Atomic Member',
+        'phone' => '+201222222222',
+        'join_date' => '2026-06-10',
+        'subscription' => [
+            'plan_id' => $plan->id,
+            'start_date' => '2026-06-10',
+            'discount' => '10.00',
+            'payment' => [
+                'amount' => '290.00',
+                'method' => 'cash',
+            ],
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJson(fn (AssertableJson $json) => $json
+            ->where('data.name', 'Atomic Member')
+            ->where('data.latest_subscription.plan_name', $plan->name)
+            ->where('data.latest_subscription.status', 'active')
+            ->etc()
+        );
+
+    expect(Member::query()->where('name', 'Atomic Member')->count())->toBe(1);
+    expect(Subscription::query()->whereHas('member', fn ($query) => $query->where('name', 'Atomic Member'))->count())->toBe(1);
+});
+
+test('member is not created when initial subscription creation fails', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Should Roll Back',
+        'phone' => '+201233333333',
+        'join_date' => '2026-06-10',
+        'subscription' => [
+            'plan_id' => $plan->id,
+            'start_date' => '2026-06-10',
+            'discount' => '10.00',
+            'payment' => [
+                'amount' => '999.00',
+                'method' => 'cash',
+            ],
+        ],
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+
+    expect(Member::query()->where('name', 'Should Roll Back')->exists())->toBeFalse();
 });
