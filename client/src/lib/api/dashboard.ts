@@ -52,8 +52,11 @@ export type Subscription = {
   end_date: string;
   price_paid: string;
   discount: string;
+  last_reminded_on?: string | null;
   member?: Member;
   plan?: Plan;
+  sold_by?: UserSummary;
+  created_at?: string;
 };
 
 export type Member = {
@@ -114,6 +117,28 @@ export type UserSummary = {
   id: number;
   name: string;
   email: string;
+};
+
+export type Employee = {
+  id: number;
+  name: string;
+  phone?: string;
+  role: string;
+  base_salary: string;
+  commission_rate: string;
+  hire_date?: string;
+  status: string;
+  user?: UserSummary | null;
+  created_at?: string;
+};
+
+export type EmployeePerformance = {
+  employee_id: number;
+  name: string;
+  role: string;
+  sales_count: number;
+  subscriptions_count: number;
+  commissions_earned: string;
 };
 
 export type Product = {
@@ -220,6 +245,32 @@ export async function getDashboardExpiringSoon(
   };
 }
 
+export async function getSubscriptions(options: {
+  page?: number;
+  status?: string;
+  memberId?: string;
+  sort?: "created_at" | "-created_at" | "start_date" | "-start_date" | "end_date" | "-end_date";
+} = {}): Promise<Paginated<Subscription>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.memberId) params.set("filter[member_id]", options.memberId);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<Subscription[]>(
+    `/subscriptions?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["subscriptions"], revalidate: 60 },
+    }
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta),
+  };
+}
+
 export async function getDashboardTopProducts(
   period: "today" | "week" | "month" = "week",
   limit = 5
@@ -300,6 +351,53 @@ export async function getFinancialReport(
       }) as FinancialReport["meta"]["totals"],
     },
   };
+}
+
+export async function getEmployees(options: {
+  page?: number;
+  role?: string;
+  status?: string;
+  search?: string;
+  sort?: "name" | "-name" | "role" | "-role" | "status" | "-status" | "created_at" | "-created_at";
+} = {}): Promise<Paginated<Employee>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.role) params.set("filter[role]", options.role);
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.search) params.set("filter[q]", options.search);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<Employee[]>(
+    `/employees?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["employees"], revalidate: 60 },
+    }
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta),
+  };
+}
+
+export async function getEmployeePerformance(options: {
+  from?: string;
+  to?: string;
+} = {}): Promise<EmployeePerformance[]> {
+  const params = new URLSearchParams();
+  if (options.from) params.set("from", options.from);
+  if (options.to) params.set("to", options.to);
+
+  const envelope = await fetchEnvelope<EmployeePerformance[]>(
+    `/reports/employees?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["employee-performance"], revalidate: 60 },
+    }
+  );
+
+  return envelope.data;
 }
 
 export async function getMembers(options: {
