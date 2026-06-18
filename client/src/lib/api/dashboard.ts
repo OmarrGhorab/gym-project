@@ -108,12 +108,33 @@ export type Notification = {
 
 export type Sale = {
   id: number;
+  idempotency_key?: string;
+  member_id?: number | null;
+  sold_by_user_id?: number | null;
+  subtotal?: string;
+  discount?: string;
   total: string;
   status: string;
   payment_method: string;
+  notes?: string | null;
+  items?: SaleItem[];
+  payment?: Record<string, unknown> | null;
   member?: Member;
   sold_by?: UserSummary;
   created_at: string;
+  updated_at?: string;
+};
+
+export type SaleItem = {
+  id: number;
+  sale_id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: string;
+  total: string;
+  product?: Product;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type DailySalesReport = {
@@ -152,10 +173,18 @@ export type EmployeePerformance = {
 export type Product = {
   id: number;
   name: string;
+  category: string;
   sku: string;
+  price: string;
+  cost: string;
   stock_quantity: number;
   low_stock_threshold: number;
+  image?: string | null;
+  image_url?: string | null;
+  is_active: boolean;
   is_low_stock: boolean;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type FinancialReport = {
@@ -340,6 +369,34 @@ export async function getRecentSales(limit = 5): Promise<Paginated<Sale>> {
   };
 }
 
+export async function getSales(options: {
+  page?: number;
+  status?: string;
+  paymentMethod?: string;
+  memberId?: string;
+  sort?: "created_at" | "-created_at" | "total" | "-total" | "subtotal" | "-subtotal";
+} = {}): Promise<Paginated<Sale>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.paymentMethod) params.set("filter[payment_method]", options.paymentMethod);
+  if (options.memberId) params.set("filter[member_id]", options.memberId);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<Sale[]>(
+    `/sales?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["sales"], revalidate: 60 },
+    }
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
 export async function getDailySales(
   date: string
 ): Promise<DailySalesReport> {
@@ -352,6 +409,38 @@ export async function getLowStockProducts(
   const envelope = await fetchEnvelope<Product[]>(
     `/products?filter[is_low_stock]=1&per_page=${limit}`
   );
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getProducts(options: {
+  page?: number;
+  search?: string;
+  category?: string;
+  isActive?: string;
+  isLowStock?: boolean;
+  sort?: "name" | "-name" | "price" | "-price" | "stock_quantity" | "-stock_quantity" | "created_at" | "-created_at";
+  perPage?: number;
+} = {}): Promise<Paginated<Product>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.search) params.set("filter[search]", options.search);
+  if (options.category) params.set("filter[category]", options.category);
+  if (options.isActive) params.set("filter[is_active]", options.isActive);
+  if (options.isLowStock) params.set("filter[is_low_stock]", "1");
+  if (options.sort) params.set("sort", options.sort);
+  if (options.perPage) params.set("per_page", String(options.perPage));
+
+  const envelope = await fetchEnvelope<Product[]>(
+    `/products?${params.toString()}`,
+    {
+      cache: "force-cache",
+      next: { tags: ["products"], revalidate: 60 },
+    }
+  );
+
   return {
     data: envelope.data,
     meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
