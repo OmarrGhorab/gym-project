@@ -73,7 +73,23 @@ export async function createSale(
   return payload.data as Sale;
 }
 
+export async function voidSale(
+  id: number,
+  reason: string | undefined,
+  locale: AppLocale
+): Promise<Sale> {
+  const payload = await salesFetch(`/sales/${id}/void`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+
+  revalidateSales(locale);
+
+  return payload.data as Sale;
+}
+
 function revalidateSales(locale: AppLocale) {
+  revalidatePath(`/${locale}/sales`);
   revalidatePath(`/${locale}/pos`);
   revalidatePath(`/${locale}/products`);
   revalidatePath(`/${locale}`);

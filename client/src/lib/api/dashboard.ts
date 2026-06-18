@@ -401,6 +401,18 @@ export async function getSales(options: {
   };
 }
 
+export async function getAllSales(options: Omit<Parameters<typeof getSales>[0], "page"> = {}): Promise<Sale[]> {
+  const firstPage = await getSales({ ...options, page: 1 });
+  const sales = [...firstPage.data];
+
+  for (let page = 2; page <= firstPage.meta.last_page; page++) {
+    const result = await getSales({ ...options, page });
+    sales.push(...result.data);
+  }
+
+  return sales;
+}
+
 export async function getDailySales(
   date: string
 ): Promise<DailySalesReport> {
