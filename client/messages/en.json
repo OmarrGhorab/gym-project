@@ -146,17 +146,28 @@
     "navSections": {
       "overview": "Overview",
       "operations": "Operations",
-      "finance": "Finance"
+      "finance": "Finance",
+      "admin": "Admin"
     },
     "nav": {
       "dashboard": "Dashboard",
       "members": "Members",
-      "attendance": "Attendance",
+      "plans": "Plans",
       "subscriptions": "Subscriptions",
       "teams": "Teams",
       "trainers": "Trainers",
+      "products": "Products",
+      "pos": "POS",
+      "sales": "Sales",
       "payments": "Payments",
+      "expenses": "Expenses",
+      "payroll": "Payroll",
+      "commissions": "Commissions",
       "reports": "Reports",
+      "exports": "Exports",
+      "notifications": "Notifications",
+      "roles": "Roles",
+      "audit": "Audit Logs",
       "settings": "Settings"
     }
   },

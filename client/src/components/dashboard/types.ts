@@ -9,22 +9,39 @@ export type DashboardUser = {
 
 export type DashboardNavIcon =
   | "BarChart3"
+  | "Bell"
+  | "ClipboardList"
   | "CreditCard"
+  | "Download"
   | "Dumbbell"
   | "Home"
+  | "Package"
+  | "Percent"
+  | "ReceiptText"
   | "Settings"
-  | "UserCheck"
+  | "ShieldCheck"
+  | "ShoppingCart"
   | "Users";
 
 export type DashboardNavLink = {
   href: string;
   icon: DashboardNavIcon;
   labelKey:
-    | "attendance"
+    | "audit"
+    | "commissions"
     | "dashboard"
+    | "expenses"
+    | "exports"
     | "members"
+    | "notifications"
     | "payments"
+    | "payroll"
+    | "plans"
+    | "pos"
+    | "products"
     | "reports"
+    | "roles"
+    | "sales"
     | "settings"
     | "subscriptions"
     | "teams"
@@ -33,6 +50,6 @@ export type DashboardNavLink = {
 };
 
 export type DashboardNavItem = {
-  sectionKey: "finance" | "operations" | "overview";
+  sectionKey: "admin" | "finance" | "operations" | "overview";
   items: DashboardNavLink[];
 };

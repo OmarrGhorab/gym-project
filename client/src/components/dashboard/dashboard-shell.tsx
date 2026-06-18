@@ -16,17 +16,32 @@ const navItems: DashboardNavItem[] = [
     sectionKey: "operations",
     items: [
       { href: "/members", icon: "Users", labelKey: "members", roles: ["owner", "admin", "staff"] },
-      { href: "/attendance", icon: "UserCheck", labelKey: "attendance", roles: ["owner", "admin", "staff"] },
+      { href: "/plans", icon: "ClipboardList", labelKey: "plans", roles: ["owner", "admin"] },
       { href: "/subscriptions", icon: "CreditCard", labelKey: "subscriptions", roles: ["owner", "admin"] },
       { href: "/teams", icon: "Dumbbell", labelKey: "teams", roles: ["owner", "admin"] },
       { href: "/trainers", icon: "Users", labelKey: "trainers", roles: ["owner", "admin"] },
+      { href: "/products", icon: "Package", labelKey: "products", roles: ["owner", "admin", "staff"] },
+      { href: "/pos", icon: "ShoppingCart", labelKey: "pos", roles: ["owner", "admin", "staff"] },
+      { href: "/sales", icon: "ReceiptText", labelKey: "sales", roles: ["owner", "admin", "staff"] },
     ],
   },
   {
     sectionKey: "finance",
     items: [
       { href: "/payments", icon: "CreditCard", labelKey: "payments", roles: ["owner", "admin"] },
+      { href: "/expenses", icon: "ReceiptText", labelKey: "expenses", roles: ["owner", "admin"] },
+      { href: "/payroll", icon: "CreditCard", labelKey: "payroll", roles: ["owner", "admin"] },
+      { href: "/commissions", icon: "Percent", labelKey: "commissions", roles: ["owner", "admin"] },
       { href: "/reports", icon: "BarChart3", labelKey: "reports", roles: ["owner", "admin"] },
+      { href: "/exports", icon: "Download", labelKey: "exports", roles: ["owner", "admin"] },
+    ],
+  },
+  {
+    sectionKey: "admin",
+    items: [
+      { href: "/notifications", icon: "Bell", labelKey: "notifications", roles: ["owner", "admin", "staff"] },
+      { href: "/roles", icon: "ShieldCheck", labelKey: "roles", roles: ["owner"] },
+      { href: "/audit", icon: "ClipboardList", labelKey: "audit", roles: ["owner", "admin"] },
       { href: "/settings", icon: "Settings", labelKey: "settings", roles: ["owner"] },
     ],
   },

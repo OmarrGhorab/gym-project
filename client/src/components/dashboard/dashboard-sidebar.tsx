@@ -3,11 +3,18 @@
 import Image from "next/image";
 import {
   BarChart3,
+  Bell,
+  ClipboardList,
   CreditCard,
+  Download,
   Dumbbell,
   Home,
+  Package,
+  Percent,
+  ReceiptText,
   Settings,
-  UserCheck,
+  ShieldCheck,
+  ShoppingCart,
   Users,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -17,11 +24,18 @@ import type { DashboardNavItem, DashboardRole } from "@/components/dashboard/typ
 
 const icons = {
   BarChart3,
+  Bell,
+  ClipboardList,
   CreditCard,
+  Download,
   Dumbbell,
   Home,
+  Package,
+  Percent,
+  ReceiptText,
   Settings,
-  UserCheck,
+  ShieldCheck,
+  ShoppingCart,
   Users,
 };
 

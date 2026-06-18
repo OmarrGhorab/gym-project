@@ -146,17 +146,28 @@
     "navSections": {
       "overview": "نظرة عامة",
       "operations": "التشغيل",
-      "finance": "المالية"
+      "finance": "المالية",
+      "admin": "الإدارة"
     },
     "nav": {
       "dashboard": "الرئيسية",
       "members": "الأعضاء",
-      "attendance": "الحضور",
+      "plans": "الخطط",
       "subscriptions": "الاشتراكات",
       "teams": "الفِرق",
       "trainers": "المدربون",
+      "products": "المنتجات",
+      "pos": "نقطة البيع",
+      "sales": "المبيعات",
       "payments": "المدفوعات",
+      "expenses": "المصروفات",
+      "payroll": "الرواتب",
+      "commissions": "العمولات",
       "reports": "التقارير",
+      "exports": "التصدير",
+      "notifications": "الإشعارات",
+      "roles": "الأدوار",
+      "audit": "سجلات التدقيق",
       "settings": "الإعدادات"
     }
   },
