@@ -171,6 +171,36 @@ export type Payroll = {
   paid_at?: string | null;
 };
 
+export type Commission = {
+  id: number;
+  employee_id: number;
+  source: {
+    type: string;
+    id: number;
+  };
+  rate: string;
+  amount: string;
+  month: string;
+  status: string;
+  created_at?: string | null;
+};
+
+export type CommissionBackfillResult = {
+  processed?: number;
+  created?: number;
+  skipped?: number;
+  dry_run?: boolean;
+  [key: string]: unknown;
+};
+
+export type ExportStatus = {
+  export_id: string;
+  status: string;
+  resource?: string;
+  format?: string;
+  download_url?: string;
+};
+
 export type Sale = {
   id: number;
   idempotency_key?: string;
@@ -560,6 +590,26 @@ export async function getPayroll(options: {
   return {
     data: envelope.data,
     meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getCommissions(options: {
+  employeeId: string;
+  page?: number;
+  month?: string;
+}): Promise<Paginated<Commission> & { total_amount: string }> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.month) params.set("month", options.month);
+
+  const envelope = await fetchEnvelope<Commission[]>(
+    `/employees/${options.employeeId}/commissions?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+    total_amount: String(envelope.meta?.total_amount ?? "0.00"),
   };
 }
 
