@@ -6,6 +6,7 @@ use App\Http\Resources\Concerns\WrapsApiResponse;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Expense;
+use App\Models\InventoryMovement;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Payroll;
@@ -30,6 +31,7 @@ final class AuditLogResource extends JsonResource
         'commission' => Commission::class,
         'employee' => Employee::class,
         'expense' => Expense::class,
+        'inventory_movement' => InventoryMovement::class,
         'product' => Product::class,
         'plan' => Plan::class,
         'subscription_freeze' => SubscriptionFreeze::class,

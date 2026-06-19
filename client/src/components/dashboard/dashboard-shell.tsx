@@ -40,8 +40,8 @@ const navItems: DashboardNavItem[] = [
   {
     sectionKey: "admin",
     items: [
-      { href: "/notifications", icon: "Bell", labelKey: "notifications", roles: ["owner", "admin", "staff"] },
-      { href: "/audit", icon: "ClipboardList", labelKey: "audit", roles: ["owner", "admin"] },
+      { href: "/notifications", icon: "Bell", labelKey: "notifications", roles: ["owner", "admin", "staff"], permissions: ["notifications.view"] },
+      { href: "/audit", icon: "ClipboardList", labelKey: "audit", roles: ["owner", "admin"], permissions: ["audit.view"] },
       { href: "/settings", icon: "Settings", labelKey: "settings", roles: ["owner"] },
     ],
   },

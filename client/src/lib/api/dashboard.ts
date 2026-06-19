@@ -217,6 +217,24 @@ export type Role = {
 
 export type PermissionCatalog = Record<string, string[]>;
 
+export type AuditLog = {
+  id: number;
+  action: string;
+  description: string;
+  subject: {
+    type: string;
+    id: number;
+  } | null;
+  causer: {
+    id: number;
+    name: string;
+  } | null;
+  causer_type: "user" | "system" | string;
+  changes: Record<string, unknown>;
+  properties: Record<string, unknown>;
+  created_at: string;
+};
+
 type ApiErrorBody = {
   error?: {
     message?: string;
@@ -376,6 +394,24 @@ export async function getNotifications(
   };
 }
 
+export async function getNotificationsPaginated(options: {
+  page?: number;
+  unread?: string;
+} = {}): Promise<Paginated<Notification>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.unread) params.set("unread", options.unread);
+
+  const envelope = await fetchEnvelope<Notification[]>(
+    `/notifications?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
 export async function getRecentSales(limit = 5): Promise<Paginated<Sale>> {
   const envelope = await fetchEnvelope<Sale[]>(
     `/sales?sort=-created_at&per_page=${limit}`
@@ -511,6 +547,32 @@ export async function getRoles(): Promise<Role[]> {
 export async function getPermissions(): Promise<PermissionCatalog> {
   const envelope = await fetchEnvelope<PermissionCatalog>("/permissions");
   return envelope.data;
+}
+
+export async function getAuditLogs(options: {
+  page?: number;
+  from?: string;
+  to?: string;
+  subject?: string;
+  causer?: string;
+  sort?: "created_at" | "-created_at";
+} = {}): Promise<Paginated<AuditLog>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.from) params.set("filter[from]", options.from);
+  if (options.to) params.set("filter[to]", options.to);
+  if (options.subject) params.set("filter[subject]", options.subject);
+  if (options.causer) params.set("filter[causer]", options.causer);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<AuditLog[]>(
+    `/audit-logs?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
 }
 
 export async function getEmployees(options: {

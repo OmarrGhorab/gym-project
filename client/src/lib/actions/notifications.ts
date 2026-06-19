@@ -1,9 +1,14 @@
 "use server";
 
+import { revalidatePath, revalidateTag } from "next/cache";
 import { API_BASE_URL } from "@/app/api/auth/_lib";
+import type { AppLocale } from "@/i18n/routing";
 import { getAuthToken } from "@/lib/session";
 
-export async function markNotificationAsRead(notificationId: string) {
+export async function markNotificationAsRead(
+  notificationId: string,
+  locale?: AppLocale
+) {
   const token = await getAuthToken();
 
   if (!token) {
@@ -31,6 +36,11 @@ export async function markNotificationAsRead(notificationId: string) {
       payload.error?.message || payload.message || response.statusText
     );
   }
+
+  if (locale) {
+    revalidatePath(`/${locale}/notifications`);
+  }
+  revalidateTag("notifications", "max");
 
   return payload;
 }
