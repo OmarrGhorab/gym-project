@@ -19,6 +19,18 @@ export type Paginated<T> = {
   meta: PaginationMeta;
 };
 
+export type CursorPaginationMeta = {
+  next_cursor?: string | null;
+  prev_cursor?: string | null;
+  per_page: number;
+  total_amount?: string;
+};
+
+export type CursorPaginated<T> = {
+  data: T[];
+  meta: CursorPaginationMeta;
+};
+
 export type DashboardSummary = {
   active_subscriptions: number;
   revenue_mtd: string;
@@ -104,6 +116,59 @@ export type Notification = {
   data: Record<string, unknown>;
   read_at: string | null;
   created_at: string;
+};
+
+export type Payment = {
+  id: number;
+  amount: string;
+  method: string;
+  status: string;
+  paid_at?: string | null;
+  due_date?: string | null;
+  created_by?: number | null;
+};
+
+export type PaymentDue = {
+  subscription: {
+    id: number;
+    status: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  };
+  member: {
+    id?: number | null;
+    name?: string | null;
+  };
+  balance: string;
+  paid_total: string;
+  price_paid: string;
+};
+
+export type Expense = {
+  id: number;
+  category: string;
+  amount: string;
+  description?: string | null;
+  date?: string | null;
+  creator?: UserSummary | null;
+  created_at?: string | null;
+};
+
+export type Payroll = {
+  id: number;
+  employee: {
+    id: number;
+    name?: string | null;
+    role?: string | null;
+  };
+  month: string;
+  base_salary: string;
+  commissions_total: string;
+  bonuses: string;
+  deductions: string;
+  net_salary: string;
+  status: string;
+  paid_at?: string | null;
 };
 
 export type Sale = {
@@ -404,6 +469,92 @@ export async function getNotificationsPaginated(options: {
 
   const envelope = await fetchEnvelope<Notification[]>(
     `/notifications?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getPayments(options: {
+  page?: number;
+  status?: "paid" | "partial";
+} = {}): Promise<Paginated<Payment>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.status) params.set("status", options.status);
+
+  const envelope = await fetchEnvelope<Payment[]>(
+    `/payments?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getPaymentDues(options: {
+  page?: number;
+} = {}): Promise<Paginated<PaymentDue>> {
+  const params = new URLSearchParams();
+  params.set("status", "due");
+  if (options.page) params.set("page", String(options.page));
+
+  const envelope = await fetchEnvelope<PaymentDue[]>(
+    `/payments?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getExpenses(options: {
+  cursor?: string;
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  sort?: "date" | "-date" | "amount" | "-amount" | "created_at" | "-created_at";
+} = {}): Promise<CursorPaginated<Expense>> {
+  const params = new URLSearchParams();
+  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.category) params.set("filter[category]", options.category);
+  if (options.startDate) params.set("filter[start_date]", options.startDate);
+  if (options.endDate) params.set("filter[end_date]", options.endDate);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<Expense[]>(
+    `/expenses?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: {
+      next_cursor: String(envelope.meta?.next_cursor ?? "") || null,
+      prev_cursor: String(envelope.meta?.prev_cursor ?? "") || null,
+      per_page: toFiniteNumber(envelope.meta?.per_page, envelope.data.length),
+      total_amount: String(envelope.meta?.total_amount ?? "0.00"),
+    },
+  };
+}
+
+export async function getPayroll(options: {
+  page?: number;
+  month?: string;
+  status?: "pending" | "paid";
+  employeeId?: string;
+} = {}): Promise<Paginated<Payroll>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.month) params.set("month", options.month);
+  if (options.status) params.set("status", options.status);
+  if (options.employeeId) params.set("employee_id", options.employeeId);
+
+  const envelope = await fetchEnvelope<Payroll[]>(
+    `/payroll?${params.toString()}`
   );
 
   return {

@@ -29,9 +29,9 @@ const navItems: DashboardNavItem[] = [
   {
     sectionKey: "finance",
     items: [
-      { href: "/payments", icon: "CreditCard", labelKey: "payments", roles: ["owner", "admin"] },
-      { href: "/expenses", icon: "ReceiptText", labelKey: "expenses", roles: ["owner", "admin"] },
-      { href: "/payroll", icon: "CreditCard", labelKey: "payroll", roles: ["owner", "admin"] },
+      { href: "/payments", icon: "CreditCard", labelKey: "payments", roles: ["owner", "admin"], permissions: ["payments.view"] },
+      { href: "/expenses", icon: "ReceiptText", labelKey: "expenses", roles: ["owner", "admin"], permissions: ["expenses.view"] },
+      { href: "/payroll", icon: "CreditCard", labelKey: "payroll", roles: ["owner", "admin"], permissions: ["payroll.view"] },
       { href: "/commissions", icon: "Percent", labelKey: "commissions", roles: ["owner", "admin"] },
       { href: "/reports", icon: "BarChart3", labelKey: "reports", roles: ["owner", "admin"] },
       { href: "/exports", icon: "Download", labelKey: "exports", roles: ["owner", "admin"] },
