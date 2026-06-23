@@ -29,6 +29,7 @@ class StoreMemberRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:150', 'unique:members,email'],
             'gender' => ['nullable', 'in:male,female'],
             'national_id' => ['nullable', 'string', 'regex:/^[23][0-9]{13}$/', 'unique:members,national_id'],
+            'birth_date' => ['nullable', 'date', 'before:today'],
             'join_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'subscription' => ['nullable', 'array'],

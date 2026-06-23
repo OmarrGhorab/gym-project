@@ -26,7 +26,27 @@ final class VerifyPasswordResetOtp
             ->latest('created_at')
             ->first();
 
-        if ($record === null || ! Otp::verify($otp, $record->otp_hash)) {
+        if ($record === null) {
+            return [
+                'valid' => false,
+                'token' => null,
+            ];
+        }
+
+        if ((int) $record->attempts >= 5) {
+            DB::table('password_reset_otps')->where('id', $record->id)->delete();
+
+            return [
+                'valid' => false,
+                'token' => null,
+            ];
+        }
+
+        if (! Otp::verify($otp, $record->otp_hash)) {
+            DB::table('password_reset_otps')
+                ->where('id', $record->id)
+                ->increment('attempts');
+
             return [
                 'valid' => false,
                 'token' => null,

@@ -23,6 +23,9 @@ class MemberFactory extends Factory
             'gender' => fake()->randomElement(['male', 'female', null]),
             'photo_path' => null,
             'national_id' => fake()->unique()->optional(0.5)->numerify(fake()->randomElement(['2', '3']).'#############'),
+            'birth_date' => fake()->boolean(60)
+                ? fake()->dateTimeBetween('-50 years', '-16 years')->format('Y-m-d')
+                : null,
             'join_date' => now()->toDateString(),
             'status' => 'active',
             'notes' => null,

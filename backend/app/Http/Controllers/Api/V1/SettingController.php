@@ -35,7 +35,7 @@ class SettingController extends ApiController
                 $flatSettings['gym.colors'] = $validated['gym']['colors'];
             }
             if ($request->hasFile('gym.logo')) {
-                $path = $request->file('gym.logo')->store('logos', 'public');
+                $path = $request->file('gym.logo')->store('logos', 'local');
                 $flatSettings['gym.logo'] = $path;
             } elseif (array_key_exists('logo', $validated['gym'])) {
                 $flatSettings['gym.logo'] = $validated['gym']['logo'];

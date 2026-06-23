@@ -31,7 +31,11 @@ final class MemberResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'gender' => $this->gender,
-            'national_id' => $this->national_id,
+            'national_id' => $this->when(
+                $request->user()?->hasRole(['Admin', 'Manager']),
+                $this->national_id,
+            ),
+            'birth_date' => $this->birth_date?->toDateString(),
             'join_date' => $this->join_date?->toDateString(),
             'expiry_date' => $latestSubscription?->end_date?->toDateString(),
             'status' => $this->status,

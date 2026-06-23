@@ -49,11 +49,11 @@ Route::prefix('v1')->group(function (): void {
         Route::post('verify-email', [AuthController::class, 'verifyEmail'])
             ->middleware('throttle:auth');
         Route::post('resend-verification', [AuthController::class, 'resendVerification'])
-            ->middleware('throttle:auth');
+            ->middleware('throttle:otp-send');
         Route::post('login', [AuthController::class, 'login'])
             ->middleware('throttle:auth');
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])
-            ->middleware('throttle:auth');
+            ->middleware('throttle:otp-send');
         Route::post('verify-otp', [AuthController::class, 'verifyOtp'])
             ->middleware('throttle:auth');
         Route::post('reset-password', [AuthController::class, 'resetPassword'])

@@ -32,6 +32,7 @@ class UpdateMemberRequest extends FormRequest
                 'regex:/^[23][0-9]{13}$/',
                 Rule::unique('members', 'national_id')->ignore($memberId),
             ],
+            'birth_date' => ['nullable', 'date', 'before:today'],
             'join_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'status' => ['nullable', 'in:active,inactive'],

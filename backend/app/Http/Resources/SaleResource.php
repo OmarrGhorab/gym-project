@@ -17,7 +17,6 @@ class SaleResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'idempotency_key' => $this->idempotency_key,
             'member_id' => $this->member_id,
             'sold_by_user_id' => $this->sold_by_user_id,
             'subtotal' => $this->subtotal,

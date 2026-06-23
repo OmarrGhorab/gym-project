@@ -13,6 +13,7 @@ use App\Models\SaleItem;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -53,7 +54,7 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Member>
+     * @return Collection<int, Member>
      */
     private function seedMembers(User $admin)
     {
@@ -78,10 +79,10 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Member>  $members
-     * @param  \Illuminate\Support\Collection<int, Plan>  $plans
-     * @param  \Illuminate\Support\Collection<int, User>  $salesUsers
-     * @return \Illuminate\Support\Collection<int, Subscription>
+     * @param  Collection<int, Member>  $members
+     * @param  Collection<int, Plan>  $plans
+     * @param  Collection<int, User>  $salesUsers
+     * @return Collection<int, Subscription>
      */
     private function seedActiveSubscriptions($members, $plans, $salesUsers)
     {
@@ -105,10 +106,10 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Member>  $members
-     * @param  \Illuminate\Support\Collection<int, Plan>  $plans
-     * @param  \Illuminate\Support\Collection<int, User>  $salesUsers
-     * @return \Illuminate\Support\Collection<int, Subscription>
+     * @param  Collection<int, Member>  $members
+     * @param  Collection<int, Plan>  $plans
+     * @param  Collection<int, User>  $salesUsers
+     * @return Collection<int, Subscription>
      */
     private function seedExpiringSoonSubscriptions($members, $plans, $salesUsers)
     {
@@ -132,9 +133,9 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Member>  $members
-     * @param  \Illuminate\Support\Collection<int, Plan>  $plans
-     * @param  \Illuminate\Support\Collection<int, User>  $salesUsers
+     * @param  Collection<int, Member>  $members
+     * @param  Collection<int, Plan>  $plans
+     * @param  Collection<int, User>  $salesUsers
      */
     private function seedExpiredSubscriptions($members, $plans, $salesUsers): void
     {
@@ -158,8 +159,8 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Subscription>  $active
-     * @param  \Illuminate\Support\Collection<int, Subscription>  $expiringSoon
+     * @param  Collection<int, Subscription>  $active
+     * @param  Collection<int, Subscription>  $expiringSoon
      */
     private function seedSubscriptionPayments($active, $expiringSoon, User $admin): void
     {
@@ -178,10 +179,10 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Member>  $members
-     * @param  \Illuminate\Support\Collection<int, User>  $salesUsers
-     * @param  \Illuminate\Support\Collection<int, Product>  $products
-     * @return \Illuminate\Support\Collection<int, Sale>
+     * @param  Collection<int, Member>  $members
+     * @param  Collection<int, User>  $salesUsers
+     * @param  Collection<int, Product>  $products
+     * @return Collection<int, Sale>
      */
     private function seedSales($members, $salesUsers, $products, User $admin)
     {
@@ -245,7 +246,7 @@ class DashboardDemoSeeder extends Seeder
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Sale>  $sales
+     * @param  Collection<int, Sale>  $sales
      */
     private function seedCommissions($sales, User $cashier): void
     {

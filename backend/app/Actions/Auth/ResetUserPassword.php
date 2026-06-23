@@ -31,6 +31,8 @@ final class ResetUserPassword
                     'password' => Hash::make($password),
                 ])->save();
 
+                $user->tokens()->delete();
+
                 event(new PasswordReset($user));
             }
         );

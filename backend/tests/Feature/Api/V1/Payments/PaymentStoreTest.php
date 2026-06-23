@@ -84,7 +84,7 @@ test('payment store rejects overpayment with 422', function (): void {
         ->assertJsonPath('error.code', 'validation_failed');
 });
 
-test('payment store returns 404 for missing subscription', function (): void {
+test('payment store returns 422 for missing subscription', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
@@ -93,8 +93,8 @@ test('payment store returns 404 for missing subscription', function (): void {
         'subscription_id' => 99999,
         'amount' => '60.00',
         'method' => 'cash',
-    ])->assertStatus(404)
-        ->assertJsonPath('error.code', 'not_found');
+    ])->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
 });
 
 test('user without payments create permission receives 403', function (): void {

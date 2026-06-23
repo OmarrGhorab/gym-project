@@ -24,6 +24,7 @@ class Member extends Model
         'phone',
         'email',
         'gender',
+        'birth_date',
         'photo_path',
         'national_id',
         'join_date',
@@ -38,6 +39,7 @@ class Member extends Model
     protected function casts(): array
     {
         return [
+            'birth_date' => 'date',
             'join_date' => 'date',
         ];
     }

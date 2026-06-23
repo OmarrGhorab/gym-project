@@ -35,6 +35,7 @@ final class SendPasswordResetOtp
                 'email' => $email,
                 'otp_hash' => Otp::hash($otp),
                 'expires_at' => Otp::expiry(),
+                'attempts' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

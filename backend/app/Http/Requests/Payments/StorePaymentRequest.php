@@ -15,7 +15,7 @@ class StorePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'subscription_id' => ['required', 'integer'],
+            'subscription_id' => ['required', 'integer', 'exists:subscriptions,id'],
             'amount' => ['required', 'numeric', 'gt:0'],
             'method' => ['required', 'string', 'in:cash,card,bank_transfer'],
             'paid_at' => ['nullable', 'date'],

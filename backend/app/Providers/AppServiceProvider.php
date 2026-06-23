@@ -93,6 +93,12 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        RateLimiter::for('otp-send', function (Request $request): Limit {
+            $email = $request->input('email', 'unknown');
+
+            return Limit::perMinute(3)->by('otp-send:'.$email);
+        });
+
         RateLimiter::for('export', function (Request $request): Limit {
             return Limit::perMinute(5)->by(
                 optional($request->user())->id ?: $request->ip(),

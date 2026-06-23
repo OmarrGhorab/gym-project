@@ -21,7 +21,7 @@ class StoreSubscriptionRequest extends FormRequest
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'discount' => ['nullable', 'numeric', 'min:0'],
             'payment.amount' => ['required', 'numeric', 'gt:0'],
-            'payment.method' => ['required', 'string', 'max:50'],
+            'payment.method' => ['required', 'string', 'in:cash,card,bank_transfer'],
             'payment.paid_at' => ['nullable', 'date'],
         ];
     }
