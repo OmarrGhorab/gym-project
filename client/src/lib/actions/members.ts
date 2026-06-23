@@ -193,8 +193,8 @@ export async function stopSubscription(
 }
 
 function stripPhoto(data: MemberFormData): Omit<MemberFormData, "photo"> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { photo, ...memberData } = data;
+  void photo;
   return memberData;
 }
 
