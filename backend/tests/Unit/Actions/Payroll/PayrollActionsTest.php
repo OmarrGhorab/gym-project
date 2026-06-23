@@ -17,8 +17,9 @@ test('generate payroll creates pending record for active employee', function ():
         'status' => 'active',
     ]);
 
-    $results = app(GeneratePayroll::class)->execute('2026-06');
+    $result = app(GeneratePayroll::class)->execute('2026-06');
 
+    $results = $result['generated'];
     expect($results)->toHaveCount(1)
         ->and($results[0]->base_salary)->toBe('2000.00')
         ->and($results[0]->net_salary)->toBe('2000.00')

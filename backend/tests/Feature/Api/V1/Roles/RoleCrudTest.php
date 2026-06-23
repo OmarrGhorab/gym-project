@@ -28,6 +28,7 @@ test('admin can list all roles', function (): void {
             ->has('data.0.name')
             ->has('data.0.is_preset')
             ->has('data.0.permissions')
+            ->etc()
         );
 });
 

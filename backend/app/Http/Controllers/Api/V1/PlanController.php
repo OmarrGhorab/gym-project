@@ -63,6 +63,19 @@ final class PlanController extends ApiController
     }
 
     /**
+     * GET /api/v1/plans/{plan}
+     */
+    public function show(Plan $plan): JsonResponse
+    {
+        $this->authorize('view', $plan);
+
+        return (new PlanResource($plan))
+            ->withMessage('Plan retrieved')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    /**
      * PUT /api/v1/plans/{plan}
      */
     public function update(UpdatePlanRequest $request, Plan $plan, UpdatePlan $action): JsonResponse

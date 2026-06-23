@@ -11,22 +11,23 @@ final class UpdateSettings
     public function __construct(private readonly StoreSetting $store) {}
 
     /**
-     * Persist all provided flat settings keys and log the change.
+     * Persist all provided settings and log the change.
      *
-     * @param  array<string, mixed>  $flatSettings  Dot-notation key → value map
-     *                                              (file paths already resolved by caller).
+     * Accepts validated input with nested keys and an optional pre-resolved
+     * logo path from the controller layer. Flattening of nested keys into
+     * dot-notation is handled here so controllers stay thin.
+     *
+     * @param  array<string, mixed>  $validated  Raw validated request data.
      * @return array<string, mixed> Fresh key → value snapshot after update.
      */
-    public function handle(array $flatSettings, User $user): array
+    public function handle(array $validated, User $user, ?string $logoPath = null): array
     {
+        $flatSettings = $this->flatten($validated, $logoPath);
+
         foreach ($flatSettings as $key => $value) {
             $this->store->execute($key, $value);
         }
 
-        // Read fresh values from DB, then atomically overwrite the cache.
-        // Using forget + rememberForever creates a race window; put() with the
-        // already-fetched snapshot is safe because the last writer wins and the
-        // value is always consistent with the DB state at time of write.
         $fresh = Setting::all()->pluck('value', 'key')->toArray();
         Cache::forever('settings.all', $fresh);
 
@@ -35,5 +36,36 @@ final class UpdateSettings
             ->log('Updated system settings');
 
         return $fresh;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, string>
+     */
+    private function flatten(array $validated, ?string $logoPath): array
+    {
+        $flat = [];
+
+        if (isset($validated['gym'])) {
+            if (array_key_exists('name', $validated['gym'])) {
+                $flat['gym.name'] = $validated['gym']['name'];
+            }
+            if (array_key_exists('colors', $validated['gym'])) {
+                $flat['gym.colors'] = $validated['gym']['colors'];
+            }
+            if ($logoPath !== null) {
+                $flat['gym.logo'] = $logoPath;
+            } elseif (array_key_exists('logo', $validated['gym'])) {
+                $flat['gym.logo'] = $validated['gym']['logo'];
+            }
+        }
+
+        foreach (['reminder_days', 'currency', 'vat_rate', 'receipt_template'] as $key) {
+            if (array_key_exists($key, $validated)) {
+                $flat[$key] = $validated[$key];
+            }
+        }
+
+        return $flat;
     }
 }

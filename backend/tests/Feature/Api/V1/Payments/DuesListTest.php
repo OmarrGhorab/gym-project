@@ -51,7 +51,7 @@ test('dues list returns subscriptions with outstanding balances only', function 
         'status' => 'paid',
     ]);
 
-    $response = $this->getJson('/api/v1/payments?status=due')
+    $response = $this->getJson('/api/v1/payments/dues')
         ->assertStatus(200);
 
     $ids = collect($response->json('data'))->pluck('subscription.id')->all();

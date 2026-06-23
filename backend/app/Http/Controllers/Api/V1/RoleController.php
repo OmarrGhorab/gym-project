@@ -18,11 +18,16 @@ final class RoleController extends ApiController
     {
         $this->authorize('viewAny', Role::class);
 
-        $roles = Role::with('permissions')->get();
+        $roles = Role::with('permissions')->paginate(15);
 
         return RoleResource::collection($roles)
             ->additional([
-                'meta' => (object) [],
+                'meta' => [
+                    'current_page' => $roles->currentPage(),
+                    'per_page' => $roles->perPage(),
+                    'total' => $roles->total(),
+                    'last_page' => $roles->lastPage(),
+                ],
                 'message' => 'Roles retrieved successfully',
             ]);
     }
@@ -44,7 +49,8 @@ final class RoleController extends ApiController
 
         return (new RoleResource($role->load('permissions')))
             ->withMessage('Role retrieved successfully')
-            ->response();
+            ->response()
+            ->setStatusCode(200);
     }
 
     public function update(UpdateRoleRequest $request, Role $role, UpdateRole $action): JsonResponse
@@ -54,7 +60,8 @@ final class RoleController extends ApiController
 
         return (new RoleResource($updatedRole->load('permissions')))
             ->withMessage('Role updated successfully')
-            ->response();
+            ->response()
+            ->setStatusCode(200);
     }
 
     public function destroy(Role $role, DeleteRole $action): JsonResponse

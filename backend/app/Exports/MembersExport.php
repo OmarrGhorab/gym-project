@@ -3,8 +3,6 @@
 namespace App\Exports;
 
 use App\Models\Member;
-use App\Models\Payment;
-use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -23,19 +21,7 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
 
     public function query()
     {
-        $query = Member::query()
-            ->with('latestSubscription')
-            ->select('members.*')
-            ->selectSub(
-                Payment::query()
-                    ->selectRaw('COALESCE(SUM(payments.amount), 0)')
-                    ->join('subscriptions', function ($join): void {
-                        $join->on('subscriptions.id', '=', 'payments.payable_id')
-                            ->where('payments.payable_type', '=', Subscription::class);
-                    })
-                    ->whereColumn('subscriptions.member_id', 'members.id'),
-                'total_paid',
-            );
+        $query = Member::withTotalPaid()->with('latestSubscription');
 
         $customRequest = new Request(['filter' => $this->filters]);
 

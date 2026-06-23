@@ -88,4 +88,22 @@ class Member extends Model
     {
         return $this->hasMany(Sale::class);
     }
+
+    /**
+     * Scope to include total_paid as a computed column via subquery.
+     */
+    public function scopeWithTotalPaid($query)
+    {
+        return $query->select('members.*')
+            ->selectSub(
+                Payment::query()
+                    ->selectRaw('COALESCE(SUM(payments.amount), 0)')
+                    ->join('subscriptions', function ($join): void {
+                        $join->on('subscriptions.id', '=', 'payments.payable_id')
+                            ->where('payments.payable_type', '=', Subscription::class);
+                    })
+                    ->whereColumn('subscriptions.member_id', 'members.id'),
+                'total_paid',
+            );
+    }
 }

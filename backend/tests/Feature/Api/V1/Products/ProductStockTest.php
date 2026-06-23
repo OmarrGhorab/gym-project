@@ -29,7 +29,7 @@ test('manager with inventory.adjust permission can increase stock', function ():
         'quantity' => 5,
         'reason' => 'Restocking order #123',
     ])
-        ->assertStatus(201)
+        ->assertStatus(200)
         ->assertJson(fn (AssertableJson $json) => $json
             ->has('data')
             ->has('meta')
@@ -61,7 +61,7 @@ test('manager with inventory.adjust permission can decrease stock', function ():
         'quantity' => 3,
         'reason' => 'Damaged inventory sweep',
     ])
-        ->assertStatus(201)
+        ->assertStatus(200)
         ->assertJsonPath('data.stock_quantity', 7);
 
     $product->refresh();

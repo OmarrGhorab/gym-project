@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Expenses\StoreExpense;
+use App\Actions\Expenses\UpdateExpense;
 use App\Http\Requests\Expenses\StoreExpenseRequest;
 use App\Http\Requests\Expenses\UpdateExpenseRequest;
 use App\Http\Resources\ExpenseResource;
@@ -34,28 +36,25 @@ final class ExpenseController extends ApiController
         // Calculate total amount of filtered expenses before pagination
         $totalAmount = (string) $query->clone()->sum('amount');
 
-        $expenses = $query->cursorPaginate(15)
+        $expenses = $query->paginate(15)
             ->withQueryString();
 
         return $this->success(
             data: ExpenseResource::collection($expenses->getCollection())->resolve(),
             message: 'Expenses retrieved',
             meta: [
-                'next_cursor' => $expenses->nextCursor()?->encode(),
-                'prev_cursor' => $expenses->previousCursor()?->encode(),
+                'current_page' => $expenses->currentPage(),
                 'per_page' => $expenses->perPage(),
+                'total' => $expenses->total(),
+                'last_page' => $expenses->lastPage(),
                 'total_amount' => number_format((float) $totalAmount, 2, '.', ''),
             ],
         );
     }
 
-    public function store(StoreExpenseRequest $request): JsonResponse
+    public function store(StoreExpenseRequest $request, StoreExpense $action): JsonResponse
     {
-        $data = $request->validated();
-        $data['created_by'] = $request->user()->id;
-
-        $expense = Expense::create($data);
-        $expense->load('creator');
+        $expense = $action->handle($request->validated(), $request->user());
 
         return (new ExpenseResource($expense))
             ->withMessage('Expense created')
@@ -74,10 +73,9 @@ final class ExpenseController extends ApiController
             ->setStatusCode(200);
     }
 
-    public function update(UpdateExpenseRequest $request, Expense $expense): JsonResponse
+    public function update(UpdateExpenseRequest $request, Expense $expense, UpdateExpense $action): JsonResponse
     {
-        $expense->update($request->validated());
-        $expense->load('creator');
+        $expense = $action->handle($expense, $request->validated());
 
         return (new ExpenseResource($expense))
             ->withMessage('Expense updated')

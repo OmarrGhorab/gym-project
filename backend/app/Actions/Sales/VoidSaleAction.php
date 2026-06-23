@@ -20,8 +20,8 @@ class VoidSaleAction
     public function execute(Sale $sale, array $data, User $user): Sale
     {
         return DB::transaction(function () use ($sale, $user) {
-            // Lock the sale row
-            $sale = Sale::where('id', $sale->id)->lockForUpdate()->firstOrFail();
+            // Lock the sale row with eager-loaded items
+            $sale = Sale::where('id', $sale->id)->with(['items', 'payment'])->lockForUpdate()->firstOrFail();
 
             if ($sale->status === 'voided') {
                 throw ValidationException::withMessages([

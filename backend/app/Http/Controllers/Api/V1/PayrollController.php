@@ -10,9 +10,6 @@ use App\Http\Requests\Payroll\GeneratePayrollRequest;
 use App\Http\Requests\Payroll\IndexPayrollRequest;
 use App\Http\Requests\Payroll\UpdatePayrollRequest;
 use App\Http\Resources\PayrollResource;
-use App\Http\Resources\PayslipResource;
-use App\Models\Commission;
-use App\Models\Employee;
 use App\Models\Payroll;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,24 +50,21 @@ final class PayrollController extends ApiController
     public function generate(GeneratePayrollRequest $request, GeneratePayroll $action): JsonResponse
     {
         $month = $request->query('month');
-        $generated = $action->execute($month);
-        $activeCount = Employee::active()->count();
-        $skipped = $activeCount - count($generated);
+        $result = $action->execute($month);
 
         return $this->success(
-            data: PayrollResource::collection($generated)->resolve(),
+            data: PayrollResource::collection($result['generated'])->resolve(),
             message: 'Payroll generated successfully',
             meta: [
                 'month' => $month,
-                'generated' => count($generated),
-                'skipped_existing' => $skipped,
+                'generated' => $result['generated_count'],
+                'skipped_existing' => $result['skipped_count'],
             ]
-        );
+        )->setStatusCode(201);
     }
 
-    public function update(UpdatePayrollRequest $request, $id, UpdatePayroll $action): JsonResponse
+    public function update(UpdatePayrollRequest $request, Payroll $payroll, UpdatePayroll $action): JsonResponse
     {
-        $payroll = Payroll::findOrFail($id);
         $updated = $action->execute($payroll, $request->validated());
 
         return (new PayrollResource($updated))
@@ -79,9 +73,8 @@ final class PayrollController extends ApiController
             ->setStatusCode(200);
     }
 
-    public function pay(Request $request, $id, MarkPayrollPaid $action): JsonResponse
+    public function pay(Request $request, Payroll $payroll, MarkPayrollPaid $action): JsonResponse
     {
-        $payroll = Payroll::findOrFail($id);
         $this->authorize('pay', $payroll);
 
         if ($payroll->status === 'paid') {
@@ -101,27 +94,10 @@ final class PayrollController extends ApiController
             ->setStatusCode(200);
     }
 
-    public function payslip(Request $request, $id, GeneratePayslip $action): SymfonyResponse
+    public function payslip(Request $request, Payroll $payroll, GeneratePayslip $action): SymfonyResponse
     {
-        $payroll = Payroll::findOrFail($id);
         $this->authorize('view', $payroll);
 
-        $acceptHeader = $request->header('Accept', '');
-
-        if (str_contains($acceptHeader, 'application/pdf')) {
-            return $action->execute($payroll, $acceptHeader);
-        }
-
-        $payroll->load('employee');
-
-        $monthCommissions = Commission::where('employee_id', $payroll->employee_id)
-            ->where('month', $payroll->month)
-            ->get();
-        $payroll->setRelation('monthCommissions', $monthCommissions);
-
-        return (new PayslipResource($payroll))
-            ->withMessage('Payslip retrieved successfully')
-            ->response()
-            ->setStatusCode(200);
+        return $action->execute($payroll, $request->header('Accept', ''));
     }
 }

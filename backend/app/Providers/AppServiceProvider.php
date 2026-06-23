@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Observers\PaymentObserver;
 use App\Observers\SaleObserver;
 use App\Observers\SubscriptionObserver;
 use App\Policies\AuditLogPolicy;
@@ -37,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
 
         Subscription::observe(SubscriptionObserver::class);
         Sale::observe(SaleObserver::class);
+        Payment::observe(PaymentObserver::class);
 
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Activity::class, AuditLogPolicy::class);

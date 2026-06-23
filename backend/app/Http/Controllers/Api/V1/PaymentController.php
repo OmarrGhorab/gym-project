@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Payments\ListPaymentDues;
 use App\Actions\Payments\RecordPayment;
 use App\Http\Requests\Payments\IndexPaymentRequest;
 use App\Http\Requests\Payments\StorePaymentRequest;
@@ -15,55 +16,6 @@ class PaymentController extends ApiController
     public function index(IndexPaymentRequest $request): JsonResponse
     {
         $status = $request->string('status')->toString();
-
-        if ($status === 'due') {
-            $paidTotals = Payment::query()
-                ->selectRaw('payable_id, SUM(amount) as paid_total')
-                ->where('payable_type', Subscription::class)
-                ->groupBy('payable_id');
-
-            $dues = Subscription::query()
-                ->with(['member', 'plan', 'soldBy'])
-                ->leftJoinSub($paidTotals, 'paid_totals', 'paid_totals.payable_id', '=', 'subscriptions.id')
-                ->select('subscriptions.*')
-                ->selectRaw('COALESCE(paid_totals.paid_total, 0) as paid_total')
-                ->whereRaw('subscriptions.price_paid > COALESCE(paid_totals.paid_total, 0)')
-                ->orderBy('end_date')
-                ->paginate(15)
-                ->withQueryString();
-
-            $data = $dues->getCollection()->map(function (Subscription $subscription): array {
-                $paid = bcadd((string) ($subscription->paid_total ?? '0.00'), '0.00', 2);
-                $balance = bcsub((string) $subscription->price_paid, $paid, 2);
-
-                return [
-                    'subscription' => [
-                        'id' => $subscription->id,
-                        'status' => $subscription->status,
-                        'start_date' => $subscription->start_date?->toDateString(),
-                        'end_date' => $subscription->end_date?->toDateString(),
-                    ],
-                    'member' => [
-                        'id' => $subscription->member?->id,
-                        'name' => $subscription->member?->name,
-                    ],
-                    'balance' => $balance,
-                    'paid_total' => $paid,
-                    'price_paid' => $subscription->price_paid,
-                ];
-            })->values();
-
-            return $this->success(
-                data: $data,
-                message: 'Dues retrieved',
-                meta: [
-                    'current_page' => $dues->currentPage(),
-                    'per_page' => $dues->perPage(),
-                    'total' => $dues->total(),
-                    'last_page' => $dues->lastPage(),
-                ],
-            );
-        }
 
         $payments = Payment::query()
             ->when(
@@ -83,6 +35,19 @@ class PaymentController extends ApiController
                 'total' => $payments->total(),
                 'last_page' => $payments->lastPage(),
             ],
+        );
+    }
+
+    public function dues(): JsonResponse
+    {
+        $this->authorize('viewAny', Payment::class);
+
+        $result = app(ListPaymentDues::class)->handle();
+
+        return $this->success(
+            data: $result['data'],
+            message: 'Dues retrieved',
+            meta: $result['meta'],
         );
     }
 

@@ -13,6 +13,7 @@ use App\Http\Resources\MemberResource;
 use App\Http\Resources\PaymentResource;
 use App\Models\Member;
 use App\Models\Payment;
+use App\Models\Sale;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ final class MemberController extends ApiController
     {
         $this->authorize('viewAny', Member::class);
 
-        $members = QueryBuilder::for($this->memberQueryWithTotalPaid()->with(['latestSubscription.plan']))
+        $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan']))
             ->allowedFilters(
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('gender'),
@@ -83,7 +84,7 @@ final class MemberController extends ApiController
     {
         $this->authorize('view', $member);
 
-        $member = $this->memberQueryWithTotalPaid()
+        $member = Member::withTotalPaid()
             ->with(['latestSubscription.plan'])
             ->whereKey($member->id)
             ->firstOrFail();
@@ -145,21 +146,22 @@ final class MemberController extends ApiController
 
     public function payments(Request $request, Member $member): JsonResponse
     {
-        if (! $request->user()->can('view', $member) || ! $request->user()->can('viewAny', Payment::class)) {
-            return $this->error(
-                code: 'forbidden',
-                message: 'You do not have permission to perform this action.',
-                details: (object) [],
-                status: 403,
-            );
-        }
+        $this->authorize('view', $member);
+        $this->authorize('viewAny', Payment::class);
 
         $payments = Payment::query()
-            ->whereHasMorph(
-                'payable',
-                [Subscription::class],
-                fn ($query) => $query->where('member_id', $member->id),
-            )
+            ->where(function ($query) use ($member): void {
+                $query->whereHasMorph(
+                    'payable',
+                    [Subscription::class],
+                    fn ($q) => $q->where('member_id', $member->id),
+                );
+                $query->orWhereHasMorph(
+                    'payable',
+                    [Sale::class],
+                    fn ($q) => $q->where('member_id', $member->id),
+                );
+            })
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -174,21 +176,5 @@ final class MemberController extends ApiController
                 'last_page' => $payments->lastPage(),
             ],
         );
-    }
-
-    private function memberQueryWithTotalPaid()
-    {
-        return Member::query()
-            ->select('members.*')
-            ->selectSub(
-                Payment::query()
-                    ->selectRaw('COALESCE(SUM(payments.amount), 0)')
-                    ->join('subscriptions', function ($join): void {
-                        $join->on('subscriptions.id', '=', 'payments.payable_id')
-                            ->where('payments.payable_type', '=', Subscription::class);
-                    })
-                    ->whereColumn('subscriptions.member_id', 'members.id'),
-                'total_paid',
-            );
     }
 }

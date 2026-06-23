@@ -4,7 +4,7 @@ namespace App\Actions\Members;
 
 use App\Models\Member;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 final class StoreMemberPhoto
 {
@@ -12,10 +12,13 @@ final class StoreMemberPhoto
     {
         $path = $photo->store("members/photos/{$member->id}", 'local');
 
-        // Persist photo_path only after successful store (transactional ordering).
-        DB::transaction(function () use ($member, $path): void {
+        try {
             $member->update(['photo_path' => $path]);
-        });
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+
+            throw $e;
+        }
 
         return $member->fresh();
     }

@@ -8,6 +8,9 @@ Route::prefix('payments')->group(function (): void {
     Route::get('/', [PaymentController::class, 'index'])
         ->middleware('permission:'.MembershipPermissions::PERM_PAYMENTS_VIEW);
 
+    Route::get('/dues', [PaymentController::class, 'dues'])
+        ->middleware('permission:'.MembershipPermissions::PERM_PAYMENTS_VIEW);
+
     Route::post('/', [PaymentController::class, 'store'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PAYMENTS_CREATE]);
 });

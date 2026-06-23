@@ -54,7 +54,7 @@ test('user can mark own notification as read', function (): void {
 
     $notification = $user->notifications()->latest()->first();
 
-    $this->postJson("/api/v1/notifications/{$notification->id}/read")
+    $this->patchJson("/api/v1/notifications/{$notification->id}/read")
         ->assertStatus(200)
         ->assertJsonPath('data.id', $notification->id);
 });
@@ -73,7 +73,7 @@ test('user cannot mark another users notification as read', function (): void {
 
     $notification = $other->notifications()->latest()->first();
 
-    $this->postJson("/api/v1/notifications/{$notification->id}/read")
+    $this->patchJson("/api/v1/notifications/{$notification->id}/read")
         ->assertStatus(404)
         ->assertJsonPath('error.code', 'not_found');
 });

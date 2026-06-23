@@ -2,7 +2,7 @@
 
 namespace App\Observers;
 
-use App\Actions\Commissions\CalculateCommission;
+use App\Jobs\CalculateCommissionJob;
 use App\Models\Sale;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ class SaleObserver
     public function created(Sale $sale): void
     {
         DB::afterCommit(function () use ($sale) {
-            app(CalculateCommission::class)->forSource($sale);
+            CalculateCommissionJob::dispatch(Sale::class, $sale->id);
             Cache::forget('dashboard:summary:v1');
         });
     }

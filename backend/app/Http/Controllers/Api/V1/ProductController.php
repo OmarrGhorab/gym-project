@@ -120,7 +120,7 @@ class ProductController extends ApiController
         return (new ProductResource($product))
             ->withMessage('Product stock adjusted')
             ->response()
-            ->setStatusCode(201);
+            ->setStatusCode(200);
     }
 
     /**

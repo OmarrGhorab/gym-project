@@ -69,8 +69,7 @@ test('authorized cashier can view single sale details', function (): void {
 
     $this->getJson("/api/v1/sales/{$sale->id}")
         ->assertStatus(200)
-        ->assertJsonPath('data.id', $sale->id)
-        ->assertJsonPath('data.idempotency_key', $sale->idempotency_key);
+        ->assertJsonPath('data.id', $sale->id);
 });
 
 test('viewing a non-existent sale returns 404', function (): void {

@@ -54,7 +54,7 @@ test('admin can generate payroll for active employees and net recomputes correct
     ]);
 
     $response = $this->postJson('/api/v1/payroll/generate?month=2026-06')
-        ->assertStatus(200)
+        ->assertStatus(201)
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.base_salary', '4000.00')
         ->assertJsonPath('data.0.commissions_total', '400.00')
@@ -74,13 +74,13 @@ test('generating payroll is idempotent on re-run', function (): void {
 
     // Run 1
     $this->postJson('/api/v1/payroll/generate?month=2026-06')
-        ->assertStatus(200);
+        ->assertStatus(201);
 
     expect(Payroll::count())->toBe(1);
 
     // Run 2
     $response = $this->postJson('/api/v1/payroll/generate?month=2026-06')
-        ->assertStatus(200)
+        ->assertStatus(201)
         ->assertJsonPath('meta.skipped_existing', 1);
 
     expect(Payroll::count())->toBe(1);

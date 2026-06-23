@@ -23,6 +23,9 @@ Route::prefix('plans')->group(function (): void {
     Route::post('/', [PlanController::class, 'store'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_CREATE]);
 
+    Route::get('/{plan}', [PlanController::class, 'show'])
+        ->middleware('permission:'.MembershipPermissions::PERM_PLANS_VIEW);
+
     Route::put('/{plan}', [PlanController::class, 'update'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_UPDATE]);
 

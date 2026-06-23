@@ -7,10 +7,15 @@ use App\Notifications\SubscriptionRenewalReminder;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class SendRenewalReminderJob implements ShouldQueue
 {
     use Queueable;
+
+    public int $tries = 3;
+
+    public int $timeout = 30;
 
     public function __construct(
         public int $subscriptionId,
@@ -38,6 +43,14 @@ class SendRenewalReminderJob implements ShouldQueue
 
         $subscription->update([
             'last_reminded_on' => $today->toDateString(),
+        ]);
+    }
+
+    public function failed(\Throwable $e): void
+    {
+        Log::error('SendRenewalReminderJob failed', [
+            'subscription_id' => $this->subscriptionId,
+            'error' => $e->getMessage(),
         ]);
     }
 }

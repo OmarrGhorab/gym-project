@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\AuditLog\IndexAuditLogRequest;
 use App\Http\Resources\AuditLogResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -14,21 +15,16 @@ final class AuditLogController extends ApiController
     {
         $query = Activity::query()->with(['causer', 'subject']);
 
-        $from = $request->validated('filter.from');
-        $to = $request->validated('filter.to');
-        $subject = $request->validated('filter.subject');
-        $causer = $request->validated('filter.causer');
-
-        if ($from) {
-            $query->where('created_at', '>=', $from.' 00:00:00');
+        if ($from = $request->validated('filter.from')) {
+            $query->where('created_at', '>=', Carbon::parse($from)->startOfDay());
         }
-        if ($to) {
-            $query->where('created_at', '<=', $to.' 23:59:59');
+        if ($to = $request->validated('filter.to')) {
+            $query->where('created_at', '<=', Carbon::parse($to)->endOfDay());
         }
-        if ($subject) {
+        if ($subject = $request->validated('filter.subject')) {
             $query->where('subject_type', AuditLogResource::$aliasMap[$subject]);
         }
-        if ($causer) {
+        if ($causer = $request->validated('filter.causer')) {
             $query->where('causer_id', $causer);
         }
 

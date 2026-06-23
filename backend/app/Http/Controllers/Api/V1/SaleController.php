@@ -113,14 +113,13 @@ class SaleController extends ApiController
         $date = $request->input('date', now()->toDateString());
         $result = $action->execute($date);
 
-        return response()->json([
-            'data' => [
+        return $this->success(
+            data: [
                 'total_revenue' => $result['total_revenue'],
                 'sales' => SaleResource::collection($result['sales']),
             ],
-            'meta' => (object) [],
-            'message' => 'Daily sales report retrieved',
-        ]);
+            message: 'Daily sales report retrieved',
+        );
     }
 
     /**
@@ -130,10 +129,9 @@ class SaleController extends ApiController
     {
         $results = $action->execute($request->validated());
 
-        return response()->json([
-            'data' => $results,
-            'meta' => (object) [],
-            'message' => 'Period sales report retrieved',
-        ]);
+        return $this->success(
+            data: $results,
+            message: 'Period sales report retrieved',
+        );
     }
 }

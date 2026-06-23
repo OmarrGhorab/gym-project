@@ -11,28 +11,40 @@ final class GeneratePayroll
     /**
      * Generate payroll for all active employees for the target month.
      *
-     * @return array<Payroll>
+     * @return array{generated: array<Payroll>, generated_count: int, skipped_count: int}
      */
     public function execute(string $month): array
     {
         $activeEmployees = Employee::active()->get();
+
+        if ($activeEmployees->isEmpty()) {
+            return ['generated' => [], 'generated_count' => 0, 'skipped_count' => 0];
+        }
+
+        $employeeIds = $activeEmployees->pluck('id')->all();
+
+        // Bulk pre-load: existing payroll IDs for this month
+        $existingPayrollEmployeeIds = Payroll::whereIn('employee_id', $employeeIds)
+            ->where('month', $month)
+            ->pluck('employee_id')
+            ->flip();
+
+        // Bulk pre-load: commission totals for this month
+        $commissionTotals = Commission::whereIn('employee_id', $employeeIds)
+            ->where('month', $month)
+            ->where('status', 'pending')
+            ->groupBy('employee_id')
+            ->selectRaw('employee_id, SUM(amount) as total')
+            ->pluck('total', 'employee_id');
+
         $generated = [];
 
         foreach ($activeEmployees as $employee) {
-            // Check if already exists
-            $exists = Payroll::where('employee_id', $employee->id)
-                ->where('month', $month)
-                ->exists();
-
-            if ($exists) {
+            if ($existingPayrollEmployeeIds->has($employee->id)) {
                 continue;
             }
 
-            // Calculate pending commissions for this month
-            $commissionsTotal = Commission::where('employee_id', $employee->id)
-                ->where('month', $month)
-                ->where('status', 'pending')
-                ->sum('amount');
+            $commissionsTotal = $commissionTotals->get($employee->id, '0.00');
 
             $netSalary = bcadd((string) $employee->base_salary, (string) $commissionsTotal, 2);
 
@@ -50,6 +62,12 @@ final class GeneratePayroll
             $generated[] = $payroll;
         }
 
-        return $generated;
+        $skipped = $activeEmployees->count() - count($generated);
+
+        return [
+            'generated' => $generated,
+            'generated_count' => count($generated),
+            'skipped_count' => $skipped,
+        ];
     }
 }
