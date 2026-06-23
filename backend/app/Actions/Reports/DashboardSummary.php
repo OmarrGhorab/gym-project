@@ -2,6 +2,8 @@
 
 namespace App\Actions\Reports;
 
+use App\Actions\Dashboard\SalesTodayReport;
+use App\Actions\Dashboard\TopProductsReport;
 use App\Actions\Reminders\FindExpiringSubscriptions;
 use App\Models\Subscription;
 use Carbon\Carbon;
@@ -40,41 +42,15 @@ class DashboardSummary
                 ->whereBetween('end_date', [$today->toDateString(), $end->toDateString()])
                 ->count();
 
-            // 4. Sales today
-            $salesToday = DB::table('sales')
-                ->whereDate('created_at', now()->toDateString())
-                ->where('status', 'completed')
-                ->selectRaw('COUNT(*) as count, COALESCE(SUM(total), 0) as revenue')
-                ->first();
+            // 4. Sales today (reuse shared action)
+            $salesTodayReport = app(SalesTodayReport::class)->execute();
             $salesTodayData = [
-                'count' => (int) ($salesToday->count ?? 0),
-                'revenue' => number_format((float) ($salesToday->revenue ?? 0), 2, '.', ''),
+                'count' => $salesTodayReport['count'],
+                'revenue' => $salesTodayReport['revenue'],
             ];
 
-            // 5. Top products (week)
-            $startDate = now()->subDays(7)->startOfDay();
-            $topProducts = DB::table('sale_items')
-                ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
-                ->join('products', 'products.id', '=', 'sale_items.product_id')
-                ->where('sales.status', 'completed')
-                ->where('sales.created_at', '>=', $startDate)
-                ->groupBy('sale_items.product_id', 'products.name', 'products.sku')
-                ->selectRaw('
-                    sale_items.product_id,
-                    products.name as name,
-                    products.sku as sku,
-                    SUM(sale_items.total) as revenue,
-                    CAST(SUM(sale_items.quantity) AS SIGNED) as units_sold
-                ')
-                ->orderByDesc('revenue')
-                ->limit(5)
-                ->get()
-                ->map(function ($product) {
-                    $product->revenue = number_format((float) $product->revenue, 2, '.', '');
-
-                    return $product;
-                })
-                ->toArray();
+            // 5. Top products (week) (reuse shared action)
+            $topProducts = app(TopProductsReport::class)->execute(5, 'week');
 
             // 6. Captain leaderboard
             $currentMonth = Carbon::now()->format('Y-m');

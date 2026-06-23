@@ -20,55 +20,50 @@ final class VerifyPasswordResetOtp
      */
     public function handle(string $email, string $otp): array
     {
-        $record = DB::table('password_reset_otps')
-            ->where('email', $email)
-            ->where('expires_at', '>', now())
-            ->latest('created_at')
-            ->first();
+        $result = ['valid' => false, 'token' => null];
 
-        if ($record === null) {
-            return [
-                'valid' => false,
-                'token' => null,
-            ];
-        }
+        DB::transaction(function () use ($email, $otp, &$result): void {
+            $record = DB::table('password_reset_otps')
+                ->where('email', $email)
+                ->where('expires_at', '>', now())
+                ->latest('created_at')
+                ->lockForUpdate()
+                ->first();
 
-        if ((int) $record->attempts >= 5) {
+            if ($record === null) {
+                return;
+            }
+
+            if ((int) $record->attempts >= 5) {
+                DB::table('password_reset_otps')->where('id', $record->id)->delete();
+
+                return;
+            }
+
+            if (! Otp::verify($otp, $record->otp_hash)) {
+                DB::table('password_reset_otps')
+                    ->where('id', $record->id)
+                    ->increment('attempts');
+
+                return;
+            }
+
+            $user = User::where('email', $email)->first();
+
+            if ($user === null) {
+                return;
+            }
+
             DB::table('password_reset_otps')->where('id', $record->id)->delete();
 
-            return [
-                'valid' => false,
-                'token' => null,
+            $token = Password::broker()->createToken($user);
+
+            $result = [
+                'valid' => true,
+                'token' => $token,
             ];
-        }
+        });
 
-        if (! Otp::verify($otp, $record->otp_hash)) {
-            DB::table('password_reset_otps')
-                ->where('id', $record->id)
-                ->increment('attempts');
-
-            return [
-                'valid' => false,
-                'token' => null,
-            ];
-        }
-
-        $user = User::where('email', $email)->first();
-
-        if ($user === null) {
-            return [
-                'valid' => false,
-                'token' => null,
-            ];
-        }
-
-        DB::table('password_reset_otps')->where('id', $record->id)->delete();
-
-        $token = Password::broker()->createToken($user);
-
-        return [
-            'valid' => true,
-            'token' => $token,
-        ];
+        return $result;
     }
 }

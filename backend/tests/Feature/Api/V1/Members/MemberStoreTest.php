@@ -344,3 +344,48 @@ test('member is not created when initial subscription creation fails', function 
 
     expect(Member::query()->where('name', 'Should Roll Back')->exists())->toBeFalse();
 });
+
+test('creating a member with birth_date persists the value', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $response = $this->postJson('/api/v1/members', [
+        'name' => 'Birth Date Member',
+        'phone' => '+201555555555',
+        'birth_date' => '1995-03-15',
+    ])->assertStatus(201);
+
+    $memberId = $response->json('data.id');
+    $member = Member::find($memberId);
+
+    expect($response->json('data.birth_date'))->toBe('1995-03-15');
+    expect($member->birth_date->toDateString())->toBe('1995-03-15');
+});
+
+test('creating a member without birth_date succeeds with null', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $response = $this->postJson('/api/v1/members', [
+        'name' => 'No Birth',
+        'phone' => '+201155555556',
+    ])->assertStatus(201);
+
+    expect($response->json('data.birth_date'))->toBeNull();
+});
+
+test('duplicate phone on create returns 422', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Member::factory()->create(['phone' => '+201155555557']);
+
+    $this->postJson('/api/v1/members', [
+        'name' => 'Duplicate',
+        'phone' => '+201155555557',
+    ])->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});

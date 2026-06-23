@@ -5,7 +5,6 @@ namespace App\Http\Resources;
 use App\Http\Resources\Concerns\WrapsApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Carbon;
 
 final class MemberResource extends JsonResource
 {
@@ -14,16 +13,6 @@ final class MemberResource extends JsonResource
     public function toArray(Request $request): array
     {
         $latestSubscription = $this->latestSubscription;
-        $latestSubscriptionStatus = $latestSubscription?->status;
-
-        if (
-            $latestSubscription !== null
-            && $latestSubscriptionStatus === 'active'
-            && $latestSubscription->end_date !== null
-            && $latestSubscription->end_date->lt(Carbon::today())
-        ) {
-            $latestSubscriptionStatus = 'expired';
-        }
 
         return [
             'id' => $this->id,
@@ -48,7 +37,7 @@ final class MemberResource extends JsonResource
                 'plan_name' => $latestSubscription->plan?->name,
                 'start_date' => $latestSubscription->start_date?->toDateString(),
                 'end_date' => $latestSubscription->end_date?->toDateString(),
-                'status' => $latestSubscriptionStatus,
+                'status' => $latestSubscription->status,
             ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

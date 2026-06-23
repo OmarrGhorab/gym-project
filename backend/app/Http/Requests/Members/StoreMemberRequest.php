@@ -25,7 +25,7 @@ class StoreMemberRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:150'],
-            'phone' => ['required', 'string', 'regex:/^(?:\+20|0020|0)?1[0125][0-9]{8}$/'],
+            'phone' => ['required', 'string', 'unique:members,phone', 'regex:/^(?:\+20|0020|0)?1[0125][0-9]{8}$/'],
             'email' => ['nullable', 'email', 'max:150', 'unique:members,email'],
             'gender' => ['nullable', 'in:male,female'],
             'national_id' => ['nullable', 'string', 'regex:/^[23][0-9]{13}$/', 'unique:members,national_id'],

@@ -25,6 +25,7 @@ final class StoreMember
                 'email' => $data['email'] ?? null,
                 'gender' => $data['gender'] ?? null,
                 'national_id' => $data['national_id'] ?? null,
+                'birth_date' => $data['birth_date'] ?? null,
                 'join_date' => $data['join_date'] ?? now()->toDateString(),
                 'status' => 'active',
                 'notes' => $data['notes'] ?? null,

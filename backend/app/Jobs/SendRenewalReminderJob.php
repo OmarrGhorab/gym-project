@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Events\SubscriptionExpiringSoonEvent;
 use App\Models\Subscription;
 use App\Notifications\SubscriptionRenewalReminder;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,6 +41,12 @@ class SendRenewalReminderJob implements ShouldQueue
                 'end_date' => $subscription->end_date?->toDateString(),
             ]));
         }
+
+        SubscriptionExpiringSoonEvent::dispatch(
+            $subscription->id,
+            $subscription->member?->name,
+            $subscription->end_date?->toDateString(),
+        );
 
         $subscription->update([
             'last_reminded_on' => $today->toDateString(),

@@ -19,66 +19,55 @@ final class VerifyEmailOtp
      */
     public function handle(string $email, string $otp): array
     {
-        $record = DB::table('email_verification_otps')
-            ->where('email', $email)
-            ->where('expires_at', '>', now())
-            ->latest('created_at')
-            ->first();
+        $result = ['valid' => false, 'user' => null, 'token' => null];
 
-        if ($record === null) {
-            return [
-                'valid' => false,
-                'user' => null,
-                'token' => null,
-            ];
-        }
+        DB::transaction(function () use ($email, $otp, &$result): void {
+            $record = DB::table('email_verification_otps')
+                ->where('email', $email)
+                ->where('expires_at', '>', now())
+                ->latest('created_at')
+                ->lockForUpdate()
+                ->first();
 
-        if ((int) $record->attempts >= 5) {
-            DB::table('email_verification_otps')->where('id', $record->id)->delete();
+            if ($record === null) {
+                return;
+            }
 
-            return [
-                'valid' => false,
-                'user' => null,
-                'token' => null,
-            ];
-        }
+            if ((int) $record->attempts >= 5) {
+                DB::table('email_verification_otps')->where('id', $record->id)->delete();
 
-        if (! Otp::verify($otp, $record->otp_hash)) {
-            DB::table('email_verification_otps')
-                ->where('id', $record->id)
-                ->increment('attempts');
+                return;
+            }
 
-            return [
-                'valid' => false,
-                'user' => null,
-                'token' => null,
-            ];
-        }
+            if (! Otp::verify($otp, $record->otp_hash)) {
+                DB::table('email_verification_otps')
+                    ->where('id', $record->id)
+                    ->increment('attempts');
 
-        $user = User::where('email', $email)->first();
+                return;
+            }
 
-        if ($user === null) {
-            return [
-                'valid' => false,
-                'user' => null,
-                'token' => null,
-            ];
-        }
+            $user = User::where('email', $email)->first();
 
-        DB::transaction(function () use ($record, $user): void {
+            if ($user === null) {
+                return;
+            }
+
             DB::table('email_verification_otps')->where('id', $record->id)->delete();
 
             $user->forceFill([
                 'email_verified_at' => now(),
             ])->save();
+
+            $token = $user->createToken('staff-token')->plainTextToken;
+
+            $result = [
+                'valid' => true,
+                'user' => $user,
+                'token' => $token,
+            ];
         });
 
-        $token = $user->createToken('staff-token')->plainTextToken;
-
-        return [
-            'valid' => true,
-            'user' => $user,
-            'token' => $token,
-        ];
+        return $result;
     }
 }

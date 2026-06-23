@@ -31,4 +31,7 @@ Route::prefix('plans')->group(function (): void {
 
     Route::patch('/{plan}/toggle', [PlanController::class, 'toggle'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_UPDATE]);
+
+    Route::delete('/{plan}', [PlanController::class, 'destroy'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_DELETE]);
 });

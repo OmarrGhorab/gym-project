@@ -102,4 +102,30 @@ final class PlanController extends ApiController
             ->response()
             ->setStatusCode(200);
     }
+
+    /**
+     * DELETE /api/v1/plans/{plan}
+     */
+    public function destroy(Plan $plan): JsonResponse
+    {
+        $this->authorize('delete', $plan);
+
+        if ($plan->subscriptions()->where('status', 'active')->exists()) {
+            return $this->error(
+                'plan_has_subscriptions',
+                'Plan cannot be deleted while it has active subscriptions.',
+                [],
+                422,
+            );
+        }
+
+        $plan->delete();
+
+        return $this->success(
+            null,
+            'Plan deleted',
+            [],
+            200,
+        );
+    }
 }

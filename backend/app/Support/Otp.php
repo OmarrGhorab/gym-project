@@ -51,6 +51,9 @@ final class Otp
 
     private static function storesPlainText(): bool
     {
-        return app()->environment('local') && config('auth.store_plain_otps');
+        return app()->environment('local')
+            && ! app()->isProduction()
+            && config('app.debug')
+            && config('auth.store_plain_otps');
     }
 }

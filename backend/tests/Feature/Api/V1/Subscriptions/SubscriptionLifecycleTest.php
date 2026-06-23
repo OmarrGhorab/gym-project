@@ -103,3 +103,77 @@ test('user without lifecycle permissions receives 403', function (): void {
     ])->assertStatus(403)
         ->assertJsonPath('error.code', 'forbidden');
 });
+
+test('freeze already-frozen subscription returns 409', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = makeLifecycleSubscription($user, subscriptionOverrides: [
+        'end_date' => '2026-07-15',
+    ]);
+
+    // Freeze once
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/freeze", [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+        'reason' => 'travel',
+    ])->assertStatus(200);
+
+    // Freeze again — should fail
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/freeze", [
+        'freeze_start' => '2026-06-15',
+        'freeze_end' => '2026-06-17',
+        'reason' => 'travel again',
+    ])->assertStatus(422);
+});
+
+test('unfreeze non-frozen subscription returns 409', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = makeLifecycleSubscription($user);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/unfreeze")
+        ->assertStatus(422);
+});
+
+test('stop already-stopped subscription returns 409', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = makeLifecycleSubscription($user);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/stop", [
+        'reason' => 'member requested',
+    ])->assertStatus(200);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/stop", [
+        'reason' => 'try again',
+    ])->assertStatus(422);
+});
+
+test('admin can renew an expired subscription', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '100.00']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'sold_by_user_id' => $user->id,
+        'end_date' => '2026-01-01',
+        'status' => 'expired',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/renew", [
+        'payment' => [
+            'amount' => '100.00',
+            'method' => 'cash',
+        ],
+    ])->assertStatus(201);
+});

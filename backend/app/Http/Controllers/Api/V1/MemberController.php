@@ -136,11 +136,12 @@ final class MemberController extends ApiController
         }
 
         $content = Storage::disk('local')->get($member->photo_path);
-        $mime = Storage::disk('local')->mimeType($member->photo_path);
+        $mime = Storage::disk('local')->mimeType($member->photo_path) ?: 'application/octet-stream';
+        $disposition = str_starts_with($mime, 'image/') ? 'inline' : 'attachment';
 
         return response($content, 200, [
-            'Content-Type' => $mime ?: 'application/octet-stream',
-            'Content-Disposition' => 'inline',
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition,
         ]);
     }
 
