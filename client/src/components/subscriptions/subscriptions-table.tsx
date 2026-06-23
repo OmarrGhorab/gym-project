@@ -1,13 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { PauseCircle, PlayCircle, RotateCw, Snowflake, Square } from "lucide-react";
+import { Loader2, PauseCircle, PlayCircle, RotateCw, Snowflake, Square } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  freezeSubscription,
+  stopSubscription,
+  unfreezeSubscription,
+} from "@/lib/actions/subscriptions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import type { Subscription } from "@/lib/api/dashboard";
+import type { AppLocale } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 
 type SubscriptionsTableProps = {
@@ -125,7 +133,7 @@ export function SubscriptionsTable({ subscriptions }: SubscriptionsTableProps) {
             {t("tableActions")}
           </span>
         ),
-        cell: ({ row }) => <SubscriptionActions status={row.original.status} />,
+        cell: ({ row }) => <SubscriptionActions subscription={row.original} />,
       },
     ],
     [dateLocale, isArabic, locale, t]
@@ -141,9 +149,69 @@ export function SubscriptionsTable({ subscriptions }: SubscriptionsTableProps) {
   );
 }
 
-function SubscriptionActions({ status }: { status: string }) {
+function SubscriptionActions({ subscription }: { subscription: Subscription }) {
+  const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("SubscriptionsPage");
+  const [pendingAction, setPendingAction] = React.useState<"freeze" | "unfreeze" | "stop" | null>(null);
+  const status = subscription.status;
   const normalized = status.toLowerCase();
+  const isPending = pendingAction !== null;
+
+  async function handleFreeze() {
+    const freezeStart = window.prompt(t("freezeStartPrompt"));
+    if (!freezeStart) return;
+    const freezeEnd = window.prompt(t("freezeEndPrompt"), freezeStart);
+    if (!freezeEnd) return;
+    const reason = window.prompt(t("freezeReasonPrompt")) ?? undefined;
+
+    setPendingAction("freeze");
+    try {
+      await freezeSubscription(
+        subscription.id,
+        { freeze_start: freezeStart, freeze_end: freezeEnd, reason },
+        locale as AppLocale
+      );
+      toast.success(t("subscriptionFrozenSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleUnfreeze() {
+    const confirmed = window.confirm(t("unfreezeConfirm", { id: subscription.id }));
+    if (!confirmed) return;
+
+    setPendingAction("unfreeze");
+    try {
+      await unfreezeSubscription(subscription.id, locale as AppLocale);
+      toast.success(t("subscriptionUnfrozenSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleStop() {
+    const confirmed = window.confirm(t("stopConfirm", { id: subscription.id }));
+    if (!confirmed) return;
+
+    setPendingAction("stop");
+    try {
+      await stopSubscription(subscription.id, locale as AppLocale);
+      toast.success(t("subscriptionStoppedSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setPendingAction(null);
+    }
+  }
 
   return (
     <div className="flex justify-end gap-1.5">
@@ -151,16 +219,34 @@ function SubscriptionActions({ status }: { status: string }) {
         <RotateCw className="size-3.5" />
       </Button>
       {normalized === "frozen" ? (
-        <Button variant="ghost" size="icon-sm" title={t("actionUnfreeze")} disabled>
-          <PlayCircle className="size-3.5" />
+        <Button variant="ghost" size="icon-sm" title={t("actionUnfreeze")} onClick={handleUnfreeze} disabled={isPending}>
+          {pendingAction === "unfreeze" ? <Loader2 className="size-3.5 animate-spin" /> : <PlayCircle className="size-3.5" />}
         </Button>
       ) : (
-        <Button variant="ghost" size="icon-sm" title={t("actionFreeze")} disabled>
-          <Snowflake className="size-3.5" />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title={t("actionFreeze")}
+          onClick={handleFreeze}
+          disabled={isPending || normalized !== "active"}
+        >
+          {pendingAction === "freeze" ? <Loader2 className="size-3.5 animate-spin" /> : <Snowflake className="size-3.5" />}
         </Button>
       )}
-      <Button variant="ghost" size="icon-sm" title={t("actionStop")} disabled>
-        {normalized === "stopped" ? <PauseCircle className="size-3.5" /> : <Square className="size-3.5" />}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title={t("actionStop")}
+        onClick={handleStop}
+        disabled={isPending || normalized === "stopped"}
+      >
+        {pendingAction === "stop" ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : normalized === "stopped" ? (
+          <PauseCircle className="size-3.5" />
+        ) : (
+          <Square className="size-3.5" />
+        )}
       </Button>
     </div>
   );

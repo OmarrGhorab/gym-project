@@ -5,7 +5,7 @@ import { ExpensesFilterBar } from "@/components/expenses/expenses-filter-bar";
 import { ExpensesPagination } from "@/components/expenses/expenses-pagination";
 import { ExpensesTableContainer } from "@/components/expenses/expenses-table-container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getExpenses, type CursorPaginated, type Expense } from "@/lib/api/dashboard";
+import { getExpenses, type Paginated, type Expense } from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata({
@@ -28,7 +28,7 @@ export default async function ExpensesPage({
 }: {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{
-    cursor?: string;
+    page?: string;
     category?: string;
     start_date?: string;
     end_date?: string;
@@ -41,7 +41,7 @@ export default async function ExpensesPage({
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
   const resolvedSearchParams = await searchParams;
-  const cursor = resolvedSearchParams.cursor;
+  const page = Number(resolvedSearchParams.page) || 1;
   const category = sanitizeText(resolvedSearchParams.category);
   const startDate = normalizeDate(resolvedSearchParams.start_date);
   const endDate = normalizeDate(resolvedSearchParams.end_date);
@@ -52,20 +52,20 @@ export default async function ExpensesPage({
     month: "long",
   });
 
-  let expensesResult: CursorPaginated<Expense> = {
+  let expensesResult: Paginated<Expense> = {
     data: [],
     meta: {
-      next_cursor: null,
-      prev_cursor: null,
+      current_page: 1,
       per_page: 15,
-      total_amount: "0.00",
+      total: 0,
+      last_page: 1,
     },
   };
   let fetchError: string | null = null;
 
   try {
     expensesResult = await getExpenses({
-      cursor,
+      page,
       category,
       startDate,
       endDate,
@@ -180,8 +180,8 @@ export default async function ExpensesPage({
         </div>
         <ExpensesTableContainer expenses={expensesResult.data} />
         <ExpensesPagination
-          nextCursor={expensesResult.meta.next_cursor}
-          prevCursor={expensesResult.meta.prev_cursor}
+          currentPage={expensesResult.meta.current_page}
+          lastPage={expensesResult.meta.last_page}
         />
       </Card>
     </div>

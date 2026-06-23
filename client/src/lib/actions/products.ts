@@ -109,6 +109,14 @@ export async function toggleProduct(
   return payload.data as Product;
 }
 
+export async function deleteProduct(id: number, locale: AppLocale): Promise<void> {
+  await productsFetch(`/products/${id}`, {
+    method: "DELETE",
+  });
+
+  revalidateProducts(locale);
+}
+
 export async function adjustProductStock(
   id: number,
   data: StockAdjustmentData,

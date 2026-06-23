@@ -63,6 +63,7 @@ type MemberFormState = {
   name: string;
   phone: string;
   email: string;
+  photo?: File;
   gender: "" | "male" | "female";
   national_id: string;
   join_date?: string;
@@ -265,6 +266,7 @@ function MemberFormDialogContent({
       name: form.name.trim(),
       phone: form.phone.trim(),
       email: form.email.trim() || undefined,
+      photo: form.photo,
       gender: form.gender || undefined,
       national_id: form.national_id.trim() || undefined,
       join_date: form.join_date || undefined,
@@ -396,6 +398,24 @@ function MemberFormDialogContent({
                 className={inputClass}
               />
               <FieldError messages={fieldErrors.email} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="photo" className={cn(isArabic && "justify-end")}>
+                {t("formPhoto")}
+              </Label>
+              <Input
+                id="photo"
+                name="photo"
+                type="file"
+                accept="image/*"
+                onChange={(event) => updateForm("photo", event.target.files?.[0])}
+                className={inputClass}
+              />
+              <p className="text-xs text-muted-foreground">
+                {form.photo?.name ?? (member?.has_photo ? t("photoCurrent") : t("photoHint"))}
+              </p>
+              <FieldError messages={fieldErrors.photo} />
             </div>
 
             <div className="space-y-1.5">
@@ -659,6 +679,7 @@ function toMemberFormState(member?: Member | null): MemberFormState {
     name: member?.name ?? "",
     phone: member?.phone ?? "",
     email: member?.email ?? "",
+    photo: undefined,
     gender:
       member?.gender === "male" || member?.gender === "female"
         ? member.gender

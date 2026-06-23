@@ -11,7 +11,7 @@ import {
 } from "@/lib/api/dashboard";
 import { TeamFilterBar } from "@/components/teams/team-filter-bar";
 import { TeamPagination } from "@/components/teams/team-pagination";
-import { TeamTable } from "@/components/teams/team-table";
+import { TeamTableContainer } from "@/components/teams/team-table-container";
 import { TrainerPerformanceTable } from "@/components/trainers/trainer-performance-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -161,7 +161,7 @@ export default async function TrainersPage({
               {t("tableDescription", { count: meta.total })}
             </p>
           </div>
-          <TeamTable employees={trainers} namespace="TrainersPage" />
+          <TeamTableContainer employees={trainers} namespace="TrainersPage" />
           <TeamPagination currentPage={meta.current_page || 1} lastPage={meta.last_page || 1} />
         </Card>
 

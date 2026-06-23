@@ -30,7 +30,7 @@ export function ExpensesFilterBar() {
 
   function updateQueryParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("cursor");
+    params.delete("page");
 
     if (!value || value === "all") {
       params.delete(key);

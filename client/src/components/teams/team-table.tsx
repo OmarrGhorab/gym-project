@@ -1,21 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { Mail, MoreHorizontal, Phone } from "lucide-react";
+import { Edit3, Loader2, Mail, Phone, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { deleteEmployee } from "@/lib/actions/employees";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import type { Employee } from "@/lib/api/dashboard";
+import type { AppLocale } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 
 export function TeamTable({
   employees,
   namespace = "TeamsPage",
+  onEdit,
 }: {
   employees: Employee[];
   namespace?: "TeamsPage" | "TrainersPage";
+  onEdit?: (employee: Employee) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations(namespace);
@@ -109,19 +115,75 @@ export function TeamTable({
       {
         id: "actions",
         header: () => <span className={cn("block", isArabic ? "text-left" : "text-right")}>{t("tableActions")}</span>,
-        cell: () => (
-          <div className="flex justify-end">
-            <Button variant="ghost" size="icon-sm" disabled title={t("actionOpen")}>
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </div>
+        cell: ({ row }) => (
+          <TeamActions
+            employee={row.original}
+            namespace={namespace}
+            onEdit={onEdit}
+          />
         ),
       },
     ],
-    [dateLocale, isArabic, locale, t]
+    [dateLocale, isArabic, locale, namespace, onEdit, t]
   );
 
   return <DataTable columns={columns} data={employees} emptyMessage={t("empty")} isArabic={isArabic} />;
+}
+
+function TeamActions({
+  employee,
+  namespace,
+  onEdit,
+}: {
+  employee: Employee;
+  namespace: "TeamsPage" | "TrainersPage";
+  onEdit?: (employee: Employee) => void;
+}) {
+  const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations(namespace);
+  const [isPending, setIsPending] = React.useState(false);
+
+  async function handleDelete() {
+    const confirmed = window.confirm(t("deleteConfirm", { name: employee.name }));
+    if (!confirmed) return;
+
+    setIsPending(true);
+    try {
+      await deleteEmployee(employee.id, locale as AppLocale);
+      toast.success(t("employeeDeletedSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="flex justify-end gap-1.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        title={t("actionEdit")}
+        onClick={() => onEdit?.(employee)}
+        disabled={!onEdit || isPending}
+      >
+        <Edit3 className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        title={t("actionDelete")}
+        onClick={handleDelete}
+        disabled={isPending}
+      >
+        {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+      </Button>
+    </div>
+  );
 }
 
 function getInitials(name: string) {

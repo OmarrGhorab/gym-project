@@ -19,6 +19,9 @@ Route::prefix('products')->group(function (): void {
     Route::patch('/{product}/toggle', [ProductController::class, 'toggle'])
         ->middleware(['throttle:api', 'permission:products.update']);
 
+    Route::delete('/{product}', [ProductController::class, 'destroy'])
+        ->middleware(['throttle:api', 'permission:products.delete']);
+
     Route::post('/{product}/stock', [ProductController::class, 'adjustStock'])
         ->middleware(['throttle:api', 'permission:inventory.adjust']);
 

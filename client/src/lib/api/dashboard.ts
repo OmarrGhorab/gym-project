@@ -12,23 +12,12 @@ export type PaginationMeta = {
   per_page: number;
   total: number;
   last_page: number;
+  total_amount?: string;
 };
 
 export type Paginated<T> = {
   data: T[];
   meta: PaginationMeta;
-};
-
-export type CursorPaginationMeta = {
-  next_cursor?: string | null;
-  prev_cursor?: string | null;
-  per_page: number;
-  total_amount?: string;
-};
-
-export type CursorPaginated<T> = {
-  data: T[];
-  meta: CursorPaginationMeta;
 };
 
 export type DashboardSummary = {
@@ -91,6 +80,7 @@ export type Member = {
     end_date: string;
     status: string;
   } | null;
+  updated_at?: string;
 };
 
 export type Plan = {
@@ -203,7 +193,6 @@ export type ExportStatus = {
 
 export type Sale = {
   id: number;
-  idempotency_key?: string;
   member_id?: number | null;
   sold_by_user_id?: number | null;
   subtotal?: string;
@@ -529,11 +518,10 @@ export async function getPaymentDues(options: {
   page?: number;
 } = {}): Promise<Paginated<PaymentDue>> {
   const params = new URLSearchParams();
-  params.set("status", "due");
   if (options.page) params.set("page", String(options.page));
 
   const envelope = await fetchEnvelope<PaymentDue[]>(
-    `/payments?${params.toString()}`
+    `/payments/dues?${params.toString()}`
   );
 
   return {
@@ -543,14 +531,14 @@ export async function getPaymentDues(options: {
 }
 
 export async function getExpenses(options: {
-  cursor?: string;
+  page?: number;
   category?: string;
   startDate?: string;
   endDate?: string;
   sort?: "date" | "-date" | "amount" | "-amount" | "created_at" | "-created_at";
-} = {}): Promise<CursorPaginated<Expense>> {
+} = {}): Promise<Paginated<Expense>> {
   const params = new URLSearchParams();
-  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.page) params.set("page", String(options.page));
   if (options.category) params.set("filter[category]", options.category);
   if (options.startDate) params.set("filter[start_date]", options.startDate);
   if (options.endDate) params.set("filter[end_date]", options.endDate);
@@ -563,9 +551,10 @@ export async function getExpenses(options: {
   return {
     data: envelope.data,
     meta: {
-      next_cursor: String(envelope.meta?.next_cursor ?? "") || null,
-      prev_cursor: String(envelope.meta?.prev_cursor ?? "") || null,
-      per_page: toFiniteNumber(envelope.meta?.per_page, envelope.data.length),
+      current_page: Number(envelope.meta?.current_page) || 1,
+      per_page: Number(envelope.meta?.per_page) || envelope.data.length,
+      total: Number(envelope.meta?.total) || envelope.data.length,
+      last_page: Number(envelope.meta?.last_page) || 1,
       total_amount: String(envelope.meta?.total_amount ?? "0.00"),
     },
   };
@@ -840,6 +829,11 @@ export async function getMembers(options: {
 
 export async function getPlans(): Promise<Plan[]> {
   const envelope = await fetchEnvelope<Plan[]>("/plans?per_page=100");
+  return envelope.data;
+}
+
+export async function getPlan(id: number | string): Promise<Plan> {
+  const envelope = await fetchEnvelope<Plan>(`/plans/${id}`);
   return envelope.data;
 }
 

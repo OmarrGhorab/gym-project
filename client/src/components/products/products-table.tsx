@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Edit3, Loader2, PackagePlus, Power } from "lucide-react";
+import { Edit3, Loader2, PackagePlus, Power, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-import { toggleProduct } from "@/lib/actions/products";
+import { deleteProduct, toggleProduct } from "@/lib/actions/products";
 import type { Product } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,16 @@ export function ProductsTable({
           return (
             <div className={cn("flex items-center gap-3", isArabic && "flex-row-reverse text-right")}>
               <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-xs font-black text-primary">
-                {product.name.slice(0, 2).toUpperCase()}
+                {product.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={getProductImageSrc(product)}
+                    alt=""
+                    className="size-full rounded-lg object-cover"
+                  />
+                ) : (
+                  product.name.slice(0, 2).toUpperCase()
+                )}
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">{product.name}</p>
@@ -156,6 +165,22 @@ function ProductActions({
     }
   }
 
+  async function handleDelete() {
+    const confirmed = window.confirm(t("deleteConfirm", { name: product.name }));
+    if (!confirmed) return;
+
+    setIsPending(true);
+    try {
+      await deleteProduct(product.id, locale as AppLocale);
+      toast.success(t("productDeletedSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
   return (
     <div className="flex justify-end gap-1.5">
       <Button type="button" variant="ghost" size="icon-sm" title={t("actionEdit")} onClick={() => onEdit(product)}>
@@ -166,6 +191,9 @@ function ProductActions({
       </Button>
       <Button type="button" variant="ghost" size="icon-sm" title={product.is_active ? t("actionDisable") : t("actionEnable")} onClick={handleToggle} disabled={isPending}>
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Power className="size-3.5" />}
+      </Button>
+      <Button type="button" variant="ghost" size="icon-sm" title={t("actionDelete")} onClick={handleDelete} disabled={isPending}>
+        <Trash2 className="size-3.5" />
       </Button>
     </div>
   );
@@ -179,6 +207,11 @@ function formatCurrency(value: string | number, locale: string) {
     currency: "EGP",
     maximumFractionDigits: 0,
   });
+}
+
+function getProductImageSrc(product: Product) {
+  const version = product.updated_at ? `?v=${encodeURIComponent(product.updated_at)}` : "";
+  return `/api/media/products/${product.id}/image${version}`;
 }
 
 const activeClass = "border-emerald-500/20 bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400";

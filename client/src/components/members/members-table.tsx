@@ -43,11 +43,20 @@ export function MembersTable({
             >
               <div
                 className={cn(
-                  "flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-black text-white shadow-xs",
+                  "relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br text-xs font-black text-white shadow-xs",
                   gradient
                 )}
               >
-                {getInitials(member.name)}
+                {member.has_photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={getMemberPhotoSrc(member)}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  getInitials(member.name)
+                )}
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">{member.name}</p>
@@ -235,6 +244,11 @@ function getInitials(name: string) {
     .map((n) => n[0])
     .join("")
     .toUpperCase();
+}
+
+function getMemberPhotoSrc(member: Member) {
+  const version = member.updated_at ? `?v=${encodeURIComponent(member.updated_at)}` : "";
+  return `/api/media/members/${member.id}/photo${version}`;
 }
 
 const avatarGradients = [

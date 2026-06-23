@@ -49,11 +49,20 @@ export default async function MemberDetailPage({
           >
             <div
               className={cn(
-                "flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-2xl font-black text-white shadow-md",
+                "flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br text-2xl font-black text-white shadow-md",
                 gradient
               )}
             >
-              {getInitials(member.name)}
+              {member.has_photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getMemberPhotoSrc(member)}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : (
+                getInitials(member.name)
+              )}
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-2xl font-black tracking-tight">{member.name}</h1>
@@ -157,6 +166,11 @@ function getInitials(name: string) {
     .map((n) => n[0])
     .join("")
     .toUpperCase();
+}
+
+function getMemberPhotoSrc(member: { id: number; updated_at?: string }) {
+  const version = member.updated_at ? `?v=${encodeURIComponent(member.updated_at)}` : "";
+  return `/api/media/members/${member.id}/photo${version}`;
 }
 
 const avatarGradients = [

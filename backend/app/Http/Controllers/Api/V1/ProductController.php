@@ -107,6 +107,36 @@ class ProductController extends ApiController
     }
 
     /**
+     * DELETE /api/v1/products/{product}
+     */
+    public function destroy(Product $product): JsonResponse
+    {
+        $this->authorize('delete', $product);
+
+        if ($product->saleItems()->exists() || $product->inventoryMovements()->exists()) {
+            return $this->error(
+                'product_has_history',
+                'Product cannot be deleted while it has sales or inventory history.',
+                [],
+                409,
+            );
+        }
+
+        if ($product->image && Storage::disk('local')->exists($product->image)) {
+            Storage::disk('local')->delete($product->image);
+        }
+
+        $product->delete();
+
+        return $this->success(
+            null,
+            'Product deleted',
+            [],
+            200,
+        );
+    }
+
+    /**
      * POST /api/v1/products/{product}/stock
      */
     public function adjustStock(AdjustStockRequest $request, Product $product, AdjustStock $action): JsonResponse

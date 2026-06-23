@@ -16,6 +16,7 @@ export type MemberFormData = {
   join_date?: string;
   notes?: string;
   status?: "active" | "inactive";
+  photo?: File;
   subscription?: {
     plan_id: number;
     start_date: string;
@@ -49,11 +50,13 @@ async function membersFetch(path: string, options: RequestInit = {}) {
     throw new Error("Unauthorized");
   }
 
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
       Authorization: `Bearer ${token}`,
       ...(options.headers ?? {}),
     },
@@ -91,17 +94,21 @@ export async function createMember(
   data: MemberFormData,
   locale: AppLocale
 ): Promise<Member> {
+  const photo = data.photo;
+  const memberData = stripPhoto(data);
   const payload = await membersFetch("/members", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify(memberData),
   });
+  const member = payload.data as Member;
 
-  revalidatePath(`/${locale}/members`);
-  revalidatePath(`/${locale}/subscriptions`);
-  revalidateTag("members", "max");
-  revalidateTag("subscriptions", "max");
+  if (photo) {
+    await uploadMemberPhoto(member.id, photo, locale);
+  } else {
+    revalidateMembers(locale, member.id);
+  }
 
-  return payload.data as Member;
+  return member;
 }
 
 export async function getMemberForEdit(id: number): Promise<Member> {
@@ -117,17 +124,18 @@ export async function updateMember(
   data: MemberFormData,
   locale: AppLocale
 ): Promise<Member> {
+  const photo = data.photo;
+  const memberData = stripPhoto(data);
   const payload = await membersFetch(`/members/${id}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: JSON.stringify(memberData),
   });
 
-  revalidatePath(`/${locale}/members`);
-  revalidatePath(`/${locale}/members/${id}`);
-  revalidatePath(`/${locale}/subscriptions`);
-  revalidateTag("members", "max");
-  revalidateTag(`member-${id}`, "max");
-  revalidateTag("subscriptions", "max");
+  if (photo) {
+    await uploadMemberPhoto(id, photo, locale);
+  } else {
+    revalidateMembers(locale, id);
+  }
 
   return payload.data as Member;
 }
@@ -150,6 +158,24 @@ export async function deactivateMember(
   return payload.data as Member;
 }
 
+export async function uploadMemberPhoto(
+  id: number,
+  photo: File,
+  locale: AppLocale
+): Promise<Member> {
+  const formData = new FormData();
+  formData.set("photo", photo);
+
+  const payload = await membersFetch(`/members/${id}/photo`, {
+    method: "POST",
+    body: formData,
+  });
+
+  revalidateMembers(locale, id);
+
+  return payload.data as Member;
+}
+
 export async function stopSubscription(
   id: number,
   locale: AppLocale
@@ -164,4 +190,23 @@ export async function stopSubscription(
   revalidateTag("subscriptions", "max");
 
   return payload.data as Record<string, unknown>;
+}
+
+function stripPhoto(data: MemberFormData): Omit<MemberFormData, "photo"> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { photo, ...memberData } = data;
+  return memberData;
+}
+
+function revalidateMembers(locale: AppLocale, memberId?: number) {
+  revalidatePath(`/${locale}/members`);
+  if (memberId) {
+    revalidatePath(`/${locale}/members/${memberId}`);
+  }
+  revalidatePath(`/${locale}/subscriptions`);
+  revalidateTag("members", "max");
+  if (memberId) {
+    revalidateTag(`member-${memberId}`, "max");
+  }
+  revalidateTag("subscriptions", "max");
 }

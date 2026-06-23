@@ -4,7 +4,7 @@ import { BadgeDollarSign, BriefcaseBusiness, UserCheck, Users } from "lucide-rea
 import { getEmployees, type Employee, type Paginated } from "@/lib/api/dashboard";
 import { TeamFilterBar } from "@/components/teams/team-filter-bar";
 import { TeamPagination } from "@/components/teams/team-pagination";
-import { TeamTable } from "@/components/teams/team-table";
+import { TeamTableContainer } from "@/components/teams/team-table-container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -140,7 +140,7 @@ export default async function TeamsPage({
             {t("tableDescription", { count: meta.total })}
           </p>
         </div>
-        <TeamTable employees={employees} />
+        <TeamTableContainer employees={employees} />
         <TeamPagination currentPage={meta.current_page || 1} lastPage={meta.last_page || 1} />
       </Card>
     </div>
