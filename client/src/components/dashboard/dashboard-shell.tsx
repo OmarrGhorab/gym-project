@@ -20,6 +20,7 @@ const navItems: DashboardNavItem[] = [
       { href: "/subscriptions", icon: "CreditCard", labelKey: "subscriptions", roles: ["owner", "admin"] },
       { href: "/teams", icon: "Dumbbell", labelKey: "teams", roles: ["owner", "admin"] },
       { href: "/trainers", icon: "Users", labelKey: "trainers", roles: ["owner", "admin"] },
+      { href: "/attendance", icon: "CalendarCheck2", labelKey: "attendance", roles: ["owner", "admin"] },
       { href: "/products", icon: "Package", labelKey: "products", roles: ["owner", "admin", "staff"] },
       { href: "/pos", icon: "ShoppingCart", labelKey: "pos", roles: ["owner", "admin", "staff"] },
       { href: "/sales", icon: "ReceiptText", labelKey: "sales", roles: ["owner", "admin", "staff"] },

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Edit3, Loader2, Mail, Phone, Trash2 } from "lucide-react";
+import { BarChart3, Edit3, KeyRound, Loader2, Mail, Phone, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
@@ -12,16 +12,19 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import type { Employee } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
 export function TeamTable({
   employees,
   namespace = "TeamsPage",
   onEdit,
+  onAssignRoles,
 }: {
   employees: Employee[];
   namespace?: "TeamsPage" | "TrainersPage";
   onEdit?: (employee: Employee) => void;
+  onAssignRoles?: (employee: Employee) => void;
 }) {
   const locale = useLocale();
   const t = useTranslations(namespace);
@@ -120,11 +123,12 @@ export function TeamTable({
             employee={row.original}
             namespace={namespace}
             onEdit={onEdit}
+            onAssignRoles={onAssignRoles}
           />
         ),
       },
     ],
-    [dateLocale, isArabic, locale, namespace, onEdit, t]
+    [dateLocale, isArabic, locale, namespace, onAssignRoles, onEdit, t]
   );
 
   return <DataTable columns={columns} data={employees} emptyMessage={t("empty")} isArabic={isArabic} />;
@@ -134,10 +138,12 @@ function TeamActions({
   employee,
   namespace,
   onEdit,
+  onAssignRoles,
 }: {
   employee: Employee;
   namespace: "TeamsPage" | "TrainersPage";
   onEdit?: (employee: Employee) => void;
+  onAssignRoles?: (employee: Employee) => void;
 }) {
   const router = useRouter();
   const locale = useLocale();
@@ -171,6 +177,21 @@ function TeamActions({
         disabled={!onEdit || isPending}
       >
         <Edit3 className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        title={employee.user_id ? t("actionAssignRoles") : t("roleAssignmentRequiresUser")}
+        onClick={() => onAssignRoles?.(employee)}
+        disabled={!onAssignRoles || !employee.user_id || isPending}
+      >
+        <KeyRound className="size-3.5" />
+      </Button>
+      <Button asChild type="button" variant="ghost" size="icon-sm" title={t("actionPerformance")}>
+        <Link href={`/teams/${employee.id}`}>
+          <BarChart3 className="size-3.5" />
+        </Link>
       </Button>
       <Button
         type="button"

@@ -12,6 +12,11 @@ class UserSummaryResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'email' => $this->email,
+            'roles' => $this->when(
+                method_exists($this->resource, 'getRoleNames'),
+                fn () => $this->getRoleNames()->values()->all()
+            ),
         ];
     }
 }

@@ -57,6 +57,11 @@ class Employee extends Model
         return $this->hasMany(Payroll::class);
     }
 
+    public function attendance(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
     /**
      * Scope a query to only include active employees.
      */

@@ -4,12 +4,15 @@ import { BarChart3, ReceiptText, TrendingDown, TrendingUp } from "lucide-react";
 import { EmployeePerformanceReportTable } from "@/components/reports/employee-performance-report-table";
 import { FinancialReportTable } from "@/components/reports/financial-report-table";
 import { ReportsFilterBar } from "@/components/reports/reports-filter-bar";
+import { SalesPeriodReportTable } from "@/components/reports/sales-period-report-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getEmployeePerformance,
   getFinancialReport,
+  getSalesPeriodReport,
   type EmployeePerformance,
   type FinancialReport,
+  type SalesPeriodReport,
 } from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +27,7 @@ export default async function ReportsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ from?: string; to?: string; group_by?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; group_by?: string; seller_id?: string; product_id?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -34,6 +37,8 @@ export default async function ReportsPage({
   const from = normalizeDate(resolvedSearchParams.from) ?? monthStart();
   const to = normalizeDate(resolvedSearchParams.to) ?? today();
   const groupBy = resolvedSearchParams.group_by === "month" ? "month" : "day";
+  const sellerId = sanitizeInteger(resolvedSearchParams.seller_id);
+  const productId = sanitizeInteger(resolvedSearchParams.product_id);
 
   let financial: FinancialReport = {
     data: [],
@@ -45,12 +50,14 @@ export default async function ReportsPage({
     },
   };
   let employees: EmployeePerformance[] = [];
+  let salesReport: SalesPeriodReport = { data: [] };
   let fetchError: string | null = null;
 
   try {
-    [financial, employees] = await Promise.all([
+    [financial, employees, salesReport] = await Promise.all([
       getFinancialReport(from, to, groupBy),
       getEmployeePerformance({ from, to }),
+      getSalesPeriodReport({ from, to, groupBy: "transaction", sellerId, productId }),
     ]);
   } catch {
     fetchError = t("fetchError");
@@ -99,12 +106,23 @@ export default async function ReportsPage({
           <EmployeePerformanceReportTable rows={employees} />
         </Card>
       </div>
+      <Card className="overflow-hidden border shadow-xs">
+        <div className="border-b bg-muted/15 px-4 py-4">
+          <h2 className={cn("text-base font-black text-foreground", isArabic && "text-right")}>{t("salesReportTitle")}</h2>
+          <p className={cn("text-xs font-semibold text-muted-foreground", isArabic && "text-right")}>{t("salesReportDescription")}</p>
+        </div>
+        <SalesPeriodReportTable rows={salesReport.data} />
+      </Card>
     </div>
   );
 }
 
 function normalizeDate(value?: string) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
+function sanitizeInteger(value?: string) {
+  return value && /^[1-9]\d*$/.test(value) ? value : undefined;
 }
 
 function today() {

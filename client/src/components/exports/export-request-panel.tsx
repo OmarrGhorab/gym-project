@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { requestExport, type ExportRequestData } from "@/lib/actions/exports";
+import { getExportStatus, requestExport, type ExportRequestData } from "@/lib/actions/exports";
 import type { ExportStatus } from "@/lib/api/dashboard";
+import { cn } from "@/lib/utils";
 
 const resources = ["members", "subscriptions", "sales", "payments", "payroll", "reports"] as const;
 const formats = ["xlsx", "csv", "pdf"] as const;
@@ -25,13 +26,63 @@ export function ExportRequestPanel() {
   const [format, setFormat] = React.useState<ExportRequestData["format"]>("xlsx");
   const [isPending, setIsPending] = React.useState(false);
   const [result, setResult] = React.useState<ExportStatus | null>(null);
+  const [downloadUrl, setDownloadUrl] = React.useState<string | null>(null);
+  const [pollError, setPollError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!result || result.status !== "processing") return;
+
+    let attempts = 0;
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      attempts += 1;
+      try {
+        const status = await getExportStatus(result.export_id);
+        if (cancelled) return;
+
+        setResult((current) => ({
+          ...(current ?? status),
+          ...status,
+          download_url: status.download_url ?? current?.download_url,
+        }));
+
+        if (status.status === "ready") {
+          setDownloadUrl(status.download_url ?? result.download_url ?? null);
+          toast.success(t("exportReady"));
+          window.clearInterval(timer);
+        }
+
+        if (status.status === "failed") {
+          setPollError(t("exportFailed"));
+          window.clearInterval(timer);
+        }
+
+        if (attempts >= 30) {
+          setPollError(t("exportTimeout"));
+          window.clearInterval(timer);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setPollError(err instanceof Error ? err.message : t("exportError"));
+        window.clearInterval(timer);
+      }
+    }, 2500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [result, t]);
 
   async function handleExport() {
     setIsPending(true);
     setResult(null);
+    setDownloadUrl(null);
+    setPollError(null);
     try {
       const response = await requestExport({ resource, format });
       setResult(response);
+      setDownloadUrl(response.status === "ready" ? response.download_url ?? null : null);
       toast.success(response.status === "processing" ? t("exportQueued") : t("exportReady"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("exportError"));
@@ -80,9 +131,15 @@ export function ExportRequestPanel() {
           {isPending ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
           {t("requestButton")}
         </Button>
-        {result?.download_url && (
+        {result?.status === "processing" && (
+          <span className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground">
+            <RefreshCw className="size-4 animate-spin" />
+            {t("pollingStatus")}
+          </span>
+        )}
+        {downloadUrl && (
           <Button asChild type="button" variant="outline">
-            <a href={result.download_url} download={`${resource}.${format}`}>
+            <a href={downloadUrl} download={`${resource}.${format}`}>
               <Download className="size-4" />
               {t("downloadButton")}
             </a>
@@ -91,7 +148,7 @@ export function ExportRequestPanel() {
       </div>
 
       {result && (
-        <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+        <div className={cn("rounded-lg border bg-muted/20 p-3 text-sm", pollError && "border-destructive/30 bg-destructive/10")}>
           <p className="font-bold text-foreground">{t("resultTitle")}</p>
           <p className="mt-1 text-xs font-semibold text-muted-foreground">
             {t("resultDescription", {
@@ -99,6 +156,9 @@ export function ExportRequestPanel() {
               status: result.status,
             })}
           </p>
+          {pollError && (
+            <p className="mt-2 text-xs font-semibold text-destructive">{pollError}</p>
+          )}
         </div>
       )}
     </div>

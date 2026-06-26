@@ -23,6 +23,10 @@ final class CommissionController extends ApiController
             $query->where('month', $request->input('month'));
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
         $totalAmount = (string) $query->sum('amount');
 
         $commissions = $query->latest()

@@ -21,6 +21,7 @@ class EmployeeResource extends JsonResource
             'commission_rate' => number_format((float) $this->commission_rate, 4, '.', ''),
             'hire_date' => $this->hire_date?->toDateString(),
             'status' => $this->status,
+            'user_id' => $this->user_id,
             'user' => new UserSummaryResource($this->whenLoaded('user')),
             'commissions_summary' => $this->when(isset($this->commissions_summary), $this->commissions_summary),
             'performance_summary' => $this->when(isset($this->performance_summary), $this->performance_summary),

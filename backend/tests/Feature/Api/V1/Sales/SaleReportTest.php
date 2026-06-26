@@ -85,6 +85,29 @@ test('manager can run report grouped by cashier', function (): void {
     expect($response->json('data.data.0.units_sold'))->toBe(1);
 });
 
+test('period sales report accepts seller_id as cashier filter alias', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $seller = User::factory()->create(['name' => 'Seller Sara']);
+    $otherSeller = User::factory()->create();
+
+    $from = now()->subDays(5)->toDateString();
+    $to = now()->toDateString();
+
+    $sale = Sale::factory()->create(['status' => 'completed', 'total' => '80.00', 'sold_by_user_id' => $seller->id]);
+    $sale->items()->create(['product_id' => Product::factory()->create()->id, 'quantity' => 2, 'unit_price' => '40.00', 'total' => '80.00']);
+    $otherSale = Sale::factory()->create(['status' => 'completed', 'total' => '25.00', 'sold_by_user_id' => $otherSeller->id]);
+    $otherSale->items()->create(['product_id' => Product::factory()->create()->id, 'quantity' => 1, 'unit_price' => '25.00', 'total' => '25.00']);
+
+    $response = $this->getJson("/api/v1/sales/report?from={$from}&to={$to}&group_by=cashier&seller_id={$seller->id}")
+        ->assertStatus(200);
+
+    expect($response->json('data.data.0.cashier_name'))->toBe('Seller Sara');
+    expect($response->json('data.data.0.revenue'))->toBe('80.00');
+});
+
 test('manager can run report grouped by product', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_MANAGER);
@@ -104,4 +127,37 @@ test('manager can run report grouped by product', function (): void {
     expect($response->json('data.data.0.product_name'))->toBe('Energy Shake');
     expect($response->json('data.data.0.revenue'))->toBe('10.00');
     expect($response->json('data.data.0.units_sold'))->toBe(2);
+});
+
+test('manager can run transaction-level sales period report', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $seller = User::factory()->create(['name' => 'Seller Noor']);
+    $product = Product::factory()->create(['name' => 'Protein Bar', 'sku' => 'PB-1']);
+    $from = now()->subDays(5)->toDateString();
+    $to = now()->toDateString();
+
+    $sale = Sale::factory()->create([
+        'status' => 'completed',
+        'total' => '60.00',
+        'payment_method' => 'cash',
+        'sold_by_user_id' => $seller->id,
+        'created_at' => now(),
+    ]);
+    $sale->items()->create([
+        'product_id' => $product->id,
+        'quantity' => 3,
+        'unit_price' => '20.00',
+        'total' => '60.00',
+    ]);
+
+    $response = $this->getJson("/api/v1/sales/report?from={$from}&to={$to}&group_by=transaction&seller_id={$seller->id}&product_id={$product->id}")
+        ->assertStatus(200);
+
+    expect($response->json('data.data.0.sale_id'))->toBe($sale->id);
+    expect($response->json('data.data.0.product_name'))->toBe('Protein Bar');
+    expect($response->json('data.data.0.cashier_name'))->toBe('Seller Noor');
+    expect($response->json('data.data.0.line_total'))->toBe('60.00');
 });

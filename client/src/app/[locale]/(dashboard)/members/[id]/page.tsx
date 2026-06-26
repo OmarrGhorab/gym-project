@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ArrowLeft, Mail, Phone, Calendar, CreditCard, User } from "lucide-react";
-import { getMember } from "@/lib/api/dashboard";
+import { ArrowLeft, Mail, Phone, Calendar, CreditCard, User, WalletCards, ShoppingBag, DoorOpen } from "lucide-react";
+import { getMember, getMemberPaymentHistory, getMemberVisits } from "@/lib/api/dashboard";
+import type { MemberPaymentHistory, MemberVisit } from "@/lib/api/dashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +21,12 @@ export default async function MemberDetailPage({
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
 
-  const member = await getMember(Number(id));
+  const memberId = Number(id);
+  const [member, paymentHistory, visitsResult] = await Promise.all([
+    getMember(memberId),
+    getMemberPaymentHistory(memberId),
+    getMemberVisits({ memberId: String(memberId), sort: "-check_in_at" }).catch(() => null),
+  ]);
 
   if (!member) {
     notFound();
@@ -155,7 +162,206 @@ export default async function MemberDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {paymentHistory && (
+        <PaymentHistorySection
+          history={paymentHistory}
+          locale={locale}
+          isArabic={isArabic}
+          t={t}
+        />
+      )}
+
+      <VisitHistorySection
+        visits={visitsResult?.data ?? []}
+        locale={locale}
+        isArabic={isArabic}
+        t={t}
+      />
     </div>
+  );
+}
+
+function PaymentHistorySection({
+  history,
+  locale,
+  isArabic,
+  t,
+}: {
+  history: MemberPaymentHistory;
+  locale: string;
+  isArabic: boolean;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  const stats = [
+    {
+      label: t("paymentTotalPaid"),
+      value: formatCurrency(history.totals.total_paid, locale),
+      icon: WalletCards,
+    },
+    {
+      label: t("paymentSubscriptionPaid"),
+      value: formatCurrency(history.totals.subscription_paid, locale),
+      icon: CreditCard,
+    },
+    {
+      label: t("paymentProductPaid"),
+      value: formatCurrency(history.totals.product_paid, locale),
+      icon: ShoppingBag,
+    },
+    {
+      label: t("paymentOutstanding"),
+      value: formatCurrency(history.totals.outstanding_balance, locale),
+      icon: Calendar,
+    },
+  ];
+
+  return (
+    <section className="space-y-4">
+      <div className={cn(isArabic && "text-right")}>
+        <h2 className="text-xl font-black tracking-tight">{t("paymentHistoryTitle")}</h2>
+        <p className="text-sm font-semibold text-muted-foreground">{t("paymentHistoryDescription")}</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.label} className="rounded-lg shadow-sm">
+            <CardContent className="flex items-center justify-between gap-3 p-4">
+              <div className={cn(isArabic && "text-right")}>
+                <p className="text-xs font-bold text-muted-foreground">{stat.label}</p>
+                <p className="mt-1 text-xl font-black tabular-nums">{stat.value}</p>
+              </div>
+              <span className="grid size-8 place-items-center rounded-lg bg-primary/15 text-primary">
+                <stat.icon className="size-4" />
+              </span>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className={cn("text-base font-bold", isArabic && "text-right")}>
+              {t("subscriptionPaymentsTitle")}
+            </CardTitle>
+          </CardHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("historyDate")}</TableHead>
+                <TableHead>{t("historyPlan")}</TableHead>
+                <TableHead>{t("historyStatus")}</TableHead>
+                <TableHead>{t("historyAmount")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.subscription_payments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell>{formatDate(payment.paid_at ?? payment.due_date, locale)}</TableCell>
+                  <TableCell>{payment.plan_name ?? `#${payment.subscription_id}`}</TableCell>
+                  <TableCell>{payment.status}</TableCell>
+                  <TableCell>{formatCurrency(payment.amount, locale)}</TableCell>
+                </TableRow>
+              ))}
+              {history.subscription_payments.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-sm font-semibold text-muted-foreground">
+                    {t("emptySubscriptionPayments")}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className={cn("text-base font-bold", isArabic && "text-right")}>
+              {t("productPurchasesTitle")}
+            </CardTitle>
+          </CardHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("historyDate")}</TableHead>
+                <TableHead>{t("historyItems")}</TableHead>
+                <TableHead>{t("historyStatus")}</TableHead>
+                <TableHead>{t("historyAmount")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.product_purchases.map((purchase) => (
+                <TableRow key={purchase.id}>
+                  <TableCell>{formatDate(purchase.created_at, locale)}</TableCell>
+                  <TableCell>{purchase.items.map((item) => `${item.product_name ?? item.product_id} x${item.quantity}`).join(", ")}</TableCell>
+                  <TableCell>{purchase.status}</TableCell>
+                  <TableCell>{formatCurrency(purchase.total, locale)}</TableCell>
+                </TableRow>
+              ))}
+              {history.product_purchases.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-sm font-semibold text-muted-foreground">
+                    {t("emptyProductPurchases")}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
+function VisitHistorySection({
+  visits,
+  locale,
+  isArabic,
+  t,
+}: {
+  visits: MemberVisit[];
+  locale: string;
+  isArabic: boolean;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader>
+        <CardTitle className={cn("flex items-center gap-2 text-base font-bold", isArabic && "justify-end text-right")}>
+          <DoorOpen className="size-4 text-primary" />
+          {t("visitHistoryTitle")}
+        </CardTitle>
+      </CardHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("visitCheckIn")}</TableHead>
+            <TableHead>{t("visitCheckOut")}</TableHead>
+            <TableHead>{t("visitStatus")}</TableHead>
+            <TableHead>{t("visitAlert")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visits.map((visit) => (
+            <TableRow key={visit.id}>
+              <TableCell>{formatDateTime(visit.check_in_at, locale)}</TableCell>
+              <TableCell>{formatDateTime(visit.check_out_at, locale)}</TableCell>
+              <TableCell>
+                <Badge variant="outline" className={cn("rounded-md text-xs font-bold", visit.status === "blocked" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300")}>
+                  {visit.status === "blocked" ? t("visitBlocked") : t("visitAllowed")}
+                </Badge>
+              </TableCell>
+              <TableCell>{visit.alert_reason ?? "-"}</TableCell>
+            </TableRow>
+          ))}
+          {visits.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} className="text-center text-sm font-semibold text-muted-foreground">
+                {t("emptyVisits")}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </Card>
   );
 }
 
@@ -216,4 +422,34 @@ function getStatusLabel(statusValue: string, t: (key: string) => string) {
     default:
       return statusValue;
   }
+}
+
+function formatCurrency(value: string | number, locale: string) {
+  const amount = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(amount)) return "-";
+  return amount.toLocaleString(locale === "ar" ? "ar-EG" : "en-US", {
+    style: "currency",
+    currency: "EGP",
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatDate(value: string | null | undefined, locale: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString(locale === "ar" ? "ar-EG" : "en-US");
+}
+
+function formatDateTime(value: string | null | undefined, locale: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString(locale === "ar" ? "ar-EG" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

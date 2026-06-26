@@ -51,10 +51,70 @@ export async function requestExport(data: ExportRequestData): Promise<ExportStat
     throw new Error(payload.error?.message || payload.message || response.statusText);
   }
 
-  return payload.data ?? {
+  const status = payload.data ?? {
     export_id: `${data.resource}-${Date.now()}`,
     status: "ready",
     resource: data.resource,
     format: data.format,
   };
+
+  return {
+    ...status,
+    download_url: toExportProxyUrl(status.download_url),
+  };
+}
+
+export async function getExportStatus(exportId: string): Promise<ExportStatus> {
+  const token = await getAuthToken();
+
+  if (!token) {
+    throw new Error("Unauthorized");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/export/status/${exportId}`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    data?: ExportStatus;
+    message?: string;
+    error?: { message?: string };
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message || payload.message || response.statusText);
+  }
+
+  const status = payload.data ?? { export_id: exportId, status: "processing" };
+
+  return {
+    ...status,
+    download_url: toExportProxyUrl(status.download_url),
+  };
+}
+
+function toExportProxyUrl(downloadUrl?: string) {
+  if (!downloadUrl || downloadUrl.startsWith("data:")) {
+    return downloadUrl;
+  }
+
+  try {
+    const url = new URL(downloadUrl);
+    const match = url.pathname.match(/\/export\/download\/([^/]+)$/);
+
+    if (!match?.[1]) {
+      return downloadUrl;
+    }
+
+    return `/api/media/exports/${match[1]}/download${url.search}`;
+  } catch {
+    const match = downloadUrl.match(/\/export\/download\/([^?]+)(\?.*)?$/);
+    return match?.[1]
+      ? `/api/media/exports/${match[1]}/download${match[2] ?? ""}`
+      : downloadUrl;
+  }
 }

@@ -54,6 +54,7 @@ class RoleMatrixSeeder extends Seeder
             'commissions.view', 'commissions.backfill',
             'payroll.view', 'payroll.generate', 'payroll.pay',
             'expenses.view', 'expenses.create', 'expenses.update', 'expenses.delete',
+            'attendance.view', 'attendance.create', 'attendance.update', 'attendance.delete',
             'dashboard.view',
             'notifications.view',
             'audit.view',
@@ -77,6 +78,7 @@ class RoleMatrixSeeder extends Seeder
             'plans.view',
             'subscriptions.view',
             'commissions.view',
+            'attendance.view',
             'dashboard.view',
         ];
 
@@ -91,6 +93,7 @@ class RoleMatrixSeeder extends Seeder
             'commissions.view',
             'payroll.view',
             'expenses.view', 'expenses.create', 'expenses.update', 'expenses.delete',
+            'attendance.view',
             'dashboard.view',
             'audit.view',
         ];

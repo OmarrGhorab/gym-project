@@ -22,9 +22,10 @@ class PeriodSalesRequest extends FormRequest
         return [
             'from' => ['required', 'date_format:Y-m-d'],
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'group_by' => ['required', 'string', 'in:product,cashier,day'],
+            'group_by' => ['required', 'string', 'in:product,cashier,day,transaction'],
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
             'cashier_id' => ['nullable', 'integer', 'exists:users,id'],
+            'seller_id' => ['nullable', 'integer', 'exists:users,id'],
         ];
     }
 

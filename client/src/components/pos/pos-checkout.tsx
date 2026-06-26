@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Minus, Plus, ReceiptText, Search, ShoppingCart, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createSale } from "@/lib/actions/sales";
 import type { AppLocale } from "@/i18n/routing";
-import type { Product } from "@/lib/api/dashboard";
+import type { Product, Sale } from "@/lib/api/dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ export function PosCheckout({ products }: { products: Product[] }) {
   const [idempotencyKey, setIdempotencyKey] = React.useState(() => crypto.randomUUID());
   const [isPending, setIsPending] = React.useState(false);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string[]>>({});
+  const [lastSale, setLastSale] = React.useState<Sale | null>(null);
 
   const filteredProducts = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -117,7 +118,7 @@ export function PosCheckout({ products }: { products: Product[] }) {
 
     setIsPending(true);
     try {
-      await createSale(
+      const sale = await createSale(
         {
           idempotency_key: idempotencyKey,
           member_id: memberId.trim() ? Number(memberId) : undefined,
@@ -133,6 +134,7 @@ export function PosCheckout({ products }: { products: Product[] }) {
       );
 
       toast.success(t("saleCreatedSuccess"));
+      setLastSale(sale);
       setCart([]);
       setDiscount("0");
       setMemberId("");
@@ -302,6 +304,14 @@ export function PosCheckout({ products }: { products: Product[] }) {
           <Button type="button" className="w-full" size="lg" onClick={handleCheckout} disabled={isPending}>
             {isPending ? t("checkoutLoading") : t("checkout")}
           </Button>
+          {lastSale && (
+            <Button asChild type="button" variant="outline" className="w-full" size="lg">
+              <a href={`/api/media/sales/${lastSale.id}/receipt`} target="_blank" rel="noreferrer">
+                <ReceiptText className="size-4" />
+                {t("receiptButton")}
+              </a>
+            </Button>
+          )}
         </div>
       </aside>
     </div>

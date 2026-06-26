@@ -33,6 +33,14 @@ final class HrFinancePermissions
 
     public const PERM_EXPENSES_DELETE = 'expenses.delete';
 
+    public const PERM_ATTENDANCE_VIEW = 'attendance.view';
+
+    public const PERM_ATTENDANCE_CREATE = 'attendance.create';
+
+    public const PERM_ATTENDANCE_UPDATE = 'attendance.update';
+
+    public const PERM_ATTENDANCE_DELETE = 'attendance.delete';
+
     /** All Phase 3 HR and Finance permissions in seeding order. */
     public const ALL_PERMISSIONS = [
         self::PERM_EMPLOYEES_VIEW,
@@ -48,5 +56,9 @@ final class HrFinancePermissions
         self::PERM_EXPENSES_CREATE,
         self::PERM_EXPENSES_UPDATE,
         self::PERM_EXPENSES_DELETE,
+        self::PERM_ATTENDANCE_VIEW,
+        self::PERM_ATTENDANCE_CREATE,
+        self::PERM_ATTENDANCE_UPDATE,
+        self::PERM_ATTENDANCE_DELETE,
     ];
 }

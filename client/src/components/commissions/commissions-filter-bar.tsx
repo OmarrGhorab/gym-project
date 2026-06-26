@@ -7,6 +7,13 @@ import { usePathname as useNextPathname, useSearchParams } from "next/navigation
 import { useRouter } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export function CommissionsFilterBar() {
@@ -19,13 +26,14 @@ export function CommissionsFilterBar() {
   const pathname = rawPathname.replace(new RegExp(`^/${locale}`), "") || "/";
   const currentEmployeeId = searchParams.get("employee_id") ?? "";
   const currentMonth = searchParams.get("month") ?? "";
+  const currentStatus = searchParams.get("status") ?? "all";
   const [employeeId, setEmployeeId] = React.useState(currentEmployeeId);
   const deferredEmployeeId = React.useDeferredValue(employeeId);
 
   const updateQueryParam = React.useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
-    if (!value) params.delete(key);
+    if (!value || value === "all") params.delete(key);
     else params.set(key, value);
     router.replace(`${pathname}?${params.toString()}`);
   }, [pathname, router, searchParams]);
@@ -42,7 +50,7 @@ export function CommissionsFilterBar() {
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1">
           <Label className={cn("text-xs font-semibold text-muted-foreground", isArabic && "block text-right")}>
             {t("employeeFilterLabel")}
@@ -68,6 +76,21 @@ export function CommissionsFilterBar() {
             onChange={(event) => updateQueryParam("month", event.target.value)}
             className={cn("h-9 bg-card shadow-sm", isArabic && "text-right")}
           />
+        </div>
+        <div className="space-y-1">
+          <Label className={cn("text-xs font-semibold text-muted-foreground", isArabic && "block text-right")}>
+            {t("statusFilterLabel")}
+          </Label>
+          <Select value={currentStatus} onValueChange={(value) => updateQueryParam("status", value ?? "all")}>
+            <SelectTrigger className="h-9 min-w-36 bg-card text-xs font-semibold shadow-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align={isArabic ? "end" : "start"} alignItemWithTrigger={false}>
+              <SelectItem value="all">{t("filterAll")}</SelectItem>
+              <SelectItem value="pending">{t("statusPending")}</SelectItem>
+              <SelectItem value="paid">{t("statusPaid")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>

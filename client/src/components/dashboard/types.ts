@@ -11,6 +11,7 @@ export type DashboardUser = {
 export type DashboardNavIcon =
   | "BarChart3"
   | "Bell"
+  | "CalendarCheck2"
   | "ClipboardList"
   | "CreditCard"
   | "Download"
@@ -29,6 +30,7 @@ export type DashboardNavLink = {
   icon: DashboardNavIcon;
   labelKey:
     | "audit"
+    | "attendance"
     | "commissions"
     | "dashboard"
     | "expenses"

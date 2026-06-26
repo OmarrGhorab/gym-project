@@ -32,6 +32,7 @@ export default async function SalesPage({
     status?: string;
     payment_method?: string;
     member_id?: string;
+    seller_id?: string;
     sort?: string;
   }>;
 }) {
@@ -45,6 +46,7 @@ export default async function SalesPage({
   const status = normalizeStatus(resolvedSearchParams.status);
   const paymentMethod = normalizePaymentMethod(resolvedSearchParams.payment_method);
   const memberId = resolvedSearchParams.member_id || undefined;
+  const soldByUserId = sanitizeInteger(resolvedSearchParams.seller_id);
   const sort = normalizeSort(resolvedSearchParams.sort);
   const dateLabel = new Date().toLocaleDateString(dateLocale, {
     weekday: "long",
@@ -64,8 +66,8 @@ export default async function SalesPage({
 
   try {
     const [result, statsResult] = await Promise.all([
-      getSales({ page, status, paymentMethod, memberId, sort }),
-      getAllSales({ status, paymentMethod, memberId, sort }),
+      getSales({ page, status, paymentMethod, memberId, soldByUserId, sort }),
+      getAllSales({ status, paymentMethod, memberId, soldByUserId, sort }),
     ]);
     sales = result.data;
     statsSales = statsResult;
@@ -199,6 +201,10 @@ function normalizeStatus(value?: string) {
 
 function normalizePaymentMethod(value?: string) {
   return value === "cash" || value === "card" || value === "bank_transfer" ? value : undefined;
+}
+
+function sanitizeInteger(value?: string) {
+  return value && /^[1-9]\d*$/.test(value) ? value : undefined;
 }
 
 function normalizeSort(value?: string) {

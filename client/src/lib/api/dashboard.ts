@@ -144,6 +144,34 @@ export type Expense = {
   created_at?: string | null;
 };
 
+export type Attendance = {
+  id: number;
+  employee_id: number;
+  employee?: {
+    id: number;
+    name?: string | null;
+    role?: string | null;
+  } | null;
+  date: string;
+  check_in?: string | null;
+  check_out?: string | null;
+  status: "present" | "absent" | "late" | "excused" | string;
+  notes?: string | null;
+  created_at?: string | null;
+};
+
+export type AttendanceSummary = {
+  employee_id: number;
+  name: string;
+  role?: string | null;
+  month: string;
+  records_count: number;
+  present_count: number;
+  late_count: number;
+  absent_count: number;
+  excused_count: number;
+};
+
 export type Payroll = {
   id: number;
   employee: {
@@ -229,11 +257,13 @@ export type DailySalesReport = {
 export type UserSummary = {
   id: number;
   name: string;
-  email: string;
+  email?: string;
+  roles?: string[];
 };
 
 export type Employee = {
   id: number;
+  user_id?: number | null;
   name: string;
   phone?: string;
   role: string;
@@ -250,8 +280,115 @@ export type EmployeePerformance = {
   name: string;
   role: string;
   sales_count: number;
+  sales_volume?: string;
   subscriptions_count: number;
+  attendance_count?: number;
   commissions_earned: string;
+  previous_sales_count?: number;
+  previous_sales_volume?: string;
+  previous_subscriptions_count?: number;
+  previous_commissions_earned?: string;
+  comparison?: {
+    sales_count_delta: number;
+    subscriptions_count_delta: number;
+    commissions_delta: string;
+    sales_volume_delta: string;
+  };
+};
+
+export type SalesPeriodReportRow = {
+  date?: string;
+  sale_id?: number;
+  created_at?: string;
+  member_id?: number | null;
+  member_name?: string | null;
+  product_id?: number;
+  product_name?: string;
+  product_sku?: string;
+  sold_by_user_id?: number;
+  cashier_name?: string;
+  quantity?: number;
+  unit_price?: string;
+  line_total?: string;
+  sale_total?: string;
+  payment_method?: string;
+  revenue?: string;
+  sales_count?: number;
+  units_sold?: number;
+};
+
+export type SalesPeriodReport = {
+  data: SalesPeriodReportRow[];
+  meta?: {
+    next_cursor?: string | null;
+    prev_cursor?: string | null;
+    path?: string;
+    per_page?: number;
+  };
+};
+
+export type MemberPaymentHistory = {
+  member: {
+    id: number;
+    name: string;
+    phone?: string | null;
+  };
+  totals: {
+    subscription_total: string;
+    subscription_paid: string;
+    product_paid: string;
+    total_paid: string;
+    outstanding_balance: string;
+  };
+  subscription_payments: {
+    id: number;
+    subscription_id: number;
+    plan_name?: string | null;
+    amount: string;
+    method: string;
+    status: string;
+    paid_at?: string | null;
+    due_date?: string | null;
+  }[];
+  product_purchases: {
+    id: number;
+    total: string;
+    payment_method: string;
+    status: string;
+    sold_by?: string | null;
+    created_at?: string | null;
+    items: {
+      product_id: number;
+      product_name?: string | null;
+      quantity: number;
+      unit_price: string;
+      total: string;
+    }[];
+  }[];
+};
+
+export type MemberVisit = {
+  id: number;
+  member_id: number;
+  member?: {
+    id: number;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  subscription_id?: number | null;
+  subscription?: {
+    id?: number | null;
+    plan_name?: string | null;
+    status?: string | null;
+    end_date?: string | null;
+  } | null;
+  check_in_at: string;
+  check_out_at?: string | null;
+  status: "allowed" | "blocked" | string;
+  alert_reason?: string | null;
+  notes?: string | null;
+  creator?: UserSummary | null;
+  created_at?: string | null;
 };
 
 export type Product = {
@@ -560,6 +697,45 @@ export async function getExpenses(options: {
   };
 }
 
+export async function getAttendance(options: {
+  page?: number;
+  employeeId?: string;
+  status?: string;
+  date?: string;
+  from?: string;
+  to?: string;
+  sort?: "date" | "-date" | "check_in" | "-check_in" | "created_at" | "-created_at";
+} = {}): Promise<Paginated<Attendance>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.employeeId) params.set("filter[employee_id]", options.employeeId);
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.date) params.set("filter[date]", options.date);
+  if (options.from) params.set("filter[from]", options.from);
+  if (options.to) params.set("filter[to]", options.to);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<Attendance[]>(
+    `/attendance?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getAttendanceSummary(options: {
+  month?: string;
+  employeeId?: string;
+} = {}): Promise<AttendanceSummary[]> {
+  const params = new URLSearchParams();
+  if (options.month) params.set("month", options.month);
+  if (options.employeeId) params.set("employee_id", options.employeeId);
+
+  return api<AttendanceSummary[]>(`/attendance/summary?${params.toString()}`);
+}
+
 export async function getPayroll(options: {
   page?: number;
   month?: string;
@@ -586,10 +762,12 @@ export async function getCommissions(options: {
   employeeId: string;
   page?: number;
   month?: string;
+  status?: string;
 }): Promise<Paginated<Commission> & { total_amount: string }> {
   const params = new URLSearchParams();
   if (options.page) params.set("page", String(options.page));
   if (options.month) params.set("month", options.month);
+  if (options.status) params.set("status", options.status);
 
   const envelope = await fetchEnvelope<Commission[]>(
     `/employees/${options.employeeId}/commissions?${params.toString()}`
@@ -599,6 +777,73 @@ export async function getCommissions(options: {
     data: envelope.data,
     meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
     total_amount: String(envelope.meta?.total_amount ?? "0.00"),
+  };
+}
+
+export async function getSalesPeriodReport(options: {
+  from: string;
+  to: string;
+  groupBy?: "day" | "product" | "cashier" | "transaction";
+  sellerId?: string;
+  productId?: string;
+}): Promise<SalesPeriodReport> {
+  const params = new URLSearchParams({
+    from: options.from,
+    to: options.to,
+    group_by: options.groupBy ?? "day",
+  });
+  if (options.sellerId) params.set("seller_id", options.sellerId);
+  if (options.productId) params.set("product_id", options.productId);
+
+  const envelope = await fetchEnvelope<SalesPeriodReportRow[] | SalesPeriodReport>(
+    `/sales/report?${params.toString()}`
+  );
+  const reportData = Array.isArray(envelope.data)
+    ? envelope.data
+    : envelope.data.data;
+  const reportMeta = Array.isArray(envelope.data)
+    ? envelope.meta
+    : envelope.data.meta ?? envelope.meta;
+
+  return {
+    data: reportData,
+    meta: reportMeta as SalesPeriodReport["meta"],
+  };
+}
+
+export async function getMemberPaymentHistory(
+  memberId: number
+): Promise<MemberPaymentHistory | null> {
+  try {
+    return api<MemberPaymentHistory>(`/members/${memberId}/payment-history`);
+  } catch {
+    return null;
+  }
+}
+
+export async function getMemberVisits(options: {
+  page?: number;
+  memberId?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  sort?: "check_in_at" | "-check_in_at" | "created_at" | "-created_at";
+} = {}): Promise<Paginated<MemberVisit>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.memberId) params.set("filter[member_id]", options.memberId);
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.from) params.set("filter[from]", options.from);
+  if (options.to) params.set("filter[to]", options.to);
+  if (options.sort) params.set("sort", options.sort);
+
+  const envelope = await fetchEnvelope<MemberVisit[]>(
+    `/member-visits?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
 }
 
@@ -617,6 +862,7 @@ export async function getSales(options: {
   status?: string;
   paymentMethod?: string;
   memberId?: string;
+  soldByUserId?: string;
   sort?: "created_at" | "-created_at" | "total" | "-total" | "subtotal" | "-subtotal";
 } = {}): Promise<Paginated<Sale>> {
   const params = new URLSearchParams();
@@ -624,6 +870,7 @@ export async function getSales(options: {
   if (options.status) params.set("filter[status]", options.status);
   if (options.paymentMethod) params.set("filter[payment_method]", options.paymentMethod);
   if (options.memberId) params.set("filter[member_id]", options.memberId);
+  if (options.soldByUserId) params.set("filter[sold_by_user_id]", options.soldByUserId);
   if (options.sort) params.set("sort", options.sort);
 
   const envelope = await fetchEnvelope<Sale[]>(
@@ -789,6 +1036,17 @@ export async function getEmployees(options: {
   };
 }
 
+export async function getEmployee(id: number | string): Promise<Employee | null> {
+  try {
+    const envelope = await fetchEnvelope<Employee>(`/employees/${id}`, {
+      cache: "no-store",
+    });
+    return envelope.data;
+  } catch {
+    return null;
+  }
+}
+
 export async function getEmployeePerformance(options: {
   from?: string;
   to?: string;
@@ -802,6 +1060,26 @@ export async function getEmployeePerformance(options: {
   );
 
   return envelope.data;
+}
+
+export async function getSingleEmployeePerformance(
+  employeeId: number | string,
+  options: {
+    from?: string;
+    to?: string;
+  } = {}
+): Promise<EmployeePerformance | null> {
+  const params = new URLSearchParams();
+  if (options.from) params.set("from", options.from);
+  if (options.to) params.set("to", options.to);
+
+  try {
+    return api<EmployeePerformance>(
+      `/employees/${employeeId}/performance?${params.toString()}`
+    );
+  } catch {
+    return null;
+  }
 }
 
 export async function getMembers(options: {
@@ -825,6 +1103,18 @@ export async function getMembers(options: {
     data: envelope.data,
     meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
   };
+}
+
+export async function getAllMembers(options: Omit<Parameters<typeof getMembers>[0], "page"> = {}): Promise<Member[]> {
+  const firstPage = await getMembers({ ...options, page: 1 });
+  const members = [...firstPage.data];
+
+  for (let page = 2; page <= firstPage.meta.last_page; page++) {
+    const result = await getMembers({ ...options, page });
+    members.push(...result.data);
+  }
+
+  return members;
 }
 
 export async function getPlans(): Promise<Plan[]> {

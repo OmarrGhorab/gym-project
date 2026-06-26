@@ -22,6 +22,19 @@ export type FreezeSubscriptionData = {
   reason?: string;
 };
 
+export type CreateSubscriptionData = {
+  member_id: number;
+  plan_id: number;
+  start_date: string;
+  end_date?: string | null;
+  discount?: string | null;
+  payment: {
+    amount: string;
+    method: "cash" | "card" | "bank_transfer";
+    paid_at?: string | null;
+  };
+};
+
 async function subscriptionsFetch(path: string, options: RequestInit = {}) {
   const token = await getAuthToken();
 
@@ -71,6 +84,22 @@ export async function renewSubscription(
   });
 
   revalidateSubscriptions(locale);
+
+  return payload.data as Subscription;
+}
+
+export async function createSubscription(
+  data: CreateSubscriptionData,
+  locale: AppLocale
+): Promise<Subscription> {
+  const payload = await subscriptionsFetch("/subscriptions", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  revalidateSubscriptions(locale);
+  revalidatePath(`/${locale}`);
+  revalidateTag("dashboard", "max");
 
   return payload.data as Subscription;
 }

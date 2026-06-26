@@ -116,9 +116,19 @@ export async function togglePlan(
   return payload.data as Plan;
 }
 
+export async function deletePlan(id: number, locale: AppLocale): Promise<void> {
+  await plansFetch(`/plans/${id}`, {
+    method: "DELETE",
+  });
+
+  revalidatePlans(locale);
+}
+
 function revalidatePlans(locale: AppLocale) {
   revalidatePath(`/${locale}/plans`);
   revalidatePath(`/${locale}/members`);
+  revalidatePath(`/${locale}/subscriptions`);
   revalidateTag("plans", "max");
   revalidateTag("members", "max");
+  revalidateTag("subscriptions", "max");
 }

@@ -36,20 +36,50 @@ export function EmployeePerformanceReportTable({ rows }: { rows: EmployeePerform
         cell: ({ row }) => <Count value={row.original.sales_count} locale={locale} />,
       },
       {
+        accessorKey: "sales_volume",
+        header: t("tableSalesVolume"),
+        cell: ({ row }) => <Money value={row.original.sales_volume ?? "0.00"} locale={locale} />,
+      },
+      {
         accessorKey: "subscriptions_count",
         header: t("tableSubscriptions"),
         cell: ({ row }) => <Count value={row.original.subscriptions_count} locale={locale} />,
+      },
+      {
+        accessorKey: "attendance_count",
+        header: t("tableAttendance"),
+        cell: ({ row }) => <Count value={row.original.attendance_count ?? 0} locale={locale} />,
       },
       {
         accessorKey: "commissions_earned",
         header: t("tableCommissions"),
         cell: ({ row }) => <Money value={row.original.commissions_earned} locale={locale} />,
       },
+      {
+        accessorKey: "comparison",
+        header: t("tableComparison"),
+        cell: ({ row }) => (
+          <span className={cn("text-xs font-black tabular-nums", Number(row.original.comparison?.sales_volume_delta ?? 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+            {formatDelta(row.original.comparison?.sales_volume_delta ?? "0.00", locale)}
+          </span>
+        ),
+      },
     ],
     [isArabic, locale, t]
   );
 
   return <DataTable columns={columns} data={rows} emptyMessage={t("emptyEmployees")} isArabic={isArabic} />;
+}
+
+function formatDelta(value: string, locale: string) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "-";
+  const formatted = amount.toLocaleString(locale === "ar" ? "ar-EG" : "en-US", {
+    style: "currency",
+    currency: "EGP",
+    maximumFractionDigits: 0,
+  });
+  return amount > 0 ? `+${formatted}` : formatted;
 }
 
 function Count({ value, locale }: { value: number; locale: string }) {

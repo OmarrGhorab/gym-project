@@ -4,6 +4,7 @@ import Image from "next/image";
 import {
   BarChart3,
   Bell,
+  CalendarCheck2,
   ClipboardList,
   CreditCard,
   Download,
@@ -25,6 +26,7 @@ import type { DashboardNavItem, DashboardRole } from "@/components/dashboard/typ
 const icons = {
   BarChart3,
   Bell,
+  CalendarCheck2,
   ClipboardList,
   CreditCard,
   Download,

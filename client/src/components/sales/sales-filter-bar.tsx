@@ -29,8 +29,11 @@ export function SalesFilterBar() {
   const currentPayment = searchParams.get("payment_method") ?? "all";
   const currentSort = searchParams.get("sort") ?? "-created_at";
   const currentMemberId = searchParams.get("member_id") ?? "";
+  const currentSellerId = searchParams.get("seller_id") ?? "";
   const [memberId, setMemberId] = React.useState(currentMemberId);
+  const [sellerId, setSellerId] = React.useState(currentSellerId);
   const deferredMemberId = React.useDeferredValue(memberId);
+  const deferredSellerId = React.useDeferredValue(sellerId);
 
   const updateQueryParam = React.useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -55,18 +58,30 @@ export function SalesFilterBar() {
     return () => clearTimeout(timer);
   }, [currentMemberId, deferredMemberId, updateQueryParam]);
 
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (deferredSellerId !== currentSellerId) {
+        updateQueryParam("seller_id", deferredSellerId.trim());
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [currentSellerId, deferredSellerId, updateQueryParam]);
+
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div className="relative max-w-sm flex-1">
-        <div className={cn("pointer-events-none absolute inset-y-0 flex items-center text-muted-foreground", isArabic ? "right-3" : "left-3")}>
-          <Search className="size-4" />
-        </div>
-        <Input
-          inputMode="numeric"
-          placeholder={t("memberFilterPlaceholder")}
+      <div className="grid max-w-xl flex-1 gap-3 sm:grid-cols-2">
+        <SearchInput
           value={memberId}
-          onChange={(event) => setMemberId(event.target.value)}
-          className={cn("h-9 bg-card shadow-sm", isArabic ? "pr-9 text-right" : "pl-9 text-left")}
+          placeholder={t("memberFilterPlaceholder")}
+          isArabic={isArabic}
+          onChange={setMemberId}
+        />
+        <SearchInput
+          value={sellerId}
+          placeholder={t("sellerFilterPlaceholder")}
+          isArabic={isArabic}
+          onChange={setSellerId}
         />
       </div>
 
@@ -107,6 +122,33 @@ export function SalesFilterBar() {
           ]}
         />
       </div>
+    </div>
+  );
+}
+
+function SearchInput({
+  value,
+  placeholder,
+  isArabic,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  isArabic: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <div className={cn("pointer-events-none absolute inset-y-0 flex items-center text-muted-foreground", isArabic ? "right-3" : "left-3")}>
+        <Search className="size-4" />
+      </div>
+      <Input
+        inputMode="numeric"
+        placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={cn("h-9 bg-card shadow-sm", isArabic ? "pr-9 text-right" : "pl-9 text-left")}
+      />
     </div>
   );
 }

@@ -92,6 +92,7 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/plans.php';
         require __DIR__.'/api/subscriptions.php';
         require __DIR__.'/api/payments.php';
+        require __DIR__.'/api/member-visits.php';
         require __DIR__.'/api/notifications.php';
         require __DIR__.'/api/dashboard.php';
         require __DIR__.'/api/products.php';
@@ -100,6 +101,7 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/commissions.php';
         require __DIR__.'/api/payroll.php';
         require __DIR__.'/api/expenses.php';
+        require __DIR__.'/api/attendance.php';
         require __DIR__.'/api/reports.php';
         require __DIR__.'/api/roles.php';
         require __DIR__.'/api/settings.php';

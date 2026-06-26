@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Ban, Loader2 } from "lucide-react";
+import { Ban, Loader2, ReceiptText } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -154,6 +154,11 @@ function SaleActions({ sale }: { sale: Sale }) {
 
   return (
     <div className="flex justify-end gap-1.5">
+      <Button asChild type="button" variant="ghost" size="icon-sm" title={t("actionReceipt")}>
+        <a href={`/api/media/sales/${sale.id}/receipt`} target="_blank" rel="noreferrer">
+          <ReceiptText className="size-3.5" />
+        </a>
+      </Button>
       <Button type="button" variant="ghost" size="icon-sm" title={t("actionVoid")} onClick={handleVoid} disabled={isPending || isVoided}>
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
       </Button>

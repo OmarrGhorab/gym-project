@@ -9,14 +9,18 @@ import {
 } from "lucide-react";
 import {
   getDashboardSummary,
+  getAllMembers,
+  getAllPlans,
   getAllSubscriptions,
   getSubscriptions,
+  type Member,
   type Paginated,
+  type Plan,
   type Subscription,
 } from "@/lib/api/dashboard";
 import { SubscriptionsFilterBar } from "@/components/subscriptions/subscriptions-filter-bar";
 import { SubscriptionsPagination } from "@/components/subscriptions/subscriptions-pagination";
-import { SubscriptionsTable } from "@/components/subscriptions/subscriptions-table";
+import { SubscriptionsTableContainer } from "@/components/subscriptions/subscriptions-table-container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +68,8 @@ export default async function SubscriptionsPage({
 
   let subscriptions: Subscription[] = [];
   let statsSubscriptions: Subscription[] = [];
+  let members: Member[] = [];
+  let plans: Plan[] = [];
   let meta: Paginated<Subscription>["meta"] = {
     current_page: 1,
     per_page: 15,
@@ -74,14 +80,18 @@ export default async function SubscriptionsPage({
   let fetchError: string | null = null;
 
   try {
-    const [subscriptionsResult, statsResult, summaryResult] = await Promise.all([
+    const [subscriptionsResult, statsResult, summaryResult, membersResult, plansResult] = await Promise.all([
       getSubscriptions({ page, status, memberId, sort }),
       getAllSubscriptions({ status, memberId, sort }),
       getDashboardSummary().catch(() => null),
+      getAllMembers({ status: "active" }).catch(() => []),
+      getAllPlans({ isActive: "1" }).catch(() => []),
     ]);
 
     subscriptions = subscriptionsResult.data;
     statsSubscriptions = statsResult;
+    members = membersResult;
+    plans = plansResult;
     meta = subscriptionsResult.meta;
     activeTotal = summaryResult?.active_subscriptions ?? countByStatus(statsSubscriptions, "active");
   } catch {
@@ -206,7 +216,7 @@ export default async function SubscriptionsPage({
             {t("backendShape")}
           </div>
         </div>
-        <SubscriptionsTable subscriptions={subscriptions} />
+        <SubscriptionsTableContainer subscriptions={subscriptions} members={members} plans={plans} />
         <SubscriptionsPagination
           currentPage={meta.current_page || 1}
           lastPage={meta.last_page || 1}

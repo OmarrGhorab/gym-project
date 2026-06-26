@@ -178,4 +178,85 @@ final class MemberController extends ApiController
             ],
         );
     }
+
+    public function paymentHistory(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('view', $member);
+
+        $subscriptions = Subscription::query()
+            ->with(['plan', 'payments'])
+            ->where('member_id', $member->id)
+            ->latest()
+            ->get();
+
+        $sales = Sale::query()
+            ->with(['items.product', 'payment', 'soldBy'])
+            ->where('member_id', $member->id)
+            ->latest()
+            ->get();
+
+        $subscriptionPayments = $subscriptions
+            ->flatMap(fn (Subscription $subscription) => $subscription->payments->map(fn (Payment $payment) => [
+                'id' => $payment->id,
+                'subscription_id' => $subscription->id,
+                'plan_name' => $subscription->plan?->name,
+                'amount' => number_format((float) $payment->amount, 2, '.', ''),
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+                'due_date' => $payment->due_date?->toDateString(),
+            ]))
+            ->values();
+
+        $productPurchases = $sales->map(fn (Sale $sale) => [
+            'id' => $sale->id,
+            'total' => number_format((float) $sale->total, 2, '.', ''),
+            'payment_method' => $sale->payment_method,
+            'status' => $sale->status,
+            'sold_by' => $sale->soldBy?->name,
+            'created_at' => $sale->created_at?->toIso8601String(),
+            'items' => $sale->items->map(fn ($item) => [
+                'product_id' => $item->product_id,
+                'product_name' => $item->product?->name,
+                'quantity' => (int) $item->quantity,
+                'unit_price' => number_format((float) $item->unit_price, 2, '.', ''),
+                'total' => number_format((float) $item->total, 2, '.', ''),
+            ])->values(),
+        ])->values();
+
+        $subscriptionTotal = $subscriptions->reduce(
+            fn (string $carry, Subscription $subscription) => bcadd($carry, (string) $subscription->price_paid, 2),
+            '0.00'
+        );
+        $subscriptionPaid = $subscriptionPayments->reduce(
+            fn (string $carry, array $payment) => $payment['status'] === 'paid' || $payment['status'] === 'partial'
+                ? bcadd($carry, $payment['amount'], 2)
+                : $carry,
+            '0.00'
+        );
+        $productPaid = $sales->reduce(
+            fn (string $carry, Sale $sale) => $sale->status === 'completed' ? bcadd($carry, (string) $sale->total, 2) : $carry,
+            '0.00'
+        );
+
+        return $this->success(
+            data: [
+                'member' => [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'phone' => $member->phone,
+                ],
+                'totals' => [
+                    'subscription_total' => number_format((float) $subscriptionTotal, 2, '.', ''),
+                    'subscription_paid' => number_format((float) $subscriptionPaid, 2, '.', ''),
+                    'product_paid' => number_format((float) $productPaid, 2, '.', ''),
+                    'total_paid' => number_format((float) bcadd($subscriptionPaid, $productPaid, 2), 2, '.', ''),
+                    'outstanding_balance' => number_format((float) max(0, (float) bcsub($subscriptionTotal, $subscriptionPaid, 2)), 2, '.', ''),
+                ],
+                'subscription_payments' => $subscriptionPayments,
+                'product_purchases' => $productPurchases,
+            ],
+            message: 'Member payment history retrieved'
+        );
+    }
 }

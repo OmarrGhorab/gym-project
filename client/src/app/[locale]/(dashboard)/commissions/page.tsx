@@ -20,7 +20,7 @@ export default async function CommissionsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ page?: string; employee_id?: string; month?: string }>;
+  searchParams: Promise<{ page?: string; employee_id?: string; month?: string; status?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -31,6 +31,7 @@ export default async function CommissionsPage({
   const page = Number(resolvedSearchParams.page) || 1;
   const employeeId = normalizeEmployeeId(resolvedSearchParams.employee_id);
   const month = normalizeMonth(resolvedSearchParams.month);
+  const status = normalizeStatus(resolvedSearchParams.status);
 
   let commissions: Commission[] = [];
   let meta: Paginated<Commission>["meta"] = { current_page: 1, per_page: 15, total: 0, last_page: 1 };
@@ -39,7 +40,7 @@ export default async function CommissionsPage({
 
   if (employeeId) {
     try {
-      const result = await getCommissions({ employeeId, page, month });
+      const result = await getCommissions({ employeeId, page, month, status });
       commissions = result.data;
       meta = result.meta;
       totalAmount = result.total_amount;
@@ -108,6 +109,10 @@ function normalizeEmployeeId(value?: string) {
 
 function normalizeMonth(value?: string) {
   return value && /^\d{4}-\d{2}$/.test(value) ? value : undefined;
+}
+
+function normalizeStatus(value?: string) {
+  return value === "paid" || value === "pending" ? value : undefined;
 }
 
 function formatCurrency(value: string | number, locale: string) {

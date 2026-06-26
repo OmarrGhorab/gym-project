@@ -1,0 +1,90 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Actions\MemberVisits\StoreMemberVisit;
+use App\Actions\MemberVisits\UpdateMemberVisit;
+use App\Http\Requests\MemberVisits\StoreMemberVisitRequest;
+use App\Http\Requests\MemberVisits\UpdateMemberVisitRequest;
+use App\Http\Resources\MemberVisitResource;
+use App\Models\MemberVisit;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
+
+final class MemberVisitController extends ApiController
+{
+    public function index(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', MemberVisit::class);
+
+        $visits = QueryBuilder::for(MemberVisit::class)
+            ->with(['member.latestSubscription.plan', 'subscription.plan', 'creator'])
+            ->allowedFilters(
+                AllowedFilter::exact('member_id'),
+                AllowedFilter::exact('status'),
+                AllowedFilter::callback('from', function ($query, $value): void {
+                    $query->where('check_in_at', '>=', $value.' 00:00:00');
+                }),
+                AllowedFilter::callback('to', function ($query, $value): void {
+                    $query->where('check_in_at', '<=', $value.' 23:59:59');
+                })
+            )
+            ->allowedSorts('check_in_at', 'created_at')
+            ->defaultSort('-check_in_at')
+            ->paginate(15)
+            ->withQueryString();
+
+        return $this->success(
+            data: MemberVisitResource::collection($visits->getCollection())->resolve(),
+            message: 'Member visits retrieved',
+            meta: [
+                'current_page' => $visits->currentPage(),
+                'per_page' => $visits->perPage(),
+                'total' => $visits->total(),
+                'last_page' => $visits->lastPage(),
+            ],
+        );
+    }
+
+    public function store(StoreMemberVisitRequest $request, StoreMemberVisit $action): JsonResponse
+    {
+        $visit = $action->handle($request->validated(), $request->user());
+
+        return (new MemberVisitResource($visit))
+            ->withMessage($visit->status === 'blocked' ? 'Member visit recorded with alert' : 'Member visit recorded')
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function show(Request $request, MemberVisit $memberVisit): JsonResponse
+    {
+        $this->authorize('view', $memberVisit);
+        $memberVisit->load(['member.latestSubscription.plan', 'subscription.plan', 'creator']);
+
+        return (new MemberVisitResource($memberVisit))
+            ->withMessage('Member visit retrieved')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function update(UpdateMemberVisitRequest $request, MemberVisit $memberVisit, UpdateMemberVisit $action): JsonResponse
+    {
+        $visit = $action->handle($memberVisit, $request->validated());
+
+        return (new MemberVisitResource($visit))
+            ->withMessage('Member visit updated')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function destroy(Request $request, MemberVisit $memberVisit): JsonResponse
+    {
+        $this->authorize('delete', $memberVisit);
+
+        $memberVisit->delete();
+
+        return response()->json(null, 204);
+    }
+}

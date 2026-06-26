@@ -91,6 +91,14 @@ class Member extends Model
     }
 
     /**
+     * @return HasMany<MemberVisit, $this>
+     */
+    public function visits(): HasMany
+    {
+        return $this->hasMany(MemberVisit::class);
+    }
+
+    /**
      * Scope to include total_paid as a computed column via subquery.
      */
     public function scopeWithTotalPaid($query)

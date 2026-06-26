@@ -16,7 +16,7 @@ use Spatie\Permission\PermissionRegistrar;
  * Role matrix:
  *   Admin      — all HR & Finance permissions
  *   Manager    — all HR & Finance permissions
- *   Accountant — reports.view, expenses.*, payroll.view, commissions.view
+ *   Accountant — reports.view, expenses.*, attendance.view, payroll.view, commissions.view
  *
  * Idempotent — uses firstOrCreate.
  * Roles themselves are created by FoundationAccessSeeder.
@@ -58,6 +58,7 @@ class HrFinanceAccessSeeder extends Seeder
             HrFinancePermissions::PERM_EXPENSES_CREATE,
             HrFinancePermissions::PERM_EXPENSES_UPDATE,
             HrFinancePermissions::PERM_EXPENSES_DELETE,
+            HrFinancePermissions::PERM_ATTENDANCE_VIEW,
             HrFinancePermissions::PERM_PAYROLL_VIEW,
             HrFinancePermissions::PERM_COMMISSIONS_VIEW,
         ]);

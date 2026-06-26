@@ -11,6 +11,10 @@ export type RoleFormData = {
   permissions: string[];
 };
 
+export type SyncUserRolesData = {
+  roles: string[];
+};
+
 async function rolesFetch(path: string, options: RequestInit = {}) {
   const token = await getAuthToken();
 
@@ -90,6 +94,22 @@ export async function deleteRole(
   });
 
   revalidateRoles(locale);
+}
+
+export async function syncUserRoles(
+  userId: number,
+  data: SyncUserRolesData,
+  locale: AppLocale
+): Promise<void> {
+  await rolesFetch(`/users/${userId}/roles`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+  revalidateRoles(locale);
+  revalidatePath(`/${locale}/teams`);
+  revalidatePath(`/${locale}/trainers`);
+  revalidateTag("employees", "max");
 }
 
 function revalidateRoles(locale: AppLocale) {

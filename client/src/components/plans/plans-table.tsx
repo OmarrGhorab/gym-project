@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Edit3, Loader2, Power } from "lucide-react";
+import { Edit3, Loader2, Power, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-import { togglePlan } from "@/lib/actions/plans";
+import { deletePlan, togglePlan } from "@/lib/actions/plans";
 import type { Plan } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +178,22 @@ function PlanActions({
     }
   }
 
+  async function handleDelete() {
+    const confirmed = window.confirm(t("deleteConfirm", { name: plan.name }));
+    if (!confirmed) return;
+
+    setIsPending(true);
+    try {
+      await deletePlan(plan.id, locale as AppLocale);
+      toast.success(t("planDeletedSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
   return (
     <div className="flex justify-end gap-1.5">
       <Button
@@ -198,6 +214,16 @@ function PlanActions({
         disabled={isPending}
       >
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Power className="size-3.5" />}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        title={t("actionDelete")}
+        onClick={handleDelete}
+        disabled={isPending}
+      >
+        {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
       </Button>
     </div>
   );

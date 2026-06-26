@@ -164,8 +164,10 @@ function PayrollActions({
       <Button type="button" variant="ghost" size="icon-sm" title={t("actionPay")} onClick={handlePay} disabled={isPaid || isPending}>
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Banknote className="size-3.5" />}
       </Button>
-      <Button type="button" variant="ghost" size="icon-sm" title={t("actionPayslip")} disabled>
-        <FileText className="size-3.5" />
+      <Button asChild type="button" variant="ghost" size="icon-sm" title={t("actionPayslip")}>
+        <a href={`/api/media/payroll/${payroll.id}/payslip`} target="_blank" rel="noreferrer">
+          <FileText className="size-3.5" />
+        </a>
       </Button>
     </div>
   );

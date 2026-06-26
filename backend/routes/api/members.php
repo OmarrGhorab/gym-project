@@ -25,6 +25,9 @@ Route::prefix('members')->group(function (): void {
     Route::get('/{member}', [MemberController::class, 'show'])
         ->middleware('permission:members.view');
 
+    Route::get('/{member}/payment-history', [MemberController::class, 'paymentHistory'])
+        ->middleware('permission:members.view');
+
     Route::put('/{member}', [MemberController::class, 'update'])
         ->middleware(['permission:members.update', 'throttle:api']);
 
