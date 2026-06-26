@@ -10,6 +10,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import type { FinancialReportRow } from "@/lib/api/dashboard";
+import { cn } from "@/lib/utils";
 
 const chartConfig = {
   revenue: {
@@ -34,14 +35,21 @@ export function RevenueChart({
   rows,
   locale = "en",
   emptyMessage,
+  className,
 }: {
   rows?: FinancialReportRow[];
   locale?: string;
   emptyMessage: string;
+  className?: string;
 }) {
   if (!rows || rows.length === 0) {
     return (
-      <div className="grid h-72 place-items-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div
+        className={cn(
+          "grid h-80 place-items-center rounded-[8px] border border-dashed bg-background/50 text-sm font-semibold text-muted-foreground",
+          className
+        )}
+      >
         {emptyMessage}
       </div>
     );
@@ -54,21 +62,27 @@ export function RevenueChart({
   }));
 
   return (
-    <ChartContainer config={chartConfig} className="h-72 w-full">
-      <AreaChart data={data} margin={{ left: 4, right: 12, top: 12, bottom: 0 }}>
+    <ChartContainer config={chartConfig} className={cn("h-80 w-full", className)}>
+      <AreaChart data={data} margin={{ left: 0, right: 12, top: 18, bottom: 0 }}>
         <defs>
           <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.8} />
-            <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.1} />
+            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.55} />
+            <stop offset="64%" stopColor="var(--color-primary)" stopOpacity={0.16} />
+            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid
+          vertical={false}
+          stroke="var(--color-border)"
+          strokeDasharray="3 6"
+        />
         <XAxis
           dataKey="period"
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           minTickGap={24}
+          tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
           tickFormatter={(value) =>
             format(parseISO(value), "d", { locale: dateLocale })
           }
@@ -77,6 +91,7 @@ export function RevenueChart({
           tickLine={false}
           axisLine={false}
           width={48}
+          tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
           tickFormatter={(value) =>
             value >= 1000 ? `${(value / 1000).toFixed(0)}k` : String(value)
           }
@@ -102,8 +117,11 @@ export function RevenueChart({
           dataKey="revenue"
           type="monotone"
           stroke="var(--color-primary)"
-          strokeWidth={2}
+          strokeWidth={3}
+          strokeLinecap="round"
           fill="url(#fillRevenue)"
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 0, fill: "var(--color-primary)" }}
         />
       </AreaChart>
     </ChartContainer>

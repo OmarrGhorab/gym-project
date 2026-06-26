@@ -54,7 +54,11 @@
       "todayRevenue": "Today revenue",
       "todaySales": "Today sales",
       "activeSubscriptions": "Active subscriptions",
-      "expiringThisWeek": "Expiring this week"
+      "expiringThisWeek": "Expiring this week",
+      "peak": "Peak {value}",
+      "transactions": "{count} transactions",
+      "activeShort": "{count} active",
+      "dueSoon": "{count} due"
     },
     "charts": {
       "revenueTitle": "Revenue trend",
@@ -62,7 +66,8 @@
       "attendanceTitle": "Attendance by hour",
       "periodToday": "Today",
       "periodWeek": "Week",
-      "periodMonth": "Month"
+      "periodMonth": "Month",
+      "revenueTotal": "{total} revenue total"
     },
     "panels": {
       "expiringSoonTitle": "Expiring soon",
@@ -86,7 +91,11 @@
       "inStock": "{count} in stock",
       "saleTotal": "Total {total}",
       "unreadNotifications": "{count} unread",
-      "noData": "No data available"
+      "noData": "No data available",
+      "transactionsToday": "{count} transactions today",
+      "bestRevenueByProduct": "Best revenue by product",
+      "itemsNeedAttention": "{count} items need attention",
+      "subscriptionsDueSoon": "{count} subscriptions due soon"
     },
     "errors": {
       "summary": "Could not load dashboard summary.",
@@ -95,7 +104,8 @@
       "expiring": "Could not load expiring subscriptions.",
       "sales": "Could not load recent sales.",
       "stock": "Could not load low stock alerts.",
-      "notifications": "Could not load notifications."
+      "notifications": "Could not load notifications.",
+      "loadTitle": "Some dashboard data could not be loaded"
     },
     "activity": {
       "title": "Recent activity",

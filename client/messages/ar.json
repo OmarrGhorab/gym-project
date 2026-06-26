@@ -54,7 +54,11 @@
       "todayRevenue": "إيراد اليوم",
       "todaySales": "مبيعات اليوم",
       "activeSubscriptions": "الاشتراكات النشطة",
-      "expiringThisWeek": "تنتهي هذا الأسبوع"
+      "expiringThisWeek": "تنتهي هذا الأسبوع",
+      "peak": "أعلى قيمة {value}",
+      "transactions": "{count} عملية",
+      "activeShort": "{count} نشط",
+      "dueSoon": "{count} قريب"
     },
     "charts": {
       "revenueTitle": "اتجاه الإيرادات",
@@ -62,7 +66,8 @@
       "attendanceTitle": "الحضور بالساعة",
       "periodToday": "اليوم",
       "periodWeek": "أسبوع",
-      "periodMonth": "شهر"
+      "periodMonth": "شهر",
+      "revenueTotal": "إجمالي الإيراد {total}"
     },
     "panels": {
       "expiringSoonTitle": "تنتهي قريبًا",
@@ -86,7 +91,11 @@
       "inStock": "{count} متوفر",
       "saleTotal": "الإجمالي {total}",
       "unreadNotifications": "{count} غير مقروء",
-      "noData": "لا توجد بيانات متاحة"
+      "noData": "لا توجد بيانات متاحة",
+      "transactionsToday": "{count} عملية اليوم",
+      "bestRevenueByProduct": "أفضل إيراد حسب المنتج",
+      "itemsNeedAttention": "{count} عناصر تحتاج متابعة",
+      "subscriptionsDueSoon": "{count} اشتراكات تنتهي قريبًا"
     },
     "errors": {
       "summary": "تعذر تحميل ملخص لوحة التحكم.",
@@ -95,7 +104,8 @@
       "expiring": "تعذر تحميل الاشتراكات القريبة من الانتهاء.",
       "sales": "تعذر تحميل أحدث المبيعات.",
       "stock": "تعذر تحميل تنبيهات المخزون المنخفض.",
-      "notifications": "تعذر تحميل الإشعارات."
+      "notifications": "تعذر تحميل الإشعارات.",
+      "loadTitle": "تعذر تحميل بعض بيانات لوحة التحكم"
     },
     "activity": {
       "title": "آخر النشاط",
