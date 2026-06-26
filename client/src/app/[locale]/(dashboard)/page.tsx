@@ -133,9 +133,8 @@ export default async function DashboardOverviewPage({
       icon: TrendingUp,
       tone: "bg-primary/15 text-primary",
       accent: "bg-primary/10 text-foreground",
-      badge: revenuePeak > 0
-        ? t("stats.peak", { value: formatCurrency(revenuePeak, locale) })
-        : t("panels.noData"),
+      badge: revenuePeak > 0 ? formatCurrency(revenuePeak, locale) : t("panels.noData"),
+      badgeLabel: t("stats.peak"),
     },
     {
       label: t("stats.todaySales"),
@@ -146,7 +145,8 @@ export default async function DashboardOverviewPage({
       icon: Package,
       tone: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
       accent: "bg-amber-500/10 text-foreground",
-      badge: t("stats.transactions", { count: dailySales?.sales.length ?? 0 }),
+      badge: String(dailySales?.sales.length ?? 0),
+      badgeLabel: t("stats.transactionsLabel"),
     },
     {
       label: t("stats.activeSubscriptions"),
@@ -159,7 +159,8 @@ export default async function DashboardOverviewPage({
       icon: CreditCard,
       tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
       accent: "bg-emerald-500/10 text-foreground",
-      badge: t("stats.activeShort", { count: summary?.active_subscriptions ?? 0 }),
+      badge: String(summary?.active_subscriptions ?? 0),
+      badgeLabel: t("stats.activeShort"),
     },
     {
       label: t("stats.expiringThisWeek"),
@@ -170,9 +171,26 @@ export default async function DashboardOverviewPage({
       icon: CalendarDays,
       tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
       accent: "bg-rose-500/10 text-foreground",
-      badge: t("stats.dueSoon", { count: expiringCount }),
+      badge: String(expiringCount),
+      badgeLabel: t("stats.dueSoon"),
     },
   ];
+
+  const ledger = {
+    shell:
+      "overflow-hidden rounded-[8px] bg-background/60 p-2 ring-1 ring-border/70",
+    table: "w-full table-fixed border-separate border-spacing-y-2 text-[12px] sm:text-[13px]",
+    header: "[&_tr]:border-0",
+    headerRow: "border-0 hover:bg-transparent",
+    headerCell:
+      "h-7 min-w-0 whitespace-normal break-words px-2 text-[9px] font-black uppercase text-muted-foreground sm:px-3 sm:text-[10px]",
+    row: "border-0 hover:bg-transparent",
+    firstCell:
+      "min-w-0 whitespace-normal break-words rounded-s-[8px] border-y border-s bg-card px-2 py-3 font-bold shadow-sm sm:px-3",
+    cell: "min-w-0 whitespace-normal break-words border-y bg-card px-2 py-3 shadow-sm sm:px-3",
+    lastCell:
+      "min-w-0 whitespace-normal break-words rounded-e-[8px] border-y border-e bg-card px-2 py-3 shadow-sm sm:px-3",
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-5 sm:px-6 lg:px-8">
@@ -253,18 +271,23 @@ export default async function DashboardOverviewPage({
                 <stat.icon className="size-4" />
               </span>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex flex-col gap-3 2xl:flex-row 2xl:items-end 2xl:justify-between">
-                <p className="text-3xl font-black tracking-tight text-foreground tabular-nums">
+            <CardContent className="space-y-3">
+              <div className="min-w-0">
+                <p className="break-words text-[clamp(1.55rem,2vw,1.875rem)] font-black leading-none tracking-tight text-foreground tabular-nums">
                   {stat.value}
                 </p>
-                <span
-                  className={cn(
-                    "inline-flex w-fit max-w-full items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                    stat.accent
-                  )}
-                >
-                  <stat.icon className="size-3.5" />
+              </div>
+              <div
+                className={cn(
+                  "flex min-h-9 w-full items-center justify-between gap-2 rounded-[8px] px-3 py-2",
+                  stat.accent
+                )}
+              >
+                <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  <stat.icon className="size-3.5 shrink-0" />
+                  <span className="truncate">{stat.badgeLabel}</span>
+                </span>
+                <span className="min-w-0 truncate text-end text-xs font-black text-foreground tabular-nums">
                   {stat.badge}
                 </span>
               </div>
@@ -283,7 +306,7 @@ export default async function DashboardOverviewPage({
         ))}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+      <section>
         <Card className="rounded-[8px] border shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between gap-4 border-b bg-muted/30 pb-4">
             <div className="space-y-1">
@@ -332,7 +355,9 @@ export default async function DashboardOverviewPage({
             </div>
           </CardContent>
         </Card>
+      </section>
 
+      <section>
         <Card className="rounded-[8px] border shadow-sm">
           <CardHeader className="border-b bg-muted/30 pb-4">
             <CardTitle className="text-base font-black tracking-tight">
@@ -344,38 +369,52 @@ export default async function DashboardOverviewPage({
               })}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-0 pb-2 pt-0">
+          <CardContent className="px-3 pb-3 pt-3">
             {dailySales && dailySales.sales.length > 0 ? (
-              <Table className="text-[13px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("panels.member")}</TableHead>
-                    <TableHead>{t("panels.totalHeader")}</TableHead>
-                    <TableHead>{t("panels.paymentMethod")}</TableHead>
-                    <TableHead className="text-end">{t("panels.time")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dailySales.sales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="max-w-[180px] truncate font-medium">
-                        {sale.member?.name ?? `Sale #${sale.id}`}
-                      </TableCell>
-                      <TableCell className="font-bold tabular-nums">
-                        {formatCurrency(sale.total, locale)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]">
-                          {sale.payment_method}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-end font-medium text-muted-foreground">
-                        {formatTime(sale.created_at, locale)}
-                      </TableCell>
+              <div className={ledger.shell}>
+                <Table className={ledger.table}>
+                  <colgroup>
+                    <col className="w-[34%]" />
+                    <col className="w-[23%]" />
+                    <col className="w-[23%]" />
+                    <col className="w-[20%]" />
+                  </colgroup>
+                  <TableHeader className={ledger.header}>
+                    <TableRow className={ledger.headerRow}>
+                      <TableHead className={ledger.headerCell}>{t("panels.member")}</TableHead>
+                      <TableHead className={ledger.headerCell}>{t("panels.totalHeader")}</TableHead>
+                      <TableHead className={ledger.headerCell}>{t("panels.paymentMethod")}</TableHead>
+                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.time")}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {dailySales.sales.map((sale) => (
+                      <TableRow key={sale.id} className={ledger.row}>
+                        <TableCell className={ledger.firstCell}>
+                          <span className="block min-w-0 break-words leading-5">
+                            {sale.member?.name ?? `Sale #${sale.id}`}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(ledger.cell, "text-[11px] font-black tabular-nums sm:text-xs")}>
+                          {formatCurrency(sale.total, locale)}
+                        </TableCell>
+                        <TableCell className={cn(ledger.cell, "text-muted-foreground")}>
+                          <span className="inline-flex max-w-full items-center justify-center rounded-full border border-border/70 bg-muted/70 px-2 py-1 text-center text-[9px] font-black uppercase leading-4 text-muted-foreground sm:px-2.5 sm:text-[10px]">
+                            {formatPaymentMethod(sale.payment_method, {
+                              cash: t("panels.paymentCashShort"),
+                              card: t("panels.paymentCardShort"),
+                              bank_transfer: t("panels.paymentBankShort"),
+                            })}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(ledger.lastCell, "whitespace-nowrap text-end text-[11px] font-bold text-muted-foreground tabular-nums sm:text-xs")}>
+                          {formatTime(sale.created_at, locale)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <EmptyState message={t("panels.noData")} />
             )}
@@ -393,32 +432,48 @@ export default async function DashboardOverviewPage({
               {t("panels.bestRevenueByProduct")}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-0 pb-2 pt-0">
+          <CardContent className="px-3 pb-3 pt-3">
             {summary && summary.top_products.length > 0 ? (
-              <Table className="text-[13px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("panels.product")}</TableHead>
-                    <TableHead className="text-end">{t("panels.unitsSold")}</TableHead>
-                    <TableHead className="text-end">{t("panels.revenue")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {summary.top_products.map((product) => (
-                    <TableRow key={product.product_id}>
-                      <TableCell className="max-w-[180px] truncate font-medium">
-                        {product.name}
-                      </TableCell>
-                      <TableCell className="text-end font-medium text-muted-foreground">
-                        {product.units_sold}
-                      </TableCell>
-                      <TableCell className="text-end font-bold tabular-nums">
-                        {formatCurrency(product.revenue, locale)}
-                      </TableCell>
+              <div className={ledger.shell}>
+                <Table className={ledger.table}>
+                  <colgroup>
+                    <col className="w-[48%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[30%]" />
+                  </colgroup>
+                  <TableHeader className={ledger.header}>
+                    <TableRow className={ledger.headerRow}>
+                      <TableHead className={ledger.headerCell}>{t("panels.product")}</TableHead>
+                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.unitsSold")}</TableHead>
+                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.revenue")}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {summary.top_products.map((product, index) => (
+                      <TableRow key={product.product_id} className={ledger.row}>
+                        <TableCell className={ledger.firstCell}>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-black text-primary">
+                              {index + 1}
+                            </span>
+                            <span className="min-w-0 break-words leading-5">
+                              {product.name}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={cn(ledger.cell, "text-end text-muted-foreground")}>
+                          <span className="inline-flex max-w-full justify-center rounded-full bg-muted/80 px-2 py-1 text-[10px] font-black uppercase">
+                            {product.units_sold}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(ledger.lastCell, "text-end text-[11px] font-black tabular-nums sm:text-xs")}>
+                          {formatCurrency(product.revenue, locale)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <EmptyState message={t("panels.noData")} />
             )}
@@ -434,39 +489,50 @@ export default async function DashboardOverviewPage({
               {t("panels.itemsNeedAttention", { count: lowStockCount })}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-0 pb-2 pt-0">
+          <CardContent className="px-3 pb-3 pt-3">
             {lowStock && lowStock.data.length > 0 ? (
-              <Table className="text-[13px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("panels.product")}</TableHead>
-                    <TableHead className="text-end">{t("panels.inStockHeader")}</TableHead>
-                    <TableHead className="text-end">{t("panels.threshold")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lowStock.data.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="max-w-[180px] truncate font-medium">
-                        {product.name}
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <span
-                          className={cn(
-                            "font-bold tabular-nums",
-                            product.is_low_stock ? "text-rose-600" : "text-foreground"
-                          )}
-                        >
-                          {product.stock_quantity}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-end text-muted-foreground">
-                        {product.low_stock_threshold}
-                      </TableCell>
+              <div className={ledger.shell}>
+                <Table className={ledger.table}>
+                  <colgroup>
+                    <col className="w-[50%]" />
+                    <col className="w-[25%]" />
+                    <col className="w-[25%]" />
+                  </colgroup>
+                  <TableHeader className={ledger.header}>
+                    <TableRow className={ledger.headerRow}>
+                      <TableHead className={ledger.headerCell}>{t("panels.product")}</TableHead>
+                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.inStockHeader")}</TableHead>
+                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.threshold")}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {lowStock.data.map((product) => (
+                      <TableRow key={product.id} className={ledger.row}>
+                        <TableCell className={ledger.firstCell}>
+                          <span className="block min-w-0 break-words leading-5">
+                            {product.name}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(ledger.cell, "text-end")}>
+                          <span
+                            className={cn(
+                              "inline-flex min-w-8 justify-center rounded-full px-2.5 py-1 text-[11px] font-black tabular-nums",
+                              product.is_low_stock
+                                ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                : "bg-muted text-foreground"
+                            )}
+                          >
+                            {product.stock_quantity}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(ledger.lastCell, "text-end font-bold text-muted-foreground tabular-nums")}>
+                          {product.low_stock_threshold}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <EmptyState message={t("panels.noData")} />
             )}
@@ -482,35 +548,44 @@ export default async function DashboardOverviewPage({
               {t("panels.subscriptionsDueSoon", { count: expiringCount })}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-0 pb-2 pt-0">
+          <CardContent className="px-3 pb-3 pt-3">
             {expiring && expiring.data.length > 0 ? (
-              <Table className="text-[13px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("panels.member")}</TableHead>
-                    <TableHead>{t("panels.ends")}</TableHead>
-                    <TableHead className="text-end">{t("panels.renew")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expiring.data.map((subscription) => (
-                    <TableRow key={subscription.id}>
-                      <TableCell className="max-w-[180px] truncate font-medium">
-                        {subscription.member?.name ??
-                          `Member #${subscription.member?.id ?? subscription.id}`}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground tabular-nums">
-                        {formatDate(subscription.end_date, locale)}
-                      </TableCell>
-                      <TableCell className="text-end">
-                        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                          {t("panels.renew")}
-                        </span>
-                      </TableCell>
+              <div className={ledger.shell}>
+                <Table className={ledger.table}>
+                  <colgroup>
+                    <col className="w-[42%]" />
+                    <col className="w-[32%]" />
+                    <col className="w-[26%]" />
+                  </colgroup>
+                  <TableHeader className={ledger.header}>
+                    <TableRow className={ledger.headerRow}>
+                      <TableHead className={ledger.headerCell}>{t("panels.member")}</TableHead>
+                      <TableHead className={ledger.headerCell}>{t("panels.ends")}</TableHead>
+                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.renew")}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {expiring.data.map((subscription) => (
+                      <TableRow key={subscription.id} className={ledger.row}>
+                        <TableCell className={ledger.firstCell}>
+                          <span className="block min-w-0 break-words leading-5">
+                            {subscription.member?.name ??
+                              `Member #${subscription.member?.id ?? subscription.id}`}
+                          </span>
+                        </TableCell>
+                        <TableCell className={cn(ledger.cell, "text-[11px] font-bold text-muted-foreground tabular-nums sm:text-xs")}>
+                          {formatDate(subscription.end_date, locale)}
+                        </TableCell>
+                        <TableCell className={cn(ledger.lastCell, "text-end")}>
+                          <span className="inline-flex max-w-full justify-center rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-center text-[10px] font-black uppercase leading-4 text-primary">
+                            {t("panels.renew")}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <EmptyState message={t("panels.noData")} />
             )}
@@ -580,4 +655,11 @@ function formatTime(dateInput: string | Date, locale: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatPaymentMethod(
+  value: string,
+  labels: Record<"cash" | "card" | "bank_transfer", string>
+) {
+  return labels[value as keyof typeof labels] ?? value.replaceAll("_", " ");
 }

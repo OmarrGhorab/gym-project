@@ -55,10 +55,11 @@
       "todaySales": "مبيعات اليوم",
       "activeSubscriptions": "الاشتراكات النشطة",
       "expiringThisWeek": "تنتهي هذا الأسبوع",
-      "peak": "أعلى قيمة {value}",
+      "peak": "الأعلى",
       "transactions": "{count} عملية",
-      "activeShort": "{count} نشط",
-      "dueSoon": "{count} قريب"
+      "transactionsLabel": "المبيعات",
+      "activeShort": "نشط",
+      "dueSoon": "قريب"
     },
     "charts": {
       "revenueTitle": "اتجاه الإيرادات",
@@ -86,6 +87,9 @@
       "threshold": "الحد الأدنى",
       "totalHeader": "الإجمالي",
       "paymentMethod": "الطريقة",
+      "paymentCashShort": "كاش",
+      "paymentCardShort": "بطاقة",
+      "paymentBankShort": "تحويل",
       "time": "الوقت",
       "units": "{count} مباع",
       "inStock": "{count} متوفر",

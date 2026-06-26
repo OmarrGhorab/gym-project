@@ -4,6 +4,7 @@ import { Bell, BellDot, CheckCircle2, Clock3 } from "lucide-react";
 import { NotificationsFilterBar } from "@/components/notifications/notifications-filter-bar";
 import { NotificationsPagination } from "@/components/notifications/notifications-pagination";
 import { NotificationsTable } from "@/components/notifications/notifications-table";
+import Breadcrumb3 from "@/components/ui/breadcrumb-3";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getNotificationsPaginated,
@@ -39,6 +40,7 @@ export default async function NotificationsPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("NotificationsPage");
+  const shellT = await getTranslations("DashboardShell");
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
   const resolvedSearchParams = await searchParams;
@@ -116,21 +118,14 @@ export default async function NotificationsPage({
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className={cn(isArabic && "text-right")}>
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-            {isArabic ? (
-              <>
-                <span>{dateLabel}</span>
-                <span className="text-muted-foreground/30">/</span>
-                <span className="font-bold text-primary">{t("breadcrumb")}</span>
-              </>
-            ) : (
-              <>
-                <span className="font-bold text-primary">{t("breadcrumb")}</span>
-                <span className="text-muted-foreground/30">/</span>
-                <span>{dateLabel}</span>
-              </>
-            )}
-          </div>
+          <Breadcrumb3
+            homeHref={`/${locale}`}
+            homeLabel={shellT("nav.dashboard")}
+            currentLabel={t("breadcrumb")}
+            currentIcon={Bell}
+            dateLabel={dateLabel}
+            className={cn(isArabic && "flex justify-end")}
+          />
           <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground">
             {t("title")}
           </h1>

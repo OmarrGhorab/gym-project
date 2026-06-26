@@ -55,10 +55,11 @@
       "todaySales": "Today sales",
       "activeSubscriptions": "Active subscriptions",
       "expiringThisWeek": "Expiring this week",
-      "peak": "Peak {value}",
+      "peak": "Peak",
       "transactions": "{count} transactions",
-      "activeShort": "{count} active",
-      "dueSoon": "{count} due"
+      "transactionsLabel": "Sales",
+      "activeShort": "Active",
+      "dueSoon": "Due soon"
     },
     "charts": {
       "revenueTitle": "Revenue trend",
@@ -86,6 +87,9 @@
       "threshold": "Threshold",
       "totalHeader": "Total",
       "paymentMethod": "Method",
+      "paymentCashShort": "Cash",
+      "paymentCardShort": "Card",
+      "paymentBankShort": "Bank",
       "time": "Time",
       "units": "{count} sold",
       "inStock": "{count} in stock",

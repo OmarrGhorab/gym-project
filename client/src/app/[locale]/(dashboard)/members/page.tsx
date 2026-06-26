@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Users } from "lucide-react";
 import { getMembers, getPlans, type Member, type Paginated, type Plan } from "@/lib/api/dashboard";
 import { MembersFilterBar } from "@/components/dashboard/members-filter-bar";
 import { MembersTableContainer } from "@/components/members/members-table-container";
+import Breadcrumb3 from "@/components/ui/breadcrumb-3";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +38,7 @@ export default async function MembersPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("MembersPage");
+  const shellT = await getTranslations("DashboardShell");
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
 
@@ -85,21 +88,14 @@ export default async function MembersPage({
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className={cn(isArabic ? "text-right" : "text-left")}>
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-            {isArabic ? (
-              <>
-                <span>{dateLabel}</span>
-                <span className="text-muted-foreground/30">/</span>
-                <span className="text-primary font-bold">الرئيسية</span>
-              </>
-            ) : (
-              <>
-                <span className="text-primary font-bold">Home</span>
-                <span className="text-muted-foreground/30">/</span>
-                <span>{dateLabel}</span>
-              </>
-            )}
-          </div>
+          <Breadcrumb3
+            homeHref={`/${locale}`}
+            homeLabel={shellT("nav.dashboard")}
+            currentLabel={t("title")}
+            currentIcon={Users}
+            dateLabel={dateLabel}
+            className={cn(isArabic && "flex justify-end")}
+          />
           <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground">
             {t("title")}
           </h1>

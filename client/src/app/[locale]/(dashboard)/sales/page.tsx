@@ -5,6 +5,7 @@ import { getAllSales, getSales, type Paginated, type Sale } from "@/lib/api/dash
 import { SalesFilterBar } from "@/components/sales/sales-filter-bar";
 import { SalesPagination } from "@/components/sales/sales-pagination";
 import { SalesTable } from "@/components/sales/sales-table";
+import Breadcrumb3 from "@/components/ui/breadcrumb-3";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ export default async function SalesPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("SalesPage");
+  const shellT = await getTranslations("DashboardShell");
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
   const resolvedSearchParams = await searchParams;
@@ -120,21 +122,14 @@ export default async function SalesPage({
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className={cn(isArabic && "text-right")}>
-          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-            {isArabic ? (
-              <>
-                <span>{dateLabel}</span>
-                <span className="text-muted-foreground/30">/</span>
-                <span className="font-bold text-primary">{t("breadcrumb")}</span>
-              </>
-            ) : (
-              <>
-                <span className="font-bold text-primary">{t("breadcrumb")}</span>
-                <span className="text-muted-foreground/30">/</span>
-                <span>{dateLabel}</span>
-              </>
-            )}
-          </div>
+          <Breadcrumb3
+            homeHref={`/${locale}`}
+            homeLabel={shellT("nav.dashboard")}
+            currentLabel={t("breadcrumb")}
+            currentIcon={ReceiptText}
+            dateLabel={dateLabel}
+            className={cn(isArabic && "flex justify-end")}
+          />
           <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground">
             {t("title")}
           </h1>

@@ -118,11 +118,11 @@ function Calendar({
         ),
         day_button: cn(
           buttonVariants({ variant: "ghost", size: "icon" }),
-          "relative isolate z-10 aspect-square size-auto w-full min-w-(--cell-size) border-0 font-normal leading-none dark:hover:text-foreground",
+          "relative isolate z-10 aspect-square size-auto w-full min-w-(--cell-size) border-0 font-normal leading-none hover:bg-primary/10 hover:text-foreground group-data-[selected=true]/day:bg-primary group-data-[selected=true]/day:text-primary-foreground group-data-[selected=true]/day:hover:bg-primary dark:hover:text-foreground",
           defaultClassNames.day_button
         ),
         today: cn(
-          "rounded-(--cell-radius) bg-muted text-foreground data-[selected=true]:rounded-none",
+          "rounded-(--cell-radius) bg-muted text-foreground data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground",
           defaultClassNames.today
         ),
         outside: cn(
