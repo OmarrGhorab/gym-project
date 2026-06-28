@@ -34,6 +34,10 @@ test('authenticated user with reports.view permission can view dashboard summary
             'data' => [
                 'active_subscriptions',
                 'revenue_mtd',
+                'revenue_growth_rate',
+                'new_members_this_month',
+                'new_members_previous_month',
+                'new_members_growth_rate',
                 'expiring_soon',
                 'sales_today' => ['count', 'revenue'],
                 'top_products',
@@ -78,6 +82,7 @@ test('dashboard summary returns accurate numbers and is cached and invalidated c
 
     // Sale today
     $sale = Sale::factory()->create([
+        'member_id' => $member->id,
         'sold_by_user_id' => $employeeUser->id,
         'total' => '80.00',
         'status' => 'completed',
@@ -100,6 +105,10 @@ test('dashboard summary returns accurate numbers and is cached and invalidated c
 
     expect($response1->json('data.active_subscriptions'))->toBe(1);
     expect($response1->json('data.revenue_mtd'))->toBe('450.00');
+    expect($response1->json('data.revenue_growth_rate'))->toBe('100.00');
+    expect($response1->json('data.new_members_this_month'))->toBe(1);
+    expect($response1->json('data.new_members_previous_month'))->toBe(0);
+    expect($response1->json('data.new_members_growth_rate'))->toBe('100.00');
     expect($response1->json('data.expiring_soon'))->toBe(1);
     expect($response1->json('data.sales_today.count'))->toBe(1);
     expect($response1->json('data.sales_today.revenue'))->toBe('80.00');
@@ -123,7 +132,7 @@ test('dashboard summary returns accurate numbers and is cached and invalidated c
     expect($response2->json('data.sales_today.count'))->toBe(1);
 
     // Fire cache invalidation (clear cache manually to simulate invalidation, or check if observer triggers it)
-    Cache::forget('dashboard:summary:v1');
+    Cache::forget('dashboard:summary:v2');
 
     $response3 = $this->getJson('/api/v1/dashboard/summary')
         ->assertStatus(200);

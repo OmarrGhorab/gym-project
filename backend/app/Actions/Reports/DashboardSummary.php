@@ -5,6 +5,7 @@ namespace App\Actions\Reports;
 use App\Actions\Dashboard\SalesTodayReport;
 use App\Actions\Dashboard\TopProductsReport;
 use App\Actions\Reminders\FindExpiringSubscriptions;
+use App\Models\Member;
 use App\Models\Subscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -19,20 +20,40 @@ class DashboardSummary
      */
     public function execute(): array
     {
-        return Cache::remember('dashboard:summary:v1', 60, function () {
+        return Cache::remember('dashboard:summary:v2', 60, function () {
             // 1. Active subscriptions count
             $activeSubscriptions = Subscription::query()
                 ->where('status', 'active')
                 ->count();
 
             // 2. Revenue MTD
-            $startOfMonth = Carbon::now()->startOfMonth()->toDateTimeString();
+            $now = Carbon::now();
+            $startOfMonth = $now->copy()->startOfMonth()->toDateTimeString();
             $endOfToday = Carbon::now()->endOfDay()->toDateTimeString();
             $revenueMtd = DB::table('payments')
                 ->where('status', 'paid')
                 ->whereBetween('paid_at', [$startOfMonth, $endOfToday])
                 ->sum('amount');
             $revenueMtdStr = number_format((float) $revenueMtd, 2, '.', '');
+            $previousRevenue = DB::table('payments')
+                ->where('status', 'paid')
+                ->whereBetween('paid_at', [
+                    $now->copy()->subMonthNoOverflow()->startOfMonth()->toDateTimeString(),
+                    $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString(),
+                ])
+                ->sum('amount');
+            $revenueGrowthRate = $this->growthRate((float) $revenueMtd, (float) $previousRevenue);
+
+            $newMembersThisMonth = Member::query()
+                ->whereBetween('created_at', [$startOfMonth, $endOfToday])
+                ->count();
+            $newMembersPreviousMonth = Member::query()
+                ->whereBetween('created_at', [
+                    $now->copy()->subMonthNoOverflow()->startOfMonth()->toDateTimeString(),
+                    $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString(),
+                ])
+                ->count();
+            $newMembersGrowthRate = $this->growthRate($newMembersThisMonth, $newMembersPreviousMonth);
 
             // 3. Expiring soon count
             $today = Carbon::today();
@@ -76,11 +97,24 @@ class DashboardSummary
             return [
                 'active_subscriptions' => $activeSubscriptions,
                 'revenue_mtd' => $revenueMtdStr,
+                'revenue_growth_rate' => $revenueGrowthRate,
+                'new_members_this_month' => $newMembersThisMonth,
+                'new_members_previous_month' => $newMembersPreviousMonth,
+                'new_members_growth_rate' => $newMembersGrowthRate,
                 'expiring_soon' => $expiringSoon,
                 'sales_today' => $salesTodayData,
                 'top_products' => $topProducts,
                 'captain_leaderboard' => $captainLeaderboard,
             ];
         });
+    }
+
+    private function growthRate(float|int $current, float|int $previous): string
+    {
+        if ((float) $previous === 0.0) {
+            return (float) $current > 0.0 ? '100.00' : '0.00';
+        }
+
+        return number_format((((float) $current - (float) $previous) / (float) $previous) * 100, 2, '.', '');
     }
 }

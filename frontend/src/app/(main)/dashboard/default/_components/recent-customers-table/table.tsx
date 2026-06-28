@@ -45,9 +45,12 @@ import type { RecentCustomerRow } from "./schema";
 
 const statusOptions = [
   { value: "all", label: "All" },
-  { value: "Subscribed", label: "Subscribed" },
+  { value: "Active", label: "Active" },
+  { value: "Expired", label: "Expired" },
+  { value: "Frozen", label: "Frozen" },
+  { value: "Stopped", label: "Stopped" },
   { value: "Inactive", label: "Inactive" },
-  { value: "Unsubscribed", label: "Unsubscribed" },
+  { value: "Unknown", label: "Unknown" },
 ] as const;
 
 const billingOptions = [
@@ -142,7 +145,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="h-7 rounded-[min(var(--radius-md),12px)] pl-8"
-              placeholder="Search customers..."
+              placeholder="Search members..."
               value={searchQuery}
               onChange={(event) => {
                 table.getColumn("search")?.setFilterValue(event.target.value || undefined);
@@ -266,7 +269,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             ) : (
               <TableRow>
                 <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-24 text-center">
-                  No results.
+                  No members found.
                 </TableCell>
               </TableRow>
             )}
@@ -276,7 +279,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
 
       <div className="flex items-center justify-between px-1">
         <div className="hidden flex-1 text-muted-foreground text-sm lg:flex">
-          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
+          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} member(s)
           selected.
         </div>
         <div className="flex w-full items-center gap-8 lg:w-fit">
