@@ -11,7 +11,7 @@ import {
   getDashboardSummary,
   getAllMembers,
   getAllPlans,
-  getAllSubscriptions,
+  getSubscriptionSummary,
   getSubscriptions,
   type Member,
   type Paginated,
@@ -58,9 +58,9 @@ export default async function SubscriptionsPage({
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
   const resolvedSearchParams = await searchParams;
-  const page = Number(resolvedSearchParams.page) || 1;
-  const status = resolvedSearchParams.status === "all" ? undefined : resolvedSearchParams.status;
-  const memberId = resolvedSearchParams.member_id || undefined;
+  const page = normalizePage(resolvedSearchParams.page);
+  const status = normalizeStatus(resolvedSearchParams.status);
+  const memberId = normalizeMemberId(resolvedSearchParams.member_id);
   const sort = normalizeSort(resolvedSearchParams.sort);
   const dateLabel = new Date().toLocaleDateString(dateLocale, {
     weekday: "long",
@@ -69,7 +69,6 @@ export default async function SubscriptionsPage({
   });
 
   let subscriptions: Subscription[] = [];
-  let statsSubscriptions: Subscription[] = [];
   let members: Member[] = [];
   let plans: Plan[] = [];
   let meta: Paginated<Subscription>["meta"] = {
@@ -81,35 +80,45 @@ export default async function SubscriptionsPage({
   let activeTotal = 0;
   let fetchError: string | null = null;
 
-  try {
-    const [subscriptionsResult, statsResult, summaryResult, membersResult, plansResult] = await Promise.all([
-      getSubscriptions({ page, status, memberId, sort }),
-      getAllSubscriptions({ status, memberId, sort }),
-      getDashboardSummary().catch(() => null),
-      getAllMembers({ status: "active" }).catch(() => []),
-      getAllPlans({ isActive: "1" }).catch(() => []),
-    ]);
+  const [subscriptionsResult, summaryStatsResult] = await Promise.allSettled([
+    getSubscriptions({ page, status, memberId, sort }),
+    getSubscriptionSummary({ status, memberId }),
+  ]);
 
-    subscriptions = subscriptionsResult.data;
-    statsSubscriptions = statsResult;
-    members = membersResult;
-    plans = plansResult;
-    meta = subscriptionsResult.meta;
-    activeTotal = summaryResult?.active_subscriptions ?? countByStatus(statsSubscriptions, "active");
-  } catch {
+  if (subscriptionsResult.status === "fulfilled") {
+    subscriptions = subscriptionsResult.value.data;
+    meta = subscriptionsResult.value.meta;
+  } else {
     fetchError = t("fetchError");
   }
 
-  const expiringSoon = statsSubscriptions.filter((subscription) => {
-    const days = getDaysLeft(subscription.end_date);
-    return subscription.status === "active" && days >= 0 && days <= 7;
-  }).length;
-  const frozen = countByStatus(statsSubscriptions, "frozen");
-  const stopped = countByStatus(statsSubscriptions, "stopped");
-  const revenue = statsSubscriptions.reduce((sum, subscription) => {
-    const amount = Number(subscription.price_paid);
-    return Number.isFinite(amount) ? sum + amount : sum;
-  }, 0);
+  const [summaryResult, membersResult, plansResult] = await Promise.allSettled([
+    getDashboardSummary(),
+    getAllMembers({ status: "active" }),
+    getAllPlans({ isActive: "1" }),
+  ]);
+
+  if (summaryResult.status === "fulfilled") {
+    activeTotal = summaryResult.value.active_subscriptions;
+  } else {
+    activeTotal = summaryStatsResult.status === "fulfilled"
+      ? summaryStatsResult.value.active
+      : countByStatus(subscriptions, "active");
+  }
+
+  if (membersResult.status === "fulfilled") {
+    members = membersResult.value;
+  }
+
+  if (plansResult.status === "fulfilled") {
+    plans = plansResult.value;
+  }
+
+  const summaryStats = summaryStatsResult.status === "fulfilled" ? summaryStatsResult.value : null;
+  const expiringSoon = summaryStats?.expiring_soon ?? countExpiringSoon(subscriptions);
+  const frozen = summaryStats?.frozen ?? countByStatus(subscriptions, "frozen");
+  const stopped = summaryStats?.stopped ?? countByStatus(subscriptions, "stopped");
+  const revenue = summaryStats ? Number(summaryStats.revenue) : sumRevenue(subscriptions);
 
   const stats = [
     {
@@ -226,8 +235,36 @@ function normalizeSort(value?: string) {
   return allowed.has(value ?? "") ? value as "created_at" | "-created_at" | "start_date" | "-start_date" | "end_date" | "-end_date" : "end_date";
 }
 
+function normalizePage(value?: string) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function normalizeStatus(value?: string) {
+  const allowed = new Set(["active", "frozen", "expired", "stopped"]);
+  return allowed.has(value ?? "") ? value : undefined;
+}
+
+function normalizeMemberId(value?: string) {
+  return value && /^[1-9]\d*$/.test(value) ? value : undefined;
+}
+
 function countByStatus(subscriptions: Subscription[], status: string) {
   return subscriptions.filter((subscription) => subscription.status?.toLowerCase() === status).length;
+}
+
+function countExpiringSoon(subscriptions: Subscription[]) {
+  return subscriptions.filter((subscription) => {
+    const days = getDaysLeft(subscription.end_date);
+    return subscription.status === "active" && days >= 0 && days <= 7;
+  }).length;
+}
+
+function sumRevenue(subscriptions: Subscription[]) {
+  return subscriptions.reduce((sum, subscription) => {
+    const amount = Number(subscription.price_paid);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
 }
 
 function getDaysLeft(value: string) {

@@ -85,6 +85,16 @@ export type Member = {
   updated_at?: string;
 };
 
+export type SubscriptionSummary = {
+  total: number;
+  active: number;
+  expired: number;
+  frozen: number;
+  stopped: number;
+  expiring_soon: number;
+  revenue: string;
+};
+
 export type Plan = {
   id: number;
   name: string;
@@ -675,6 +685,17 @@ export async function getSubscriptions(options: {
   };
 }
 
+export async function getSubscriptionSummary(options: {
+  status?: string;
+  memberId?: string;
+} = {}): Promise<SubscriptionSummary> {
+  const params = new URLSearchParams();
+  if (options.status) params.set("filter[status]", options.status);
+  if (options.memberId) params.set("filter[member_id]", options.memberId);
+
+  return api<SubscriptionSummary>(`/subscriptions/summary?${params.toString()}`);
+}
+
 export async function getAllSubscriptions(options: Omit<Parameters<typeof getSubscriptions>[0], "page"> = {}): Promise<Subscription[]> {
   const firstPage = await getSubscriptions({ ...options, page: 1 });
   const subscriptions = [...firstPage.data];
@@ -841,6 +862,10 @@ export async function getAttendanceSummary(options: {
 
 export async function getEmployeeShifts(): Promise<EmployeeShift[]> {
   return api<EmployeeShift[]>("/attendance/shifts");
+}
+
+export async function getManageableEmployeeShifts(): Promise<EmployeeShift[]> {
+  return api<EmployeeShift[]>("/attendance/shifts/manage");
 }
 
 export async function getAttendanceViolations(options: {

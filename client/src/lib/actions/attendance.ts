@@ -22,6 +22,8 @@ export type MemberVisitFormData = {
   member_id: number;
   check_in_at?: string | null;
   check_out_at?: string | null;
+  status?: "allowed" | "blocked" | "flagged" | string;
+  alert_reason?: string | null;
   notes?: string | null;
 };
 
@@ -161,6 +163,32 @@ export async function createMemberVisit(
   revalidateTag("member-visits", "max");
 
   return payload.data as MemberVisit;
+}
+
+export async function updateMemberVisit(
+  id: number,
+  data: Omit<MemberVisitFormData, "member_id">,
+  locale: AppLocale
+): Promise<MemberVisit> {
+  const payload = await attendanceFetch(`/member-visits/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(cleanPayload(data)),
+  });
+
+  revalidateMemberVisit(locale);
+
+  return payload.data as MemberVisit;
+}
+
+export async function deleteMemberVisit(
+  id: number,
+  locale: AppLocale
+): Promise<void> {
+  await attendanceFetch(`/member-visits/${id}`, {
+    method: "DELETE",
+  });
+
+  revalidateMemberVisit(locale);
 }
 
 export async function checkInMemberVisit(

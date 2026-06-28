@@ -11,6 +11,9 @@ Route::prefix('subscriptions')->group(function (): void {
     Route::post('/', [SubscriptionController::class, 'store'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_CREATE]);
 
+    Route::get('/summary', [SubscriptionController::class, 'summary'])
+        ->middleware('permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_VIEW);
+
     Route::get('/{subscription}', [SubscriptionController::class, 'show'])
         ->middleware('permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_VIEW);
 

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   freezeSubscription,
+  renewSubscription,
   stopSubscription,
   unfreezeSubscription,
 } from "@/lib/actions/subscriptions";
@@ -153,10 +154,52 @@ function SubscriptionActions({ subscription }: { subscription: Subscription }) {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("SubscriptionsPage");
-  const [pendingAction, setPendingAction] = React.useState<"freeze" | "unfreeze" | "stop" | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<"renew" | "freeze" | "unfreeze" | "stop" | null>(null);
   const status = subscription.status;
   const normalized = status.toLowerCase();
   const isPending = pendingAction !== null;
+
+  async function handleRenew() {
+    const defaultAmount = subscription.plan?.price ?? subscription.price_paid ?? "";
+    const amount = window.prompt(t("renewAmountPrompt"), String(defaultAmount));
+    if (!amount) return;
+    const discount = window.prompt(t("renewDiscountPrompt"), "0") ?? "0";
+    const method = window.prompt(t("renewPaymentMethodPrompt"), "cash") ?? "cash";
+    const normalizedMethod = normalizePaymentMethod(method);
+    if (!normalizedMethod) {
+      toast.error(t("renewPaymentMethodValidation"));
+      return;
+    }
+
+    setPendingAction("renew");
+    try {
+      const result = await renewSubscription(
+        subscription.id,
+        {
+          discount,
+          payment: {
+            amount,
+            method: normalizedMethod,
+          },
+        },
+        locale as AppLocale
+      );
+
+      if (!result.ok) {
+        toast.error(getActionMessage(result, t("formError")));
+        router.refresh();
+        return;
+      }
+
+      toast.success(t("subscriptionRenewedSuccess"));
+      router.replace(`/${locale}/subscriptions?sort=-created_at&page=1`);
+      router.refresh();
+    } catch (err) {
+      toast.error(parseActionError(err, t("formError")));
+    } finally {
+      setPendingAction(null);
+    }
+  }
 
   async function handleFreeze() {
     const freezeStart = window.prompt(t("freezeStartPrompt"));
@@ -175,7 +218,7 @@ function SubscriptionActions({ subscription }: { subscription: Subscription }) {
       toast.success(t("subscriptionFrozenSuccess"));
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("formError"));
+      toast.error(parseActionError(err, t("formError")));
     } finally {
       setPendingAction(null);
     }
@@ -191,7 +234,7 @@ function SubscriptionActions({ subscription }: { subscription: Subscription }) {
       toast.success(t("subscriptionUnfrozenSuccess"));
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("formError"));
+      toast.error(parseActionError(err, t("formError")));
     } finally {
       setPendingAction(null);
     }
@@ -207,7 +250,7 @@ function SubscriptionActions({ subscription }: { subscription: Subscription }) {
       toast.success(t("subscriptionStoppedSuccess"));
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("formError"));
+      toast.error(parseActionError(err, t("formError")));
     } finally {
       setPendingAction(null);
     }
@@ -215,8 +258,8 @@ function SubscriptionActions({ subscription }: { subscription: Subscription }) {
 
   return (
     <div className="flex justify-end gap-1.5">
-      <Button variant="ghost" size="icon-sm" title={t("actionRenew")} disabled>
-        <RotateCw className="size-3.5" />
+      <Button variant="ghost" size="icon-sm" title={t("actionRenew")} onClick={handleRenew} disabled={isPending || normalized === "stopped"}>
+        {pendingAction === "renew" ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCw className="size-3.5" />}
       </Button>
       {normalized === "frozen" ? (
         <Button variant="ghost" size="icon-sm" title={t("actionUnfreeze")} onClick={handleUnfreeze} disabled={isPending}>
@@ -250,6 +293,32 @@ function SubscriptionActions({ subscription }: { subscription: Subscription }) {
       </Button>
     </div>
   );
+}
+
+function normalizePaymentMethod(method: string): "cash" | "card" | "bank_transfer" | null {
+  const normalized = method.trim().toLowerCase();
+  if (normalized === "cash" || normalized === "card" || normalized === "bank_transfer") {
+    return normalized;
+  }
+  if (normalized === "bank" || normalized === "transfer" || normalized === "bank transfer") {
+    return "bank_transfer";
+  }
+  return null;
+}
+
+function parseActionError(err: unknown, fallback: string) {
+  if (!(err instanceof Error)) return fallback;
+  try {
+    const parsed = JSON.parse(err.message) as { message?: string };
+    return parsed.message ?? err.message;
+  } catch {
+    return err.message;
+  }
+}
+
+function getActionMessage(result: { message?: string; details?: Record<string, string[]> }, fallback: string) {
+  const detail = result.details ? Object.values(result.details).flat()[0] : undefined;
+  return detail ?? result.message ?? fallback;
 }
 
 function getInitials(name: string) {

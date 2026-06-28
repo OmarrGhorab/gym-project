@@ -13,6 +13,8 @@ use App\Http\Requests\Subscriptions\StoreSubscriptionRequest;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -53,6 +55,40 @@ class SubscriptionController extends ApiController
             ->withMessage('Subscription created')
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function summary(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', Subscription::class);
+
+        $status = $request->input('filter.status');
+        $memberId = $request->input('filter.member_id');
+        $baseQuery = Subscription::query()
+            ->when(is_string($status) && $status !== '', fn ($query) => $query->where('status', $status))
+            ->when(is_numeric($memberId), fn ($query) => $query->where('member_id', (int) $memberId));
+
+        $counts = (clone $baseQuery)
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+        $today = Carbon::today();
+        $expiringSoon = (clone $baseQuery)
+            ->where('status', 'active')
+            ->whereBetween('end_date', [$today->toDateString(), $today->copy()->addDays(7)->toDateString()])
+            ->count();
+
+        return $this->success(
+            data: [
+                'total' => (clone $baseQuery)->count(),
+                'active' => (int) ($counts['active'] ?? 0),
+                'expired' => (int) ($counts['expired'] ?? 0),
+                'frozen' => (int) ($counts['frozen'] ?? 0),
+                'stopped' => (int) ($counts['stopped'] ?? 0),
+                'expiring_soon' => $expiringSoon,
+                'revenue' => number_format((float) (clone $baseQuery)->sum('price_paid'), 2, '.', ''),
+            ],
+            message: 'Subscription summary retrieved',
+        );
     }
 
     public function show(Subscription $subscription): JsonResponse

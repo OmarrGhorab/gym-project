@@ -3,7 +3,12 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HomeIcon, Settings } from "lucide-react";
 import Breadcrumb3 from "@/components/ui/breadcrumb-3";
 import { SettingsForms } from "@/components/settings/settings-forms";
-import { getSettings, type AppSettings } from "@/lib/api/dashboard";
+import {
+  getManageableEmployeeShifts,
+  getSettings,
+  type AppSettings,
+  type EmployeeShift,
+} from "@/lib/api/dashboard";
 import { getCurrentUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -35,11 +40,15 @@ export default async function SettingsPage({
   const canManageSettings = user?.permissions?.includes("settings.manage") || user?.role === "owner";
 
   let settings: AppSettings | null = null;
+  let shifts: EmployeeShift[] = [];
   let fetchError: string | null = null;
 
   if (canManageSettings) {
     try {
-      settings = await getSettings();
+      [settings, shifts] = await Promise.all([
+        getSettings(),
+        getManageableEmployeeShifts(),
+      ]);
     } catch {
       fetchError = t("fetchError");
     }
@@ -73,7 +82,11 @@ export default async function SettingsPage({
         </div>
       ) : null}
 
-      <SettingsForms settings={settings} canManageSettings={Boolean(canManageSettings)} />
+      <SettingsForms
+        settings={settings}
+        shifts={shifts}
+        canManageSettings={Boolean(canManageSettings)}
+      />
     </div>
   );
 }

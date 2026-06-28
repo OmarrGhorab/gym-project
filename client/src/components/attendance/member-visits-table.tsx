@@ -1,10 +1,17 @@
 "use client";
 
 import * as React from "react";
+import { Edit3, Loader2, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { MemberVisitDialog } from "@/components/attendance/member-visit-dialog";
+import type { AppLocale } from "@/i18n/routing";
+import { deleteMemberVisit } from "@/lib/actions/attendance";
 import type { MemberVisit } from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +20,8 @@ export function MemberVisitsTable({ visits }: { visits: MemberVisit[] }) {
   const t = useTranslations("AttendancePage");
   const isArabic = locale === "ar";
   const dateLocale = isArabic ? "ar-EG" : "en-US";
+  const [selectedVisit, setSelectedVisit] = React.useState<MemberVisit | null>(null);
+  const [isEditOpen, setIsEditOpen] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<MemberVisit>[]>(
     () => [
@@ -84,11 +93,79 @@ export function MemberVisitsTable({ visits }: { visits: MemberVisit[] }) {
           </p>
         ),
       },
+      {
+        id: "actions",
+        header: () => (
+          <span className={cn("block", isArabic ? "text-left" : "text-right")}>
+            {t("tableActions")}
+          </span>
+        ),
+        cell: ({ row }) => (
+          <MemberVisitActions
+            visit={row.original}
+            onEdit={(visit) => {
+              setSelectedVisit(visit);
+              setIsEditOpen(true);
+            }}
+          />
+        ),
+      },
     ],
     [dateLocale, isArabic, t]
   );
 
-  return <DataTable columns={columns} data={visits} emptyMessage={t("memberVisitEmpty")} isArabic={isArabic} />;
+  return (
+    <>
+      <DataTable columns={columns} data={visits} emptyMessage={t("memberVisitEmpty")} isArabic={isArabic} />
+      <MemberVisitDialog
+        mode="edit"
+        visit={selectedVisit}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
+    </>
+  );
+}
+
+function MemberVisitActions({
+  visit,
+  onEdit,
+}: {
+  visit: MemberVisit;
+  onEdit: (visit: MemberVisit) => void;
+}) {
+  const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations("AttendancePage");
+  const [isPending, setIsPending] = React.useState(false);
+
+  async function handleDelete() {
+    const name = visit.member?.name ?? `#${visit.member_id}`;
+    const confirmed = window.confirm(t("memberVisitDeleteConfirm", { name }));
+    if (!confirmed) return;
+
+    setIsPending(true);
+    try {
+      await deleteMemberVisit(visit.id, locale as AppLocale);
+      toast.success(t("memberVisitDeletedSuccess"));
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("formError"));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="flex justify-end gap-1.5">
+      <Button type="button" variant="ghost" size="icon-sm" title={t("actionEdit")} onClick={() => onEdit(visit)}>
+        <Edit3 className="size-3.5" />
+      </Button>
+      <Button type="button" variant="ghost" size="icon-sm" title={t("actionDelete")} onClick={handleDelete} disabled={isPending}>
+        {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+      </Button>
+    </div>
+  );
 }
 
 function formatDateTime(value: string | null | undefined, locale: string) {

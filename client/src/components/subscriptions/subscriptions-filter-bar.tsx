@@ -25,8 +25,8 @@ export function SubscriptionsFilterBar() {
   const isArabic = locale === "ar";
   const pathname = rawPathname.replace(new RegExp(`^/${locale}`), "") || "/";
 
-  const currentStatus = searchParams.get("status") ?? "all";
-  const currentSort = searchParams.get("sort") ?? "end_date";
+  const currentStatus = normalizeStatus(searchParams.get("status"));
+  const currentSort = normalizeSort(searchParams.get("sort"));
   const currentMemberId = searchParams.get("member_id") ?? "";
   const [memberId, setMemberId] = React.useState(currentMemberId);
   const deferredMemberId = React.useDeferredValue(memberId);
@@ -121,4 +121,21 @@ export function SubscriptionsFilterBar() {
       </div>
     </div>
   );
+}
+
+function normalizeStatus(value: string | null) {
+  return value === "active" || value === "frozen" || value === "expired" || value === "stopped"
+    ? value
+    : "all";
+}
+
+function normalizeSort(value: string | null) {
+  return value === "created_at" ||
+    value === "-created_at" ||
+    value === "start_date" ||
+    value === "-start_date" ||
+    value === "end_date" ||
+    value === "-end_date"
+    ? value
+    : "end_date";
 }

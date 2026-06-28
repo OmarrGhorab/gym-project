@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { API_BASE_URL } from "@/app/api/auth/_lib";
 import type { AppLocale } from "@/i18n/routing";
 import { getAuthToken } from "@/lib/session";
-import type { AppSettings } from "@/lib/api/dashboard";
+import type { AppSettings, EmployeeShift } from "@/lib/api/dashboard";
 
 export type AttendanceSettingsData = {
   gym_latitude?: string | null;
@@ -17,6 +17,14 @@ export type ChangePasswordData = {
   current_password: string;
   password: string;
   password_confirmation: string;
+};
+
+export type EmployeeShiftData = {
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  grace_minutes: string;
+  is_active: boolean;
 };
 
 async function settingsFetch(path: string, options: RequestInit = {}) {
@@ -95,12 +103,73 @@ export async function changeOwnPassword(
   revalidateSettings(locale);
 }
 
+export async function createEmployeeShift(
+  data: EmployeeShiftData,
+  locale: AppLocale
+): Promise<EmployeeShift> {
+  const payload = await settingsFetch("/attendance/shifts", {
+    method: "POST",
+    body: JSON.stringify(toShiftPayload(data)),
+  });
+
+  revalidateShiftSettings(locale);
+
+  return payload.data as EmployeeShift;
+}
+
+export async function updateEmployeeShift(
+  id: number,
+  data: EmployeeShiftData,
+  locale: AppLocale
+): Promise<EmployeeShift> {
+  const payload = await settingsFetch(`/attendance/shifts/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(toShiftPayload(data)),
+  });
+
+  revalidateShiftSettings(locale);
+
+  return payload.data as EmployeeShift;
+}
+
+export async function deactivateEmployeeShift(
+  id: number,
+  locale: AppLocale
+): Promise<EmployeeShift> {
+  const payload = await settingsFetch(`/attendance/shifts/${id}`, {
+    method: "DELETE",
+  });
+
+  revalidateShiftSettings(locale);
+
+  return payload.data as EmployeeShift;
+}
+
 function revalidateSettings(locale: AppLocale) {
   revalidatePath(`/${locale}/settings`);
   revalidateTag("settings", "max");
 }
 
+function revalidateShiftSettings(locale: AppLocale) {
+  revalidateSettings(locale);
+  revalidatePath(`/${locale}/teams`);
+  revalidatePath(`/${locale}/trainers`);
+  revalidatePath(`/${locale}/attendance`);
+  revalidateTag("employees", "max");
+  revalidateTag("attendance", "max");
+}
+
 function emptyToNull(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function toShiftPayload(data: EmployeeShiftData) {
+  return {
+    name: data.name.trim(),
+    starts_at: data.starts_at,
+    ends_at: data.ends_at,
+    grace_minutes: Number(data.grace_minutes),
+    is_active: data.is_active,
+  };
 }

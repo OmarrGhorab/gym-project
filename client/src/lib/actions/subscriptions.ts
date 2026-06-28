@@ -35,6 +35,10 @@ export type CreateSubscriptionData = {
   };
 };
 
+export type SubscriptionActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; message: string; details?: Record<string, string[]> };
+
 async function subscriptionsFetch(path: string, options: RequestInit = {}) {
   const token = await getAuthToken();
 
@@ -77,15 +81,21 @@ export async function renewSubscription(
   id: number,
   data: RenewSubscriptionData,
   locale: AppLocale
-): Promise<Subscription> {
-  const payload = await subscriptionsFetch(`/subscriptions/${id}/renew`, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+): Promise<SubscriptionActionResult<Subscription>> {
+  let payload: Record<string, unknown>;
+
+  try {
+    payload = await subscriptionsFetch(`/subscriptions/${id}/renew`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  } catch (err) {
+    return parseActionFailure(err);
+  }
 
   revalidateSubscriptions(locale);
 
-  return payload.data as Subscription;
+  return { ok: true, data: payload.data as Subscription };
 }
 
 export async function createSubscription(
@@ -146,4 +156,25 @@ function revalidateSubscriptions(locale: AppLocale) {
   revalidateTag("subscriptions", "max");
   revalidateTag("members", "max");
   revalidateTag("payments", "max");
+}
+
+function parseActionFailure(err: unknown): SubscriptionActionResult<never> {
+  if (!(err instanceof Error)) {
+    return { ok: false, message: "Something went wrong. Please try again." };
+  }
+
+  try {
+    const parsed = JSON.parse(err.message) as {
+      message?: string;
+      details?: Record<string, string[]>;
+    };
+
+    return {
+      ok: false,
+      message: parsed.message ?? err.message,
+      details: parsed.details,
+    };
+  } catch {
+    return { ok: false, message: err.message };
+  }
 }

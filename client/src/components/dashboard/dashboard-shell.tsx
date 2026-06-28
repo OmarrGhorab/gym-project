@@ -48,23 +48,16 @@ const navItems: DashboardNavItem[] = [
   },
 ];
 
-const fallbackUser: DashboardUser = {
-  name: "ATP Admin",
-  email: "admin@atpgym.local",
-  role: "owner",
-};
-
 export function DashboardShell({
   children,
   user,
 }: {
   children: React.ReactNode;
-  user: DashboardUser | null;
+  user: DashboardUser;
 }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const locale = useLocale();
   const t = useTranslations("DashboardShell");
-  const dashboardUser = user ?? fallbackUser;
   const isArabic = locale === "ar";
 
   return (
@@ -77,8 +70,8 @@ export function DashboardShell({
           )}
           navItems={navItems}
           onNavigate={() => setIsMobileSidebarOpen(false)}
-          userRole={dashboardUser.role}
-          userPermissions={dashboardUser.permissions ?? []}
+          userRole={user.role}
+          userPermissions={user.permissions ?? []}
         />
 
         <div
@@ -104,15 +97,15 @@ export function DashboardShell({
           )}
           navItems={navItems}
           onNavigate={() => setIsMobileSidebarOpen(false)}
-          userRole={dashboardUser.role}
-          userPermissions={dashboardUser.permissions ?? []}
+          userRole={user.role}
+          userPermissions={user.permissions ?? []}
         />
 
         <section className="min-w-0 flex-1">
           <div className={cn(isArabic ? "lg:pr-64" : "lg:pl-64")}>
             <DashboardNavbar
               onOpenSidebar={() => setIsMobileSidebarOpen(true)}
-              user={dashboardUser}
+              user={user}
             />
             <main aria-label={t("mainContent")}>{children}</main>
           </div>

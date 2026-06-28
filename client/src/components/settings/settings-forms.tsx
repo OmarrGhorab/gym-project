@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, LocateFixed, LockKeyhole } from "lucide-react";
+import { Clock3, Loader2, LocateFixed, LockKeyhole, Pencil, Plus, Power } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,18 @@ import { Label } from "@/components/ui/label";
 import type { AppLocale } from "@/i18n/routing";
 import {
   changeOwnPassword,
+  createEmployeeShift,
+  deactivateEmployeeShift,
+  updateEmployeeShift,
   updateAttendanceSettings,
+  type EmployeeShiftData,
 } from "@/lib/actions/settings";
-import type { AppSettings } from "@/lib/api/dashboard";
+import type { AppSettings, EmployeeShift } from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 
 type SettingsFormsProps = {
   settings: AppSettings | null;
+  shifts: EmployeeShift[];
   canManageSettings: boolean;
 };
 
@@ -31,6 +36,7 @@ type FieldErrors = Record<string, string[]>;
 
 export function SettingsForms({
   settings,
+  shifts,
   canManageSettings,
 }: SettingsFormsProps) {
   const locale = useLocale();
@@ -38,20 +44,248 @@ export function SettingsForms({
   const isArabic = locale === "ar";
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-      {canManageSettings ? (
-        <GymLocationForm settings={settings} isArabic={isArabic} locale={locale as AppLocale} />
-      ) : (
-        <Card className="border shadow-xs">
-          <CardHeader>
-            <CardTitle>{t("locationTitle")}</CardTitle>
-            <CardDescription>{t("locationRestricted")}</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        {canManageSettings ? (
+          <GymLocationForm settings={settings} isArabic={isArabic} locale={locale as AppLocale} />
+        ) : (
+          <Card className="border shadow-xs">
+            <CardHeader>
+              <CardTitle>{t("locationTitle")}</CardTitle>
+              <CardDescription>{t("locationRestricted")}</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
-      <PasswordForm isArabic={isArabic} locale={locale as AppLocale} />
+        <PasswordForm isArabic={isArabic} locale={locale as AppLocale} />
+      </div>
+
+      {canManageSettings ? (
+        <ShiftManagement shifts={shifts} isArabic={isArabic} locale={locale as AppLocale} />
+      ) : null}
     </div>
+  );
+}
+
+function ShiftManagement({
+  shifts,
+  isArabic,
+  locale,
+}: {
+  shifts: EmployeeShift[];
+  isArabic: boolean;
+  locale: AppLocale;
+}) {
+  const t = useTranslations("SettingsPage");
+  const [editingShift, setEditingShift] = React.useState<EmployeeShift | null>(null);
+  const [form, setForm] = React.useState<EmployeeShiftData>(() => emptyShiftForm());
+  const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
+  const [isPending, startTransition] = React.useTransition();
+
+  function updateField<K extends keyof EmployeeShiftData>(key: K, value: EmployeeShiftData[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetForm() {
+    setEditingShift(null);
+    setForm(emptyShiftForm());
+    setFieldErrors({});
+  }
+
+  function editShift(shift: EmployeeShift) {
+    setEditingShift(shift);
+    setForm({
+      name: shift.name,
+      starts_at: shift.starts_at,
+      ends_at: shift.ends_at,
+      grace_minutes: String(shift.grace_minutes),
+      is_active: shift.is_active,
+    });
+    setFieldErrors({});
+  }
+
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFieldErrors({});
+
+    startTransition(async () => {
+      try {
+        if (editingShift) {
+          await updateEmployeeShift(editingShift.id, form, locale);
+          toast.success(t("shiftUpdated"));
+        } else {
+          await createEmployeeShift(form, locale);
+          toast.success(t("shiftCreated"));
+        }
+        resetForm();
+      } catch (error) {
+        const parsed = parseActionError(error);
+        setFieldErrors(parsed.details);
+        toast.error(parsed.message ?? t("formError"));
+      }
+    });
+  }
+
+  function onDeactivate(shift: EmployeeShift) {
+    startTransition(async () => {
+      try {
+        await deactivateEmployeeShift(shift.id, locale);
+        toast.success(t("shiftDeactivated"));
+        if (editingShift?.id === shift.id) {
+          resetForm();
+        }
+      } catch (error) {
+        const parsed = parseActionError(error);
+        toast.error(parsed.message ?? t("formError"));
+      }
+    });
+  }
+
+  return (
+    <Card className="border shadow-xs">
+      <CardHeader>
+        <div className={cn("flex items-start gap-3", isArabic && "flex-row-reverse text-right")}>
+          <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-amber-600">
+            <Clock3 className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <CardTitle>{t("shiftsTitle")}</CardTitle>
+            <CardDescription>{t("shiftsDescription")}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-5 lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)]">
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SettingsField
+              id="shift_name"
+              label={t("shiftNameLabel")}
+              error={fieldErrors.name}
+              isArabic={isArabic}
+            >
+              <Input
+                id="shift_name"
+                value={form.name}
+                onChange={(event) => updateField("name", event.target.value)}
+                placeholder={t("shiftNamePlaceholder")}
+                className={cn(isArabic && "text-right")}
+              />
+            </SettingsField>
+            <SettingsField
+              id="shift_grace"
+              label={t("shiftGraceLabel")}
+              error={fieldErrors.grace_minutes}
+              isArabic={isArabic}
+            >
+              <Input
+                id="shift_grace"
+                inputMode="numeric"
+                value={form.grace_minutes}
+                onChange={(event) => updateField("grace_minutes", event.target.value)}
+                className={cn(isArabic && "text-right")}
+              />
+            </SettingsField>
+            <SettingsField
+              id="shift_start"
+              label={t("shiftStartLabel")}
+              error={fieldErrors.starts_at}
+              isArabic={isArabic}
+            >
+              <Input
+                id="shift_start"
+                type="time"
+                value={form.starts_at}
+                onChange={(event) => updateField("starts_at", event.target.value)}
+                className={cn(isArabic && "text-right")}
+              />
+            </SettingsField>
+            <SettingsField
+              id="shift_end"
+              label={t("shiftEndLabel")}
+              error={fieldErrors.ends_at}
+              isArabic={isArabic}
+            >
+              <Input
+                id="shift_end"
+                type="time"
+                value={form.ends_at}
+                onChange={(event) => updateField("ends_at", event.target.value)}
+                className={cn(isArabic && "text-right")}
+              />
+            </SettingsField>
+          </div>
+
+          <label className={cn("flex items-center gap-2 text-sm font-semibold", isArabic && "flex-row-reverse justify-end")}>
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => updateField("is_active", event.target.checked)}
+              className="size-4 accent-primary"
+            />
+            {t("shiftActiveLabel")}
+          </label>
+
+          <div className={cn("flex flex-wrap gap-2", isArabic && "justify-end")}>
+            {editingShift ? (
+              <Button type="button" variant="outline" onClick={resetForm} disabled={isPending}>
+                {t("shiftCancelEdit")}
+              </Button>
+            ) : null}
+            <Button type="submit" disabled={isPending}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+              {editingShift ? t("shiftSave") : t("shiftCreate")}
+            </Button>
+          </div>
+        </form>
+
+        <div className="space-y-2">
+          {shifts.length ? (
+            shifts.map((shift) => (
+              <div
+                key={shift.id}
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2",
+                  isArabic && "text-right"
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-foreground">{shift.name}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {shift.starts_at} - {shift.ends_at} · {t("shiftGraceMinutes", { count: shift.grace_minutes })}
+                  </p>
+                </div>
+                <div className={cn("flex items-center gap-2", isArabic && "flex-row-reverse")}>
+                  <span
+                    className={cn(
+                      "rounded-md px-2 py-1 text-xs font-bold",
+                      shift.is_active
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {shift.is_active ? t("shiftActive") : t("shiftInactive")}
+                  </span>
+                  <Button type="button" variant="outline" size="icon-sm" onClick={() => editShift(shift)} disabled={isPending}>
+                    <Pencil className="size-3.5" />
+                    <span className="sr-only">{t("shiftEdit")}</span>
+                  </Button>
+                  {shift.is_active ? (
+                    <Button type="button" variant="destructive" size="icon-sm" onClick={() => onDeactivate(shift)} disabled={isPending}>
+                      <Power className="size-3.5" />
+                      <span className="sr-only">{t("shiftDeactivate")}</span>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm font-semibold text-muted-foreground">
+              {t("shiftsEmpty")}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -376,4 +610,14 @@ function parseActionError(error: unknown): {
 
 function toInputValue(value: number | string | null | undefined) {
   return value === null || value === undefined ? "" : String(value);
+}
+
+function emptyShiftForm(): EmployeeShiftData {
+  return {
+    name: "",
+    starts_at: "09:00",
+    ends_at: "17:00",
+    grace_minutes: "15",
+    is_active: true,
+  };
 }

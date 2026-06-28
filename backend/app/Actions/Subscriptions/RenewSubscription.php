@@ -6,6 +6,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class RenewSubscription
 {
@@ -28,6 +29,21 @@ class RenewSubscription
         $startDate = $subscription->status !== 'expired' && $subscription->end_date !== null && $subscription->end_date->gte($today)
             ? $subscription->end_date->copy()->addDay()
             : $today;
+
+        $alreadyRenewed = Subscription::query()
+            ->whereKeyNot($subscription->getKey())
+            ->where('member_id', $subscription->member_id)
+            ->where('plan_id', $plan->id)
+            ->where('status', 'active')
+            ->whereDate('start_date', '<=', $startDate->toDateString())
+            ->whereDate('end_date', '>=', $startDate->toDateString())
+            ->exists();
+
+        if ($alreadyRenewed) {
+            throw ValidationException::withMessages([
+                'subscription' => 'This subscription already has an active renewal for the next period.',
+            ]);
+        }
 
         return $this->createSubscription->handle([
             'member_id' => $subscription->member_id,

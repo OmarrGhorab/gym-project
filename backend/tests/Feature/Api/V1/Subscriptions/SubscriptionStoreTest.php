@@ -77,6 +77,57 @@ test('admin can list subscriptions', function (): void {
         );
 });
 
+test('admin can view subscription summary', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => now()->addDays(3)->toDateString(),
+        'price_paid' => '100.00',
+    ]);
+    Subscription::factory()->expired()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '200.00',
+    ]);
+    Subscription::factory()->stopped()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '50.00',
+    ]);
+
+    $this->getJson('/api/v1/subscriptions/summary')
+        ->assertStatus(200)
+        ->assertJsonPath('data.total', 3)
+        ->assertJsonPath('data.active', 1)
+        ->assertJsonPath('data.expired', 1)
+        ->assertJsonPath('data.stopped', 1)
+        ->assertJsonPath('data.expiring_soon', 1)
+        ->assertJsonPath('data.revenue', '350.00');
+});
+
+test('subscription summary can filter by status', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Subscription::factory()->active()->create(['price_paid' => '100.00']);
+    Subscription::factory()->expired()->create(['price_paid' => '200.00']);
+
+    $this->getJson('/api/v1/subscriptions/summary?filter[status]=expired')
+        ->assertStatus(200)
+        ->assertJsonPath('data.total', 1)
+        ->assertJsonPath('data.active', 0)
+        ->assertJsonPath('data.expired', 1)
+        ->assertJsonPath('data.revenue', '200.00');
+});
+
 test('admin can show a subscription', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
