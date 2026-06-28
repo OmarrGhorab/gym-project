@@ -4,19 +4,24 @@ import {
   AlertCircle,
   CalendarDays,
   CreditCard,
-  Package,
+  Dumbbell,
+  RefreshCw,
+  Settings2,
+  ShoppingBag,
   TrendingUp,
-  TriangleAlert,
-  type LucideIcon,
 } from "lucide-react";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -118,8 +123,10 @@ export default async function DashboardOverviewPage({
     const value = Number.parseFloat(row.revenue);
     return Number.isFinite(value) && value > peak ? value : peak;
   }, 0);
-  const lowStockCount = lowStock?.data.length ?? 0;
   const expiringCount = expiring?.data.length ?? 0;
+  const totalRevenueNumber = Number.parseFloat(revenueTotal);
+  const topProduct = summary?.top_products[0];
+  const stockHealthCount = lowStock?.data.filter((product) => product.is_low_stock).length ?? 0;
 
   const stats = [
     {
@@ -128,11 +135,9 @@ export default async function DashboardOverviewPage({
       hint: format(selectedDate, "MMM d", { locale: dateFnsLocale }),
       change: dailySales?.sales.length
         ? t("panels.transactionsToday", { count: dailySales.sales.length })
-        : "",
-      positive: true,
+        : t("panels.noData"),
       icon: TrendingUp,
       tone: "bg-primary/15 text-primary",
-      accent: "bg-primary/10 text-foreground",
       badge: revenuePeak > 0 ? formatCurrency(revenuePeak, locale) : t("panels.noData"),
       badgeLabel: t("stats.peak"),
     },
@@ -141,10 +146,8 @@ export default async function DashboardOverviewPage({
       value: String(dailySales?.sales.length ?? 0),
       hint: format(selectedDate, "MMM d", { locale: dateFnsLocale }),
       change: "",
-      positive: true,
-      icon: Package,
+      icon: ShoppingBag,
       tone: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-      accent: "bg-amber-500/10 text-foreground",
       badge: String(dailySales?.sales.length ?? 0),
       badgeLabel: t("stats.transactionsLabel"),
     },
@@ -155,10 +158,8 @@ export default async function DashboardOverviewPage({
         ? `${summary.expiring_soon} ${t("stats.expiringThisWeek")}`
         : "",
       change: "",
-      positive: true,
       icon: CreditCard,
       tone: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-      accent: "bg-emerald-500/10 text-foreground",
       badge: String(summary?.active_subscriptions ?? 0),
       badgeLabel: t("stats.activeShort"),
     },
@@ -167,10 +168,8 @@ export default async function DashboardOverviewPage({
       value: String(summary?.expiring_soon ?? 0),
       hint: t("panels.expiringSoonTitle"),
       change: "",
-      positive: true,
       icon: CalendarDays,
       tone: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-      accent: "bg-rose-500/10 text-foreground",
       badge: String(expiringCount),
       badgeLabel: t("stats.dueSoon"),
     },
@@ -193,42 +192,27 @@ export default async function DashboardOverviewPage({
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-5 sm:px-6 lg:px-8">
-      <header className="rounded-[8px] border bg-card/90 px-4 py-4 shadow-sm backdrop-blur-sm sm:px-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              <span>{t("eyebrow")}</span>
-              <span className="text-border">/</span>
-              <span>{dateLabel}</span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
-                {t("title")}
-              </h1>
-              <Badge
-                variant="outline"
-                className="rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-primary"
-              >
-                {t("today")}
-              </Badge>
-            </div>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {t("description")}
-            </p>
-          </div>
+    <div className="mx-auto flex max-w-[1500px] flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-black tracking-tight text-foreground">
+            {t("title")}
+          </h1>
+          <p className="text-sm font-medium text-muted-foreground">
+            {dateLabel}
+          </p>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <div className="rounded-[8px] border bg-background px-3 py-2 shadow-sm">
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                {t("panels.totalHeader")}
-              </div>
-              <div className="mt-1 text-sm font-semibold text-foreground">
-                {formatCurrency(dailySales?.total_revenue ?? 0, locale)}
-              </div>
-            </div>
-            <DashboardDatePicker date={toStr} locale={locale} />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <RefreshCw className="size-4" />
+            <span>{t("panels.liveSnapshot")}</span>
           </div>
+          <Button size="sm" variant="outline">
+            <Settings2 data-icon="inline-start" />
+            {t("panels.operations")}
+          </Button>
+          <DashboardDatePicker date={toStr} locale={locale} />
         </div>
       </header>
 
@@ -250,349 +234,398 @@ export default async function DashboardOverviewPage({
         </Card>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <Card
-            key={stat.label}
-            className="rounded-[8px] border shadow-sm"
-          >
-            <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-              <div className="space-y-1">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">
-                  {stat.label}
-                </CardTitle>
-                {stat.hint && (
-                  <CardDescription className="text-[11px] font-medium uppercase tracking-[0.16em]">
-                    {stat.hint}
-                  </CardDescription>
-                )}
-              </div>
-              <span className={cn("grid size-9 place-items-center rounded-[8px]", stat.tone)}>
-                <stat.icon className="size-4" />
-              </span>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="min-w-0">
-                <p className="break-words text-[clamp(1.55rem,2vw,1.875rem)] font-black leading-none tracking-tight text-foreground tabular-nums">
-                  {stat.value}
-                </p>
-              </div>
-              <div
-                className={cn(
-                  "flex min-h-9 w-full items-center justify-between gap-2 rounded-[8px] px-3 py-2",
-                  stat.accent
-                )}
-              >
-                <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  <stat.icon className="size-3.5 shrink-0" />
-                  <span className="truncate">{stat.badgeLabel}</span>
-                </span>
-                <span className="min-w-0 truncate text-end text-xs font-black text-foreground tabular-nums">
-                  {stat.badge}
-                </span>
-              </div>
-              {stat.change && (
-                <p
-                  className={cn(
-                    "text-xs font-bold",
-                    stat.positive ? "text-emerald-600" : "text-rose-600"
-                  )}
-                >
-                  {stat.change}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+      <Tabs defaultValue="dashboard" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <TabsList variant="line">
+            <TabsTrigger value="dashboard">{t("panels.dashboardTab")}</TabsTrigger>
+            <TabsTrigger value="sales">{t("panels.salesTab")}</TabsTrigger>
+            <TabsTrigger value="inventory">{t("panels.inventoryTab")}</TabsTrigger>
+          </TabsList>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+            {t("description")}
+          </p>
+        </div>
 
-      <section>
-        <Card className="rounded-[8px] border shadow-sm">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 border-b bg-muted/30 pb-4">
-            <div className="space-y-1">
-              <CardTitle className="text-base font-black tracking-tight">
-                {t("charts.revenueTitle")}
-              </CardTitle>
-              <CardDescription className="text-xs font-medium">
-                {t("charts.revenueTotal", {
-                  total: formatCurrency(Number.parseFloat(revenueTotal), locale),
-                })}
-              </CardDescription>
+        <TabsContent value="dashboard" className="flex flex-col gap-4">
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 xl:col-span-7">
+              <div className="grid grid-cols-1 md:grid-cols-2">
+                {stats.map((stat, index) => (
+                  <Card
+                    key={stat.label}
+                    className={cn(
+                      "gap-5 rounded-none border-0 ring-0",
+                      index < 2 && "border-b border-foreground/10",
+                      index % 2 === 0 && "md:border-r md:border-foreground/10",
+                      index === 1 && "md:border-r-0"
+                    )}
+                  >
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between gap-3 text-sm font-normal text-muted-foreground">
+                        <span>{stat.label}</span>
+                        <span className={cn("grid size-8 place-items-center rounded-md", stat.tone)}>
+                          <stat.icon className="size-4" />
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex items-end justify-between gap-4">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <div className="break-words text-[clamp(1.7rem,2.4vw,2.2rem)] font-black leading-none tracking-tight tabular-nums">
+                          {stat.value}
+                        </div>
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {stat.change || stat.hint || stat.badgeLabel}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="secondary"
+                        className="max-w-[8.5rem] truncate rounded-md bg-primary/10 text-xs font-bold text-primary"
+                      >
+                        {stat.badge}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-            <Badge
-              variant="outline"
-              className="rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-primary"
+
+            <div className="flex flex-col gap-4 xl:col-span-5">
+              <Card className="rounded-xl">
+                <CardHeader>
+                  <CardTitle className="font-normal">{t("panels.incomeSources")}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-1 sm:grid-cols-3">
+                  <SourceBar
+                    label={t("panels.revenue")}
+                    meta="100%"
+                    value={formatCurrency(totalRevenueNumber, locale)}
+                    tone="bg-primary"
+                  />
+                  <SourceBar
+                    label={t("stats.todayRevenue")}
+                    meta={t("today")}
+                    value={formatCurrency(dailySales?.total_revenue ?? 0, locale)}
+                    tone="bg-chart-4"
+                  />
+                  <SourceBar
+                    label={topProduct?.name ?? t("charts.topProductsTitle")}
+                    meta={topProduct ? t("panels.units", { count: topProduct.units_sold }) : t("panels.noData")}
+                    value={topProduct ? formatCurrency(topProduct.revenue, locale) : "-"}
+                    tone="bg-chart-2"
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="rounded-xl border bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+                    <Dumbbell className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground">{t("panels.gymPulseTitle")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("panels.gymPulseDescription", {
+                        sales: dailySales?.sales.length ?? 0,
+                        expiring: expiringCount,
+                      })}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-md">
+                    {t("today")}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            <Card className="rounded-xl xl:col-span-7">
+              <CardHeader>
+                <CardTitle className="font-normal">{t("charts.revenueTitle")}</CardTitle>
+                <CardDescription>
+                  {t("charts.revenueTotal", {
+                    total: formatCurrency(totalRevenueNumber, locale),
+                  })}
+                </CardDescription>
+                <CardAction>
+                  <Badge variant="outline" className="rounded-md">
+                    {t("charts.period30Days")}
+                  </Badge>
+                </CardAction>
+              </CardHeader>
+              <CardContent>
+                <RevenueChart
+                  className="h-64"
+                  rows={revenueRows}
+                  locale={locale}
+                  emptyMessage={t("panels.noData")}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-xl xl:col-span-5">
+              <CardHeader>
+                <CardTitle className="font-normal">{t("panels.recentSalesTitle")}</CardTitle>
+                <CardDescription>
+                  {t("panels.transactionsToday", {
+                    count: dailySales?.sales.length ?? 0,
+                  })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                {dailySales && dailySales.sales.length > 0 ? (
+                  <div className={ledger.shell}>
+                    <Table className={ledger.table}>
+                      <colgroup>
+                        <col className="w-[38%]" />
+                        <col className="w-[28%]" />
+                        <col className="w-[34%]" />
+                      </colgroup>
+                      <TableHeader className={ledger.header}>
+                        <TableRow className={ledger.headerRow}>
+                          <TableHead className={ledger.headerCell}>{t("panels.member")}</TableHead>
+                          <TableHead className={ledger.headerCell}>{t("panels.totalHeader")}</TableHead>
+                          <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.time")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dailySales.sales.slice(0, 6).map((sale) => (
+                          <TableRow key={sale.id} className={ledger.row}>
+                            <TableCell className={ledger.firstCell}>
+                              <span className="block min-w-0 break-words leading-5">
+                                {sale.member?.name ?? `Sale #${sale.id}`}
+                              </span>
+                            </TableCell>
+                            <TableCell className={cn(ledger.cell, "font-black tabular-nums")}>
+                              {formatCurrency(sale.total, locale)}
+                            </TableCell>
+                            <TableCell className={cn(ledger.lastCell, "text-end text-[11px] font-bold text-muted-foreground tabular-nums")}>
+                              {formatTime(sale.created_at, locale)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <EmptyState message={t("panels.noData")} />
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <LedgerCard
+              title={t("charts.topProductsTitle")}
+              description={t("panels.bestRevenueByProduct")}
             >
-              {t("charts.period30Days")}
-            </Badge>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 pt-4 sm:px-5">
-            <RevenueChart
-              className="h-80"
-              rows={revenueRows}
-              locale={locale}
-              emptyMessage={t("panels.noData")}
-            />
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <MiniMetric
-                icon={TrendingUp}
-                label={t("panels.revenue")}
-                value={formatCurrency(Number.parseFloat(revenueTotal), locale)}
-                tone="bg-primary/10 text-primary"
-              />
-              <MiniMetric
-                icon={CreditCard}
-                label={t("stats.activeSubscriptions")}
-                value={String(summary?.active_subscriptions ?? 0)}
-                tone="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-              />
-              <MiniMetric
-                icon={TriangleAlert}
-                label={t("stats.expiringThisWeek")}
-                value={String(expiringCount)}
-                tone="bg-rose-500/10 text-rose-600 dark:text-rose-400"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section>
-        <Card className="rounded-[8px] border shadow-sm">
-          <CardHeader className="border-b bg-muted/30 pb-4">
-            <CardTitle className="text-base font-black tracking-tight">
-              {t("panels.recentSalesTitle")}
-            </CardTitle>
-            <CardDescription className="text-xs font-medium">
-              {t("panels.transactionsToday", {
-                count: dailySales?.sales.length ?? 0,
-              })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 pt-3">
-            {dailySales && dailySales.sales.length > 0 ? (
-              <div className={ledger.shell}>
-                <Table className={ledger.table}>
-                  <colgroup>
-                    <col className="w-[34%]" />
-                    <col className="w-[23%]" />
-                    <col className="w-[23%]" />
-                    <col className="w-[20%]" />
-                  </colgroup>
-                  <TableHeader className={ledger.header}>
-                    <TableRow className={ledger.headerRow}>
-                      <TableHead className={ledger.headerCell}>{t("panels.member")}</TableHead>
-                      <TableHead className={ledger.headerCell}>{t("panels.totalHeader")}</TableHead>
-                      <TableHead className={ledger.headerCell}>{t("panels.paymentMethod")}</TableHead>
-                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.time")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dailySales.sales.map((sale) => (
-                      <TableRow key={sale.id} className={ledger.row}>
-                        <TableCell className={ledger.firstCell}>
-                          <span className="block min-w-0 break-words leading-5">
-                            {sale.member?.name ?? `Sale #${sale.id}`}
-                          </span>
-                        </TableCell>
-                        <TableCell className={cn(ledger.cell, "text-[11px] font-black tabular-nums sm:text-xs")}>
-                          {formatCurrency(sale.total, locale)}
-                        </TableCell>
-                        <TableCell className={cn(ledger.cell, "text-muted-foreground")}>
-                          <span className="inline-flex max-w-full items-center justify-center rounded-full border border-border/70 bg-muted/70 px-2 py-1 text-center text-[9px] font-black uppercase leading-4 text-muted-foreground sm:px-2.5 sm:text-[10px]">
-                            {formatPaymentMethod(sale.payment_method, {
-                              cash: t("panels.paymentCashShort"),
-                              card: t("panels.paymentCardShort"),
-                              bank_transfer: t("panels.paymentBankShort"),
-                            })}
-                          </span>
-                        </TableCell>
-                        <TableCell className={cn(ledger.lastCell, "whitespace-nowrap text-end text-[11px] font-bold text-muted-foreground tabular-nums sm:text-xs")}>
-                          {formatTime(sale.created_at, locale)}
-                        </TableCell>
+              {summary && summary.top_products.length > 0 ? (
+                <div className={ledger.shell}>
+                  <Table className={ledger.table}>
+                    <colgroup>
+                      <col className="w-[48%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[30%]" />
+                    </colgroup>
+                    <TableHeader className={ledger.header}>
+                      <TableRow className={ledger.headerRow}>
+                        <TableHead className={ledger.headerCell}>{t("panels.product")}</TableHead>
+                        <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.unitsSold")}</TableHead>
+                        <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.revenue")}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <EmptyState message={t("panels.noData")} />
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-3">
-        <Card className="rounded-[8px] border shadow-sm">
-          <CardHeader className="border-b bg-muted/30 pb-4">
-            <CardTitle className="text-base font-black tracking-tight">
-              {t("charts.topProductsTitle")}
-            </CardTitle>
-            <CardDescription className="text-xs font-medium">
-              {t("panels.bestRevenueByProduct")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 pt-3">
-            {summary && summary.top_products.length > 0 ? (
-              <div className={ledger.shell}>
-                <Table className={ledger.table}>
-                  <colgroup>
-                    <col className="w-[48%]" />
-                    <col className="w-[22%]" />
-                    <col className="w-[30%]" />
-                  </colgroup>
-                  <TableHeader className={ledger.header}>
-                    <TableRow className={ledger.headerRow}>
-                      <TableHead className={ledger.headerCell}>{t("panels.product")}</TableHead>
-                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.unitsSold")}</TableHead>
-                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.revenue")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {summary.top_products.map((product, index) => (
-                      <TableRow key={product.product_id} className={ledger.row}>
-                        <TableCell className={ledger.firstCell}>
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-black text-primary">
-                              {index + 1}
+                    </TableHeader>
+                    <TableBody>
+                      {summary.top_products.map((product, index) => (
+                        <TableRow key={product.product_id} className={ledger.row}>
+                          <TableCell className={ledger.firstCell}>
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-black text-primary">
+                                {index + 1}
+                              </span>
+                              <span className="min-w-0 break-words leading-5">
+                                {product.name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className={cn(ledger.cell, "text-end text-muted-foreground")}>
+                            <span className="inline-flex max-w-full justify-center rounded-full bg-muted/80 px-2 py-1 text-[10px] font-black uppercase">
+                              {product.units_sold}
                             </span>
-                            <span className="min-w-0 break-words leading-5">
+                          </TableCell>
+                          <TableCell className={cn(ledger.lastCell, "text-end text-[11px] font-black tabular-nums sm:text-xs")}>
+                            {formatCurrency(product.revenue, locale)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <EmptyState message={t("panels.noData")} />
+              )}
+            </LedgerCard>
+
+            <LedgerCard
+              title={t("panels.lowStockTitle")}
+              description={t("panels.itemsNeedAttention", { count: stockHealthCount })}
+            >
+              {lowStock && lowStock.data.length > 0 ? (
+                <div className={ledger.shell}>
+                  <Table className={ledger.table}>
+                    <colgroup>
+                      <col className="w-[50%]" />
+                      <col className="w-[25%]" />
+                      <col className="w-[25%]" />
+                    </colgroup>
+                    <TableHeader className={ledger.header}>
+                      <TableRow className={ledger.headerRow}>
+                        <TableHead className={ledger.headerCell}>{t("panels.product")}</TableHead>
+                        <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.inStockHeader")}</TableHead>
+                        <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.threshold")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lowStock.data.map((product) => (
+                        <TableRow key={product.id} className={ledger.row}>
+                          <TableCell className={ledger.firstCell}>
+                            <span className="block min-w-0 break-words leading-5">
                               {product.name}
                             </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className={cn(ledger.cell, "text-end text-muted-foreground")}>
-                          <span className="inline-flex max-w-full justify-center rounded-full bg-muted/80 px-2 py-1 text-[10px] font-black uppercase">
-                            {product.units_sold}
-                          </span>
-                        </TableCell>
-                        <TableCell className={cn(ledger.lastCell, "text-end text-[11px] font-black tabular-nums sm:text-xs")}>
-                          {formatCurrency(product.revenue, locale)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <EmptyState message={t("panels.noData")} />
-            )}
-          </CardContent>
-        </Card>
+                          </TableCell>
+                          <TableCell className={cn(ledger.cell, "text-end")}>
+                            <span
+                              className={cn(
+                                "inline-flex min-w-8 justify-center rounded-full px-2.5 py-1 text-[11px] font-black tabular-nums",
+                                product.is_low_stock
+                                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                  : "bg-muted text-foreground"
+                              )}
+                            >
+                              {product.stock_quantity}
+                            </span>
+                          </TableCell>
+                          <TableCell className={cn(ledger.lastCell, "text-end font-bold text-muted-foreground tabular-nums")}>
+                            {product.low_stock_threshold}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <EmptyState message={t("panels.noData")} />
+              )}
+            </LedgerCard>
 
-        <Card className="rounded-[8px] border shadow-sm">
-          <CardHeader className="border-b bg-muted/30 pb-4">
-            <CardTitle className="text-base font-black tracking-tight">
-              {t("panels.lowStockTitle")}
-            </CardTitle>
-            <CardDescription className="text-xs font-medium">
-              {t("panels.itemsNeedAttention", { count: lowStockCount })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 pt-3">
-            {lowStock && lowStock.data.length > 0 ? (
-              <div className={ledger.shell}>
-                <Table className={ledger.table}>
-                  <colgroup>
-                    <col className="w-[50%]" />
-                    <col className="w-[25%]" />
-                    <col className="w-[25%]" />
-                  </colgroup>
-                  <TableHeader className={ledger.header}>
-                    <TableRow className={ledger.headerRow}>
-                      <TableHead className={ledger.headerCell}>{t("panels.product")}</TableHead>
-                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.inStockHeader")}</TableHead>
-                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.threshold")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lowStock.data.map((product) => (
-                      <TableRow key={product.id} className={ledger.row}>
-                        <TableCell className={ledger.firstCell}>
-                          <span className="block min-w-0 break-words leading-5">
-                            {product.name}
-                          </span>
-                        </TableCell>
-                        <TableCell className={cn(ledger.cell, "text-end")}>
-                          <span
-                            className={cn(
-                              "inline-flex min-w-8 justify-center rounded-full px-2.5 py-1 text-[11px] font-black tabular-nums",
-                              product.is_low_stock
-                                ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                                : "bg-muted text-foreground"
-                            )}
-                          >
-                            {product.stock_quantity}
-                          </span>
-                        </TableCell>
-                        <TableCell className={cn(ledger.lastCell, "text-end font-bold text-muted-foreground tabular-nums")}>
-                          {product.low_stock_threshold}
-                        </TableCell>
+            <LedgerCard
+              title={t("panels.expiringSoonTitle")}
+              description={t("panels.subscriptionsDueSoon", { count: expiringCount })}
+            >
+              {expiring && expiring.data.length > 0 ? (
+                <div className={ledger.shell}>
+                  <Table className={ledger.table}>
+                    <colgroup>
+                      <col className="w-[42%]" />
+                      <col className="w-[32%]" />
+                      <col className="w-[26%]" />
+                    </colgroup>
+                    <TableHeader className={ledger.header}>
+                      <TableRow className={ledger.headerRow}>
+                        <TableHead className={ledger.headerCell}>{t("panels.member")}</TableHead>
+                        <TableHead className={ledger.headerCell}>{t("panels.ends")}</TableHead>
+                        <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.renew")}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <EmptyState message={t("panels.noData")} />
-            )}
-          </CardContent>
-        </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {expiring.data.map((subscription) => (
+                        <TableRow key={subscription.id} className={ledger.row}>
+                          <TableCell className={ledger.firstCell}>
+                            <span className="block min-w-0 break-words leading-5">
+                              {subscription.member?.name ??
+                                `Member #${subscription.member?.id ?? subscription.id}`}
+                            </span>
+                          </TableCell>
+                          <TableCell className={cn(ledger.cell, "text-[11px] font-bold text-muted-foreground tabular-nums sm:text-xs")}>
+                            {formatDate(subscription.end_date, locale)}
+                          </TableCell>
+                          <TableCell className={cn(ledger.lastCell, "text-end")}>
+                            <span className="inline-flex max-w-full justify-center rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-center text-[10px] font-black uppercase leading-4 text-primary">
+                              {t("panels.renew")}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <EmptyState message={t("panels.noData")} />
+              )}
+            </LedgerCard>
+          </section>
+        </TabsContent>
 
-        <Card className="rounded-[8px] border shadow-sm">
-          <CardHeader className="border-b bg-muted/30 pb-4">
-            <CardTitle className="text-base font-black tracking-tight">
-              {t("panels.expiringSoonTitle")}
-            </CardTitle>
-            <CardDescription className="text-xs font-medium">
-              {t("panels.subscriptionsDueSoon", { count: expiringCount })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 pt-3">
-            {expiring && expiring.data.length > 0 ? (
-              <div className={ledger.shell}>
-                <Table className={ledger.table}>
-                  <colgroup>
-                    <col className="w-[42%]" />
-                    <col className="w-[32%]" />
-                    <col className="w-[26%]" />
-                  </colgroup>
-                  <TableHeader className={ledger.header}>
-                    <TableRow className={ledger.headerRow}>
-                      <TableHead className={ledger.headerCell}>{t("panels.member")}</TableHead>
-                      <TableHead className={ledger.headerCell}>{t("panels.ends")}</TableHead>
-                      <TableHead className={cn(ledger.headerCell, "text-end")}>{t("panels.renew")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expiring.data.map((subscription) => (
-                      <TableRow key={subscription.id} className={ledger.row}>
-                        <TableCell className={ledger.firstCell}>
-                          <span className="block min-w-0 break-words leading-5">
-                            {subscription.member?.name ??
-                              `Member #${subscription.member?.id ?? subscription.id}`}
-                          </span>
-                        </TableCell>
-                        <TableCell className={cn(ledger.cell, "text-[11px] font-bold text-muted-foreground tabular-nums sm:text-xs")}>
-                          {formatDate(subscription.end_date, locale)}
-                        </TableCell>
-                        <TableCell className={cn(ledger.lastCell, "text-end")}>
-                          <span className="inline-flex max-w-full justify-center rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-center text-[10px] font-black uppercase leading-4 text-primary">
-                            {t("panels.renew")}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <EmptyState message={t("panels.noData")} />
-            )}
-          </CardContent>
-        </Card>
-      </section>
+        <TabsContent value="sales">
+          <EmptyState message={t("panels.salesTabHint")} />
+        </TabsContent>
+
+        <TabsContent value="inventory">
+          <EmptyState message={t("panels.inventoryTabHint")} />
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+function LedgerCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="rounded-xl">
+      <CardHeader>
+        <CardTitle className="font-normal">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="px-3 pb-3">{children}</CardContent>
+    </Card>
+  );
+}
+
+function SourceBar({
+  label,
+  meta,
+  value,
+  tone,
+}: {
+  label: string;
+  meta: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <section className="isolate flex gap-[0.5px]">
+      <Separator
+        orientation="vertical"
+        className="mb-1 h-auto self-auto border-l border-dashed border-muted-foreground/50 bg-transparent"
+      />
+      <div className="flex min-h-24 flex-1 flex-col justify-between">
+        <div className="flex min-w-0 flex-col gap-1 px-1">
+          <p className="break-words text-xs leading-none text-muted-foreground">
+            {label} · {meta}
+          </p>
+          <div className="break-words text-lg font-semibold leading-none tracking-tight tabular-nums">
+            {value}
+          </div>
+        </div>
+        <div className={cn("-ms-0.5 h-5 rounded-sm", tone)} />
+      </div>
+    </section>
   );
 }
 
@@ -600,34 +633,6 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className="grid h-40 place-items-center rounded-[8px] border border-dashed bg-background/50 text-sm font-medium text-muted-foreground">
       {message}
-    </div>
-  );
-}
-
-function MiniMetric({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  tone: string;
-}) {
-  return (
-    <div className="rounded-[8px] border bg-background px-3 py-3">
-      <div className="flex items-center gap-2">
-        <span className={cn("grid size-7 place-items-center rounded-[8px]", tone)}>
-          <Icon className="size-3.5" />
-        </span>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 text-base font-black tracking-tight text-foreground tabular-nums">
-        {value}
-      </div>
     </div>
   );
 }
@@ -655,11 +660,4 @@ function formatTime(dateInput: string | Date, locale: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function formatPaymentMethod(
-  value: string,
-  labels: Record<"cash" | "card" | "bank_transfer", string>
-) {
-  return labels[value as keyof typeof labels] ?? value.replaceAll("_", " ");
 }

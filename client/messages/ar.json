@@ -100,7 +100,17 @@
       "transactionsToday": "{count} عملية اليوم",
       "bestRevenueByProduct": "أفضل إيراد حسب المنتج",
       "itemsNeedAttention": "{count} عناصر تحتاج متابعة",
-      "subscriptionsDueSoon": "{count} اشتراكات تنتهي قريبًا"
+      "subscriptionsDueSoon": "{count} اشتراكات تنتهي قريبًا",
+      "liveSnapshot": "تحديث مباشر",
+      "operations": "التشغيل",
+      "dashboardTab": "لوحة التحكم",
+      "salesTab": "المبيعات",
+      "inventoryTab": "المخزون",
+      "incomeSources": "مصادر الدخل",
+      "gymPulseTitle": "تم تحديث نبض الجيم",
+      "gymPulseDescription": "{sales} عمليات بيع اليوم و {expiring} تجديدات تحتاج متابعة.",
+      "salesTabHint": "تفاصيل المبيعات معروضة بالفعل في لوحات الإيراد والعمليات المباشرة.",
+      "inventoryTabHint": "تفاصيل المخزون معروضة بالفعل في لوحة تنبيهات المخزون المنخفض."
     },
     "errors": {
       "summary": "تعذر تحميل ملخص لوحة التحكم.",

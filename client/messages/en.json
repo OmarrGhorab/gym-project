@@ -100,7 +100,17 @@
       "transactionsToday": "{count} transactions today",
       "bestRevenueByProduct": "Best revenue by product",
       "itemsNeedAttention": "{count} items need attention",
-      "subscriptionsDueSoon": "{count} subscriptions due soon"
+      "subscriptionsDueSoon": "{count} subscriptions due soon",
+      "liveSnapshot": "Live snapshot",
+      "operations": "Operations",
+      "dashboardTab": "Dashboard",
+      "salesTab": "Sales",
+      "inventoryTab": "Inventory",
+      "incomeSources": "Income sources",
+      "gymPulseTitle": "Gym pulse updated",
+      "gymPulseDescription": "{sales} sales today and {expiring} renewals need attention.",
+      "salesTabHint": "Sales detail view is already represented in the live revenue and transactions panels.",
+      "inventoryTabHint": "Inventory detail view is already represented in the low stock panel."
     },
     "errors": {
       "summary": "Could not load dashboard summary.",
