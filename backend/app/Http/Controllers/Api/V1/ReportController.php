@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Reports\EmployeePerformanceReport;
+use App\Actions\Reports\FinanceDashboardSummary;
 use App\Actions\Reports\FinancialReport;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
@@ -18,6 +19,14 @@ final class ReportController extends ApiController
             data: $report['data'],
             message: 'Financial report generated',
             meta: $report['meta']
+        );
+    }
+
+    public function financeSummary(FinanceDashboardSummary $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute(),
+            message: 'Finance dashboard summary retrieved',
         );
     }
 

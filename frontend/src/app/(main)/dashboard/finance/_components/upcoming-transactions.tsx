@@ -1,78 +1,89 @@
-"use client";
+import { ChevronRight, CircleDollarSign, ReceiptText, Zap } from "lucide-react";
 
-import { addDays, format, set } from "date-fns";
-import { ChevronRight, Zap } from "lucide-react";
-import { siClaude, siLinear, siResend } from "simple-icons";
-
-import { SimpleIcon } from "@/components/simple-icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { formatCurrency } from "@/lib/utils";
 
-const transactions = [
-  {
-    id: 1,
-    title: "Claude Pro Subscription",
-    date: format(set(addDays(new Date(), 2), { hours: 14, minutes: 45 }), "hh.mm a '•' MMMM dd, yyyy"),
-    icon: siClaude,
-  },
-  {
-    id: 2,
-    title: "Resend Pro Team",
-    date: format(set(addDays(new Date(), 4), { hours: 7, minutes: 0 }), "hh.mm a '•' MMMM dd, yyyy"),
-    icon: siResend,
-  },
-  {
-    id: 3,
-    title: "Linear Plus Plan",
-    date: format(set(addDays(new Date(), 10), { hours: 7, minutes: 0 }), "hh.mm a '•' MMMM dd, yyyy"),
-    icon: siLinear,
-  },
-];
+import type { FinanceDashboardData, FinanceUpcomingItem } from "./data";
 
-export function UpcomingTransactions() {
+export function UpcomingTransactions({
+  totals,
+  upcoming,
+}: {
+  totals: FinanceDashboardData["totals"];
+  upcoming: FinanceDashboardData["upcoming"];
+}) {
+  const items: Array<FinanceUpcomingItem & { kind: "due" | "expense" | "payroll" }> = [
+    ...upcoming.dues.map((item) => ({ ...item, kind: "due" as const })),
+    ...upcoming.pending_payroll.map((item) => ({ ...item, kind: "payroll" as const })),
+    ...upcoming.recent_expenses.map((item) => ({ ...item, kind: "expense" as const })),
+  ].slice(0, 4);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Upcoming Bills & Payments</CardTitle>
+        <CardTitle className="font-normal">Collections & Obligations</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <h2 className="flex items-baseline text-3xl leading-none tracking-tight">
-              <span className="font-normal">$1,245</span>
-              <span className="text-muted-foreground text-xl">.00</span>
+              <span className="font-normal">
+                {formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true })}
+              </span>
             </h2>
             <p className="text-muted-foreground text-sm leading-none">
-              You have <span className="font-medium text-foreground">3</span> bills due this month
+              <span className="font-medium text-foreground">{totals.outstanding_dues_count}</span> balances need
+              collection
             </p>
           </div>
           <div className="flex w-max items-center gap-2 rounded-md border border-border bg-muted/70 px-2 py-1.5 text-sm">
             <Zap className="size-4 fill-primary text-primary" />
             <span className="text-muted-foreground">
-              Autopay will process <span className="font-medium text-foreground">$145.00</span> today
+              Pending payroll:{" "}
+              <span className="font-medium text-foreground">
+                {formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true })}
+              </span>
             </span>
           </div>
         </div>
 
         <ItemGroup>
-          {transactions.map((transaction) => (
-            <Item key={transaction.id} variant="outline" size="xs">
-              <ItemMedia>
-                <div className="grid size-9 place-items-center rounded-md border bg-background">
-                  <SimpleIcon icon={transaction.icon} />
-                </div>
-              </ItemMedia>
+          {items.length > 0 ? (
+            items.map((item) => <FinanceItem item={item} key={`${item.kind}-${item.id}`} />)
+          ) : (
+            <Item variant="outline" size="xs">
               <ItemContent>
-                <ItemTitle>{transaction.title}</ItemTitle>
-                <ItemDescription>{transaction.date}</ItemDescription>
+                <ItemTitle>No open finance follow-ups</ItemTitle>
+                <ItemDescription>Collections, payroll, and expenses are clear.</ItemDescription>
               </ItemContent>
-              <ItemActions>
-                <ChevronRight className="size-5 text-muted-foreground" />
-              </ItemActions>
             </Item>
-          ))}
+          )}
         </ItemGroup>
       </CardContent>
     </Card>
+  );
+}
+
+function FinanceItem({ item }: { item: FinanceUpcomingItem & { kind: "due" | "expense" | "payroll" } }) {
+  const Icon = item.kind === "expense" ? ReceiptText : CircleDollarSign;
+
+  return (
+    <Item variant="outline" size="xs">
+      <ItemMedia>
+        <div className="grid size-9 place-items-center rounded-md border bg-background">
+          <Icon className="size-4" />
+        </div>
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle>{item.title}</ItemTitle>
+        <ItemDescription>
+          {item.description} · {formatCurrency(Number(item.amount), { currency: "EGP", noDecimals: true })}
+        </ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <ChevronRight className="size-5 text-muted-foreground" />
+      </ItemActions>
+    </Item>
   );
 }

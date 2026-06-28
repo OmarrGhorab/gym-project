@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,13 @@ import { THEME_PRESET_OPTIONS, type ThemeMode, type ThemePreset } from "@/lib/pr
 import { applyThemePreset } from "@/lib/preferences/theme-utils";
 import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
 
-export function LayoutControls() {
+export function LayoutControls({
+  children,
+  trigger,
+}: {
+  children?: ReactNode;
+  trigger?: React.ComponentProps<typeof Button>;
+}) {
   const themeMode = usePreferencesStore((s) => s.themeMode);
   const resolvedThemeMode = usePreferencesStore((s) => s.resolvedThemeMode);
   const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
@@ -112,9 +120,7 @@ export function LayoutControls() {
 
   return (
     <Popover>
-      <PopoverTrigger render={<Button size="icon" />}>
-        <Settings />
-      </PopoverTrigger>
+      <PopoverTrigger render={<Button size="icon" {...trigger} />}>{children ?? <Settings />}</PopoverTrigger>
       <PopoverContent align="end">
         <div className="flex flex-col gap-5">
           <div className="space-y-1.5">

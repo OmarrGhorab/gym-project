@@ -1,11 +1,13 @@
 import { format } from "date-fns";
-import { Download, RotateCw, Settings2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
+import { CollectionsTab } from "./_components/collections-tab";
+import { getFinanceDashboardData } from "./_components/data";
 import { FinanceNotification } from "./_components/finance-notification";
+import { FinanceToolbarActions } from "./_components/finance-toolbar-actions";
+import { FinancialReportsTab } from "./_components/financial-reports-tab";
 import { IncomeBreakdown } from "./_components/income-breakdown";
 import { OverviewKpis } from "./_components/overview-kpis";
 import { QuickActions } from "./_components/quick-actions";
@@ -13,13 +15,14 @@ import { TransactionsOverviewCard } from "./_components/transactions-overview-ca
 import { UpcomingTransactions } from "./_components/upcoming-transactions";
 import { Wallet } from "./_components/wallet";
 
-export default function Page() {
+export default async function Page() {
+  const data = await getFinanceDashboardData();
   const formattedDate = format(new Date(), "EEEE, do MMMM yyyy");
 
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
-        <h1 className="text-3xl tracking-tight">Personal Finances</h1>
+        <h1 className="text-3xl tracking-tight">Gym Finance</h1>
         <p className="text-muted-foreground text-sm">{formattedDate}</p>
       </div>
 
@@ -27,53 +30,40 @@ export default function Page() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <TabsList variant="line">
             <TabsTrigger value="30-days">Dashboard</TabsTrigger>
-            <TabsTrigger value="12-months">Accounts</TabsTrigger>
-            <TabsTrigger value="custom">Transactions</TabsTrigger>
+            <TabsTrigger value="12-months">Reports</TabsTrigger>
+            <TabsTrigger value="custom">Collections</TabsTrigger>
           </TabsList>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-              <RotateCw className="size-4" />
-              <span>Updated 5 min ago</span>
-            </div>
-            <Button size="sm" variant="outline">
-              <Settings2 />
-              Settings
-            </Button>
-            <Button size="sm" variant="outline">
-              <Download data-icon="inline-start" />
-              Export
-            </Button>
-          </div>
+          <FinanceToolbarActions updatedAt={format(new Date(), "hh:mm a")} />
         </div>
 
         <TabsContent value="30-days" className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="xl:col-span-6">
-              <OverviewKpis />
+              <OverviewKpis totals={data.totals} />
             </div>
 
             <div className="flex flex-col gap-4 xl:col-span-6">
-              <IncomeBreakdown />
-              <FinanceNotification />
+              <IncomeBreakdown sources={data.revenue_sources} />
+              <FinanceNotification totals={data.totals} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="xl:col-span-7">
-              <TransactionsOverviewCard />
+              <TransactionsOverviewCard chart={data.chart} />
             </div>
             <div className="xl:col-span-5">
-              <BalanceDistributionCard />
+              <BalanceDistributionCard methods={data.payment_methods} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="xl:col-span-4">
-              <Wallet />
+              <Wallet methods={data.payment_methods} />
             </div>
             <div className="xl:col-span-4">
-              <UpcomingTransactions />
+              <UpcomingTransactions upcoming={data.upcoming} totals={data.totals} />
             </div>
             <div className="xl:col-span-4">
               <QuickActions />
@@ -82,15 +72,11 @@ export default function Page() {
         </TabsContent>
 
         <TabsContent value="12-months">
-          <div className="flex h-64 items-center justify-center rounded-xl border border-border border-dashed text-muted-foreground">
-            Accounts view coming soon.
-          </div>
+          <FinancialReportsTab chart={data.chart} totals={data.totals} />
         </TabsContent>
 
         <TabsContent value="custom">
-          <div className="flex h-64 items-center justify-center rounded-xl border border-border border-dashed text-muted-foreground">
-            Transactions view coming soon.
-          </div>
+          <CollectionsTab totals={data.totals} upcoming={data.upcoming} />
         </TabsContent>
       </Tabs>
     </div>
