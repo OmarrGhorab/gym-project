@@ -50,6 +50,26 @@ test('admin can freeze a subscription', function (): void {
         ->assertJsonPath('data.end_date', '2026-07-03');
 });
 
+test('subscription index supports bounded per page requests', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Subscription::factory()
+        ->count(20)
+        ->active()
+        ->create([
+            'member_id' => Member::factory()->active()->create()->id,
+            'plan_id' => Plan::factory()->active()->create()->id,
+            'sold_by_user_id' => $user->id,
+        ]);
+
+    $this->getJson('/api/v1/subscriptions?per_page=20')
+        ->assertOk()
+        ->assertJsonPath('meta.per_page', 20)
+        ->assertJsonCount(20, 'data');
+});
+
 test('freeze rejects cap exceeded with 422', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

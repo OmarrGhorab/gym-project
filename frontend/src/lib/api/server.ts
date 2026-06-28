@@ -7,6 +7,8 @@ type ApiEnvelope<T> = {
   message?: string;
 };
 
+type ApiErrorDetails = Record<string, string[] | string | undefined>;
+
 export async function serverApiFetch<T>(path: string, init: RequestInit = {}): Promise<ApiEnvelope<T>> {
   const token = await getAuthToken();
 
@@ -25,12 +27,28 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
   });
 
   const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T> & {
-    error?: { message?: string };
+    error?: { details?: ApiErrorDetails; message?: string };
   };
 
   if (!response.ok) {
-    throw new Error(payload.error?.message ?? payload.message ?? response.statusText);
+    throw new Error(
+      getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, payload.error?.details),
+    );
   }
 
   return payload;
+}
+
+function getApiErrorMessage(message: string, details?: ApiErrorDetails) {
+  const detailMessages = Object.values(details ?? {})
+    .flatMap((detail) => {
+      if (Array.isArray(detail)) {
+        return detail;
+      }
+
+      return detail ? [detail] : [];
+    })
+    .filter(Boolean);
+
+  return detailMessages[0] ?? message;
 }

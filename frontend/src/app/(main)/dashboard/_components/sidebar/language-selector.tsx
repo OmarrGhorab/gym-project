@@ -35,7 +35,7 @@ export function LanguageSelector() {
       <SelectTrigger
         size="sm"
         aria-label="Select language"
-        className="h-8 w-[104px] border-transparent bg-primary text-primary-foreground hover:bg-primary/80 [&_svg]:text-primary-foreground"
+        className="h-8 w-[104px] border-transparent bg-background text-foreground hover:bg-muted dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:text-muted-foreground"
       >
         <Languages />
         <SelectValue />

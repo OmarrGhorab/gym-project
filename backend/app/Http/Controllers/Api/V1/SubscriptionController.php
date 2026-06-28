@@ -20,9 +20,11 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class SubscriptionController extends ApiController
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Subscription::class);
+
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $subscriptions = QueryBuilder::for(Subscription::class)
             ->with(['member', 'plan', 'soldBy'])
@@ -32,7 +34,7 @@ class SubscriptionController extends ApiController
             )
             ->allowedSorts('created_at', 'start_date', 'end_date')
             ->defaultSort('-created_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         return $this->success(
