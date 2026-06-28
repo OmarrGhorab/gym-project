@@ -1,0 +1,100 @@
+<?php
+
+use App\Models\Attendance;
+use App\Models\Employee;
+use App\Models\Member;
+use App\Models\MemberVisit;
+use App\Models\User;
+use App\Support\FoundationPermissions;
+use Carbon\Carbon;
+use Database\Seeders\FoundationAccessSeeder;
+use Database\Seeders\HrFinanceAccessSeeder;
+use Laravel\Sanctum\Sanctum;
+
+beforeEach(function (): void {
+    $this->seed(FoundationAccessSeeder::class);
+    $this->seed(HrFinanceAccessSeeder::class);
+});
+
+test('accountant can view live gym attendance summary', function (): void {
+    Carbon::setTestNow('2026-06-29 10:30:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $memberInside = Member::factory()->create(['name' => 'Inside Member']);
+    $blockedMember = Member::factory()->create(['name' => 'Blocked Member']);
+    $employee = Employee::factory()->create(['name' => 'Late Captain', 'role' => 'captain']);
+
+    MemberVisit::factory()->create([
+        'member_id' => $memberInside->id,
+        'check_in_at' => Carbon::now()->subMinutes(45),
+        'check_out_at' => null,
+        'status' => 'allowed',
+        'scan_method' => 'qr',
+        'check_in_location_status' => 'inside',
+    ]);
+
+    MemberVisit::factory()->create([
+        'member_id' => $blockedMember->id,
+        'check_in_at' => Carbon::now()->subMinutes(15),
+        'check_out_at' => Carbon::now()->subMinutes(5),
+        'status' => 'blocked',
+        'scan_method' => 'phone',
+        'alert_reason' => 'Subscription expired',
+    ]);
+
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => Carbon::today()->toDateString(),
+        'check_in' => '09:20',
+        'check_out' => null,
+        'status' => 'late',
+        'scan_method' => 'qr',
+        'schedule_status' => 'late',
+        'approval_status' => 'pending',
+        'late_minutes' => 20,
+        'check_in_location_status' => 'inside',
+    ]);
+
+    $this->getJson('/api/v1/reports/live-attendance')
+        ->assertOk()
+        ->assertJsonPath('data.currently_inside.total', 2)
+        ->assertJsonPath('data.currently_inside.members', 1)
+        ->assertJsonPath('data.currently_inside.staff', 1)
+        ->assertJsonPath('data.today.member_visits', 2)
+        ->assertJsonPath('data.today.staff_checkins', 1)
+        ->assertJsonPath('data.today.blocked_visits', 1)
+        ->assertJsonPath('data.today.late_staff', 1)
+        ->assertJsonFragment(['name' => 'Late Captain'])
+        ->assertJsonFragment(['name' => 'Blocked Member'])
+        ->assertJsonStructure([
+            'data' => [
+                'generated_at',
+                'currently_inside' => ['total', 'members', 'staff'],
+                'today' => ['member_visits', 'staff_checkins', 'flagged_scans', 'blocked_visits', 'late_staff', 'peak_hour'],
+                'hourly' => [
+                    '*' => ['hour', 'members', 'staff', 'total'],
+                ],
+                'scan_methods' => [
+                    '*' => ['method', 'count'],
+                ],
+                'currently_inside_rows' => [
+                    '*' => ['id', 'name', 'type', 'check_in_at', 'duration_minutes', 'scan_method', 'status', 'location_status'],
+                ],
+                'alerts' => [
+                    '*' => ['id', 'severity', 'type', 'name', 'message', 'time'],
+                ],
+            ],
+        ]);
+});
+
+test('users without reports permission cannot view live attendance summary', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/reports/live-attendance')
+        ->assertForbidden();
+});

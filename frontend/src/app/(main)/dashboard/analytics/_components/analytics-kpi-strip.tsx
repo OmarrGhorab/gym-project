@@ -1,141 +1,95 @@
-import { ArrowDownRight, ArrowUpRight, Ellipsis } from "lucide-react";
+import { AlertTriangle, Clock3, DoorOpen, ShieldAlert, UserCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function AnalyticsKpiStrip() {
+import type { LiveAttendanceData } from "./data";
+
+const cards = [
+  {
+    icon: DoorOpen,
+    key: "inside",
+    title: "Currently inside",
+  },
+  {
+    icon: UserCheck,
+    key: "visits",
+    title: "Member visits",
+  },
+  {
+    icon: Clock3,
+    key: "staff",
+    title: "Staff check-ins",
+  },
+  {
+    icon: ShieldAlert,
+    key: "risk",
+    title: "Flagged or blocked",
+  },
+  {
+    icon: AlertTriangle,
+    key: "late",
+    title: "Late staff",
+  },
+] as const;
+
+export function AnalyticsKpiStrip({ data }: { data: LiveAttendanceData }) {
+  const values = {
+    inside: {
+      detail: `${data.currently_inside.members} members / ${data.currently_inside.staff} staff`,
+      value: data.currently_inside.total,
+    },
+    visits: {
+      detail: "Total member entries today",
+      value: data.today.member_visits,
+    },
+    staff: {
+      detail: "Employee and captain scans",
+      value: data.today.staff_checkins,
+    },
+    risk: {
+      detail: `${data.today.flagged_scans} flagged / ${data.today.blocked_visits} blocked`,
+      value: data.today.flagged_scans + data.today.blocked_visits,
+    },
+    late: {
+      detail: data.today.peak_hour ? `Peak occupancy at ${data.today.peak_hour}` : "No peak hour yet",
+      value: data.today.late_staff,
+    },
+  };
+
   return (
     <div className="overflow-hidden rounded-xl bg-card shadow-xs ring-1 ring-foreground/10">
       <div className="grid divide-y *:data-[slot=card]:rounded-none *:data-[slot=card]:ring-0 md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-5">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-normal text-sm">Unique Visitors</CardTitle>
-            <CardAction>
-              <Ellipsis className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-2xl leading-none tracking-tight">213.1k</div>
-              <Badge className="bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-300">
-                <ArrowUpRight />
-                2.8%
-              </Badge>
-            </div>
+        {cards.map((card) => {
+          const Icon = card.icon;
+          const metric = values[card.key];
+          const risky = card.key === "risk" || card.key === "late";
 
-            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-              <span>
-                from <span className="text-foreground">207.3k</span>
-              </span>
-              <span>•</span>
-              <span>last 4 weeks</span>
-            </div>
-          </CardContent>
-        </Card>
+          return (
+            <Card key={card.key}>
+              <CardHeader>
+                <CardTitle className="font-normal text-sm">{card.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="text-2xl tabular-nums leading-none tracking-tight">{metric.value}</div>
+                  <Badge
+                    className={
+                      risky && metric.value > 0
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                    }
+                  >
+                    <Icon />
+                    Live
+                  </Badge>
+                </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-normal text-sm">Sessions</CardTitle>
-            <CardAction>
-              <Ellipsis className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-2xl leading-none tracking-tight">248.6k</div>
-              <Badge className="bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-300">
-                <ArrowUpRight />
-                2.1%
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-              <span>
-                from <span className="text-foreground">243.5k</span>
-              </span>
-              <span>•</span>
-              <span>last 4 weeks</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-normal text-sm">Pageviews</CardTitle>
-            <CardAction>
-              <Ellipsis className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-2xl leading-none tracking-tight">547.9k</div>
-              <Badge className="bg-destructive/10 text-destructive">
-                <ArrowDownRight />
-                3.3%
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-              <span>
-                from <span className="text-foreground">566.8k</span>
-              </span>
-              <span>•</span>
-              <span>last 4 weeks</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-normal text-sm">Engagement Rate</CardTitle>
-            <CardAction>
-              <Ellipsis className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-2xl leading-none tracking-tight">61.4%</div>
-              <Badge className="bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-300">
-                <ArrowUpRight />
-                4.2%
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-              <span>
-                from <span className="text-foreground">58.9%</span>
-              </span>
-              <span>•</span>
-              <span>last 4 weeks</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-normal text-sm">Conversion Rate</CardTitle>
-            <CardAction>
-              <Ellipsis className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-2xl leading-none tracking-tight">8.4%</div>
-              <Badge className="bg-destructive/10 text-destructive">
-                <ArrowDownRight />
-                5.6%
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-              <span>
-                from <span className="text-foreground">8.9%</span>
-              </span>
-              <span>•</span>
-              <span>last 4 weeks</span>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="text-muted-foreground text-xs">{metric.detail}</div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

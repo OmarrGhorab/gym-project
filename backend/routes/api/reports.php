@@ -16,6 +16,9 @@ Route::prefix('reports')->group(function (): void {
     Route::get('/finance-summary', [ReportController::class, 'financeSummary'])
         ->middleware('permission:reports.view');
 
+    Route::get('/live-attendance', [ReportController::class, 'liveAttendance'])
+        ->middleware('permission:reports.view');
+
     Route::get('/employees', [ReportController::class, 'employees'])
         ->middleware('permission:reports.view');
 });

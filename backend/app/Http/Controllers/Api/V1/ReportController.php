@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Reports\EmployeePerformanceReport;
 use App\Actions\Reports\FinanceDashboardSummary;
 use App\Actions\Reports\FinancialReport;
+use App\Actions\Reports\LiveAttendanceSummary;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,14 @@ final class ReportController extends ApiController
         return $this->success(
             data: $action->execute(),
             message: 'Finance dashboard summary retrieved',
+        );
+    }
+
+    public function liveAttendance(LiveAttendanceSummary $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute(),
+            message: 'Live attendance summary retrieved',
         );
     }
 

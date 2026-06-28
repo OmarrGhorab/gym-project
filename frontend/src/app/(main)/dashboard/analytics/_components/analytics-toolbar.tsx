@@ -1,63 +1,48 @@
-import { Ellipsis, FileDown, FileUp, RefreshCw, Share2 } from "lucide-react";
+"use client";
+
+import { useEffect } from "react";
+
+import { useRouter } from "next/navigation";
+
+import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function AnalyticsToolbar() {
+const refreshIntervalMs = 10 * 60 * 1000;
+
+function formatGeneratedAt(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Live data";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+export function AnalyticsToolbar({ generatedAt }: { generatedAt: string }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      router.refresh();
+    }, refreshIntervalMs);
+
+    return () => window.clearInterval(interval);
+  }, [router]);
+
   return (
     <div className="flex items-center gap-2">
-      <Select defaultValue="last-4-weeks">
-        <SelectTrigger className="w-34">
-          <SelectValue placeholder="Select range" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="last-7-days">Last 7 days</SelectItem>
-            <SelectItem value="last-4-weeks">Last 4 weeks</SelectItem>
-            <SelectItem value="last-3-months">Last 3 months</SelectItem>
-            <SelectItem value="year-to-date">Year to date</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button size="icon" variant="outline" aria-label="More analytics actions" />}>
-          <Ellipsis />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Analytics actions</DropdownMenuLabel>
-            <DropdownMenuItem>
-              <FileDown />
-              Export report
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <FileUp />
-              Import data
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Share2 />
-              Share dashboard
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <RefreshCw />
-              Refresh metrics
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="rounded-md border bg-card px-3 py-2 text-muted-foreground text-sm">
+        Today · refreshed {formatGeneratedAt(generatedAt)} · auto refresh every 10 min
+      </div>
+      <Button render={<a href="/dashboard/analytics" />} size="sm" variant="outline" nativeButton={false}>
+        <RefreshCw />
+        Refresh
+      </Button>
     </div>
   );
 }
