@@ -1,0 +1,87 @@
+{
+  "Auth": {
+    "common": {
+      "copyright": "© {year}، ATP Gym.",
+      "emailAddress": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "login": "تسجيل الدخول",
+      "register": "تسجيل",
+      "forgotPassword": "نسيت كلمة المرور؟",
+      "rememberPassword": "تذكرت كلمة المرور؟",
+      "alreadyVerified": "تم تأكيد البريد بالفعل؟",
+      "backTo": "العودة إلى",
+      "switchToArabic": "التبديل إلى الإنجليزية",
+      "languageLabel": "عربي",
+      "invalidEmail": "يرجى إدخال بريد إلكتروني صحيح.",
+      "passwordTooShort": "كلمة المرور يجب ألا تقل عن 6 أحرف.",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين.",
+      "invalidVerificationCode": "أدخل كود التحقق المكون من 6 أرقام.",
+      "invalidResetCode": "أدخل كود الاستعادة المكون من 6 أرقام."
+    },
+    "sidePanel": {
+      "frontDeskTitle": "إدارة الاستقبال",
+      "frontDeskDescription": "إدارة الأعضاء والاشتراكات والحضور والمبيعات والرواتب من مساحة آمنة واحدة.",
+      "secureTitle": "دخول آمن",
+      "secureDescription": "سجل الدخول بحساب الموظف. الجلسة محمية بتوكن آمن من الخادم."
+    },
+    "login": {
+      "title": "تسجيل الدخول",
+      "description": "استخدم حساب الموظف لإدارة عمليات الجيم.",
+      "google": "المتابعة باستخدام Google",
+      "emailDivider": "أو تابع بالبريد الإلكتروني",
+      "newStaff": "حساب موظف جديد؟",
+      "remember": "تذكرني لمدة 30 يومًا",
+      "submitting": "جاري تسجيل الدخول...",
+      "failed": "فشل تسجيل الدخول"
+    },
+    "register": {
+      "title": "إنشاء حساب ATP Gym",
+      "description": "إضافة حساب موظف معتمد للوحة التحكم.",
+      "alreadyOnTeam": "لديك حساب بالفعل؟",
+      "fullName": "الاسم الكامل",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "creating": "جاري إنشاء الحساب...",
+      "createAccount": "إنشاء الحساب",
+      "verificationCode": "كود التحقق",
+      "verifyEmail": "تأكيد البريد",
+      "verifying": "جاري التحقق...",
+      "resendCode": "إعادة إرسال الكود",
+      "codeSent": "تم إرسال كود التحقق",
+      "registrationFailed": "فشل التسجيل",
+      "emailVerified": "تم تأكيد البريد",
+      "verificationFailed": "فشل التحقق",
+      "couldNotResend": "تعذر إعادة إرسال الكود"
+    },
+    "forgot": {
+      "title": "استعادة دخول الموظف",
+      "description": "أدخل بريد العمل وتحقق من كود الاستعادة.",
+      "resetCode": "كود الاستعادة",
+      "verifyCode": "تأكيد الكود",
+      "verifying": "جاري التحقق...",
+      "backToEmail": "العودة إلى البريد",
+      "sendResetCode": "إرسال كود الاستعادة",
+      "sendingCode": "جاري إرسال الكود...",
+      "resetCodeSent": "تم إرسال كود الاستعادة",
+      "couldNotSend": "تعذر إرسال كود الاستعادة",
+      "codeVerified": "تم تأكيد الكود",
+      "verificationFailed": "فشل التحقق"
+    },
+    "verifyEmail": {
+      "title": "تأكيد بريد الموظف",
+      "description": "أدخل الكود المكون من 6 أرقام المرسل إلى بريد العمل.",
+      "enterValidCode": "أدخل كود تحقق صحيح."
+    },
+    "reset": {
+      "title": "تعيين كلمة مرور جديدة",
+      "description": "اختر كلمة مرور جديدة لحساب موظف ATP Gym.",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+      "missingLink": "رابط الاستعادة لا يحتوي على البيانات المطلوبة.",
+      "requestNewCode": "طلب كود استعادة جديد",
+      "savingPassword": "جاري حفظ كلمة المرور...",
+      "resetPassword": "إعادة تعيين كلمة المرور",
+      "passwordUpdated": "تم تحديث كلمة المرور",
+      "couldNotReset": "تعذر إعادة تعيين كلمة المرور"
+    }
+  }
+}

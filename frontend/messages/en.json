@@ -1,0 +1,87 @@
+{
+  "Auth": {
+    "common": {
+      "copyright": "© {year}, ATP Gym.",
+      "emailAddress": "Email address",
+      "password": "Password",
+      "login": "Login",
+      "register": "Register",
+      "forgotPassword": "Forgot your password?",
+      "rememberPassword": "Remember your password?",
+      "alreadyVerified": "Email already verified?",
+      "backTo": "Back to",
+      "switchToArabic": "Switch to Arabic",
+      "languageLabel": "ENG",
+      "invalidEmail": "Please enter a valid email address.",
+      "passwordTooShort": "Password must be at least 6 characters.",
+      "passwordMismatch": "Passwords do not match.",
+      "invalidVerificationCode": "Enter the 6 digit verification code.",
+      "invalidResetCode": "Enter the 6 digit reset code."
+    },
+    "sidePanel": {
+      "frontDeskTitle": "Run the front desk",
+      "frontDeskDescription": "Manage members, subscriptions, attendance, POS sales, and payroll from one secure workspace.",
+      "secureTitle": "Secure access",
+      "secureDescription": "Sign in with your staff account. Your session is protected with an HTTP-only backend token."
+    },
+    "login": {
+      "title": "Sign in",
+      "description": "Use your staff account to manage gym operations.",
+      "google": "Continue with Google",
+      "emailDivider": "or continue with email",
+      "newStaff": "New staff account?",
+      "remember": "Remember me for 30 days",
+      "submitting": "Logging in...",
+      "failed": "Login failed"
+    },
+    "register": {
+      "title": "Create ATP Gym account",
+      "description": "Add an approved staff login for the dashboard.",
+      "alreadyOnTeam": "Already on the team?",
+      "fullName": "Full name",
+      "confirmPassword": "Confirm password",
+      "creating": "Creating account...",
+      "createAccount": "Create account",
+      "verificationCode": "Verification code",
+      "verifyEmail": "Verify email",
+      "verifying": "Verifying...",
+      "resendCode": "Resend code",
+      "codeSent": "Verification code sent",
+      "registrationFailed": "Registration failed",
+      "emailVerified": "Email verified",
+      "verificationFailed": "Verification failed",
+      "couldNotResend": "Could not resend code"
+    },
+    "forgot": {
+      "title": "Recover staff access",
+      "description": "Enter your work email and verify the reset code.",
+      "resetCode": "Reset code",
+      "verifyCode": "Verify code",
+      "verifying": "Verifying...",
+      "backToEmail": "Back to email",
+      "sendResetCode": "Send reset code",
+      "sendingCode": "Sending code...",
+      "resetCodeSent": "Reset code sent",
+      "couldNotSend": "Could not send reset code",
+      "codeVerified": "Code verified",
+      "verificationFailed": "Verification failed"
+    },
+    "verifyEmail": {
+      "title": "Verify staff email",
+      "description": "Enter the 6 digit code sent to your work email.",
+      "enterValidCode": "Enter a valid verification code."
+    },
+    "reset": {
+      "title": "Set a new password",
+      "description": "Choose a new password for your ATP Gym staff account.",
+      "newPassword": "New password",
+      "confirmNewPassword": "Confirm new password",
+      "missingLink": "This reset link is missing required information.",
+      "requestNewCode": "Request a new reset code",
+      "savingPassword": "Saving password...",
+      "resetPassword": "Reset password",
+      "passwordUpdated": "Password updated",
+      "couldNotReset": "Could not reset password"
+    }
+  }
+}
