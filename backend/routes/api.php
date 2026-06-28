@@ -67,6 +67,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('me', [AuthController::class, 'me']);
+            Route::post('change-password', [AuthController::class, 'changePassword'])
+                ->middleware('throttle:api');
             Route::post('logout', [AuthController::class, 'logout'])
                 ->middleware('throttle:api');
         });

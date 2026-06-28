@@ -67,6 +67,44 @@ class UpdateSettingsRequest extends FormRequest
             $normalized['receipt_template'] = $this->input('receipt_template');
         }
 
+        // 8. attendance geofence/settings
+        $attendance = [];
+        if ($this->has('attendance.gym_latitude')) {
+            $attendance['gym_latitude'] = $this->input('attendance.gym_latitude');
+        } elseif ($this->has('attendance_gym_latitude')) {
+            $attendance['gym_latitude'] = $this->input('attendance_gym_latitude');
+        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('gym_latitude', $this->input('attendance'))) {
+            $attendance['gym_latitude'] = $this->input('attendance')['gym_latitude'];
+        }
+
+        if ($this->has('attendance.gym_longitude')) {
+            $attendance['gym_longitude'] = $this->input('attendance.gym_longitude');
+        } elseif ($this->has('attendance_gym_longitude')) {
+            $attendance['gym_longitude'] = $this->input('attendance_gym_longitude');
+        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('gym_longitude', $this->input('attendance'))) {
+            $attendance['gym_longitude'] = $this->input('attendance')['gym_longitude'];
+        }
+
+        if ($this->has('attendance.gym_radius_meters')) {
+            $attendance['gym_radius_meters'] = $this->input('attendance.gym_radius_meters');
+        } elseif ($this->has('attendance_gym_radius_meters')) {
+            $attendance['gym_radius_meters'] = $this->input('attendance_gym_radius_meters');
+        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('gym_radius_meters', $this->input('attendance'))) {
+            $attendance['gym_radius_meters'] = $this->input('attendance')['gym_radius_meters'];
+        }
+
+        if ($this->has('attendance.default_grace_minutes')) {
+            $attendance['default_grace_minutes'] = $this->input('attendance.default_grace_minutes');
+        } elseif ($this->has('attendance_default_grace_minutes')) {
+            $attendance['default_grace_minutes'] = $this->input('attendance_default_grace_minutes');
+        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('default_grace_minutes', $this->input('attendance'))) {
+            $attendance['default_grace_minutes'] = $this->input('attendance')['default_grace_minutes'];
+        }
+
+        if (! empty($attendance)) {
+            $normalized['attendance'] = $attendance;
+        }
+
         $this->replace($normalized);
     }
 
@@ -82,6 +120,11 @@ class UpdateSettingsRequest extends FormRequest
             'currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'receipt_template' => ['nullable', 'string', 'max:1000'],
+            'attendance' => ['nullable', 'array'],
+            'attendance.gym_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'attendance.gym_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'attendance.gym_radius_meters' => ['nullable', 'integer', 'min:10', 'max:10000'],
+            'attendance.default_grace_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
         ];
 
         if ($this->hasFile('gym.logo')) {

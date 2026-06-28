@@ -66,6 +66,14 @@ final class UpdateSettings
             }
         }
 
+        if (isset($validated['attendance'])) {
+            foreach (['gym_latitude', 'gym_longitude', 'gym_radius_meters', 'default_grace_minutes'] as $key) {
+                if (array_key_exists($key, $validated['attendance'])) {
+                    $flat["attendance.{$key}"] = $validated['attendance'][$key];
+                }
+            }
+        }
+
         return $flat;
     }
 }

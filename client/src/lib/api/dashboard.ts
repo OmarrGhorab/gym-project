@@ -534,6 +534,27 @@ export type AuditLog = {
   created_at: string;
 };
 
+export type AppSettings = {
+  gym: {
+    name: string;
+    colors: {
+      primary: string;
+      secondary: string;
+    };
+    logo?: string | null;
+  };
+  reminder_days: number;
+  currency: string;
+  vat_rate: number;
+  receipt_template: string;
+  attendance: {
+    gym_latitude?: number | null;
+    gym_longitude?: number | null;
+    gym_radius_meters: number;
+    default_grace_minutes: number;
+  };
+};
+
 type ApiErrorBody = {
   error?: {
     message?: string;
@@ -614,6 +635,10 @@ function toFiniteNumber(value: unknown, fallback: number) {
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   return api<DashboardSummary>("/dashboard/summary");
+}
+
+export async function getSettings(): Promise<AppSettings> {
+  return api<AppSettings>("/settings");
 }
 
 export async function getDashboardExpiringSoon(

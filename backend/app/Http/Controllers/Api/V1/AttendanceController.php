@@ -8,7 +8,9 @@ use App\Actions\Attendance\StoreAttendance;
 use App\Actions\Attendance\UpdateAttendance;
 use App\Http\Requests\Attendance\ReviewAttendanceViolationRequest;
 use App\Http\Requests\Attendance\ScanAttendanceRequest;
+use App\Http\Requests\Attendance\StoreEmployeeShiftRequest;
 use App\Http\Requests\Attendance\StoreAttendanceRequest;
+use App\Http\Requests\Attendance\UpdateEmployeeShiftRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceViolationRuleRequest;
 use App\Http\Resources\AttendanceResource;
@@ -70,6 +72,48 @@ final class AttendanceController extends ApiController
             data: EmployeeShiftResource::collection(EmployeeShift::query()->where('is_active', true)->orderBy('starts_at')->get())->resolve(),
             message: 'Employee shifts retrieved',
         );
+    }
+
+    public function manageShifts(Request $request): JsonResponse
+    {
+        $request->user()->can('settings.manage') || abort(403);
+
+        return $this->success(
+            data: EmployeeShiftResource::collection(EmployeeShift::query()->orderBy('starts_at')->orderBy('name')->get())->resolve(),
+            message: 'Employee shifts retrieved',
+        );
+    }
+
+    public function storeShift(StoreEmployeeShiftRequest $request): JsonResponse
+    {
+        $shift = EmployeeShift::query()->create($request->validated());
+
+        return (new EmployeeShiftResource($shift))
+            ->withMessage('Employee shift created')
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function updateShift(UpdateEmployeeShiftRequest $request, EmployeeShift $employeeShift): JsonResponse
+    {
+        $employeeShift->update($request->validated());
+
+        return (new EmployeeShiftResource($employeeShift->fresh()))
+            ->withMessage('Employee shift updated')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function deactivateShift(Request $request, EmployeeShift $employeeShift): JsonResponse
+    {
+        $request->user()->can('settings.manage') || abort(403);
+
+        $employeeShift->update(['is_active' => false]);
+
+        return (new EmployeeShiftResource($employeeShift->fresh()))
+            ->withMessage('Employee shift deactivated')
+            ->response()
+            ->setStatusCode(200);
     }
 
     public function violations(Request $request): JsonResponse

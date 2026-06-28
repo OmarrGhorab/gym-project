@@ -51,13 +51,23 @@ test('admin can update settings', function (): void {
         'currency' => 'EUR',
         'vat_rate' => 18.5,
         'receipt_template' => 'premium_style',
+        'attendance' => [
+            'gym_latitude' => 30.0444,
+            'gym_longitude' => 31.2357,
+            'gym_radius_meters' => 120,
+            'default_grace_minutes' => 20,
+        ],
     ];
 
     $this->putJson('/api/v1/settings', $payload)
         ->assertStatus(200)
         ->assertJsonPath('data.gym.name', 'Super Power Gym')
         ->assertJsonPath('data.gym.colors.primary', '#ff0000')
-        ->assertJsonPath('data.vat_rate', 18.5);
+        ->assertJsonPath('data.vat_rate', 18.5)
+        ->assertJsonPath('data.attendance.gym_latitude', 30.0444)
+        ->assertJsonPath('data.attendance.gym_longitude', 31.2357)
+        ->assertJsonPath('data.attendance.gym_radius_meters', 120)
+        ->assertJsonPath('data.attendance.default_grace_minutes', 20);
 
     // Read back and check
     $this->getJson('/api/v1/settings')
@@ -66,7 +76,8 @@ test('admin can update settings', function (): void {
         ->assertJsonPath('data.reminder_days', 10)
         ->assertJsonPath('data.currency', 'EUR')
         ->assertJsonPath('data.vat_rate', 18.5)
-        ->assertJsonPath('data.receipt_template', 'premium_style');
+        ->assertJsonPath('data.receipt_template', 'premium_style')
+        ->assertJsonPath('data.attendance.gym_radius_meters', 120);
 });
 
 test('non-admin cannot read or update settings', function (): void {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Auth\ChangeUserPassword;
 use App\Actions\Auth\HandleSocialLogin;
 use App\Actions\Auth\LoginStaffUser;
 use App\Actions\Auth\LogoutStaffUser;
@@ -11,6 +12,7 @@ use App\Actions\Auth\ResetUserPassword;
 use App\Actions\Auth\SendPasswordResetOtp;
 use App\Actions\Auth\VerifyEmailOtp;
 use App\Actions\Auth\VerifyPasswordResetOtp;
+use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
@@ -283,6 +285,22 @@ final class AuthController extends ApiController
         return $this->success(
             data: null,
             message: 'Signed out',
+        );
+    }
+
+    /**
+     * POST /api/v1/auth/change-password
+     *
+     * Allows the currently authenticated user to change their own password
+     * after confirming the current password.
+     */
+    public function changePassword(ChangePasswordRequest $request, ChangeUserPassword $action): JsonResponse
+    {
+        $action->handle($request->user(), $request->validated('password'));
+
+        return $this->success(
+            data: null,
+            message: 'Password changed successfully.',
         );
     }
 

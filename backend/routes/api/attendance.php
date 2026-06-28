@@ -19,6 +19,18 @@ Route::prefix('attendance')->group(function (): void {
     Route::get('/shifts', [AttendanceController::class, 'shifts'])
         ->middleware('permission:attendance.view');
 
+    Route::get('/shifts/manage', [AttendanceController::class, 'manageShifts'])
+        ->middleware('permission:settings.manage');
+
+    Route::post('/shifts', [AttendanceController::class, 'storeShift'])
+        ->middleware(['permission:settings.manage', 'throttle:api']);
+
+    Route::put('/shifts/{employeeShift}', [AttendanceController::class, 'updateShift'])
+        ->middleware(['permission:settings.manage', 'throttle:api']);
+
+    Route::delete('/shifts/{employeeShift}', [AttendanceController::class, 'deactivateShift'])
+        ->middleware(['permission:settings.manage', 'throttle:api']);
+
     Route::get('/violations', [AttendanceController::class, 'violations'])
         ->middleware('permission:attendance.view');
 
