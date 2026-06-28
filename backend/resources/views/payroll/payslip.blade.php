@@ -1,145 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Payslip - {{ $payroll->month }}</title>
+    <title>Salary Receipt - {{ $payroll->month }}</title>
     <style>
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #333;
+            font-family: DejaVu Sans, Arial, sans-serif;
+            color: #111;
             margin: 0;
-            padding: 20px;
-            font-size: 14px;
+            padding: 24px;
+            font-size: 13px;
+            direction: rtl;
         }
-        .payslip-box {
-            max-width: 600px;
+        .page {
+            max-width: 980px;
             margin: auto;
-            padding: 30px;
-            border: 1px solid #eee;
-            background: #fff;
+            position: relative;
+        }
+        .watermark {
+            position: absolute;
+            inset: 160px 120px auto 120px;
+            text-align: center;
+            font-size: 96px;
+            font-weight: 900;
+            color: #000;
+            opacity: .08;
+            z-index: 0;
+        }
+        .grid {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            position: relative;
+            z-index: 1;
+        }
+        .col {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding: 10px;
         }
         .header {
+            text-align: right;
+            margin-bottom: 26px;
+        }
+        .brand {
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+        h1, h2 {
+            margin: 0 0 18px;
+            text-decoration: underline;
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
         }
-        .company-name {
-            font-size: 20px;
+        .month {
+            font-size: 18px;
             font-weight: bold;
-            text-transform: uppercase;
+            margin-bottom: 18px;
         }
-        .title {
-            font-size: 16px;
-            color: #555;
-            margin-top: 5px;
-        }
-        .details-table, .earnings-table {
+        .line {
+            display: table;
             width: 100%;
-            margin-bottom: 20px;
-            border-collapse: collapse;
-        }
-        .details-table td {
-            padding: 5px 0;
-            font-size: 13px;
-        }
-        .details-table td.right {
-            text-align: right;
-            font-weight: bold;
-        }
-        .earnings-header {
-            background: #f5f5f5;
-            font-weight: bold;
-            border-bottom: 1px solid #ddd;
-        }
-        .earnings-table th {
-            text-align: left;
-            padding: 8px;
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-        .earnings-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-        }
-        .earnings-table td.right {
-            text-align: right;
-        }
-        .net-salary-row {
+            margin: 12px 0;
             font-size: 16px;
-            font-weight: bold;
-            background: #f9f9f9;
         }
-        .net-salary-row td {
-            border-top: 2px solid #333;
-            padding: 12px 8px;
+        .label {
+            display: table-cell;
+            width: 42%;
+            font-weight: bold;
+        }
+        .value {
+            display: table-cell;
+            border-bottom: 1px solid #ddd;
+            min-height: 20px;
+            padding: 0 8px;
+        }
+        .highlight {
+            background: #e6e6e6;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        th, td {
+            border: 1px solid #222;
+            padding: 6px;
+            text-align: center;
+            font-size: 11px;
+        }
+        th {
+            background: #dedede;
+        }
+        .notes {
+            margin-top: 16px;
+            line-height: 1.8;
+            font-size: 13px;
+        }
+        .totals {
+            background: #efefef;
+            font-weight: bold;
+        }
+        .ltr {
+            direction: ltr;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
 
-<div class="payslip-box">
-    <div class="header">
-        <div class="company-name">Gym Platform</div>
-        <div class="title">Employee Payslip</div>
+@php
+    $attendance = $payroll->getRelation('monthAttendance') ?? collect();
+    $violations = $payroll->getRelation('attendanceViolations') ?? collect();
+    $snapshot = $payroll->attendance_snapshot ?? [];
+@endphp
+
+<div class="page">
+    <div class="watermark">ATP GYM</div>
+    <div class="grid">
+        <div class="col">
+            <h1>لائحة المخالفات</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>نوع المخالفة</th>
+                        <th>الجزاء</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($violations as $violation)
+                        <tr>
+                            <td>{{ $loop->iteration }}</td>
+                            <td>{{ $violation->rule?->description ?? $violation->type }}</td>
+                            <td>{{ number_format((float) $violation->deduction_days, 2) }} يوم / {{ number_format((float) $violation->deduction_amount, 2) }}</td>
+                            <td>{{ $violation->status }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4">لا توجد مخالفات مسجلة لهذا الشهر</td>
+                        </tr>
+                    @endforelse
+                    <tr class="totals">
+                        <td colspan="2">الإجمالي</td>
+                        <td colspan="2">{{ number_format((float) $payroll->attendance_deductions, 2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="notes">
+                <strong>تنبيه:</strong>
+                <ul>
+                    <li>هذه اللائحة تتضمن عدم فعل المخالفة وعدم تكرارها.</li>
+                    <li>أي مخالفة معلقة يمكن مراجعتها من الإدارة قبل صرف الراتب.</li>
+                    <li>المخالفات غير المراجعة تطبق تلقائيا حسب إعدادات النظام.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="header">
+                <div class="brand">ATP GYM</div>
+                <div>Unleash Your Energy</div>
+            </div>
+            <div class="month">مرتبات شهر / <span class="ltr">{{ $payroll->month }}</span></div>
+            <h2>البيانات الشخصية</h2>
+            <div class="line"><span class="label">الاسم :</span><span class="value">{{ $payroll->employee?->name }}</span></div>
+            <div class="line"><span class="label">الوظيفة :</span><span class="value">{{ $payroll->employee?->role }}</span></div>
+            <div class="line"><span class="label">نظام العمل :</span><span class="value">{{ $payroll->employee?->shift?->name ?? '-' }}</span></div>
+            <div class="line"><span class="label">أساسي المرتب :</span><span class="value">{{ number_format((float) $payroll->base_salary, 2) }}</span></div>
+            <div class="line"><span class="label">العمولات :</span><span class="value">{{ number_format((float) $payroll->commissions_total, 2) }}</span></div>
+            <div class="line"><span class="label">بونص :</span><span class="value">{{ number_format((float) $payroll->bonuses, 2) }}</span></div>
+            <div class="line"><span class="label">أيام الغياب :</span><span class="value">{{ $attendance->where('status', 'absent')->count() }}</span></div>
+            <div class="line"><span class="label">السلف / الخصم اليدوي :</span><span class="value">{{ number_format((float) $payroll->deductions, 2) }}</span></div>
+            <div class="line"><span class="label">الخصم طبقا للائحة :</span><span class="value">{{ number_format((float) $payroll->attendance_deductions, 2) }}</span></div>
+            <div class="line highlight"><span class="label">صافي الراتب :</span><span class="value">{{ number_format((float) $payroll->net_salary, 2) }}</span></div>
+            <div class="line"><span class="label">ملاحظات :</span><span class="value">{{ $snapshot['notes'] ?? '' }}</span></div>
+        </div>
     </div>
-
-    <table class="details-table">
-        <tr>
-            <td>Employee Name:</td>
-            <td class="right">{{ $payroll->employee?->name }}</td>
-        </tr>
-        <tr>
-            <td>Role:</td>
-            <td class="right">{{ ucfirst($payroll->employee?->role) }}</td>
-        </tr>
-        <tr>
-            <td>Pay Period / Month:</td>
-            <td class="right">{{ $payroll->month }}</td>
-        </tr>
-        <tr>
-            <td>Status:</td>
-            <td class="right">{{ strtoupper($payroll->status) }}</td>
-        </tr>
-        @if($payroll->paid_at)
-            <tr>
-                <td>Paid Date:</td>
-                <td class="right">{{ $payroll->paid_at->format('Y-m-d H:i:s') }}</td>
-            </tr>
-        @endif
-    </table>
-
-    <table class="earnings-table">
-        <thead>
-            <tr class="earnings-header">
-                <th>Description</th>
-                <th style="text-align: right;">Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Base Salary</td>
-                <td class="right">{{ number_format((float) $payroll->base_salary, 2) }}</td>
-            </tr>
-            <tr>
-                <td>Commissions Earned</td>
-                <td class="right">{{ number_format((float) $payroll->commissions_total, 2) }}</td>
-            </tr>
-            <tr>
-                <td>Bonuses</td>
-                <td class="right">{{ number_format((float) $payroll->bonuses, 2) }}</td>
-            </tr>
-            <tr>
-                <td>Deductions</td>
-                <td class="right">-{{ number_format((float) $payroll->deductions, 2) }}</td>
-            </tr>
-            <tr class="net-salary-row">
-                <td>Net Pay</td>
-                <td class="right">{{ number_format((float) $payroll->net_salary, 2) }}</td>
-            </tr>
-        </tbody>
-    </table>
 </div>
 
 </body>

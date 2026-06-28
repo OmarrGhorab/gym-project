@@ -22,6 +22,8 @@ class PayrollFactory extends Factory
             'commissions_total' => 200.00,
             'bonuses' => 0.00,
             'deductions' => 0.00,
+            'attendance_deductions' => 0.00,
+            'attendance_snapshot' => null,
             'net_salary' => 3200.00,
             'status' => 'pending',
             'paid_at' => null,

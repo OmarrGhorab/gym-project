@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Actions\Payroll;
+
+use App\Models\AttendanceViolation;
+use App\Models\Payroll;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+
+final class ApplyAttendanceDeductions
+{
+    public function execute(Payroll $payroll): Payroll
+    {
+        $violations = AttendanceViolation::query()
+            ->with('rule')
+            ->where('employee_id', $payroll->employee_id)
+            ->whereBetween('violation_date', [
+                "{$payroll->month}-01",
+                Carbon::parse("{$payroll->month}-01")->endOfMonth()->toDateString(),
+            ])
+            ->where(function ($query): void {
+                $query->where('status', 'approved')
+                    ->orWhere('status', 'pending')
+                    ->orWhere('status', 'auto_applied');
+            })
+            ->get();
+
+        $applicable = $violations->filter(function (AttendanceViolation $violation): bool {
+            return $violation->status === 'approved'
+                || (bool) $violation->rule?->auto_apply_if_unreviewed;
+        });
+
+        $dailySalary = bcdiv((string) $payroll->base_salary, '30', 2);
+        $total = '0.00';
+
+        foreach ($applicable as $violation) {
+            $amount = bcmul($dailySalary, (string) $violation->deduction_days, 2);
+            $updates = [
+                'deduction_amount' => $amount,
+                'status' => $violation->status === 'pending' ? 'auto_applied' : $violation->status,
+            ];
+
+            if ($payroll->exists) {
+                $updates['payroll_id'] = $payroll->id;
+            }
+
+            $violation->update($updates);
+            $violation->deduction_amount = $amount;
+            $violation->status = $updates['status'];
+            $total = bcadd($total, $amount, 2);
+        }
+
+        $payroll->attendance_deductions = $total;
+        $payroll->attendance_snapshot = $this->snapshot($applicable, $total);
+
+        return $payroll;
+    }
+
+    /**
+     * @param  Collection<int, AttendanceViolation>  $violations
+     */
+    private function snapshot(Collection $violations, string $total): array
+    {
+        return [
+            'total' => $total,
+            'violations' => $violations->map(fn (AttendanceViolation $violation) => [
+                'id' => $violation->id,
+                'date' => $violation->violation_date?->toDateString(),
+                'type' => $violation->type,
+                'minutes' => $violation->minutes,
+                'deduction_days' => number_format((float) $violation->deduction_days, 2, '.', ''),
+                'deduction_amount' => number_format((float) $violation->deduction_amount, 2, '.', ''),
+                'status' => $violation->status,
+                'notes' => $violation->notes,
+            ])->values()->all(),
+        ];
+    }
+}

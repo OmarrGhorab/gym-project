@@ -21,8 +21,16 @@ class PayslipResource extends JsonResource
             'month' => $this->month,
             'base_salary' => number_format((float) $this->base_salary, 2, '.', ''),
             'commissions' => CommissionResource::collection($this->whenLoaded('monthCommissions'))->resolve(),
+            'attendance' => [
+                'records_count' => $this->whenLoaded('monthAttendance', fn () => $this->monthAttendance->count(), 0),
+                'late_count' => $this->whenLoaded('monthAttendance', fn () => $this->monthAttendance->where('status', 'late')->count(), 0),
+                'absent_count' => $this->whenLoaded('monthAttendance', fn () => $this->monthAttendance->where('status', 'absent')->count(), 0),
+            ],
+            'attendance_violations' => AttendanceViolationResource::collection($this->whenLoaded('attendanceViolations'))->resolve(),
             'bonuses' => number_format((float) $this->bonuses, 2, '.', ''),
             'deductions' => number_format((float) $this->deductions, 2, '.', ''),
+            'attendance_deductions' => number_format((float) $this->attendance_deductions, 2, '.', ''),
+            'attendance_snapshot' => $this->attendance_snapshot,
             'net_salary' => number_format((float) $this->net_salary, 2, '.', ''),
             'generated_at' => $this->created_at?->toIso8601String(),
         ];

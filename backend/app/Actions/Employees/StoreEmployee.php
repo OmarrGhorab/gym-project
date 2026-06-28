@@ -18,6 +18,7 @@ final class StoreEmployee
             'role' => $data['role'] ?? 'employee',
             'base_salary' => $data['base_salary'] ?? 0.00,
             'commission_rate' => $data['commission_rate'] ?? 0.0000,
+            'shift_id' => $data['shift_id'] ?? null,
             'hire_date' => $data['hire_date'] ?? null,
             'status' => $data['status'] ?? 'active',
         ]);

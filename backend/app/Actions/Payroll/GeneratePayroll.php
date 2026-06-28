@@ -8,6 +8,8 @@ use App\Models\Payroll;
 
 final class GeneratePayroll
 {
+    public function __construct(private readonly ApplyAttendanceDeductions $attendanceDeductions) {}
+
     /**
      * Generate payroll for all active employees for the target month.
      *
@@ -48,16 +50,23 @@ final class GeneratePayroll
 
             $netSalary = bcadd((string) $employee->base_salary, (string) $commissionsTotal, 2);
 
-            $payroll = Payroll::create([
+            $payroll = new Payroll([
                 'employee_id' => $employee->id,
                 'month' => $month,
                 'base_salary' => $employee->base_salary,
                 'commissions_total' => $commissionsTotal,
                 'bonuses' => 0.00,
                 'deductions' => 0.00,
+                'attendance_deductions' => 0.00,
                 'net_salary' => $netSalary,
                 'status' => 'pending',
             ]);
+
+            $payroll = $this->attendanceDeductions->execute($payroll);
+            $payroll->net_salary = bcsub((string) $payroll->net_salary, (string) $payroll->attendance_deductions, 2);
+            $payroll->save();
+            $this->attendanceDeductions->execute($payroll);
+            $payroll->save();
 
             $generated[] = $payroll;
         }

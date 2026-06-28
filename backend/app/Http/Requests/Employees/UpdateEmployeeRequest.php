@@ -29,6 +29,7 @@ class UpdateEmployeeRequest extends FormRequest
             'role' => ['sometimes', 'required', 'string', 'in:employee,captain,manager'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:9.9999'],
+            'shift_id' => ['nullable', 'integer', 'exists:employee_shifts,id'],
             'hire_date' => ['nullable', 'date'],
             'status' => ['nullable', 'string', 'in:active,inactive'],
             'user_id' => [

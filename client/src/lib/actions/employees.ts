@@ -12,6 +12,7 @@ export type EmployeeFormData = {
   role: "employee" | "captain" | "manager";
   base_salary?: string | null;
   commission_rate?: string | null;
+  shift_id?: number | null;
   hire_date?: string | null;
   status?: "active" | "inactive";
   user_id?: number | null;

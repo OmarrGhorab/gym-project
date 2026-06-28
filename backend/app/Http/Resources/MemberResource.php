@@ -24,6 +24,8 @@ final class MemberResource extends JsonResource
                 $request->user()?->hasRole(['Admin', 'Manager']),
                 $this->national_id,
             ),
+            'attendance_code' => $this->attendance_code,
+            'attendance_qr' => $this->attendance_code ? "member:{$this->attendance_code}" : null,
             'birth_date' => $this->birth_date?->toDateString(),
             'join_date' => $this->join_date?->toDateString(),
             'expiry_date' => $latestSubscription?->end_date?->toDateString(),

@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ArrowLeft, Mail, Phone, Calendar, CreditCard, User, WalletCards, ShoppingBag, DoorOpen } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Calendar, CreditCard, User, WalletCards, ShoppingBag, DoorOpen, QrCode } from "lucide-react";
 import { getMember, getMemberPaymentHistory, getMemberVisits } from "@/lib/api/dashboard";
 import type { MemberPaymentHistory, MemberVisit } from "@/lib/api/dashboard";
+import { MemberProfileQrAction } from "@/components/members/member-profile-qr-action";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +45,7 @@ export default async function MemberDetailPage({
             {t("backToMembers")}
           </Link>
         </Button>
+        <MemberProfileQrAction member={member} />
       </header>
 
       <Card>
@@ -120,6 +122,10 @@ export default async function MemberDetailPage({
               <CreditCard className="size-4 text-muted-foreground" />
               <span className="text-sm font-medium">{member.national_id || "-"}</span>
             </div>
+            <div className={cn("flex items-center gap-3", isArabic && "flex-row-reverse")}>
+              <QrCode className="size-4 text-muted-foreground" />
+              <span className="break-all font-mono text-xs font-bold">{member.attendance_code || "-"}</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -158,6 +164,10 @@ export default async function MemberDetailPage({
                 <p className="text-xs text-muted-foreground">{t("detailTotalPaid")}</p>
                 <p className="text-sm font-medium">{member.total_paid ?? "0.00"}</p>
               </div>
+            </div>
+            <div className={cn("rounded-lg border bg-muted/20 p-3", isArabic && "text-right")}>
+              <p className="text-xs font-bold text-muted-foreground">{t("detailAttendanceQr")}</p>
+              <p className="mt-1 text-sm font-black text-foreground">{t("qrPassPrintHint")}</p>
             </div>
           </CardContent>
         </Card>
@@ -336,6 +346,8 @@ function VisitHistorySection({
             <TableHead>{t("visitCheckIn")}</TableHead>
             <TableHead>{t("visitCheckOut")}</TableHead>
             <TableHead>{t("visitStatus")}</TableHead>
+            <TableHead>{t("visitMethod")}</TableHead>
+            <TableHead>{t("visitLocation")}</TableHead>
             <TableHead>{t("visitAlert")}</TableHead>
           </TableRow>
         </TableHeader>
@@ -345,16 +357,18 @@ function VisitHistorySection({
               <TableCell>{formatDateTime(visit.check_in_at, locale)}</TableCell>
               <TableCell>{formatDateTime(visit.check_out_at, locale)}</TableCell>
               <TableCell>
-                <Badge variant="outline" className={cn("rounded-md text-xs font-bold", visit.status === "blocked" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300")}>
-                  {visit.status === "blocked" ? t("visitBlocked") : t("visitAllowed")}
+                <Badge variant="outline" className={cn("rounded-md text-xs font-bold", visitStatusClass(visit.status))}>
+                  {visitStatusLabel(visit.status, t)}
                 </Badge>
               </TableCell>
+              <TableCell>{scanMethodLabel(visit.scan_method, t)}</TableCell>
+              <TableCell>{locationStatusLabel(visit.check_in_location?.status, t)}</TableCell>
               <TableCell>{visit.alert_reason ?? "-"}</TableCell>
             </TableRow>
           ))}
           {visits.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-sm font-semibold text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-sm font-semibold text-muted-foreground">
                 {t("emptyVisits")}
               </TableCell>
             </TableRow>
@@ -363,6 +377,44 @@ function VisitHistorySection({
       </Table>
     </Card>
   );
+}
+
+function visitStatusLabel(status: string, t: (key: string) => string) {
+  if (status === "blocked") return t("visitBlocked");
+  if (status === "flagged") return t("visitFlagged");
+  return t("visitAllowed");
+}
+
+function visitStatusClass(status: string) {
+  if (status === "blocked") return "border-destructive/30 bg-destructive/10 text-destructive";
+  if (status === "flagged") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+}
+
+function scanMethodLabel(method: string | null | undefined, t: (key: string) => string) {
+  switch (method) {
+    case "qr":
+      return t("visitMethodQr");
+    case "phone":
+      return t("visitMethodPhone");
+    case "name":
+      return t("visitMethodName");
+    default:
+      return t("visitMethodManual");
+  }
+}
+
+function locationStatusLabel(status: string | null | undefined, t: (key: string) => string) {
+  switch (status) {
+    case "inside":
+      return t("visitLocationInside");
+    case "outside":
+      return t("visitLocationOutside");
+    case "unconfigured":
+      return t("visitLocationUnconfigured");
+    default:
+      return t("visitLocationMissing");
+  }
 }
 
 function getInitials(name: string) {

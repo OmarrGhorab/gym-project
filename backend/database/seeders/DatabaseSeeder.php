@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         $this->call(MembershipAccessSeeder::class);
         $this->call(PosAccessSeeder::class);
         $this->call(HrFinanceAccessSeeder::class);
+        $this->call(AttendanceRulesSeeder::class);
         $this->call(RoleMatrixSeeder::class);
         $this->call(RoleUserSeeder::class);
         $this->call(PostmanScenarioSeeder::class);

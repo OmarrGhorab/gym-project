@@ -40,11 +40,38 @@ export function MemberVisitsTable({ visits }: { visits: MemberVisit[] }) {
         ),
       },
       {
+        accessorKey: "check_out_at",
+        header: t("memberVisitTableCheckOut"),
+        cell: ({ row }) => (
+          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+            {formatDateTime(row.original.check_out_at, dateLocale)}
+          </span>
+        ),
+      },
+      {
         accessorKey: "status",
         header: t("memberVisitTableStatus"),
         cell: ({ row }) => (
-          <Badge variant="outline" className={cn("rounded-md text-xs font-bold", row.original.status === "blocked" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300")}>
-            {row.original.status === "blocked" ? t("memberVisitStatusBlocked") : t("memberVisitStatusAllowed")}
+          <Badge variant="outline" className={cn("rounded-md text-xs font-bold", statusClass(row.original.status))}>
+            {memberVisitStatusLabel(row.original.status, t)}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "scan_method",
+        header: t("memberVisitTableMethod"),
+        cell: ({ row }) => (
+          <Badge variant="outline" className="rounded-md text-xs font-bold">
+            {scanMethodLabel(row.original.scan_method, t)}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "check_in_location",
+        header: t("memberVisitTableLocation"),
+        cell: ({ row }) => (
+          <Badge variant="outline" className={cn("rounded-md text-xs font-bold", locationClass(row.original.check_in_location?.status))}>
+            {locationStatusLabel(row.original.check_in_location?.status, t)}
           </Badge>
         ),
       },
@@ -64,7 +91,7 @@ export function MemberVisitsTable({ visits }: { visits: MemberVisit[] }) {
   return <DataTable columns={columns} data={visits} emptyMessage={t("memberVisitEmpty")} isArabic={isArabic} />;
 }
 
-function formatDateTime(value: string | undefined, locale: string) {
+function formatDateTime(value: string | null | undefined, locale: string) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
@@ -75,4 +102,53 @@ function formatDateTime(value: string | undefined, locale: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function memberVisitStatusLabel(status: string, t: (key: string) => string) {
+  if (status === "blocked") return t("memberVisitStatusBlocked");
+  if (status === "flagged") return t("memberVisitStatusFlagged");
+  return t("memberVisitStatusAllowed");
+}
+
+function statusClass(status: string) {
+  if (status === "blocked") return "border-destructive/30 bg-destructive/10 text-destructive";
+  if (status === "flagged") return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+}
+
+function scanMethodLabel(method: string | null | undefined, t: (key: string) => string) {
+  switch (method) {
+    case "qr":
+      return t("scanMethodQr");
+    case "phone":
+      return t("scanMethodPhone");
+    case "name":
+      return t("scanMethodName");
+    default:
+      return t("scanMethodManual");
+  }
+}
+
+function locationStatusLabel(status: string | null | undefined, t: (key: string) => string) {
+  switch (status) {
+    case "inside":
+      return t("locationInside");
+    case "outside":
+      return t("locationOutside");
+    case "unconfigured":
+      return t("locationUnconfigured");
+    default:
+      return t("locationMissingShort");
+  }
+}
+
+function locationClass(status: string | null | undefined) {
+  switch (status) {
+    case "inside":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    case "outside":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    default:
+      return "border-slate-500/20 bg-slate-500/10 text-muted-foreground";
+  }
 }

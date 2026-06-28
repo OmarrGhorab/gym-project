@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { BadgeDollarSign, BriefcaseBusiness, UserCheck, Users } from "lucide-react";
-import { getEmployees, getRoles, type Employee, type Paginated, type Role } from "@/lib/api/dashboard";
+import {
+  getEmployeeShifts,
+  getEmployees,
+  getRoles,
+  type Employee,
+  type EmployeeShift,
+  type Paginated,
+  type Role,
+} from "@/lib/api/dashboard";
 import { TeamFilterBar } from "@/components/teams/team-filter-bar";
 import { TeamPagination } from "@/components/teams/team-pagination";
 import { TeamTableContainer } from "@/components/teams/team-table-container";
@@ -49,6 +57,7 @@ export default async function TeamsPage({
 
   let employees: Employee[] = [];
   let roles: Role[] = [];
+  let shifts: EmployeeShift[] = [];
   let meta: Paginated<Employee>["meta"] = {
     current_page: 1,
     per_page: 15,
@@ -58,13 +67,15 @@ export default async function TeamsPage({
   let fetchError: string | null = null;
 
   try {
-    const [employeesResult, rolesResult] = await Promise.all([
+    const [employeesResult, rolesResult, shiftsResult] = await Promise.all([
       getEmployees({ page, role, status, search }),
       getRoles().catch(() => []),
+      getEmployeeShifts().catch(() => []),
     ]);
     employees = employeesResult.data;
     meta = employeesResult.meta;
     roles = rolesResult;
+    shifts = shiftsResult;
   } catch {
     fetchError = t("fetchError");
   }
@@ -140,7 +151,7 @@ export default async function TeamsPage({
             {t("tableDescription", { count: meta.total })}
           </p>
         </div>
-        <TeamTableContainer employees={employees} roles={roles} />
+        <TeamTableContainer employees={employees} roles={roles} shifts={shifts} />
         <TeamPagination currentPage={meta.current_page || 1} lastPage={meta.last_page || 1} />
       </Card>
     </div>

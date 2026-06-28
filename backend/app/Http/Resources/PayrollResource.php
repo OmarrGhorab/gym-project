@@ -24,6 +24,8 @@ class PayrollResource extends JsonResource
             'commissions_total' => number_format((float) $this->commissions_total, 2, '.', ''),
             'bonuses' => number_format((float) $this->bonuses, 2, '.', ''),
             'deductions' => number_format((float) $this->deductions, 2, '.', ''),
+            'attendance_deductions' => number_format((float) $this->attendance_deductions, 2, '.', ''),
+            'attendance_snapshot' => $this->attendance_snapshot,
             'net_salary' => number_format((float) $this->net_salary, 2, '.', ''),
             'status' => $this->status,
             'paid_at' => $this->paid_at?->toIso8601String(),

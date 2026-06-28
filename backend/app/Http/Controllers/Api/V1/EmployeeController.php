@@ -22,7 +22,7 @@ final class EmployeeController extends ApiController
         $this->authorize('viewAny', Employee::class);
 
         $employees = QueryBuilder::for(Employee::class)
-            ->with(['user.roles'])
+            ->with(['user.roles', 'shift'])
             ->allowedFilters(
                 AllowedFilter::exact('role'),
                 AllowedFilter::exact('status'),
@@ -54,7 +54,7 @@ final class EmployeeController extends ApiController
     public function store(StoreEmployeeRequest $request, StoreEmployee $action): JsonResponse
     {
         $employee = $action->handle($request->validated());
-        $employee->load('user.roles');
+        $employee->load(['user.roles', 'shift']);
 
         return (new EmployeeResource($employee))
             ->withMessage('Employee created')
@@ -65,7 +65,7 @@ final class EmployeeController extends ApiController
     public function show(Request $request, Employee $employee): JsonResponse
     {
         $this->authorize('view', $employee);
-        $employee->load('user.roles');
+        $employee->load(['user.roles', 'shift']);
 
         return (new EmployeeResource($employee))
             ->withMessage('Employee retrieved')
@@ -76,7 +76,7 @@ final class EmployeeController extends ApiController
     public function update(UpdateEmployeeRequest $request, Employee $employee, UpdateEmployee $action): JsonResponse
     {
         $employee = $action->handle($employee, $request->validated());
-        $employee->load('user.roles');
+        $employee->load(['user.roles', 'shift']);
 
         return (new EmployeeResource($employee))
             ->withMessage('Employee updated')

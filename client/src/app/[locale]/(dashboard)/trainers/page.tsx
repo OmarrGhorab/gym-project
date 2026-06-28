@@ -3,10 +3,12 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { BadgeDollarSign, Dumbbell, Target, Trophy } from "lucide-react";
 import { format, subDays } from "date-fns";
 import {
+  getEmployeeShifts,
   getEmployeePerformance,
   getEmployees,
   type Employee,
   type EmployeePerformance,
+  type EmployeeShift,
   type Paginated,
 } from "@/lib/api/dashboard";
 import { TeamFilterBar } from "@/components/teams/team-filter-bar";
@@ -59,6 +61,7 @@ export default async function TrainersPage({
   });
 
   let trainers: Employee[] = [];
+  let shifts: EmployeeShift[] = [];
   let performance: EmployeePerformance[] = [];
   let meta: Paginated<Employee>["meta"] = {
     current_page: 1,
@@ -69,12 +72,14 @@ export default async function TrainersPage({
   let fetchError: string | null = null;
 
   try {
-    const [employeesResult, performanceResult] = await Promise.all([
+    const [employeesResult, performanceResult, shiftsResult] = await Promise.all([
       getEmployees({ page, role, status, search }),
       getEmployeePerformance({ from, to }).catch(() => []),
+      getEmployeeShifts().catch(() => []),
     ]);
     trainers = employeesResult.data;
     meta = employeesResult.meta;
+    shifts = shiftsResult;
     const trainerIds = new Set(trainers.map((trainer) => trainer.id));
     performance = performanceResult
       .filter((row) => row.role === "captain" || trainerIds.has(row.employee_id))
@@ -156,7 +161,7 @@ export default async function TrainersPage({
               {t("tableDescription", { count: meta.total })}
             </p>
           </div>
-          <TeamTableContainer employees={trainers} namespace="TrainersPage" />
+          <TeamTableContainer employees={trainers} namespace="TrainersPage" shifts={shifts} />
           <TeamPagination currentPage={meta.current_page || 1} lastPage={meta.last_page || 1} />
         </Card>
 

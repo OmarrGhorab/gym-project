@@ -72,6 +72,11 @@ export function PayrollTable({
         cell: ({ row }) => <Money value={row.original.deductions} locale={locale} muted />,
       },
       {
+        accessorKey: "attendance_deductions",
+        header: t("tableAttendanceDeductions"),
+        cell: ({ row }) => <Money value={row.original.attendance_deductions} locale={locale} muted />,
+      },
+      {
         accessorKey: "net_salary",
         header: t("tableNet"),
         cell: ({ row }) => <Money value={row.original.net_salary} locale={locale} strong />,

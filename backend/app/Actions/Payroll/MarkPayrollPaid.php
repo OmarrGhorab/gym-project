@@ -12,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 final class MarkPayrollPaid
 {
+    public function __construct(private readonly ApplyAttendanceDeductions $attendanceDeductions) {}
+
     /**
      * Mark a payroll entry as paid and record a matching expense payout.
      */
@@ -46,6 +48,8 @@ final class MarkPayrollPaid
                 '0.00',
             );
 
+            $payroll = $this->attendanceDeductions->execute($payroll);
+
             $netSalary = bcsub(
                 bcadd(
                     bcadd((string) $payroll->base_salary, $commissionsTotal, 2),
@@ -55,6 +59,7 @@ final class MarkPayrollPaid
                 (string) $payroll->deductions,
                 2,
             );
+            $netSalary = bcsub($netSalary, (string) $payroll->attendance_deductions, 2);
 
             if (bccomp($netSalary, '0.00', 2) === -1) {
                 throw ValidationException::withMessages([
@@ -64,6 +69,8 @@ final class MarkPayrollPaid
 
             $payroll->update([
                 'commissions_total' => $commissionsTotal,
+                'attendance_deductions' => $payroll->attendance_deductions,
+                'attendance_snapshot' => $payroll->attendance_snapshot,
                 'net_salary' => $netSalary,
                 'status' => 'paid',
                 'paid_at' => now(),

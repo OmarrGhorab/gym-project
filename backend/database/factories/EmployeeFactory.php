@@ -19,9 +19,11 @@ class EmployeeFactory extends Factory
             'user_id' => null, // defaults to unlinked
             'name' => fake()->name(),
             'phone' => fake()->phoneNumber(),
+            'attendance_code' => null,
             'role' => 'employee',
             'base_salary' => 3000.00,
             'commission_rate' => 0.0000,
+            'shift_id' => null,
             'hire_date' => fake()->date(),
             'status' => 'active',
         ];

@@ -14,11 +14,11 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "Metadata.Dashboard" });
+  const t = await getTranslations({ locale, namespace: "MembersPage" });
 
   return {
-    title: `${t("title")} - ${locale === "ar" ? "إدارة الأعضاء" : "Members"}`,
-    description: t("description"),
+    title: t("metadataTitle"),
+    description: t("metadataDescription"),
   };
 }
 

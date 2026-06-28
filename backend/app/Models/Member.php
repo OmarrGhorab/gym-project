@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -28,6 +29,7 @@ class Member extends Model
         'birth_date',
         'photo_path',
         'national_id',
+        'attendance_code',
         'join_date',
         'status',
         'notes',
@@ -52,6 +54,24 @@ class Member extends Model
             ->logOnly(['status', 'created_by'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Member $member): void {
+            if (! $member->attendance_code) {
+                $member->attendance_code = self::newAttendanceCode();
+            }
+        });
+    }
+
+    public static function newAttendanceCode(): string
+    {
+        do {
+            $code = 'M-'.Str::upper(Str::random(16));
+        } while (self::query()->where('attendance_code', $code)->exists());
+
+        return $code;
     }
 
     // -------------------------------------------------------------------------

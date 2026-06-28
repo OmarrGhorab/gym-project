@@ -16,6 +16,27 @@ Route::prefix('attendance')->group(function (): void {
     Route::get('/summary', [AttendanceController::class, 'summary'])
         ->middleware('permission:attendance.view');
 
+    Route::get('/shifts', [AttendanceController::class, 'shifts'])
+        ->middleware('permission:attendance.view');
+
+    Route::get('/violations', [AttendanceController::class, 'violations'])
+        ->middleware('permission:attendance.view');
+
+    Route::put('/violations/{attendanceViolation}', [AttendanceController::class, 'reviewViolation'])
+        ->middleware(['permission:attendance.update', 'throttle:api']);
+
+    Route::get('/violation-rules', [AttendanceController::class, 'violationRules'])
+        ->middleware('permission:attendance.view');
+
+    Route::put('/violation-rules/{attendanceViolationRule}', [AttendanceController::class, 'updateViolationRule'])
+        ->middleware(['permission:attendance.update', 'throttle:api']);
+
+    Route::post('/check-in', [AttendanceController::class, 'checkIn'])
+        ->middleware(['permission:attendance.create', 'throttle:api']);
+
+    Route::post('/check-out', [AttendanceController::class, 'checkOut'])
+        ->middleware(['permission:attendance.create', 'throttle:api']);
+
     Route::post('/', [AttendanceController::class, 'store'])
         ->middleware(['permission:attendance.create', 'throttle:api']);
 

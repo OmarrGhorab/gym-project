@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ArrowLeft, BadgeDollarSign, CalendarCheck2, ReceiptText, TrendingUp } from "lucide-react";
-import { getEmployee, getSingleEmployeePerformance } from "@/lib/api/dashboard";
+import { ArrowLeft, BadgeDollarSign, CalendarCheck2, QrCode, ReceiptText, TrendingUp } from "lucide-react";
+import { getAttendanceViolations, getEmployee, getSingleEmployeePerformance } from "@/lib/api/dashboard";
+import type { AttendanceViolation } from "@/lib/api/dashboard";
+import { StaticQrCode } from "@/components/attendance/static-qr-code";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
@@ -21,9 +23,10 @@ export default async function EmployeePerformancePage({
   const resolvedSearchParams = await searchParams;
   const from = normalizeDate(resolvedSearchParams.from) ?? monthStart();
   const to = normalizeDate(resolvedSearchParams.to) ?? today();
-  const [employee, performance] = await Promise.all([
+  const [employee, performance, violationsResult] = await Promise.all([
     getEmployee(Number(id)),
     getSingleEmployeePerformance(id, { from, to }),
+    getAttendanceViolations({ employeeId: id }).catch(() => ({ data: [] as AttendanceViolation[] })),
   ]);
 
   if (!employee || !performance) {
@@ -105,10 +108,32 @@ export default async function EmployeePerformancePage({
           <Info label={t("tableStatus")} value={employee.status} isArabic={isArabic} />
           <Info label={t("tableCommission")} value={formatPercent(employee.commission_rate, locale)} isArabic={isArabic} />
           <Info label={t("tableHireDate")} value={employee.hire_date ?? "-"} isArabic={isArabic} />
+          <Info label={t("tableShift")} value={employee.shift ? `${employee.shift.name} · ${employee.shift.starts_at}-${employee.shift.ends_at}` : t("shiftUnassigned")} isArabic={isArabic} />
           <Info label={t("tableAttendance")} value={String(performance.attendance_count ?? 0)} isArabic={isArabic} />
           <Info label={t("tableSalesVolume")} value={formatCurrency(performance.previous_sales_volume ?? "0.00", locale)} isArabic={isArabic} />
+          <Info label={t("tableWarnings")} value={String(violationsResult.data.length)} isArabic={isArabic} />
         </CardContent>
       </Card>
+
+      {employee.attendance_qr ? (
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
+            <div className="rounded-md bg-white p-3 shadow-sm">
+              <StaticQrCode value={employee.attendance_qr} size={128} />
+            </div>
+            <div className={cn(isArabic && "text-right")}>
+              <div className="flex items-center gap-2">
+                <QrCode className="size-4 text-primary" />
+                <h2 className="text-base font-black text-foreground">{t("employeeQrTitle")}</h2>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">{t("employeeQrDescription")}</p>
+              <p className="mt-3 break-all rounded-md bg-muted px-3 py-2 font-mono text-xs font-bold text-foreground">
+                {employee.attendance_qr}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

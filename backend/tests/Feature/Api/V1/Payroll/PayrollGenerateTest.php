@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Attendance;
+use App\Models\AttendanceViolation;
+use App\Models\AttendanceViolationRule;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Payroll;
@@ -96,6 +99,41 @@ test('generating payroll validation rejects invalid month format', function (): 
 
     $this->postJson('/api/v1/payroll/generate?month=06-2026')
         ->assertStatus(422);
+});
+
+test('generating payroll applies unreviewed attendance deductions', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '3000.00',
+    ]);
+    $rule = AttendanceViolationRule::factory()->create([
+        'code' => 'late_30_test',
+        'deduction_days' => '0.50',
+        'auto_apply_if_unreviewed' => true,
+    ]);
+    $attendance = Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-06-10',
+        'status' => 'late',
+    ]);
+    AttendanceViolation::factory()->create([
+        'employee_id' => $employee->id,
+        'attendance_id' => $attendance->id,
+        'attendance_violation_rule_id' => $rule->id,
+        'violation_date' => '2026-06-10',
+        'deduction_days' => '0.50',
+        'status' => 'pending',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertCreated()
+        ->assertJsonPath('data.0.attendance_deductions', '50.00')
+        ->assertJsonPath('data.0.net_salary', '2950.00');
+
+    expect(AttendanceViolation::first()->fresh()->status)->toBe('auto_applied');
 });
 
 test('accountant cannot trigger payroll generation and receives 403', function (): void {

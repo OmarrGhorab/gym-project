@@ -7,6 +7,12 @@ Route::prefix('member-visits')->group(function (): void {
     Route::get('/', [MemberVisitController::class, 'index'])
         ->middleware('permission:members.view');
 
+    Route::post('/check-in', [MemberVisitController::class, 'checkIn'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
+    Route::post('/check-out', [MemberVisitController::class, 'checkOut'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
     Route::post('/', [MemberVisitController::class, 'store'])
         ->middleware(['permission:members.update', 'throttle:api']);
 

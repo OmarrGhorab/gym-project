@@ -23,6 +23,7 @@ class MemberVisitFactory extends Factory
             'check_in_at' => now(),
             'check_out_at' => null,
             'status' => 'allowed',
+            'scan_method' => 'manual',
             'alert_reason' => null,
             'notes' => null,
             'created_by' => User::factory(),

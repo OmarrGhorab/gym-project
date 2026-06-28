@@ -323,7 +323,7 @@ export default async function DashboardOverviewPage({
               variant="outline"
               className="rounded-full border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-primary"
             >
-              30d
+              {t("charts.period30Days")}
             </Badge>
           </CardHeader>
           <CardContent className="px-4 pb-4 pt-4 sm:px-5">

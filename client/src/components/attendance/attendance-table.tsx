@@ -67,6 +67,38 @@ export function AttendanceTable({
         cell: ({ row }) => <Time value={row.original.check_out} />,
       },
       {
+        accessorKey: "schedule_status",
+        header: t("tableSchedule"),
+        cell: ({ row }) => (
+          <div className="space-y-1">
+            <Badge variant="outline" className="rounded-md text-xs font-bold">
+              {scheduleStatusLabel(row.original.schedule_status, t)}
+            </Badge>
+            <p className="text-xs font-semibold text-muted-foreground">
+              {approvalStatusLabel(row.original.approval_status, t)}
+            </p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "late_minutes",
+        header: t("tableLateMinutes"),
+        cell: ({ row }) => (
+          <span className="text-xs font-black text-foreground tabular-nums">
+            {t("minutesShort", { count: row.original.late_minutes ?? 0 })}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "check_in_location",
+        header: t("tableLocation"),
+        cell: ({ row }) => (
+          <Badge variant="outline" className={cn("rounded-md text-xs font-bold", locationClass(row.original.check_in_location?.status))}>
+            {locationStatusLabel(row.original.check_in_location?.status, t)}
+          </Badge>
+        ),
+      },
+      {
         accessorKey: "notes",
         header: t("tableNotes"),
         cell: ({ row }) => (
@@ -181,4 +213,56 @@ function formatDate(value: string | null | undefined, locale: string) {
     month: "short",
     day: "2-digit",
   });
+}
+
+function scheduleStatusLabel(status: string | null | undefined, t: (key: string) => string) {
+  switch (status) {
+    case "on_shift":
+      return t("scheduleOnShift");
+    case "late":
+      return t("scheduleLate");
+    case "off_shift":
+      return t("scheduleOffShift");
+    case "unassigned":
+      return t("scheduleUnassigned");
+    default:
+      return status ?? t("scheduleUnknown");
+  }
+}
+
+function approvalStatusLabel(status: string | null | undefined, t: (key: string) => string) {
+  switch (status) {
+    case "pending":
+      return t("approvalPending");
+    case "approved":
+      return t("approvalApproved");
+    case "dismissed":
+      return t("approvalDismissed");
+    default:
+      return status ?? t("approvalUnknown");
+  }
+}
+
+function locationStatusLabel(status: string | null | undefined, t: (key: string) => string) {
+  switch (status) {
+    case "inside":
+      return t("locationInside");
+    case "outside":
+      return t("locationOutside");
+    case "unconfigured":
+      return t("locationUnconfigured");
+    default:
+      return t("locationMissingShort");
+  }
+}
+
+function locationClass(status: string | null | undefined) {
+  switch (status) {
+    case "inside":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    case "outside":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    default:
+      return "border-slate-500/20 bg-slate-500/10 text-muted-foreground";
+  }
 }

@@ -17,10 +17,26 @@ class Attendance extends Model
 
     protected $fillable = [
         'employee_id',
+        'shift_id',
         'date',
         'check_in',
+        'check_in_latitude',
+        'check_in_longitude',
+        'check_in_accuracy_meters',
+        'check_in_distance_meters',
+        'check_in_location_status',
         'check_out',
+        'check_out_latitude',
+        'check_out_longitude',
+        'check_out_accuracy_meters',
+        'check_out_distance_meters',
+        'check_out_location_status',
         'status',
+        'scan_method',
+        'schedule_status',
+        'approval_status',
+        'late_minutes',
+        'early_leave_minutes',
         'notes',
     ];
 
@@ -41,5 +57,10 @@ class Attendance extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeShift::class, 'shift_id');
     }
 }

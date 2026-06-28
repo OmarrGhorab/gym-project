@@ -4,7 +4,7 @@ import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { createEmployee, updateEmployee, type EmployeeFormData } from "@/lib/actions/employees";
-import type { Employee } from "@/lib/api/dashboard";
+import type { Employee, EmployeeShift } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ type EmployeeFormState = {
   role: "employee" | "captain" | "manager";
   base_salary: string;
   commission_rate: string;
+  shift_id: string;
   hire_date: string;
   status: "active" | "inactive";
 };
@@ -32,6 +33,7 @@ type EmployeeFormState = {
 type EmployeeFormDialogProps = {
   mode: "add" | "edit";
   employee: Employee | null;
+  shifts?: EmployeeShift[];
   namespace?: "TeamsPage" | "TrainersPage";
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +46,7 @@ const emptyForm: EmployeeFormState = {
   role: "employee",
   base_salary: "0",
   commission_rate: "0",
+  shift_id: "__none__",
   hire_date: "",
   status: "active",
 };
@@ -51,6 +54,7 @@ const emptyForm: EmployeeFormState = {
 export function EmployeeFormDialog({
   mode,
   employee,
+  shifts = [],
   namespace = "TeamsPage",
   open,
   onOpenChange,
@@ -66,6 +70,7 @@ export function EmployeeFormDialog({
       key={`${mode}-${employee?.id ?? "new"}-${namespace}`}
       mode={mode}
       employee={employee}
+      shifts={shifts}
       namespace={namespace}
       open={open}
       onOpenChange={onOpenChange}
@@ -78,6 +83,7 @@ export function EmployeeFormDialog({
 function EmployeeFormDialogContent({
   mode,
   employee,
+  shifts = [],
   namespace,
   open,
   onOpenChange,
@@ -108,6 +114,7 @@ function EmployeeFormDialogContent({
       role: form.role,
       base_salary: form.base_salary || "0",
       commission_rate: form.commission_rate || "0",
+      shift_id: form.shift_id === "__none__" ? null : Number(form.shift_id),
       hire_date: form.hire_date || null,
       status: form.status,
     };
@@ -190,6 +197,25 @@ function EmployeeFormDialogContent({
               onChange={(event) => updateForm("commission_rate", event.target.value)}
               disabled={isPending}
             />
+          </Field>
+          <Field label={t("formShift")} htmlFor="employee-shift">
+            <Select
+              value={form.shift_id}
+              onValueChange={(value) => updateForm("shift_id", value || "__none__")}
+              disabled={isPending}
+            >
+              <SelectTrigger id="employee-shift" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">{t("formShiftNone")}</SelectItem>
+                {shifts.map((shift) => (
+                  <SelectItem key={shift.id} value={String(shift.id)}>
+                    {shift.name} · {shift.starts_at}-{shift.ends_at}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label={t("formHireDate")} htmlFor="employee-hire-date">
             <Input
@@ -283,6 +309,7 @@ function getInitialForm(
       role: normalizeRole(employee.role),
       base_salary: employee.base_salary ?? "0",
       commission_rate: employee.commission_rate ?? "0",
+      shift_id: employee.shift_id ? String(employee.shift_id) : "__none__",
       hire_date: employee.hire_date ?? "",
       status: employee.status === "inactive" ? "inactive" : "active",
     };

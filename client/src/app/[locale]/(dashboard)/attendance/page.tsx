@@ -3,12 +3,28 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AlertTriangle, CalendarCheck2, Clock3, UserCheck } from "lucide-react";
 import { AttendanceFilterBar } from "@/components/attendance/attendance-filter-bar";
 import { AttendancePagination } from "@/components/attendance/attendance-pagination";
+import { AttendanceRulesTable } from "@/components/attendance/attendance-rules-table";
+import { AttendanceViolationsTable } from "@/components/attendance/attendance-violations-table";
 import { AttendanceSummaryTable } from "@/components/attendance/attendance-summary-table";
 import { AttendanceTableContainer } from "@/components/attendance/attendance-table-container";
+import { MemberVisitStation, StaffAttendanceStation } from "@/components/attendance/attendance-stations";
 import { MemberVisitsTable } from "@/components/attendance/member-visits-table";
 import Breadcrumb3 from "@/components/ui/breadcrumb-3";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAttendance, getAttendanceSummary, getMemberVisits, type Attendance, type AttendanceSummary, type MemberVisit, type Paginated } from "@/lib/api/dashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  getAttendance,
+  getAttendanceSummary,
+  getAttendanceViolationRules,
+  getAttendanceViolations,
+  getMemberVisits,
+  type Attendance,
+  type AttendanceSummary,
+  type AttendanceViolation,
+  type AttendanceViolationRule,
+  type MemberVisit,
+  type Paginated,
+} from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata({
@@ -69,10 +85,12 @@ export default async function AttendancePage({
   };
   let summary: AttendanceSummary[] = [];
   let memberVisits: MemberVisit[] = [];
+  let pendingViolations: AttendanceViolation[] = [];
+  let violationRules: AttendanceViolationRule[] = [];
   let fetchError: string | null = null;
 
   try {
-    const [attendanceRows, summaryRows, visitRows] = await Promise.all([
+    const [attendanceRows, summaryRows, visitRows, violationRows, ruleRows] = await Promise.all([
       getAttendance({
         page,
         employeeId,
@@ -83,10 +101,14 @@ export default async function AttendancePage({
       }),
       getAttendanceSummary({ month: from?.slice(0, 7), employeeId }).catch(() => []),
       getMemberVisits({ sort: "-check_in_at" }).catch(() => ({ data: [] })),
+      getAttendanceViolations({ status: "pending" }).catch(() => ({ data: [] })),
+      getAttendanceViolationRules().catch(() => []),
     ]);
     attendanceResult = attendanceRows;
     summary = summaryRows;
     memberVisits = visitRows.data;
+    pendingViolations = violationRows.data;
+    violationRules = ruleRows;
   } catch {
     fetchError = t("fetchError");
   }
@@ -167,54 +189,116 @@ export default async function AttendancePage({
         ))}
       </section>
 
-      <Card className="border shadow-xs">
-        <CardContent className="p-4">
-          <AttendanceFilterBar />
-        </CardContent>
-      </Card>
-
       {fetchError && (
         <div className="rounded-md bg-destructive/10 p-4 text-sm font-medium text-destructive">
           {fetchError}
         </div>
       )}
 
-      <Card className="overflow-hidden border shadow-xs">
-        <div className="border-b bg-muted/15 px-4 py-4">
-          <div className={cn(isArabic && "text-right")}>
-            <h2 className="text-base font-black text-foreground">{t("tableTitle")}</h2>
-            <p className="text-xs font-semibold text-muted-foreground">
-              {t("tableDescription", { count: attendanceResult.meta.total })}
-            </p>
-          </div>
-        </div>
-        <AttendanceTableContainer attendance={attendanceResult.data} />
-        <AttendancePagination
-          currentPage={attendanceResult.meta.current_page}
-          lastPage={attendanceResult.meta.last_page}
-        />
-      </Card>
+      <Tabs defaultValue="member-station" className="space-y-4">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/70 p-1">
+          <TabsTrigger value="member-station" className="h-8 px-3">
+            {t("tabMemberStation")}
+          </TabsTrigger>
+          <TabsTrigger value="staff-station" className="h-8 px-3">
+            {t("tabStaffStation")}
+          </TabsTrigger>
+          <TabsTrigger value="records" className="h-8 px-3">
+            {t("tabStaffRecords")}
+          </TabsTrigger>
+          <TabsTrigger value="warnings" className="h-8 px-3">
+            {t("tabWarnings", { count: pendingViolations.length })}
+          </TabsTrigger>
+          <TabsTrigger value="summary" className="h-8 px-3">
+            {t("tabSummary")}
+          </TabsTrigger>
+          <TabsTrigger value="visits" className="h-8 px-3">
+            {t("tabMemberVisits")}
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="overflow-hidden border shadow-xs">
-          <div className="border-b bg-muted/15 px-4 py-4">
-            <div className={cn(isArabic && "text-right")}>
-              <h2 className="text-base font-black text-foreground">{t("summaryTitle")}</h2>
-              <p className="text-xs font-semibold text-muted-foreground">{t("summaryDescription")}</p>
+        <TabsContent value="member-station" className="space-y-4">
+          <MemberVisitStation />
+        </TabsContent>
+
+        <TabsContent value="staff-station" className="space-y-4">
+          <StaffAttendanceStation />
+        </TabsContent>
+
+        <TabsContent value="records" className="space-y-4">
+          <Card className="border shadow-xs">
+            <CardContent className="p-4">
+              <AttendanceFilterBar />
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border shadow-xs">
+            <div className="border-b bg-muted/15 px-4 py-4">
+              <div className={cn(isArabic && "text-right")}>
+                <h2 className="text-base font-black text-foreground">{t("tableTitle")}</h2>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {t("tableDescription", { count: attendanceResult.meta.total })}
+                </p>
+              </div>
             </div>
-          </div>
-          <AttendanceSummaryTable rows={summary} />
-        </Card>
-        <Card className="overflow-hidden border shadow-xs">
-          <div className="border-b bg-muted/15 px-4 py-4">
-            <div className={cn(isArabic && "text-right")}>
-              <h2 className="text-base font-black text-foreground">{t("memberVisitsTitle")}</h2>
-              <p className="text-xs font-semibold text-muted-foreground">{t("memberVisitsDescription")}</p>
+            <AttendanceTableContainer attendance={attendanceResult.data} />
+            <AttendancePagination
+              currentPage={attendanceResult.meta.current_page}
+              lastPage={attendanceResult.meta.last_page}
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="warnings" className="space-y-4">
+          <Card className="overflow-hidden border shadow-xs">
+            <div className="border-b bg-muted/15 px-4 py-4">
+              <div className={cn(isArabic && "text-right")}>
+                <h2 className="text-base font-black text-foreground">{t("violationsTitle")}</h2>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {t("violationsDescription")}
+                </p>
+              </div>
             </div>
-          </div>
-          <MemberVisitsTable visits={memberVisits} />
-        </Card>
-      </div>
+            <AttendanceViolationsTable violations={pendingViolations} />
+          </Card>
+
+          <Card className="overflow-hidden border shadow-xs">
+            <div className="border-b bg-muted/15 px-4 py-4">
+              <div className={cn(isArabic && "text-right")}>
+                <h2 className="text-base font-black text-foreground">{t("rulesTitle")}</h2>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {t("rulesDescription")}
+                </p>
+              </div>
+            </div>
+            <AttendanceRulesTable rules={violationRules} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="summary" className="space-y-4">
+          <Card className="overflow-hidden border shadow-xs">
+            <div className="border-b bg-muted/15 px-4 py-4">
+              <div className={cn(isArabic && "text-right")}>
+                <h2 className="text-base font-black text-foreground">{t("summaryTitle")}</h2>
+                <p className="text-xs font-semibold text-muted-foreground">{t("summaryDescription")}</p>
+              </div>
+            </div>
+            <AttendanceSummaryTable rows={summary} />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="visits" className="space-y-4">
+          <Card className="overflow-hidden border shadow-xs">
+            <div className="border-b bg-muted/15 px-4 py-4">
+              <div className={cn(isArabic && "text-right")}>
+                <h2 className="text-base font-black text-foreground">{t("memberVisitsTitle")}</h2>
+                <p className="text-xs font-semibold text-muted-foreground">{t("memberVisitsDescription")}</p>
+              </div>
+            </div>
+            <MemberVisitsTable visits={memberVisits} />
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

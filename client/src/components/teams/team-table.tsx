@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BarChart3, Edit3, KeyRound, Loader2, Mail, Phone, Trash2 } from "lucide-react";
+import { BarChart3, Edit3, KeyRound, Loader2, Mail, Phone, QrCode, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { deleteEmployee } from "@/lib/actions/employees";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { QrCodeDialog } from "@/components/attendance/qr-code-card";
 import type { Employee } from "@/lib/api/dashboard";
 import type { AppLocale } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
@@ -71,6 +72,26 @@ export function TeamTable({
             {statusLabel(row.original.status, t)}
           </Badge>
         ),
+      },
+      {
+        accessorKey: "shift",
+        header: t("tableShift"),
+        cell: ({ row }) => {
+          const shift = row.original.shift;
+
+          return (
+            <div className={cn("min-w-32", isArabic && "text-right")}>
+              <p className="text-xs font-black text-foreground">
+                {shift?.name ?? t("shiftUnassigned")}
+              </p>
+              {shift ? (
+                <p className="text-xs font-semibold text-muted-foreground tabular-nums">
+                  {shift.starts_at}-{shift.ends_at}
+                </p>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "phone",
@@ -148,7 +169,9 @@ function TeamActions({
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations(namespace);
+  const isArabic = locale === "ar";
   const [isPending, setIsPending] = React.useState(false);
+  const [isQrOpen, setIsQrOpen] = React.useState(false);
 
   async function handleDelete() {
     const confirmed = window.confirm(t("deleteConfirm", { name: employee.name }));
@@ -168,6 +191,16 @@ function TeamActions({
 
   return (
     <div className="flex justify-end gap-1.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        title={t("actionQr")}
+        onClick={() => setIsQrOpen(true)}
+        disabled={isPending}
+      >
+        <QrCode className="size-3.5" />
+      </Button>
       <Button
         type="button"
         variant="ghost"
@@ -203,6 +236,17 @@ function TeamActions({
       >
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
       </Button>
+      <QrCodeDialog
+        open={isQrOpen}
+        onOpenChange={setIsQrOpen}
+        title={t("qrTitle", { name: employee.name })}
+        description={t("qrDescription")}
+        payload={employee.attendance_qr}
+        codeLabel={employee.attendance_code ?? undefined}
+        closeLabel={t("qrClose")}
+        printLabel={t("qrPrint")}
+        isArabic={isArabic}
+      />
     </div>
   );
 }

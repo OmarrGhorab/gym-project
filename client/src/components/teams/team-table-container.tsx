@@ -8,17 +8,19 @@ import { Button } from "@/components/ui/button";
 import { EmployeeFormDialog } from "@/components/teams/employee-form-dialog";
 import { EmployeeRoleDialog } from "@/components/teams/employee-role-dialog";
 import { TeamTable } from "@/components/teams/team-table";
-import type { Employee, Role } from "@/lib/api/dashboard";
+import type { Employee, EmployeeShift, Role } from "@/lib/api/dashboard";
 
 type TeamTableContainerProps = {
   employees: Employee[];
   roles?: Role[];
+  shifts?: EmployeeShift[];
   namespace?: "TeamsPage" | "TrainersPage";
 };
 
 export function TeamTableContainer({
   employees,
   roles = [],
+  shifts = [],
   namespace = "TeamsPage",
 }: TeamTableContainerProps) {
   const router = useRouter();
@@ -68,6 +70,7 @@ export function TeamTableContainer({
       <EmployeeFormDialog
         mode={dialogMode}
         employee={selectedEmployee}
+        shifts={shifts}
         namespace={namespace}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}

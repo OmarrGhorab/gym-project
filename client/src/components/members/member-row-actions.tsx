@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Eye, Loader2, Pencil, SquareMinus, UserX } from "lucide-react";
+import { Eye, Loader2, Pencil, QrCode, SquareMinus, UserX } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { deactivateMember, stopSubscription } from "@/lib/actions/members";
+import { MemberQrPassDialog } from "@/components/members/member-qr-pass";
 import {
   Tooltip,
   TooltipContent,
@@ -34,6 +35,7 @@ export function MemberRowActions({
 
   const [isPending, setIsPending] = React.useState(false);
   const [isStopPending, setIsStopPending] = React.useState(false);
+  const [isQrOpen, setIsQrOpen] = React.useState(false);
 
   async function handleDeactivate() {
     const confirmed = window.confirm(
@@ -150,6 +152,22 @@ export function MemberRowActions({
               <Button
                 size="icon-sm"
                 variant="ghost"
+                className="size-8 rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                onClick={() => setIsQrOpen(true)}
+              >
+                <QrCode className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>{t("actions.printQr")}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
                 className="size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 onClick={handleDeactivate}
                 disabled={isPending}
@@ -164,6 +182,12 @@ export function MemberRowActions({
           />
           <TooltipContent>{t("actions.delete")}</TooltipContent>
         </Tooltip>
+
+        <MemberQrPassDialog
+          member={member}
+          open={isQrOpen}
+          onOpenChange={setIsQrOpen}
+        />
       </div>
     </TooltipProvider>
   );

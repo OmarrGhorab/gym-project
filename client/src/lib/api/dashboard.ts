@@ -68,6 +68,8 @@ export type Member = {
   status: string;
   gender?: string;
   national_id?: string;
+  attendance_code?: string | null;
+  attendance_qr?: string | null;
   join_date?: string;
   expiry_date?: string;
   notes?: string;
@@ -151,17 +153,28 @@ export type Attendance = {
     id: number;
     name?: string | null;
     role?: string | null;
+    attendance_code?: string | null;
   } | null;
+  shift_id?: number | null;
+  shift?: EmployeeShift | null;
   date: string;
   check_in?: string | null;
+  check_in_location?: ScanLocation | null;
   check_out?: string | null;
+  check_out_location?: ScanLocation | null;
   status: "present" | "absent" | "late" | "excused" | string;
+  scan_method?: string | null;
+  schedule_status?: string | null;
+  approval_status?: string | null;
+  late_minutes?: number;
+  early_leave_minutes?: number;
   notes?: string | null;
   created_at?: string | null;
 };
 
 export type AttendanceSummary = {
   employee_id: number;
+  shift_id?: number | null;
   name: string;
   role?: string | null;
   month: string;
@@ -170,6 +183,58 @@ export type AttendanceSummary = {
   late_count: number;
   absent_count: number;
   excused_count: number;
+  late_minutes?: number;
+  early_leave_minutes?: number;
+};
+
+export type EmployeeShift = {
+  id: number;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  grace_minutes: number;
+  is_active: boolean;
+};
+
+export type ScanLocation = {
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracy_meters?: number | null;
+  distance_meters?: number | null;
+  status?: "inside" | "outside" | "missing" | "unconfigured" | string | null;
+};
+
+export type AttendanceViolation = {
+  id: number;
+  employee_id: number;
+  employee?: {
+    id: number;
+    name?: string | null;
+    role?: string | null;
+  } | null;
+  attendance_id?: number | null;
+  payroll_id?: number | null;
+  violation_date?: string | null;
+  type: string;
+  minutes?: number | null;
+  deduction_days: string;
+  deduction_amount: string;
+  status: "pending" | "approved" | "dismissed" | "auto_applied" | string;
+  notes?: string | null;
+  created_at?: string | null;
+};
+
+export type AttendanceViolationRule = {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  threshold_minutes?: number | null;
+  deduction_days: string;
+  requires_admin_approval: boolean;
+  auto_apply_if_unreviewed: boolean;
+  is_active: boolean;
+  updated_at?: string | null;
 };
 
 export type Payroll = {
@@ -184,6 +249,11 @@ export type Payroll = {
   commissions_total: string;
   bonuses: string;
   deductions: string;
+  attendance_deductions: string;
+  attendance_snapshot?: {
+    total?: string;
+    violations?: AttendanceViolation[];
+  } | null;
   net_salary: string;
   status: string;
   paid_at?: string | null;
@@ -266,9 +336,13 @@ export type Employee = {
   user_id?: number | null;
   name: string;
   phone?: string;
+  attendance_code?: string | null;
+  attendance_qr?: string | null;
   role: string;
   base_salary: string;
   commission_rate: string;
+  shift_id?: number | null;
+  shift?: EmployeeShift | null;
   hire_date?: string;
   status: string;
   user?: UserSummary | null;
@@ -374,6 +448,7 @@ export type MemberVisit = {
     id: number;
     name?: string | null;
     phone?: string | null;
+    attendance_code?: string | null;
   } | null;
   subscription_id?: number | null;
   subscription?: {
@@ -383,8 +458,11 @@ export type MemberVisit = {
     end_date?: string | null;
   } | null;
   check_in_at: string;
+  check_in_location?: ScanLocation | null;
   check_out_at?: string | null;
-  status: "allowed" | "blocked" | string;
+  check_out_location?: ScanLocation | null;
+  status: "allowed" | "blocked" | "flagged" | string;
+  scan_method?: string | null;
   alert_reason?: string | null;
   notes?: string | null;
   creator?: UserSummary | null;
@@ -734,6 +812,34 @@ export async function getAttendanceSummary(options: {
   if (options.employeeId) params.set("employee_id", options.employeeId);
 
   return api<AttendanceSummary[]>(`/attendance/summary?${params.toString()}`);
+}
+
+export async function getEmployeeShifts(): Promise<EmployeeShift[]> {
+  return api<EmployeeShift[]>("/attendance/shifts");
+}
+
+export async function getAttendanceViolations(options: {
+  page?: number;
+  status?: string;
+  employeeId?: string;
+} = {}): Promise<Paginated<AttendanceViolation>> {
+  const params = new URLSearchParams();
+  if (options.page) params.set("page", String(options.page));
+  if (options.status) params.set("status", options.status);
+  if (options.employeeId) params.set("employee_id", options.employeeId);
+
+  const envelope = await fetchEnvelope<AttendanceViolation[]>(
+    `/attendance/violations?${params.toString()}`
+  );
+
+  return {
+    data: envelope.data,
+    meta: ensurePaginationMeta(envelope.meta, envelope.data.length),
+  };
+}
+
+export async function getAttendanceViolationRules(): Promise<AttendanceViolationRule[]> {
+  return api<AttendanceViolationRule[]>("/attendance/violation-rules");
 }
 
 export async function getPayroll(options: {

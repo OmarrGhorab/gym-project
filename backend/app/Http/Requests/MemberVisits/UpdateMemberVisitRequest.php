@@ -22,7 +22,7 @@ class UpdateMemberVisitRequest extends FormRequest
         return [
             'check_in_at' => ['sometimes', 'required', 'date'],
             'check_out_at' => ['nullable', 'date', 'after_or_equal:check_in_at'],
-            'status' => ['sometimes', 'required', Rule::in(['allowed', 'blocked'])],
+            'status' => ['sometimes', 'required', Rule::in(['allowed', 'blocked', 'flagged'])],
             'alert_reason' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];

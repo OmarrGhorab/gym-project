@@ -29,6 +29,8 @@ export function AttendanceSummaryTable({ rows }: { rows: AttendanceSummary[] }) 
       { accessorKey: "late_count", header: t("summaryLate"), cell: ({ row }) => <Count value={row.original.late_count} locale={locale} /> },
       { accessorKey: "absent_count", header: t("summaryAbsent"), cell: ({ row }) => <Count value={row.original.absent_count} locale={locale} /> },
       { accessorKey: "excused_count", header: t("summaryExcused"), cell: ({ row }) => <Count value={row.original.excused_count} locale={locale} /> },
+      { accessorKey: "late_minutes", header: t("summaryLateMinutes"), cell: ({ row }) => <Count value={row.original.late_minutes ?? 0} locale={locale} /> },
+      { accessorKey: "early_leave_minutes", header: t("summaryEarlyLeaveMinutes"), cell: ({ row }) => <Count value={row.original.early_leave_minutes ?? 0} locale={locale} /> },
     ],
     [isArabic, locale, t]
   );

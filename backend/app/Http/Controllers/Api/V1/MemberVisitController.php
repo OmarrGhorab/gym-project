@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\MemberVisits\CheckInMemberVisit;
+use App\Actions\MemberVisits\CheckOutMemberVisit;
 use App\Actions\MemberVisits\StoreMemberVisit;
 use App\Actions\MemberVisits\UpdateMemberVisit;
+use App\Http\Requests\MemberVisits\ScanMemberVisitRequest;
 use App\Http\Requests\MemberVisits\StoreMemberVisitRequest;
 use App\Http\Requests\MemberVisits\UpdateMemberVisitRequest;
 use App\Http\Resources\MemberVisitResource;
@@ -56,6 +59,26 @@ final class MemberVisitController extends ApiController
             ->withMessage($visit->status === 'blocked' ? 'Member visit recorded with alert' : 'Member visit recorded')
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function checkIn(ScanMemberVisitRequest $request, CheckInMemberVisit $action): JsonResponse
+    {
+        $visit = $action->handle($request->validated(), $request->user());
+
+        return (new MemberVisitResource($visit))
+            ->withMessage($visit->status === 'allowed' ? 'Member visit recorded' : 'Member visit recorded with alert')
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function checkOut(ScanMemberVisitRequest $request, CheckOutMemberVisit $action): JsonResponse
+    {
+        $visit = $action->handle($request->validated(), $request->user());
+
+        return (new MemberVisitResource($visit))
+            ->withMessage('Member checkout recorded')
+            ->response()
+            ->setStatusCode(200);
     }
 
     public function show(Request $request, MemberVisit $memberVisit): JsonResponse

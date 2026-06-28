@@ -29,6 +29,8 @@ test('admin can retrieve payslip as JSON', function (): void {
                 'commissions',
                 'bonuses',
                 'deductions',
+                'attendance_deductions',
+                'attendance_snapshot',
                 'net_salary',
             ],
         ]);
