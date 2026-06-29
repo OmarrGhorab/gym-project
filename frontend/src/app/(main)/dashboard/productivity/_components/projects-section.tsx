@@ -1,102 +1,54 @@
-import { addDays, format } from "date-fns";
-import { ClipboardCheck, Globe, Orbit, Plus } from "lucide-react";
+import { ClipboardCheck, CreditCard, Dumbbell, PackageCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const today = new Date();
+import type { OperationsWorkflow } from "./data";
 
-const projects = [
-  {
-    title: "Q2 Roadmap",
-    status: "In Progress",
-    description: "Ship better, ship smarter.",
-    progress: 68,
-    due: `Due ${format(addDays(today, 9), "MMM d")}`,
-    icon: Orbit,
-  },
-  {
-    title: "Website Redesign",
-    status: "Planning",
-    description: "Clean, modern, and fast.",
-    progress: 42,
-    due: `Due ${format(addDays(today, 21), "MMM d")}`,
-    icon: Globe,
-  },
-  {
-    title: "Onboarding",
-    status: "Planning",
-    description: "Trim first-run steps.",
-    progress: 31,
-    due: `Due ${format(addDays(today, 18), "MMM d")}`,
-    icon: ClipboardCheck,
-  },
-] as const;
+const icons = [ClipboardCheck, CreditCard, Dumbbell, PackageCheck] as const;
 
-const projectFilterItems = [
-  { value: "active", label: "Active" },
-  { value: "planning", label: "Planning" },
-  { value: "completed", label: "Completed" },
-] as const;
-
-export function ProjectsSection() {
+export function ProjectsSection({ workflows }: { workflows: OperationsWorkflow[] }) {
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl tracking-tight">Projects</h2>
-        <div className="flex items-center gap-2">
-          <Select defaultValue="active" items={projectFilterItems}>
-            <SelectTrigger className="w-28">
-              <SelectValue placeholder="Active" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {projectFilterItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Button variant="outline">
-            <Plus data-icon="inline-start" />
-            New
-          </Button>
-        </div>
+        <h2 className="text-xl tracking-tight">Operational Workflows</h2>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {projects.map((project) => (
-          <Card key={project.title} className="shadow-xs">
-            <CardHeader>
-              <CardTitle>
-                <div className="flex items-center gap-2">
-                  <project.icon className="size-4 text-muted-foreground" />
-                  <span>{project.title}</span>
-                </div>
-              </CardTitle>
-              <CardAction>
-                <Badge variant="outline">{project.status}</Badge>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-1">
-                <div className="text-sm leading-none">{project.description}</div>
-                <div className="flex items-center gap-3">
-                  <Progress value={project.progress} className="h-2" />
-                  <span className="shrink-0 text-sm">{project.progress}%</span>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="py-2.5">
-              <span className="text-muted-foreground">{project.due}</span>
-            </CardFooter>
-          </Card>
-        ))}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {workflows.map((workflow, index) => {
+          const Icon = icons[index % icons.length];
+
+          return (
+            <a href={workflow.href} key={workflow.title}>
+              <Card className="h-full shadow-xs transition-colors hover:bg-muted/30">
+                <CardHeader>
+                  <CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Icon className="size-4 text-muted-foreground" />
+                      <span>{workflow.title}</span>
+                    </div>
+                  </CardTitle>
+                  <CardAction>
+                    <Badge variant="outline">{workflow.status}</Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-sm leading-snug">{workflow.description}</div>
+                    <div className="flex items-center gap-3">
+                      <Progress value={workflow.progress} className="h-2" />
+                      <span className="shrink-0 text-sm">{workflow.progress}%</span>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="py-2.5">
+                  <span className="text-muted-foreground">{workflow.footer}</span>
+                </CardFooter>
+              </Card>
+            </a>
+          );
+        })}
       </div>
     </section>
   );

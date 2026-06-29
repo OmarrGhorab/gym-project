@@ -89,7 +89,7 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "productivity",
-        title: "Productivity",
+        title: "Gym Ops",
         url: "/dashboard/productivity",
         icon: ListTodo,
       },

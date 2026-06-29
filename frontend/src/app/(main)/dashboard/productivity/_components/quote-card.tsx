@@ -1,6 +1,6 @@
 import { Quote } from "lucide-react";
 
-export function QuoteCard() {
+export function QuoteCard({ focus }: { focus: string }) {
   return (
     <section className="rounded-2xl border bg-card p-6 shadow-xs">
       <div className="flex items-start gap-4">
@@ -8,8 +8,8 @@ export function QuoteCard() {
           <Quote className="size-6" />
         </div>
         <div className="flex flex-col gap-1">
-          <p className="text-xl leading-none tracking-tight">Small, consistent actions lead to big results.</p>
-          <p className="text-muted-foreground">Keep showing up. You&apos;ve got this.</p>
+          <p className="text-xl leading-tight tracking-tight">Keep the gym floor, members, and staff moving cleanly.</p>
+          <p className="text-muted-foreground">{focus}</p>
         </div>
       </div>
     </section>
