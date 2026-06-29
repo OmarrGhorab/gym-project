@@ -15,6 +15,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, ArrowUpRight, Download, MoreHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,15 +32,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import type { PosRecentOrder } from "./data";
-import { recentOrdersColumns } from "./recent-orders-table/columns";
-import {
-  formatOrderCount,
-  formatSelectedOrderCount,
-  preventPaginationNavigation,
-} from "./recent-orders-table/formatters";
+import { getRecentOrdersColumns } from "./recent-orders-table/columns";
+import { preventPaginationNavigation } from "./recent-orders-table/formatters";
 import { type OrderFilter, type OrderRow, orderFilters } from "./recent-orders-table/schema";
 
 export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
+  const t = useTranslations("Dashboard.ecommerce");
   const [rowSelection, setRowSelection] = React.useState({});
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -48,10 +46,11 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
     pageSize: 10,
   });
   const recentOrders = orders as OrderRow[];
+  const columns = React.useMemo(() => getRecentOrdersColumns(t), [t]);
 
   const table = useReactTable({
     data: recentOrders,
-    columns: recentOrdersColumns,
+    columns,
     state: {
       rowSelection,
       sorting,
@@ -76,8 +75,16 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   const visibleOrderCount = table.getRowModel().rows.length;
   const currentPage = table.getState().pagination.pageIndex + 1;
   const pageCount = table.getPageCount();
-  const orderCountDescription =
-    selectedOrderCount > 0 ? formatSelectedOrderCount(selectedOrderCount) : formatOrderCount(activeFilter, orderCount);
+  let orderCountDescription = t("orderCount", { count: orderCount });
+
+  if (selectedOrderCount > 0) {
+    orderCountDescription = t("selectedOrderCount", { count: selectedOrderCount });
+  } else if (activeFilter !== "All") {
+    orderCountDescription = t("filteredOrderCount", {
+      count: orderCount,
+      filter: t(`orderFilters.${activeFilter}`).toLowerCase(),
+    });
+  }
   const pageNumbers = React.useMemo(() => {
     if (pageCount <= 3) {
       return Array.from({ length: pageCount }, (_, index) => index + 1);
@@ -92,15 +99,15 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal text-muted-foreground text-sm">Recent POS Sales</CardTitle>
+        <CardTitle className="font-normal text-muted-foreground text-sm">{t("recentSales")}</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">
           {orderCountDescription}
         </CardDescription>
         <CardAction className="flex items-center gap-1">
-          <Button aria-label="Open sales" size="icon-sm" variant="outline">
+          <Button aria-label={t("openSales")} size="icon-sm" variant="outline">
             <ArrowUpRight />
           </Button>
-          <Button aria-label="Download sales" size="icon-sm" variant="outline">
+          <Button aria-label={t("downloadSales")} size="icon-sm" variant="outline">
             <Download />
           </Button>
           <Button size="icon-sm" variant="outline">
@@ -125,7 +132,7 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
           >
             {orderFilters.map((filter) => (
               <ToggleGroupItem key={filter} value={filter}>
-                {filter}
+                {t(`orderFilters.${filter}`)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
@@ -164,7 +171,7 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
               ) : (
                 <TableRow>
                   <TableCell className="h-24 text-center" colSpan={table.getVisibleLeafColumns().length}>
-                    No POS sales found.
+                    {t("noSales")}
                   </TableCell>
                 </TableRow>
               )}
@@ -174,7 +181,7 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
 
         <div className="flex items-center justify-between gap-4 px-4 pb-1">
           <p className="text-muted-foreground text-sm">
-            Viewing {visibleOrderCount} out of {orderCount.toLocaleString()} sales
+            {t("viewingSales", { total: orderCount.toLocaleString(), visible: visibleOrderCount })}
           </p>
 
           {pageCount > 1 ? (

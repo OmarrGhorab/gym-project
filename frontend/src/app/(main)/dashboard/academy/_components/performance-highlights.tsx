@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -8,13 +9,6 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 
 import type { StaffAcademyPerformance } from "./data";
-
-const chartConfig = {
-  duration: {
-    label: "Score",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
 
 type PerformanceHighlight = StaffAcademyPerformance;
 
@@ -87,18 +81,26 @@ function PerformanceHighlightBar({
 }
 
 export function PerformanceHighlights({ highlights }: { highlights: StaffAcademyPerformance[] }) {
+  const t = useTranslations("Dashboard.academy");
+  const chartConfig = {
+    duration: {
+      label: t("score"),
+      color: "var(--chart-3)",
+    },
+  } satisfies ChartConfig;
+
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="text-sm">Coach Performance</CardTitle>
+        <CardTitle className="text-sm">{t("coachPerformance")}</CardTitle>
         <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          Employee Report <ArrowRight className="size-4" />
+          {t("employeeReport")} <ArrowRight className="size-4" />
         </CardAction>
       </CardHeader>
       <CardContent>
         {highlights.length === 0 ? (
           <div className="grid h-70 place-items-center rounded-lg border border-dashed text-muted-foreground text-sm">
-            No staff performance data for this month yet.
+            {t("noPerformance")}
           </div>
         ) : (
           <ChartContainer config={chartConfig} className="h-70 w-full">
@@ -112,7 +114,11 @@ export function PerformanceHighlights({ highlights }: { highlights: StaffAcademy
               <XAxis
                 axisLine={false}
                 domain={[0, 4]}
-                tickFormatter={(value) => ["Mon", "Tue", "Wed", "Thu", "Fri"][Number(value)] ?? ""}
+                tickFormatter={(value) =>
+                  [t("weekdays.mon"), t("weekdays.tue"), t("weekdays.wed"), t("weekdays.thu"), t("weekdays.fri")][
+                    Number(value)
+                  ] ?? ""
+                }
                 tickLine={false}
                 tickMargin={10}
                 ticks={[0, 1, 2, 3, 4]}

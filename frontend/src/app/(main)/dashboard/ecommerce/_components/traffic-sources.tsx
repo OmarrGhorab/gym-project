@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight, Banknote, CreditCard, Landmark } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, LabelList, type LabelProps, XAxis, YAxis } from "recharts";
 
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,6 +125,7 @@ function PaymentShareLabel({ height, value, y }: SourceChangeLabelProps) {
 }
 
 export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
+  const t = useTranslations("Dashboard.ecommerce");
   const total = methods.reduce((sum, method) => sum + method.count, 0);
   const chartData = methods.map((method) => ({
     ...method,
@@ -133,9 +135,9 @@ export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal text-muted-foreground text-sm">Payment Methods</CardTitle>
+        <CardTitle className="font-normal text-muted-foreground text-sm">{t("paymentMethods")}</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">
-          {total.toLocaleString()} paid orders
+          {t("paidOrders", { count: total })}
         </CardDescription>
         <CardAction>
           <ArrowUpRight className="size-4" />
@@ -159,7 +161,7 @@ export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
               dataKey="percentage"
               fill="var(--color-percentage)"
               fillOpacity={0.5}
-              name="Share"
+              name={t("share")}
               radius={8}
             >
               <LabelList content={(props) => <PaymentNameLabel {...props} data={methods} />} dataKey="label" />

@@ -1,4 +1,5 @@
 import { ClipboardCheck, QrCode, ReceiptText } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 
@@ -11,30 +12,29 @@ import { PerformanceHighlights } from "./_components/performance-highlights";
 import { UpcomingEvents } from "./_components/upcoming-events";
 
 export default async function Page() {
+  const t = await getTranslations("Dashboard.academy");
   const data = await getStaffAcademyData();
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl tracking-tight">Staff Academy</h1>
-          <p className="text-muted-foreground text-sm">
-            Coach attendance, warnings, shifts, and salary receipt readiness.
-          </p>
+          <h1 className="text-3xl tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:w-fit">
           <Button size="sm">
             <QrCode />
-            Staff Scan
+            {t("staffScan")}
           </Button>
           <Button size="sm" variant="outline">
             <ClipboardCheck />
-            Review Warnings
+            {t("reviewWarnings")}
           </Button>
           <Button size="sm" variant="outline">
             <ReceiptText />
-            Payroll Receipts
+            {t("payrollReceipts")}
           </Button>
         </div>
       </div>

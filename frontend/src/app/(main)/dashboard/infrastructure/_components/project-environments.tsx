@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AlertCircle,
   ArrowUpRight,
@@ -11,6 +13,7 @@ import {
   Settings,
   ShieldAlert,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +31,7 @@ import { cn } from "@/lib/utils";
 import type { SystemHealthAudit, SystemHealthGroup, SystemHealthStatus, SystemHealthWarning } from "./data";
 
 export function ProjectEnvironments({ group }: { group: SystemHealthGroup }) {
+  const t = useTranslations("Dashboard.infrastructure");
   const warningCount = group.rows.filter((row) => row.status === "warning" || row.status === "critical").length;
 
   return (
@@ -52,15 +56,15 @@ export function ProjectEnvironments({ group }: { group: SystemHealthGroup }) {
         </CollapsibleTrigger>
         <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
           <Badge variant="outline" className="rounded-sm px-1.5 py-0.5">
-            {group.rows.length} modules
+            {t("moduleCount", { count: group.rows.length })}
           </Badge>
           {warningCount > 0 ? (
             <Badge variant="outline" className="rounded-sm px-1.5 py-0.5 text-amber-600 dark:text-amber-400">
-              {warningCount} warnings
+              {t("warningCount", { count: warningCount })}
             </Badge>
           ) : (
             <Badge variant="outline" className="rounded-sm px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400">
-              ready
+              {t("ready")}
             </Badge>
           )}
         </div>
@@ -80,13 +84,16 @@ export function SystemHealthSidePanel({
   audits: SystemHealthAudit[];
   warnings: SystemHealthWarning[];
 }) {
+  const t = useTranslations("Dashboard.infrastructure");
+  const locale = useLocale();
+
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <section className="rounded-xl border bg-card p-4 text-card-foreground">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-medium">Setup Attention</h2>
-            <p className="text-muted-foreground text-sm">Backend items that should be fixed before daily operation.</p>
+            <h2 className="font-medium">{t("setupAttention")}</h2>
+            <p className="text-muted-foreground text-sm">{t("setupAttentionDescription")}</p>
           </div>
           <ShieldAlert className="size-4 text-muted-foreground" />
         </div>
@@ -108,7 +115,7 @@ export function SystemHealthSidePanel({
             ))
           ) : (
             <div className="rounded-lg border bg-muted/40 p-4 text-muted-foreground text-sm">
-              No setup warnings right now.
+              {t("noSetupWarnings")}
             </div>
           )}
         </div>
@@ -117,8 +124,8 @@ export function SystemHealthSidePanel({
       <section className="rounded-xl border bg-card p-4 text-card-foreground">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-medium">Recent Audit Activity</h2>
-            <p className="text-muted-foreground text-sm">Latest backend changes recorded by the activity log.</p>
+            <h2 className="font-medium">{t("recentAudit")}</h2>
+            <p className="text-muted-foreground text-sm">{t("recentAuditDescription")}</p>
           </div>
           <FileText className="size-4 text-muted-foreground" />
         </div>
@@ -132,15 +139,14 @@ export function SystemHealthSidePanel({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-sm">{audit.description}</span>
                   <span className="block text-muted-foreground text-xs">
-                    {audit.log_name} {audit.causer ? `by ${audit.causer}` : ""} · {formatRelativeDate(audit.created_at)}
+                    {audit.log_name} {audit.causer ? t("byUser", { user: audit.causer }) : ""} ·{" "}
+                    {formatRelativeDate(audit.created_at, locale, t)}
                   </span>
                 </span>
               </div>
             ))
           ) : (
-            <div className="rounded-lg border bg-muted/40 p-4 text-muted-foreground text-sm">
-              No audit activity has been recorded yet.
-            </div>
+            <div className="rounded-lg border bg-muted/40 p-4 text-muted-foreground text-sm">{t("noAudit")}</div>
           )}
         </div>
       </section>
@@ -149,6 +155,9 @@ export function SystemHealthSidePanel({
 }
 
 function EnvironmentTable({ rows }: { rows: SystemHealthGroup["rows"] }) {
+  const t = useTranslations("Dashboard.infrastructure");
+  const locale = useLocale();
+
   return (
     <div className="overflow-hidden border-t">
       <Table className="table-fixed **:data-[slot='table-cell']:px-5 **:data-[slot='table-head']:px-5">
@@ -162,11 +171,11 @@ function EnvironmentTable({ rows }: { rows: SystemHealthGroup["rows"] }) {
         </colgroup>
         <TableHeader className="bg-muted/50">
           <TableRow>
-            <TableHead>Module</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Metric</TableHead>
-            <TableHead>Checks</TableHead>
-            <TableHead>Last Activity</TableHead>
+            <TableHead>{t("module")}</TableHead>
+            <TableHead>{t("status")}</TableHead>
+            <TableHead>{t("metric")}</TableHead>
+            <TableHead>{t("checks")}</TableHead>
+            <TableHead>{t("lastActivity")}</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -205,7 +214,9 @@ function EnvironmentTable({ rows }: { rows: SystemHealthGroup["rows"] }) {
                 </div>
               </TableCell>
               <TableCell>
-                <span className="text-muted-foreground text-sm">{formatRelativeDate(row.last_activity)}</span>
+                <span className="text-muted-foreground text-sm">
+                  {formatRelativeDate(row.last_activity, locale, t)}
+                </span>
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
@@ -216,11 +227,11 @@ function EnvironmentTable({ rows }: { rows: SystemHealthGroup["rows"] }) {
                     <DropdownMenuGroup>
                       <DropdownMenuItem render={<a href={row.href} />}>
                         <ArrowUpRight />
-                        Open Page
+                        {t("openPage")}
                       </DropdownMenuItem>
                       <DropdownMenuItem render={<a href="/dashboard/settings" />}>
                         <Settings />
-                        Settings
+                        {t("settings")}
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
@@ -235,13 +246,15 @@ function EnvironmentTable({ rows }: { rows: SystemHealthGroup["rows"] }) {
 }
 
 function StatusBadge({ status }: { status: SystemHealthStatus }) {
+  const t = useTranslations("Dashboard.infrastructure");
+
   return (
     <Badge
       variant={status === "critical" ? "destructive" : "secondary"}
       className={cn("rounded-sm px-1.5 py-0.5", statusBadgeClass(status))}
     >
       <StatusIcon status={status} />
-      {statusLabel(status)}
+      {t(`statuses.${status}`)}
     </Badge>
   );
 }
@@ -260,13 +273,6 @@ function StatusIcon({ status }: { status: SystemHealthStatus }) {
   }
 
   return <CircleDashed className="size-3.5 text-muted-foreground" />;
-}
-
-function statusLabel(status: SystemHealthStatus) {
-  return status
-    .split("_")
-    .map((word) => word[0]?.toUpperCase() + word.slice(1))
-    .join(" ");
 }
 
 function statusBadgeClass(status: SystemHealthStatus) {
@@ -297,43 +303,49 @@ function statusTextClass(status: SystemHealthStatus) {
   return "text-muted-foreground";
 }
 
-function formatRelativeDate(value: string | null) {
+function formatRelativeDate(
+  value: string | null,
+  locale: string,
+  t: ReturnType<typeof useTranslations<"Dashboard.infrastructure">>,
+) {
   if (!value) {
-    return "No activity";
+    return t("noActivity");
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "No activity";
+    return t("noActivity");
   }
 
   const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.max(0, Math.round(diffMs / 60_000));
 
   if (diffMinutes < 1) {
-    return "Just now";
+    return t("justNow");
   }
 
   if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
+    return t("minutesAgo", { count: diffMinutes });
   }
 
   const diffHours = Math.round(diffMinutes / 60);
 
   if (diffHours < 24) {
-    return `${diffHours}h ago`;
+    return t("hoursAgo", { count: diffHours });
   }
 
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
 }
 
 function EmptyProjectState() {
+  const t = useTranslations("Dashboard.infrastructure");
+
   return (
     <div className="flex min-h-24 items-center justify-center border-t bg-muted/50 p-4">
       <div className="flex items-center gap-2">
         <CircleDashed className="size-4" />
-        <p className="font-medium text-sm">No modules in this group</p>
+        <p className="font-medium text-sm">{t("noModules")}</p>
       </div>
     </div>
   );

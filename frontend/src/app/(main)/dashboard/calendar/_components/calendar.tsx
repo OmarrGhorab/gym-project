@@ -20,6 +20,7 @@ import {
   Trash2,
   XIcon,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { EventCalendarViews } from "@/components/calendar/event-calendar-views";
@@ -119,6 +120,8 @@ type CalendarEventInput = {
 };
 
 export function Calendar({ events, employees }: CalendarProps) {
+  const t = useTranslations("Dashboard.calendar");
+  const locale = useLocale();
   const controller = useCalendarController();
   const [eventCount, setEventCount] = React.useState(0);
   const [selectedCalendar, setSelectedCalendar] = React.useState("all");
@@ -129,7 +132,7 @@ export function Calendar({ events, employees }: CalendarProps) {
     const now = new Date();
 
     return {
-      title: format(now, "MMMM yyyy"),
+      title: formatMonthTitle(now, locale),
       days: differenceInCalendarDays(endOfMonth(now), startOfMonth(now)) + 1,
     };
   });
@@ -167,12 +170,16 @@ export function Calendar({ events, employees }: CalendarProps) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <MetricCard label="Calendar feed" value={`${events.length}`} detail={`${generatedEvents} backend reminders`} />
-        <MetricCard label="Custom ops" value={`${editableEvents}`} detail="Editable events created by admin" />
         <MetricCard
-          label="Current filter"
-          value={getTypeLabel(selectedCalendar)}
-          detail={`${filteredEvents.length} visible now`}
+          label={t("metrics.calendarFeed")}
+          value={`${events.length}`}
+          detail={t("metrics.backendReminders", { count: generatedEvents })}
+        />
+        <MetricCard label={t("metrics.customOps")} value={`${editableEvents}`} detail={t("metrics.customOpsDetail")} />
+        <MetricCard
+          label={t("metrics.currentFilter")}
+          value={getTypeLabel(selectedCalendar, t)}
+          detail={t("metrics.visibleNow", { count: filteredEvents.length })}
         />
       </div>
 
@@ -181,7 +188,7 @@ export function Calendar({ events, employees }: CalendarProps) {
           <div className="flex min-w-0 shrink-0 flex-col gap-1">
             <div className="font-medium text-lg leading-none">{dateInfo.title}</div>
             <p className="text-muted-foreground text-sm">
-              {dateInfo.days} days - {eventCount} events
+              {t("daysEvents", { days: dateInfo.days, events: eventCount })}
             </p>
           </div>
 
@@ -201,7 +208,7 @@ export function Calendar({ events, employees }: CalendarProps) {
                 <SelectGroup>
                   {calendars.map((calendar) => (
                     <SelectItem key={calendar.value} value={calendar.value}>
-                      {calendar.label}
+                      {getTypeLabel(calendar.value, t)}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -212,7 +219,7 @@ export function Calendar({ events, employees }: CalendarProps) {
                 <ChevronLeft />
               </Button>
               <Button variant="outline" onClick={() => controller.today()}>
-                Today
+                {t("today")}
               </Button>
               <Button size="icon" variant="outline" onClick={() => controller.next()}>
                 <ChevronRight />
@@ -232,7 +239,7 @@ export function Calendar({ events, employees }: CalendarProps) {
                 <SelectGroup>
                   {views.map((view) => (
                     <SelectItem key={view.value} value={view.value}>
-                      {view.label}
+                      {t(`views.${view.value}`)}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -240,7 +247,7 @@ export function Calendar({ events, employees }: CalendarProps) {
             </Select>
             <Button onClick={openCreate}>
               <Plus />
-              Add event
+              {t("addEvent")}
             </Button>
           </div>
         </div>
@@ -255,7 +262,7 @@ export function Calendar({ events, employees }: CalendarProps) {
           nowIndicator
           datesSet={(info) => {
             setDateInfo({
-              title: info.view.title,
+              title: formatMonthTitle(info.view.currentStart, locale),
               days: differenceInCalendarDays(info.view.currentEnd, info.view.currentStart),
             });
             setEventCount(
@@ -274,6 +281,7 @@ export function Calendar({ events, employees }: CalendarProps) {
         event={selectedEvent}
         mode={dialogMode}
         open={dialogOpen}
+        locale={locale}
         onOpenChange={setDialogOpen}
       />
     </div>
@@ -296,17 +304,20 @@ function EventDialog({
   mode,
   open,
   onOpenChange,
+  locale,
 }: {
   employees: CalendarEmployeeOption[];
   event: OperationsCalendarEvent | null;
   mode: "create" | "edit" | "view";
   open: boolean;
+  locale: string;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations("Dashboard.calendar");
   const [pending, startTransition] = React.useTransition();
   const isView = mode === "view";
   const editableEventId = typeof event?.id === "number" ? event.id : null;
-  const submitLabel = pending ? "Saving..." : getSubmitLabel(mode);
+  const submitLabel = pending ? t("saving") : getSubmitLabel(mode, t);
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -321,7 +332,7 @@ function EventDialog({
         return;
       }
 
-      toast.error("Calendar event not saved", { description: result.message });
+      toast.error(t("notSaved"), { description: result.message });
     });
   }
 
@@ -339,7 +350,7 @@ function EventDialog({
         return;
       }
 
-      toast.error("Calendar event not deleted", { description: result.message });
+      toast.error(t("notDeleted"), { description: result.message });
     });
   }
 
@@ -347,28 +358,24 @@ function EventDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Add gym ops event" : event?.title}</DialogTitle>
-          <DialogDescription>
-            {isView
-              ? "This reminder is generated from backend gym data. Manage it from its source page."
-              : "Schedule staff work, classes, maintenance, payroll reminders, or custom operations."}
-          </DialogDescription>
+          <DialogTitle>{mode === "create" ? t("addGymOpsEvent") : event?.title}</DialogTitle>
+          <DialogDescription>{isView ? t("generatedDescription") : t("editableDescription")}</DialogDescription>
         </DialogHeader>
 
         {isView && event ? (
-          <GeneratedEventDetails event={event} />
+          <GeneratedEventDetails event={event} locale={locale} />
         ) : (
           <form action={submit} className="grid gap-4">
-            <EventFormFields employees={employees} event={event} />
+            <EventFormFields employees={employees} event={event} locale={locale} />
             <DialogFooter>
               {mode === "edit" ? (
                 <Button type="button" variant="outline" disabled={pending} onClick={removeEvent}>
                   <Trash2 />
-                  Delete
+                  {t("delete")}
                 </Button>
               ) : null}
               <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={pending}>
                 {submitLabel}
@@ -384,10 +391,13 @@ function EventDialog({
 function EventFormFields({
   employees,
   event,
+  locale,
 }: {
   employees: CalendarEmployeeOption[];
   event: OperationsCalendarEvent | null;
+  locale: string;
 }) {
+  const t = useTranslations("Dashboard.calendar");
   const initialDate = parseDate(event?.date);
   const [date, setDate] = React.useState<Date | undefined>(initialDate);
 
@@ -400,24 +410,24 @@ function EventFormFields({
       <input name="date" type="hidden" value={format(date ?? new Date(), "yyyy-MM-dd")} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor="calendar-title">Title</Label>
+          <Label htmlFor="calendar-title">{t("title")}</Label>
           <Input
             id="calendar-title"
             name="title"
             required
             defaultValue={event?.title ?? ""}
-            placeholder="Morning shift coverage"
+            placeholder={t("titlePlaceholder")}
           />
         </div>
 
         <div className="grid gap-2">
-          <Label>Date</Label>
+          <Label>{t("date")}</Label>
           <Popover>
             <PopoverTrigger
               render={<Button type="button" variant="outline" className="justify-start text-left font-normal" />}
             >
               <CalendarIcon />
-              {format(date ?? new Date(), "MMM d, yyyy")}
+              {formatDisplayDate(date ?? new Date(), locale)}
             </PopoverTrigger>
             <PopoverContent align="start" className="w-auto p-2">
               <DatePicker mode="single" selected={date} onSelect={setDate} fixedWeeks />
@@ -426,7 +436,7 @@ function EventFormFields({
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="calendar-type">Type</Label>
+          <Label htmlFor="calendar-type">{t("type")}</Label>
           <Select defaultValue={event?.type ?? "manual"} name="type">
             <SelectTrigger id="calendar-type" className="w-full">
               <SelectValue />
@@ -435,7 +445,7 @@ function EventFormFields({
               <SelectGroup>
                 {eventTypes.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
-                    {type.label}
+                    {getTypeLabel(type.value, t)}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -444,17 +454,17 @@ function EventFormFields({
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="calendar-start">Start time</Label>
+          <Label htmlFor="calendar-start">{t("startTime")}</Label>
           <Input id="calendar-start" name="start_time" type="time" defaultValue={timeValue(event?.start)} />
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="calendar-end">End time</Label>
+          <Label htmlFor="calendar-end">{t("endTime")}</Label>
           <Input id="calendar-end" name="end_time" type="time" defaultValue={timeValue(event?.end)} />
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="calendar-status">Status</Label>
+          <Label htmlFor="calendar-status">{t("status")}</Label>
           <Select defaultValue={event?.status ?? "scheduled"} name="status">
             <SelectTrigger id="calendar-status" className="w-full">
               <SelectValue />
@@ -463,7 +473,7 @@ function EventFormFields({
               <SelectGroup>
                 {statuses.map((status) => (
                   <SelectItem key={status.value} value={status.value}>
-                    {status.label}
+                    {t(`statuses.${status.value}`)}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -472,7 +482,7 @@ function EventFormFields({
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="calendar-employee">Assigned employee</Label>
+          <Label htmlFor="calendar-employee">{t("assignedEmployee")}</Label>
           <Select
             defaultValue={event?.assigned_employee?.id ? String(event.assigned_employee.id) : "none"}
             name="assigned_employee_id"
@@ -482,7 +492,7 @@ function EventFormFields({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="none">No employee</SelectItem>
+                <SelectItem value="none">{t("noEmployee")}</SelectItem>
                 {employees.map((employee) => (
                   <SelectItem key={employee.id} value={String(employee.id)}>
                     {employee.name}
@@ -494,22 +504,22 @@ function EventFormFields({
         </div>
 
         <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor="calendar-location">Location</Label>
+          <Label htmlFor="calendar-location">{t("location")}</Label>
           <Input
             id="calendar-location"
             name="location"
             defaultValue={event?.location ?? ""}
-            placeholder="Main floor, reception, studio A"
+            placeholder={t("locationPlaceholder")}
           />
         </div>
 
         <div className="grid gap-2 sm:col-span-2">
-          <Label htmlFor="calendar-notes">Notes</Label>
+          <Label htmlFor="calendar-notes">{t("notes")}</Label>
           <Textarea
             id="calendar-notes"
             name="notes"
             defaultValue={event?.notes ?? ""}
-            placeholder="Optional operation notes"
+            placeholder={t("notesPlaceholder")}
           />
         </div>
       </div>
@@ -517,24 +527,28 @@ function EventFormFields({
   );
 }
 
-function GeneratedEventDetails({ event }: { event: OperationsCalendarEvent }) {
+function GeneratedEventDetails({ event, locale }: { event: OperationsCalendarEvent; locale: string }) {
+  const t = useTranslations("Dashboard.calendar");
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">{getTypeLabel(event.type)}</Badge>
-        <Badge variant={event.status === "cancelled" ? "destructive" : "outline"}>{event.status}</Badge>
+        <Badge variant="secondary">{getTypeLabel(event.type, t)}</Badge>
+        <Badge variant={event.status === "cancelled" ? "destructive" : "outline"}>
+          {getStatusLabel(event.status, t)}
+        </Badge>
       </div>
       <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm">
-        <DetailLine icon={<CalendarIcon />} label="Date" value={formatEventDate(event)} />
+        <DetailLine icon={<CalendarIcon />} label={t("date")} value={formatEventDate(event, locale)} />
         {event.assigned_employee ? (
           <DetailLine
             icon={<Pencil />}
-            label="Employee"
+            label={t("employee")}
             value={`${event.assigned_employee.name}${event.assigned_employee.role ? ` · ${event.assigned_employee.role}` : ""}`}
           />
         ) : null}
-        {event.location ? <DetailLine icon={<MapPin />} label="Location" value={event.location} /> : null}
-        {event.notes ? <DetailLine icon={<Clock />} label="Notes" value={event.notes} /> : null}
+        {event.location ? <DetailLine icon={<MapPin />} label={t("location")} value={event.location} /> : null}
+        {event.notes ? <DetailLine icon={<Clock />} label={t("notes")} value={event.notes} /> : null}
       </div>
       <DialogFooter showCloseButton />
     </div>
@@ -598,26 +612,46 @@ function timeValue(value: string | null | undefined) {
   return format(parsed, "HH:mm");
 }
 
-function formatEventDate(event: OperationsCalendarEvent) {
+function formatDisplayDate(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function formatMonthTitle(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(date);
+}
+
+function formatEventDate(event: OperationsCalendarEvent, locale: string) {
   const date = parseDate(event.date);
   const start = timeValue(event.start);
   const end = timeValue(event.end);
 
   if (!start) {
-    return format(date, "MMM d, yyyy");
+    return formatDisplayDate(date, locale);
   }
 
-  return `${format(date, "MMM d, yyyy")} · ${start}${end ? `-${end}` : ""}`;
+  return `${formatDisplayDate(date, locale)} · ${start}${end ? `-${end}` : ""}`;
 }
 
-function getTypeLabel(value: string) {
-  return calendars.find((calendar) => calendar.value === value)?.label ?? "Gym ops";
+function getTypeLabel(value: string, t: ReturnType<typeof useTranslations<"Dashboard.calendar">>) {
+  if (value in typeColors || value === "all") {
+    return t(`types.${value as CalendarEventType | "all"}`);
+  }
+
+  return t("types.fallback");
 }
 
-function getSubmitLabel(mode: "create" | "edit" | "view") {
+function getStatusLabel(value: string, t: ReturnType<typeof useTranslations<"Dashboard.calendar">>) {
+  if (statuses.some((status) => status.value === value)) {
+    return t(`statuses.${value as (typeof statuses)[number]["value"]}`);
+  }
+
+  return value;
+}
+
+function getSubmitLabel(mode: "create" | "edit" | "view", t: ReturnType<typeof useTranslations<"Dashboard.calendar">>) {
   if (mode === "edit") {
-    return "Save changes";
+    return t("saveChanges");
   }
 
-  return "Create event";
+  return t("createEvent");
 }

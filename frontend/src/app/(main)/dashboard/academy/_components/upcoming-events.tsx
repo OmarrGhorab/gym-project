@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { ArrowRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,18 +16,21 @@ function eventDate(value: string | null) {
 }
 
 export function UpcomingEvents({ events }: { events: StaffAcademyEvent[] }) {
+  const t = useTranslations("Dashboard.academy");
+  const locale = useLocale();
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Upcoming Staff Events</CardTitle>
+        <CardTitle className="text-sm">{t("upcomingEvents")}</CardTitle>
         <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          View Calendar <ArrowRight className="size-4" />
+          {t("viewCalendar")} <ArrowRight className="size-4" />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {events.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground text-sm">
-            No upcoming staff events.
+            {t("noEvents")}
           </div>
         ) : (
           events.map((event) => {
@@ -37,7 +41,7 @@ export function UpcomingEvents({ events }: { events: StaffAcademyEvent[] }) {
                 <div className="flex items-center gap-2">
                   <div className="size-11 shrink-0 overflow-hidden rounded-sm border">
                     <div className="grid h-1/3 place-items-center border-b bg-muted font-medium text-[10px] uppercase leading-none">
-                      {format(date, "MMM")}
+                      {new Intl.DateTimeFormat(locale, { month: "short" }).format(date)}
                     </div>
                     <div className="grid h-2/3 place-items-center text-lg leading-none">{format(date, "d")}</div>
                   </div>

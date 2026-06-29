@@ -1,4 +1,7 @@
+"use client";
+
 import { Calendar1 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,12 +14,14 @@ function priorityVariant(priority: OperationsTask["priority"]) {
 }
 
 export function TasksSection({ tasks }: { tasks: OperationsTask[] }) {
+  const t = useTranslations("Dashboard.productivity");
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl tracking-tight">Operations Queue</h2>
+        <h2 className="text-xl tracking-tight">{t("operationsQueue")}</h2>
         <Button render={<a href="/dashboard/analytics" />} nativeButton={false} variant="outline">
-          Attendance Review
+          {t("attendanceReview")}
         </Button>
       </div>
 
@@ -48,7 +53,7 @@ export function TasksSection({ tasks }: { tasks: OperationsTask[] }) {
             ))
           ) : (
             <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">
-              No urgent operations in the queue.
+              {t("noUrgentOperations")}
             </div>
           )}
         </div>

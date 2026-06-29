@@ -2,6 +2,7 @@
 
 import { format, parseISO } from "date-fns";
 import { ArrowUpRight, DollarSign, PackageCheck, ReceiptText, ShoppingBag, TriangleAlert, Users } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,14 +32,14 @@ function formatTick(value: string) {
   return format(date, "d");
 }
 
-function formatTooltipLabel(value: string) {
+function formatTooltipLabel(value: string, locale: string) {
   const date = parseISO(value);
 
   if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return format(date, "do MMMM yyyy");
+  return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(date);
 }
 
 function metricClass(value: string) {
@@ -46,50 +47,52 @@ function metricClass(value: string) {
 }
 
 export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: PosDashboardData["totals"] }) {
+  const t = useTranslations("Dashboard.ecommerce");
+  const locale = useLocale();
   const chartData = chart.map((point) => ({
     ...point,
     revenue: Number(point.revenue),
   }));
   const metrics = [
     {
-      title: "POS Sales",
+      title: t("posSales"),
       value: formatEgp(totals.sales),
-      detail: `${formatSignedPercent(totals.sales_growth_rate)} vs last month`,
+      detail: t("vsLastMonth", { value: formatSignedPercent(totals.sales_growth_rate) }),
       trend: totals.sales_growth_rate,
       icon: DollarSign,
     },
     {
-      title: "Orders",
+      title: t("orders"),
       value: totals.orders.toLocaleString(),
-      detail: `${formatSignedPercent(totals.orders_growth_rate)} vs last month`,
+      detail: t("vsLastMonth", { value: formatSignedPercent(totals.orders_growth_rate) }),
       trend: totals.orders_growth_rate,
       icon: ShoppingBag,
     },
     {
-      title: "Members Buying",
+      title: t("membersBuying"),
       value: totals.member_buyers.toLocaleString(),
-      detail: "unique member buyers",
+      detail: t("uniqueMemberBuyers"),
       trend: "0",
       icon: Users,
     },
     {
-      title: "Average Sale",
+      title: t("averageSale"),
       value: formatEgp(totals.average_sale),
-      detail: "per POS checkout",
+      detail: t("perCheckout"),
       trend: "0",
       icon: ReceiptText,
     },
     {
-      title: "Low Stock",
+      title: t("lowStock"),
       value: totals.low_stock_products.toLocaleString(),
-      detail: "products need restock",
+      detail: t("productsNeedRestock"),
       trend: "-1",
       icon: TriangleAlert,
     },
     {
-      title: "Availability",
+      title: t("availability"),
       value: `${totals.availability_rate}%`,
-      detail: "active products stocked",
+      detail: t("activeProductsStocked"),
       trend: "1",
       icon: PackageCheck,
     },
@@ -126,7 +129,7 @@ export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: Po
 
           <Card className="h-full rounded-none border-0 ring-0 xl:col-span-7">
             <CardHeader>
-              <CardTitle className="font-normal">POS Sales Overview</CardTitle>
+              <CardTitle className="font-normal">{t("posSalesOverview")}</CardTitle>
               <CardAction>
                 <ArrowUpRight className="size-4" />
               </CardAction>
@@ -152,7 +155,7 @@ export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: Po
                     content={
                       <ChartTooltipContent
                         className="w-44"
-                        labelFormatter={(value) => formatTooltipLabel(String(value))}
+                        labelFormatter={(value) => formatTooltipLabel(String(value), locale)}
                         formatter={(value, name, item) => (
                           <>
                             <div className="size-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
@@ -176,7 +179,7 @@ export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: Po
                     barSize={4}
                     dataKey="orders"
                     fill="var(--color-orders)"
-                    name="Orders"
+                    name={t("orders")}
                     opacity={0.2}
                     radius={[6, 6, 0, 0]}
                   />
@@ -184,7 +187,7 @@ export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: Po
                     yAxisId="revenue"
                     dataKey="revenue"
                     fill="none"
-                    name="Revenue"
+                    name={t("revenue")}
                     stroke="var(--color-revenue)"
                     strokeWidth={1.8}
                     type="linear"

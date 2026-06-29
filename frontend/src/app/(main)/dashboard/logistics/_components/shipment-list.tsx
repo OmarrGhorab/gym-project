@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
   Truck,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,15 +32,6 @@ type ShipmentListProps = {
   onOpenSummary: () => void;
   onSelectShipment: (shipmentId: PurchaseOrder["id"]) => void;
   selectedShipmentId: PurchaseOrder["id"] | null;
-};
-
-const statusLabels: Record<PurchaseOrder["status"], string> = {
-  cancelled: "Cancelled",
-  delayed: "Delayed",
-  draft: "Draft",
-  ordered: "Ordered",
-  partial: "Partial",
-  received: "Received",
 };
 
 const statusClasses: Record<PurchaseOrder["status"], string> = {
@@ -89,6 +81,7 @@ function OrderCard({
   onSelectShipment: (shipmentId: PurchaseOrder["id"]) => void;
   order: PurchaseOrder;
 }) {
+  const t = useTranslations("Dashboard.logistics");
   const angle = (order.progress / 100) * 360;
 
   return (
@@ -116,16 +109,16 @@ function OrderCard({
               <div className="size-1 rounded-full bg-current" />
             </div>
           </div>
-          <span>{statusLabels[order.status]}</span>
+          <span>{t(`statuses.${order.status}`)}</span>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
         <ProductThumb order={order} />
         <div className="min-w-0 flex-1">
-          <div className="truncate font-medium text-sm">{order.primary_product?.name || "Mixed products"}</div>
+          <div className="truncate font-medium text-sm">{order.primary_product?.name || t("mixedProducts")}</div>
           <div className="truncate text-muted-foreground text-xs">
-            {order.supplier_name} • {order.items_count} item{order.items_count === 1 ? "" : "s"}
+            {order.supplier_name} • {t("itemCount", { count: order.items_count })}
           </div>
         </div>
       </div>
@@ -144,14 +137,14 @@ function OrderCard({
 
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="text-muted-foreground text-xs leading-none">Units</div>
+          <div className="text-muted-foreground text-xs leading-none">{t("units")}</div>
           <div className="text-sm tracking-tight">
-            {order.received_units}/{order.ordered_units} received
+            {t("receivedUnits", { ordered: order.ordered_units, received: order.received_units })}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-muted-foreground text-xs leading-none">Expected</div>
-          <div className="text-sm tabular-nums tracking-tight">{order.expected_at ?? "Not set"}</div>
+        <div className="text-end">
+          <div className="text-muted-foreground text-xs leading-none">{t("expected")}</div>
+          <div className="text-sm tabular-nums tracking-tight">{order.expected_at ?? t("notSet")}</div>
         </div>
       </div>
     </button>
@@ -159,6 +152,7 @@ function OrderCard({
 }
 
 export function ShipmentList({ data, selectedShipmentId, onOpenSummary, onSelectShipment }: ShipmentListProps) {
+  const t = useTranslations("Dashboard.logistics");
   const [filter, setFilter] = React.useState<OrderFilter>("all");
   const [search, setSearch] = React.useState("");
 
@@ -182,18 +176,18 @@ export function ShipmentList({ data, selectedShipmentId, onOpenSummary, onSelect
   }, [data.purchase_orders, filter, search]);
 
   const tabs = [
-    { icon: PackageSearch, label: `All (${data.purchase_orders.length})`, value: "all" },
-    { icon: Clock3, label: `Open (${data.stats.open_purchase_orders})`, value: "open" },
-    { icon: CheckCircle2, label: `Received (${data.stats.received_this_month})`, value: "received" },
-    { icon: AlertTriangle, label: `Delayed`, value: "delayed" },
+    { icon: PackageSearch, label: t("all", { count: data.purchase_orders.length }), value: "all" },
+    { icon: Clock3, label: t("open", { count: data.stats.open_purchase_orders }), value: "open" },
+    { icon: CheckCircle2, label: t("receivedCount", { count: data.stats.received_this_month }), value: "received" },
+    { icon: AlertTriangle, label: t("delayed"), value: "delayed" },
   ] as const;
 
   return (
     <Card className="h-full rounded-none ring-0">
       <CardHeader>
-        <CardTitle className="font-normal text-xl">Inventory Logistics</CardTitle>
+        <CardTitle className="font-normal text-xl">{t("inventoryLogistics")}</CardTitle>
         <CardAction>
-          <Button size="icon-sm" variant="ghost" onClick={onOpenSummary} aria-label="Open inventory summary">
+          <Button size="icon-sm" variant="ghost" onClick={onOpenSummary} aria-label={t("openInventorySummary")}>
             <SlidersHorizontal />
           </Button>
         </CardAction>
@@ -214,8 +208,8 @@ export function ShipmentList({ data, selectedShipmentId, onOpenSummary, onSelect
           <InputGroup className="h-8">
             <InputGroupInput
               className="h-8"
-              aria-label="Search purchase orders"
-              placeholder="Search orders, suppliers, products..."
+              aria-label={t("searchOrders")}
+              placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -230,8 +224,8 @@ export function ShipmentList({ data, selectedShipmentId, onOpenSummary, onSelect
             {orders.length === 0 ? (
               <>
                 <div className="rounded-xl border border-dashed p-4 text-muted-foreground text-sm">
-                  <div className="font-medium text-foreground">No purchase orders yet</div>
-                  <div className="mt-1">Start from these low-stock products or create a restock order.</div>
+                  <div className="font-medium text-foreground">{t("noPurchaseOrders")}</div>
+                  <div className="mt-1">{t("restockHint")}</div>
                 </div>
                 {data.low_stock_products.slice(0, 8).map((product) => (
                   <button
@@ -249,18 +243,18 @@ export function ShipmentList({ data, selectedShipmentId, onOpenSummary, onSelect
                     </div>
                     <div className="text-right">
                       <div className="font-medium text-sm">{product.stock_quantity}</div>
-                      <div className="text-muted-foreground text-xs">left</div>
+                      <div className="text-muted-foreground text-xs">{t("leftLabel")}</div>
                     </div>
                   </button>
                 ))}
                 {data.low_stock_products.length === 0 && (
                   <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground text-sm">
-                    No low-stock products right now.
+                    {t("noLowStock")}
                   </div>
                 )}
                 <Button className="w-full" variant="outline" onClick={onOpenSummary}>
                   <Plus />
-                  View stock summary
+                  {t("viewStockSummary")}
                 </Button>
               </>
             ) : (

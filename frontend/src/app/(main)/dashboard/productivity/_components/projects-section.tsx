@@ -1,4 +1,7 @@
+"use client";
+
 import { ClipboardCheck, CreditCard, Dumbbell, PackageCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +12,12 @@ import type { OperationsWorkflow } from "./data";
 const icons = [ClipboardCheck, CreditCard, Dumbbell, PackageCheck] as const;
 
 export function ProjectsSection({ workflows }: { workflows: OperationsWorkflow[] }) {
+  const t = useTranslations("Dashboard.productivity");
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl tracking-tight">Operational Workflows</h2>
+        <h2 className="text-xl tracking-tight">{t("operationalWorkflows")}</h2>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

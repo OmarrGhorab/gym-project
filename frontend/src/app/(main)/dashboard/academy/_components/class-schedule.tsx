@@ -1,5 +1,5 @@
-import { format } from "date-fns";
 import { ArrowRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,28 +25,23 @@ function statusBarClass(status: StaffAcademyShift["status"]) {
   return "bg-muted-foreground";
 }
 
-function statusLabel(status: StaffAcademyShift["status"]) {
-  if (status === "in_progress") return "In Progress";
-  if (status === "upcoming") return "Upcoming";
-
-  return "Completed";
-}
-
 export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
-  const today = format(new Date(), "EEEE, d MMMM");
+  const t = useTranslations("Dashboard.academy");
+  const locale = useLocale();
+  const today = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", weekday: "long" }).format(new Date());
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Staff Shift Schedule</CardTitle>
+        <CardTitle className="text-sm">{t("staffShiftSchedule")}</CardTitle>
         <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          Shift Settings <ArrowRight className="size-4" />
+          {t("shiftSettings")} <ArrowRight className="size-4" />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-0">
         {shifts.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground text-sm">
-            No active staff shifts configured yet.
+            {t("noShifts")}
           </div>
         ) : (
           <div className="flex flex-col divide-y divide-border">
@@ -66,7 +61,7 @@ export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="truncate font-medium text-foreground text-sm leading-none">{shift.name}</div>
                   <div className="truncate text-muted-foreground text-xs leading-none">
-                    {shift.staff_count} assigned staff • {shift.grace_minutes} min grace
+                    {t("assignedGrace", { minutes: shift.grace_minutes, staff: shift.staff_count })}
                   </div>
                 </div>
 
@@ -74,7 +69,7 @@ export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
                   variant="secondary"
                   className={`shrink-0 rounded-md px-2.5 py-1 font-medium text-[10px] ${statusClass(shift.status)}`}
                 >
-                  {statusLabel(shift.status)}
+                  {t(`statuses.${shift.status}`)}
                 </Badge>
               </div>
             ))}

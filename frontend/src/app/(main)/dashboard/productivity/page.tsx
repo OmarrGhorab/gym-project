@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { CalendarPanel } from "./_components/calendar-panel";
 import { getOperationsSummaryData } from "./_components/data";
 import { FocusCard } from "./_components/focus-card";
@@ -10,6 +12,7 @@ import { TasksSection } from "./_components/tasks-section";
 import { WeeklySummaryCard } from "./_components/weekly-summary-card";
 
 export default async function Page() {
+  const t = await getTranslations("Dashboard.productivity");
   const data = await getOperationsSummaryData();
 
   return (
@@ -17,10 +20,8 @@ export default async function Page() {
       <section className="lg:col-span-9">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl text-foreground leading-none tracking-tight">Gym Ops Command Center</h1>
-            <p className="text-lg text-muted-foreground leading-none">
-              Review today&apos;s operational work from the gym backend.
-            </p>
+            <h1 className="text-3xl text-foreground leading-none tracking-tight">{t("title")}</h1>
+            <p className="text-lg text-muted-foreground leading-none">{t("description")}</p>
           </div>
           <SummaryCards data={data} />
           <TasksSection tasks={data.tasks} />

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, ImagePlus, PackagePlus, Truck } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,14 +41,14 @@ function formatDateString(date: Date) {
   return format(date, "yyyy-MM-dd");
 }
 
-function formatDateLabel(value: string) {
-  if (!value) return "Select date";
+function formatDateLabel(value: string, locale: string, fallback: string) {
+  if (!value) return fallback;
 
   const date = parseISO(value);
 
-  if (Number.isNaN(date.getTime())) return "Select date";
+  if (Number.isNaN(date.getTime())) return fallback;
 
-  return format(date, "MMM d, yyyy");
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 function parseDateString(value: string) {
@@ -59,16 +60,18 @@ function parseDateString(value: string) {
 }
 
 function DatePickerField({ name }: { name: string }) {
+  const t = useTranslations("Dashboard.logistics");
+  const locale = useLocale();
   const [value, setValue] = React.useState("");
   const selectedDate = parseDateString(value);
 
   return (
-    <Field label="Expected date">
+    <Field label={t("expectedDate")}>
       <Popover>
         <PopoverTrigger
           render={
             <Button type="button" variant="outline" className="w-full justify-between font-normal">
-              {formatDateLabel(value)}
+              {formatDateLabel(value, locale, t("selectDate"))}
               <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
             </Button>
           }
@@ -90,6 +93,7 @@ function DatePickerField({ name }: { name: string }) {
 }
 
 export function AddProductDialog() {
+  const t = useTranslations("Dashboard.logistics");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -105,7 +109,7 @@ export function AddProductDialog() {
         return;
       }
 
-      toast.error("Product not created", { description: result.message });
+      toast.error(t("productNotCreated"), { description: result.message });
     });
   }
 
@@ -113,49 +117,49 @@ export function AddProductDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>
         <PackagePlus />
-        Add Product
+        {t("addProduct")}
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add product</DialogTitle>
-          <DialogDescription>Create a POS product with stock and optional image.</DialogDescription>
+          <DialogTitle>{t("addProductTitle")}</DialogTitle>
+          <DialogDescription>{t("addProductDescription")}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Name">
-              <Input name="name" required placeholder="Protein Shake" />
+            <Field label={t("name")}>
+              <Input name="name" required placeholder={t("namePlaceholder")} />
             </Field>
-            <Field label="Category">
-              <Input name="category" required placeholder="supplements" />
+            <Field label={t("category")}>
+              <Input name="category" required placeholder={t("categoryPlaceholder")} />
             </Field>
-            <Field label="SKU">
-              <Input name="sku" required placeholder="SKU-PROTEIN-01" />
+            <Field label={t("sku")}>
+              <Input name="sku" required placeholder={t("skuPlaceholder")} />
             </Field>
-            <Field label="Image">
+            <Field label={t("image")}>
               <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
                 <ImagePlus className="size-4 text-muted-foreground" />
                 <Input name="image" type="file" accept="image/*" className="border-0 px-0 focus-visible:ring-0" />
               </div>
             </Field>
-            <Field label="Sale price">
+            <Field label={t("salePrice")}>
               <Input name="price" required type="number" min="0.01" step="0.01" placeholder="150" />
             </Field>
-            <Field label="Cost">
+            <Field label={t("cost")}>
               <Input name="cost" required type="number" min="0" step="0.01" placeholder="90" />
             </Field>
-            <Field label="Opening stock">
+            <Field label={t("openingStock")}>
               <Input name="stock_quantity" type="number" min="0" defaultValue="0" />
             </Field>
-            <Field label="Low stock threshold">
+            <Field label={t("lowStockThreshold")}>
               <Input name="low_stock_threshold" type="number" min="0" defaultValue="5" />
             </Field>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Saving..." : "Create product"}
+              {pending ? t("saving") : t("createProduct")}
             </Button>
           </DialogFooter>
         </form>
@@ -165,6 +169,7 @@ export function AddProductDialog() {
 }
 
 export function CreatePurchaseOrderDialog({ products }: { products: InventoryProduct[] }) {
+  const t = useTranslations("Dashboard.logistics");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -181,7 +186,7 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
         return;
       }
 
-      toast.error("Purchase order not created", { description: result.message });
+      toast.error(t("purchaseOrderNotCreated"), { description: result.message });
     });
   }
 
@@ -189,30 +194,30 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" variant="outline" disabled={products.length === 0} />}>
         <Truck />
-        Create PO
+        {t("createPo")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create purchase order</DialogTitle>
-          <DialogDescription>Restock an existing product from a supplier.</DialogDescription>
+          <DialogTitle>{t("createPurchaseOrder")}</DialogTitle>
+          <DialogDescription>{t("createPurchaseOrderDescription")}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
-          <Field label="Supplier">
-            <Input name="supplier_name" required placeholder="Supplement supplier" />
+          <Field label={t("supplier")}>
+            <Input name="supplier_name" required placeholder={t("supplierPlaceholder")} />
           </Field>
-          <Field label="Supplier phone">
+          <Field label={t("supplierPhone")}>
             <Input name="supplier_phone" placeholder="+20..." />
           </Field>
-          <Field label="Product">
+          <Field label={t("product")}>
             <Select name="product_id" defaultValue={defaultProduct ? String(defaultProduct.id) : undefined}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select product" />
+                <SelectValue placeholder={t("selectProduct")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={String(product.id)}>
-                      {product.name} · {product.stock_quantity} left
+                      {product.name} · {t("left", { count: product.stock_quantity })}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -220,10 +225,10 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
             </Select>
           </Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Quantity">
+            <Field label={t("quantity")}>
               <Input name="quantity_ordered" required type="number" min="1" defaultValue="1" />
             </Field>
-            <Field label="Unit cost">
+            <Field label={t("unitCost")}>
               <Input
                 name="unit_cost"
                 required
@@ -235,15 +240,15 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
             </Field>
             <DatePickerField name="expected_at" />
           </div>
-          <Field label="Notes">
-            <Textarea name="notes" placeholder="Delivery notes" />
+          <Field label={t("notes")}>
+            <Textarea name="notes" placeholder={t("notesPlaceholder")} />
           </Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending || products.length === 0}>
-              {pending ? "Saving..." : "Create order"}
+              {pending ? t("saving") : t("createOrder")}
             </Button>
           </DialogFooter>
         </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ const trafficConfig = {
 } satisfies ChartConfig;
 
 export function StoreTraffic({ data }: { data: PosHourlyPoint[] }) {
+  const t = useTranslations("Dashboard.ecommerce");
   const chartData = data.map((point) => ({
     ...point,
     revenue: Number(point.revenue),
@@ -37,9 +39,9 @@ export function StoreTraffic({ data }: { data: PosHourlyPoint[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal text-muted-foreground text-sm">POS Activity</CardTitle>
+        <CardTitle className="font-normal text-muted-foreground text-sm">{t("posActivity")}</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">
-          {totalOrders.toLocaleString()} orders today
+          {t("ordersToday", { count: totalOrders })}
         </CardDescription>
         <CardAction>
           <ArrowUpRight className="size-4" />

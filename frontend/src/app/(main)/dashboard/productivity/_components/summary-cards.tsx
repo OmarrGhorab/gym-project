@@ -1,27 +1,31 @@
+"use client";
+
 import { ArrowRight, ClipboardList, ShieldAlert, Target } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { OperationsSummaryData } from "./data";
 
 export function SummaryCards({ data }: { data: OperationsSummaryData }) {
+  const t = useTranslations("Dashboard.productivity");
   const summaryCards = [
     {
-      title: "Today",
+      title: t("today"),
       value: String(data.summary.today_action_count),
-      description: "actions needing attention",
+      description: t("actionsAttention"),
       icon: ClipboardList,
     },
     {
-      title: "Review",
+      title: t("review"),
       value: String(data.summary.pending_review_count),
-      description: "warnings and exceptions",
+      description: t("warningsExceptions"),
       icon: ShieldAlert,
     },
     {
-      title: "This Week",
+      title: t("thisWeek"),
       value: `${data.summary.week_progress}%`,
-      description: "operations progress",
+      description: t("operationsProgress"),
       icon: Target,
     },
   ] as const;

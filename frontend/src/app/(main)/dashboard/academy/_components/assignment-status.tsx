@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,24 +28,6 @@ function AutoAppliedLegendIcon() {
   return <span className="block size-2 rounded-[2px] bg-destructive" />;
 }
 
-const chartConfig = {
-  approved: {
-    label: "Approved",
-    color: "var(--chart-3)",
-    icon: ApprovedLegendIcon,
-  },
-  pending: {
-    label: "Pending",
-    color: "var(--chart-2)",
-    icon: PendingLegendIcon,
-  },
-  auto_applied: {
-    label: "Auto Applied",
-    color: "var(--destructive)",
-    icon: AutoAppliedLegendIcon,
-  },
-} satisfies ChartConfig;
-
 function WarningDotPattern({ color, id }: { color: string; id: string }) {
   return (
     <pattern id={id} width="6" height="6" patternUnits="userSpaceOnUse">
@@ -56,12 +39,31 @@ function WarningDotPattern({ color, id }: { color: string; id: string }) {
 }
 
 export function AssignmentStatus({ warnings }: { warnings: StaffAcademyWarningStatus[] }) {
+  const t = useTranslations("Dashboard.academy");
+  const chartConfig = {
+    approved: {
+      label: t("approved"),
+      color: "var(--chart-3)",
+      icon: ApprovedLegendIcon,
+    },
+    pending: {
+      label: t("pending"),
+      color: "var(--chart-2)",
+      icon: PendingLegendIcon,
+    },
+    auto_applied: {
+      label: t("autoApplied"),
+      color: "var(--destructive)",
+      icon: AutoAppliedLegendIcon,
+    },
+  } satisfies ChartConfig;
+
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="text-sm">Warning Status</CardTitle>
+        <CardTitle className="text-sm">{t("warningStatus")}</CardTitle>
         <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          Review Warnings <ArrowRight className="size-4" />
+          {t("reviewWarnings")} <ArrowRight className="size-4" />
         </CardAction>
       </CardHeader>
       <CardContent>

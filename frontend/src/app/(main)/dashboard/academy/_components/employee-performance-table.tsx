@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,23 +10,25 @@ import { formatCurrency } from "@/lib/utils";
 import type { StaffAcademyPageData } from "./data";
 
 export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData["employeeRows"] }) {
+  const t = useTranslations("Dashboard.academy");
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Employee performance details</CardTitle>
-        <CardDescription>Existing backend performance and commission endpoints per employee.</CardDescription>
+        <CardTitle className="font-normal">{t("employeePerformance")}</CardTitle>
+        <CardDescription>{t("employeePerformanceDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Shift</TableHead>
-              <TableHead>Attendance</TableHead>
-              <TableHead>Subscriptions</TableHead>
-              <TableHead>POS sales</TableHead>
-              <TableHead>Commissions</TableHead>
-              <TableHead>QR</TableHead>
+              <TableHead>{t("employee")}</TableHead>
+              <TableHead>{t("shift")}</TableHead>
+              <TableHead>{t("attendance")}</TableHead>
+              <TableHead>{t("subscriptions")}</TableHead>
+              <TableHead>{t("posSales")}</TableHead>
+              <TableHead>{t("commissions")}</TableHead>
+              <TableHead>{t("qr")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -39,7 +45,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                       <div className="text-muted-foreground text-xs">{row.employee.role}</div>
                     </TableCell>
                     <TableCell>
-                      <div>{row.employee.shift?.name ?? "No shift"}</div>
+                      <div>{row.employee.shift?.name ?? t("noShift")}</div>
                       <div className="text-muted-foreground text-xs">
                         {row.employee.shift ? `${row.employee.shift.starts_at} - ${row.employee.shift.ends_at}` : "-"}
                       </div>
@@ -54,11 +60,13 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                     </TableCell>
                     <TableCell>
                       <div>{formatCurrency(Number(commissionTotal), { currency: "EGP", noDecimals: true })}</div>
-                      <div className="text-muted-foreground text-xs">{row.commissions.length} recent rows</div>
+                      <div className="text-muted-foreground text-xs">
+                        {t("recentRows", { count: row.commissions.length })}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={row.employee.attendance_qr ? "secondary" : "outline"}>
-                        {row.employee.attendance_qr ? "Ready" : "Missing"}
+                        {row.employee.attendance_qr ? t("ready") : t("missing")}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -67,7 +75,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
             ) : (
               <TableRow>
                 <TableCell className="h-20 text-center text-muted-foreground" colSpan={7}>
-                  No active employees returned by the backend.
+                  {t("noEmployees")}
                 </TableCell>
               </TableRow>
             )}

@@ -5,6 +5,7 @@ import * as React from "react";
 import { format, isSameDay, startOfMonth, startOfToday } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { Plus } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,8 @@ function eventDateValue(date: Date | undefined) {
 }
 
 export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] }) {
+  const t = useTranslations("Dashboard.productivity");
+  const locale = useLocale();
   const today = startOfToday();
   const [date, setDate] = React.useState<Date | undefined>(today);
   const [currentMonth, setCurrentMonth] = React.useState<Date>(startOfMonth(today));
@@ -55,7 +58,7 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
         return;
       }
 
-      toast.error("Event not created", { description: result.message });
+      toast.error(t("eventNotCreated"), { description: result.message });
     });
   }
 
@@ -82,40 +85,40 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
         <div className="space-y-3 border-t pt-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="font-medium text-sm">Selected Day</div>
-              <div className="text-muted-foreground text-xs">{format(date ?? today, "MMM d, yyyy")}</div>
+              <div className="font-medium text-sm">{t("selectedDay")}</div>
+              <div className="text-muted-foreground text-xs">{formatDisplayDate(date ?? today, locale)}</div>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger render={<Button size="sm" variant="outline" />}>
                 <Plus data-icon="inline-start" />
-                Add
+                {t("add")}
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add gym ops event</DialogTitle>
-                  <DialogDescription>Create a custom calendar event for this operations page.</DialogDescription>
+                  <DialogTitle>{t("addGymOpsEvent")}</DialogTitle>
+                  <DialogDescription>{t("createEventDescription")}</DialogDescription>
                 </DialogHeader>
                 <form action={submitEvent} className="grid gap-4">
                   <input name="date" type="hidden" value={eventDateValue(date)} />
                   <div className="grid gap-2">
                     <label className="font-medium text-sm" htmlFor="ops-event-title">
-                      Title
+                      {t("eventTitle")}
                     </label>
-                    <Input id="ops-event-title" name="title" required placeholder="Staff meeting" />
+                    <Input id="ops-event-title" name="title" required placeholder={t("eventTitlePlaceholder")} />
                   </div>
                   <div className="grid gap-2">
                     <label className="font-medium text-sm" htmlFor="ops-event-type">
-                      Type
+                      {t("eventType")}
                     </label>
                     <Select defaultValue="manual" name="type">
                       <SelectTrigger id="ops-event-type" className="w-full">
-                        <SelectValue placeholder="Event type" />
+                        <SelectValue placeholder={t("eventTypePlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
                           {eventTypes.map((type) => (
                             <SelectItem key={type.value} value={type.value}>
-                              {type.label}
+                              {t(`eventTypes.${type.value}`)}
                             </SelectItem>
                           ))}
                         </SelectGroup>
@@ -124,16 +127,16 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
                   </div>
                   <div className="grid gap-2">
                     <label className="font-medium text-sm" htmlFor="ops-event-notes">
-                      Notes
+                      {t("notes")}
                     </label>
-                    <Textarea id="ops-event-notes" name="notes" placeholder="Optional notes" />
+                    <Textarea id="ops-event-notes" name="notes" placeholder={t("notesPlaceholder")} />
                   </div>
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                      Cancel
+                      {t("cancel")}
                     </Button>
                     <Button type="submit" disabled={pending}>
-                      {pending ? "Saving..." : "Save event"}
+                      {pending ? t("saving") : t("saveEvent")}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -146,17 +149,29 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
               <div key={`${event.type}-${event.title}-${event.id ?? event.date}`} className="rounded-lg border p-2">
                 <div className="font-medium text-xs">{event.title}</div>
                 <div className="text-muted-foreground text-xs capitalize">
-                  {event.type}
-                  {event.editable ? " · custom" : ""}
+                  {getEventTypeLabel(event.type, t)}
+                  {event.editable ? ` · ${t("custom")}` : ""}
                 </div>
                 {event.notes ? <div className="mt-1 text-muted-foreground text-xs">{event.notes}</div> : null}
               </div>
             ))
           ) : (
-            <div className="text-muted-foreground text-xs">No renewal, payroll, or custom events.</div>
+            <div className="text-muted-foreground text-xs">{t("noEvents")}</div>
           )}
         </div>
       </CardContent>
     </Card>
   );
+}
+
+function formatDisplayDate(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function getEventTypeLabel(type: string, t: ReturnType<typeof useTranslations<"Dashboard.productivity">>) {
+  if (eventTypes.some((eventType) => eventType.value === type)) {
+    return t(`eventTypes.${type as (typeof eventTypes)[number]["value"]}`);
+  }
+
+  return type;
 }

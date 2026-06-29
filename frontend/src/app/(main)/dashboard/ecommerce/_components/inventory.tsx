@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUpRight, PackageCheck, PackageX, TriangleAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Label, Pie, PieChart } from "recharts";
 
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ function makeGaugeSegments(inStock: number, lowStock: number, out: number) {
 }
 
 export function Inventory({ inventory }: { inventory: PosDashboardData["inventory"] }) {
+  const t = useTranslations("Dashboard.ecommerce");
   const availablePercent = Number(inventory.availability_rate);
   const gaugeSegments = makeGaugeSegments(
     inventory.in_stock_products,
@@ -59,17 +61,17 @@ export function Inventory({ inventory }: { inventory: PosDashboardData["inventor
   const inventorySummary = [
     {
       icon: PackageCheck,
-      label: "In stock",
+      label: t("inStock"),
       value: inventory.in_stock_products,
     },
     {
       icon: TriangleAlert,
-      label: "Low stock",
+      label: t("lowStock"),
       value: inventory.low_stock_products,
     },
     {
       icon: PackageX,
-      label: "Out",
+      label: t("out"),
       value: inventory.out_of_stock_products,
     },
   ] as const;
@@ -77,9 +79,9 @@ export function Inventory({ inventory }: { inventory: PosDashboardData["inventor
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="font-normal text-muted-foreground text-sm">Inventory</CardTitle>
+        <CardTitle className="font-normal text-muted-foreground text-sm">{t("inventory")}</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">
-          {availablePercent}% available
+          {t("availableValue", { value: availablePercent })}
         </CardDescription>
         <CardAction>
           <ArrowUpRight className="size-4" />
@@ -115,7 +117,7 @@ export function Inventory({ inventory }: { inventory: PosDashboardData["inventor
                           {availablePercent}%
                         </tspan>
                         <tspan className="fill-muted-foreground text-xs" x={viewBox.cx} y={(viewBox.cy || 0) + 38}>
-                          Available
+                          {t("available")}
                         </tspan>
                       </text>
                     );

@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { AlertTriangle, Boxes, PackageCheck, PackageSearch, ReceiptText } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,20 +32,21 @@ function InventorySummarySheet({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const t = useTranslations("Dashboard.logistics");
   const stats = [
-    { icon: Boxes, label: "Products", value: data.stats.products_total },
-    { icon: AlertTriangle, label: "Low stock", value: data.stats.low_stock_products },
-    { icon: PackageSearch, label: "Out of stock", value: data.stats.out_of_stock_products },
-    { icon: ReceiptText, label: "Open PO", value: data.stats.open_purchase_orders },
-    { icon: PackageCheck, label: "Received", value: data.stats.received_this_month },
+    { icon: Boxes, label: t("products"), value: data.stats.products_total },
+    { icon: AlertTriangle, label: t("lowStock"), value: data.stats.low_stock_products },
+    { icon: PackageSearch, label: t("outOfStock"), value: data.stats.out_of_stock_products },
+    { icon: ReceiptText, label: t("openPo"), value: data.stats.open_purchase_orders },
+    { icon: PackageCheck, label: t("received"), value: data.stats.received_this_month },
   ];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="overflow-y-auto sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Inventory Summary</SheetTitle>
-          <SheetDescription>Stock health, restock attention, and recent inventory activity.</SheetDescription>
+          <SheetTitle>{t("inventorySummary")}</SheetTitle>
+          <SheetDescription>{t("summaryDescription")}</SheetDescription>
         </SheetHeader>
 
         <div className="grid gap-4 px-4 pb-4">
@@ -66,7 +68,7 @@ function InventorySummarySheet({
 
           <Card>
             <CardContent className="p-4">
-              <div className="text-muted-foreground text-xs">Inventory value</div>
+              <div className="text-muted-foreground text-xs">{t("inventoryValue")}</div>
               <div className="text-2xl tracking-tight">{formatEgp(data.stats.inventory_value)}</div>
             </CardContent>
           </Card>
@@ -77,10 +79,10 @@ function InventorySummarySheet({
           </div>
 
           <div className="space-y-2">
-            <div className="font-medium text-sm">Low-stock products</div>
+            <div className="font-medium text-sm">{t("lowStockProducts")}</div>
             {data.low_stock_products.length === 0 ? (
               <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
-                No low-stock products right now.
+                {t("noLowStock")}
               </div>
             ) : (
               data.low_stock_products.slice(0, 8).map((product) => (
@@ -88,11 +90,11 @@ function InventorySummarySheet({
                   <div className="min-w-0">
                     <div className="truncate font-medium text-sm">{product.name}</div>
                     <div className="truncate text-muted-foreground text-xs">
-                      {product.category} • threshold {product.low_stock_threshold}
+                      {product.category} • {t("threshold", { value: product.low_stock_threshold })}
                     </div>
                   </div>
                   <Badge variant={product.stock_quantity <= 0 ? "destructive" : "outline"}>
-                    {product.stock_quantity} left
+                    {t("left", { count: product.stock_quantity })}
                   </Badge>
                 </div>
               ))
@@ -100,11 +102,11 @@ function InventorySummarySheet({
           </div>
 
           <div className="space-y-2">
-            <div className="font-medium text-sm">Recent activity</div>
+            <div className="font-medium text-sm">{t("recentActivity")}</div>
             {data.recent_movements.slice(0, 5).map((movement) => (
               <div key={movement.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-sm">{movement.product?.name ?? "Product"}</div>
+                  <div className="truncate font-medium text-sm">{movement.product?.name ?? t("product")}</div>
                   <div className="truncate text-muted-foreground text-xs">{movement.reason}</div>
                 </div>
                 <Badge variant={movement.quantity < 0 ? "destructive" : "outline"}>
@@ -116,7 +118,7 @@ function InventorySummarySheet({
           </div>
 
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("close")}
           </Button>
         </div>
       </SheetContent>
@@ -125,6 +127,7 @@ function InventorySummarySheet({
 }
 
 export function Logistics({ data }: { data: InventoryLogisticsData }) {
+  const t = useTranslations("Dashboard.logistics");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [summaryOpen, setSummaryOpen] = React.useState(false);
   const [selectedShipmentId, setSelectedShipmentId] = React.useState<PurchaseOrder["id"] | null>(
@@ -176,9 +179,11 @@ export function Logistics({ data }: { data: InventoryLogisticsData }) {
         >
           <SheetHeader className="sr-only">
             <SheetTitle>
-              {selectedShipment ? `Purchase order ${selectedShipment.reference}` : "Purchase order details"}
+              {selectedShipment
+                ? t("purchaseOrderTitle", { reference: selectedShipment.reference })
+                : t("purchaseOrderDetails")}
             </SheetTitle>
-            <SheetDescription>Selected inventory purchase order details.</SheetDescription>
+            <SheetDescription>{t("purchaseOrderDescription")}</SheetDescription>
           </SheetHeader>
           <ShipmentDetails data={data} shipment={selectedShipment} />
         </SheetContent>
