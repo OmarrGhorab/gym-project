@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Minus,
   Paperclip,
+  SquareArrowOutUpRight,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,7 +19,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn, getInitials } from "@/lib/utils";
 
-import { tagTones } from "./data";
+import { tagTones } from "./constants";
 import type { ColumnId, Task, TaskInsightLabel, TaskPriority } from "./types";
 
 const taskInsightIcons: Record<TaskInsightLabel, LucideIcon> = {
@@ -57,8 +58,8 @@ export function TaskCard({
   columnId?: ColumnId;
   isOverlay?: boolean;
 }) {
-  const isDone = columnId === "shipped";
-  const showBuildingDetails = columnId === "building" && typeof task.progress === "number";
+  const isDone = columnId === "done";
+  const showBuildingDetails = columnId === "doing" && typeof task.progress === "number";
   const owner = task.owner;
   const PriorityIcon = priorityBadgeConfig[task.priority].icon;
 
@@ -155,17 +156,29 @@ export function TaskCard({
         ) : null}
 
         {!isDone ? (
-          <div className="flex items-center gap-3 text-muted-foreground text-sm">
-            {task.insights.map((insight) => {
-              const Icon = taskInsightIcons[insight.label];
+          <div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
+            <div className="flex items-center gap-3">
+              {task.insights.map((insight) => {
+                const Icon = taskInsightIcons[insight.label];
 
-              return (
-                <span key={insight.label} className="flex items-center gap-1.5 text-sm">
-                  <Icon className="size-3.5" />
-                  {insight.count}
-                </span>
-              );
-            })}
+                return (
+                  <span key={insight.label} className="flex items-center gap-1.5 text-sm">
+                    <Icon className="size-3.5" />
+                    {insight.count}
+                  </span>
+                );
+              })}
+            </div>
+            {task.href ? (
+              <a
+                href={task.href}
+                className="inline-flex items-center gap-1 rounded-sm px-1 font-medium text-xs hover:text-foreground"
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                Open
+                <SquareArrowOutUpRight className="size-3" />
+              </a>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -1,10 +1,16 @@
-import { initialBoard } from "./_components/data";
+import { getKanbanPageData } from "./_components/data";
 import { Kanban } from "./_components/kanban";
 
-export default function Page() {
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+export default async function Page() {
+  const data = await getKanbanPageData();
+
   return (
     <div data-content-padding="false">
-      <Kanban initialBoard={initialBoard} />
+      <Kanban employees={data.employees} initialBoard={data.initialBoard} />
     </div>
   );
 }

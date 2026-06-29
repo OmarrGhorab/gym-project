@@ -1,4 +1,4 @@
-import { columnIds } from "./data";
+import { columnIds } from "./constants";
 import type { BoardState, ColumnId } from "./types";
 
 export function isColumnId(id: string): id is ColumnId {
