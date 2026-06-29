@@ -257,6 +257,25 @@
           "Overdue": "Overdue",
           "Trial": "Trial"
         }
+      },
+      "shortcuts": {
+        "title": "Quick Shortcuts",
+        "addMember": "Add member",
+        "attendance": "Attendance",
+        "posCheckout": "POS checkout",
+        "products": "Products",
+        "recordExpense": "Record expense",
+        "collectDue": "Collect due",
+        "salesReport": "Sales report",
+        "payroll": "Payroll",
+        "payments": "Payments",
+        "export": "Export",
+        "schedule": "Schedule",
+        "tasks": "Tasks",
+        "staff": "Staff",
+        "plans": "Plans",
+        "users": "Users & roles",
+        "settings": "Settings"
       }
     },
     "crm": {
@@ -629,7 +648,8 @@
         "cash": "Cash",
         "card": "Card",
         "bank_transfer": "Bank"
-      }
+      },
+      "actionsTitle": "Actions"
     },
     "membersPage": {
       "title": "Members",

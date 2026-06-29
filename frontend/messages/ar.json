@@ -257,6 +257,25 @@
           "Overdue": "متأخر",
           "Trial": "تجريبي"
         }
+      },
+      "shortcuts": {
+        "title": "اختصارات سريعة",
+        "addMember": "إضافة عضو",
+        "attendance": "الحضور",
+        "posCheckout": "بيع سريع",
+        "products": "المنتجات",
+        "recordExpense": "تسجيل مصروف",
+        "collectDue": "تحصيل مستحق",
+        "salesReport": "تقرير المبيعات",
+        "payroll": "الرواتب",
+        "payments": "المدفوعات",
+        "export": "تصدير",
+        "schedule": "الجدول",
+        "tasks": "المهام",
+        "staff": "الموظفون",
+        "plans": "الخطط",
+        "users": "المستخدمون والأدوار",
+        "settings": "الإعدادات"
       }
     },
     "crm": {
@@ -629,7 +648,8 @@
         "cash": "نقدي",
         "card": "بطاقة",
         "bank_transfer": "تحويل"
-      }
+      },
+      "actionsTitle": "الإجراءات"
     },
     "membersPage": {
       "title": "الأعضاء",
