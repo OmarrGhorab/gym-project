@@ -2,35 +2,32 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
 import type { MemberPaymentHistory, MemberRow, MemberVisitRow } from "./data";
 
 export function MemberDetailsDialog({
-  children = "Details",
   history,
   member,
-  trigger,
+  onOpenChange,
+  open,
   visits,
 }: {
-  children?: React.ReactNode;
   history: MemberPaymentHistory | null | undefined;
   member: MemberRow;
-  trigger?: React.ReactElement;
+  onOpenChange?: (open: boolean) => void;
+  open?: boolean;
   visits: MemberVisitRow[];
 }) {
   return (
-    <Dialog>
-      <DialogTrigger render={trigger ?? <Button type="button" size="sm" variant="outline" />}>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open === undefined ? (
+        <Button type="button" size="sm" variant="outline">
+          Details
+        </Button>
+      ) : null}
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{member.name}</DialogTitle>

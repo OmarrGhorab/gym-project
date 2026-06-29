@@ -6,7 +6,7 @@ use App\Support\PosPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreOperationsCalendarEventRequest extends FormRequest
+class UpdateOperationsCalendarEventRequest extends FormRequest
 {
     public function authorize(): bool
     {

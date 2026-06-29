@@ -94,7 +94,7 @@ export function EditMemberDialog({ member }: { member: MemberRow }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<DropdownMenuItem />}>Edit member</DialogTrigger>
+      <DialogTrigger render={<Button type="button" className="sr-only" />}>Edit member</DialogTrigger>
       <MemberFormContent
         description="Update profile fields stored in the backend."
         member={member}
@@ -116,7 +116,7 @@ export function MemberPhotoDialog({ member }: { member: MemberRow }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<DropdownMenuItem />}>Upload photo</DialogTrigger>
+      <DialogTrigger render={<Button type="button" className="sr-only" />}>Upload photo</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Upload photo</DialogTitle>
@@ -140,40 +140,114 @@ export function MemberPhotoDialog({ member }: { member: MemberRow }) {
 }
 
 export function MemberActionsMenu({
-  details,
+  history,
   member,
   visits,
 }: {
-  details: React.ReactNode;
+  history: React.ComponentProps<typeof MemberDetailsDialog>["history"];
   member: MemberRow;
-  visits: React.ReactNode;
+  visits: React.ComponentProps<typeof MemberDetailsDialog>["visits"];
 }) {
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [photoOpen, setPhotoOpen] = React.useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`Actions for ${member.name}`} />}>
-        <MoreHorizontal />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuGroup>
-          {details}
-          <EditMemberDialog member={member} />
-          <MemberPhotoDialog member={member} />
-          {visits}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DeactivateMemberItem member={member} />
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button size="icon-sm" variant="ghost" aria-label={`Actions for ${member.name}`} />}
+        >
+          <MoreHorizontal />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => setDetailsOpen(true)}>View details</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>Edit member</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPhotoOpen(true)}>Upload photo</DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DeactivateMemberItem member={member} />
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <MemberDetailsDialog
+        history={history}
+        member={member}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        visits={visits}
+      />
+      <EditMemberControlledDialog member={member} open={editOpen} onOpenChange={setEditOpen} />
+      <MemberPhotoControlledDialog member={member} open={photoOpen} onOpenChange={setPhotoOpen} />
+    </>
   );
 }
 
-export function MemberDetailsMenuItem(props: React.ComponentProps<typeof MemberDetailsDialog>) {
+function EditMemberControlledDialog({
+  member,
+  onOpenChange,
+  open,
+}: {
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const { pending, submit } = useActionSubmit(
+    { label: "Update member", run: updateMember, success: "Member updated." },
+    () => onOpenChange(false),
+  );
+
   return (
-    <MemberDetailsDialog {...props} trigger={<DropdownMenuItem />}>
-      View details
-    </MemberDetailsDialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <MemberFormContent
+        description="Update profile fields stored in the backend."
+        member={member}
+        pending={pending}
+        submit={submit}
+        submitLabel="Save changes"
+        title="Edit member"
+      />
+    </Dialog>
+  );
+}
+
+function MemberPhotoControlledDialog({
+  member,
+  onOpenChange,
+  open,
+}: {
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const { pending, submit } = useActionSubmit(
+    { label: "Upload photo", run: uploadMemberPhoto, success: "Member photo updated." },
+    () => onOpenChange(false),
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upload photo</DialogTitle>
+          <DialogDescription>Attach a profile photo for {member.name}.</DialogDescription>
+        </DialogHeader>
+        <form action={submit} className="grid gap-4">
+          <input type="hidden" name="member_id" value={member.id} />
+          <Input name="photo" type="file" accept="image/*" required />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Uploading..." : "Upload photo"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

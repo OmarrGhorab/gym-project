@@ -84,14 +84,49 @@ export type MemberVisitRow = {
 export type MembersPageData = {
   histories: Record<number, MemberPaymentHistory | null>;
   members: MemberRow[];
+  meta: {
+    current_page?: number;
+    last_page?: number;
+    per_page?: number;
+    total?: number;
+  };
   visits: Record<number, MemberVisitRow[]>;
 };
 
-export async function getMembersPageData(): Promise<MembersPageData> {
+export type MembersQuery = {
+  page?: string;
+  per_page?: string;
+  plan?: string;
+  qr?: string;
+  q?: string;
+  status?: string;
+};
+
+export async function getMembersPageData(query: MembersQuery = {}): Promise<MembersPageData> {
   try {
-    const result = await serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(
-      "/members?sort=-created_at&per_page=100",
-    );
+    const params = new URLSearchParams({
+      page: query.page ?? "1",
+      per_page: query.per_page ?? "15",
+      sort: "-created_at",
+    });
+
+    if (query.status && query.status !== "all") {
+      params.set("filter[status]", query.status);
+    }
+
+    if (query.q) {
+      params.set("filter[search]", query.q);
+    }
+
+    if (query.plan && query.plan !== "all") {
+      params.set("filter[subscription_status]", query.plan);
+    }
+
+    if (query.qr && query.qr !== "all") {
+      params.set("filter[qr]", query.qr);
+    }
+
+    const result = await serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(`/members?${params.toString()}`);
 
     const members = unwrapList(result.data);
     const detailMembers = members.slice(0, 20);
@@ -115,11 +150,12 @@ export async function getMembersPageData(): Promise<MembersPageData> {
 
     return {
       histories: Object.fromEntries(details.map((detail) => [detail.id, detail.history])),
+      meta: getMeta(result),
       members,
       visits: Object.fromEntries(details.map((detail) => [detail.id, detail.visits])),
     };
   } catch {
-    return { histories: {}, members: [], visits: {} };
+    return { histories: {}, members: [], meta: {}, visits: {} };
   }
 }
 
@@ -129,4 +165,16 @@ async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
   } catch {
     return { data: fallback };
   }
+}
+
+function getMeta(result: Awaited<ReturnType<typeof serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>>>) {
+  if (result.meta) {
+    return result.meta;
+  }
+
+  if (!Array.isArray(result.data) && result.data.meta) {
+    return result.data.meta;
+  }
+
+  return {};
 }

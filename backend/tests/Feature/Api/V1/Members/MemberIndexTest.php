@@ -51,6 +51,31 @@ test('member list returns correct data shape', function (): void {
         );
 });
 
+test('member list honors requested per page size', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    foreach (range(1, 55) as $index) {
+        Member::query()->create([
+            'email' => "per-page-{$index}@example.test",
+            'gender' => 'male',
+            'join_date' => now()->toDateString(),
+            'name' => "Per Page Member {$index}",
+            'national_id' => sprintf('2%013d', $index),
+            'phone' => sprintf('+2010001%06d', $index),
+            'status' => 'active',
+        ]);
+    }
+
+    $response = $this->getJson('/api/v1/members?per_page=50')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.per_page', 50)
+        ->assertJsonPath('meta.total', 55);
+
+    expect($response->json('data'))->toHaveCount(50);
+});
+
 test('member list can filter by status active', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

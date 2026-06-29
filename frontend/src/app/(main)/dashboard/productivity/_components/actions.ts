@@ -17,8 +17,12 @@ export type CreateOperationsCalendarEventResult =
 export async function createOperationsCalendarEvent(input: FormData): Promise<CreateOperationsCalendarEventResult> {
   const payload = {
     date: String(input.get("date") ?? ""),
+    starts_at: null,
+    ends_at: null,
+    all_day: true,
     title: String(input.get("title") ?? ""),
     type: String(input.get("type") ?? "manual"),
+    status: "scheduled",
     notes: String(input.get("notes") ?? ""),
   };
 

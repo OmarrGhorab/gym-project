@@ -34,7 +34,16 @@ Route::prefix('reports')->group(function (): void {
     Route::get('/system-health', [ReportController::class, 'systemHealth'])
         ->middleware('permission:reports.view');
 
+    Route::get('/operations-calendar-events', [ReportController::class, 'operationsCalendarEvents'])
+        ->middleware('permission:reports.view');
+
     Route::post('/operations-calendar-events', [ReportController::class, 'storeOperationsCalendarEvent'])
+        ->middleware('permission:reports.view');
+
+    Route::put('/operations-calendar-events/{event}', [ReportController::class, 'updateOperationsCalendarEvent'])
+        ->middleware('permission:reports.view');
+
+    Route::delete('/operations-calendar-events/{event}', [ReportController::class, 'destroyOperationsCalendarEvent'])
         ->middleware('permission:reports.view');
 
     Route::get('/employees', [ReportController::class, 'employees'])

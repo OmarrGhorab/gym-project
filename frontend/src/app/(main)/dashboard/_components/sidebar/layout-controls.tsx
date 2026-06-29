@@ -24,6 +24,8 @@ import { THEME_PRESET_OPTIONS, type ThemeMode, type ThemePreset } from "@/lib/pr
 import { applyThemePreset } from "@/lib/preferences/theme-utils";
 import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
 
+import { LanguageSelector } from "./language-selector";
+
 export function LayoutControls({
   children,
   trigger,
@@ -185,6 +187,11 @@ export function LayoutControls({
                   </SelectGroup>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-medium text-xs">Language</Label>
+              <LanguageSelector className="w-full text-xs" showIcon={false} />
             </div>
 
             <div className="space-y-1">

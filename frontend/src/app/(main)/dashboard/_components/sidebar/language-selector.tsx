@@ -13,7 +13,7 @@ const languageOptions: { label: string; value: AppLocale }[] = [
   { label: "العربية", value: "ar" },
 ];
 
-export function LanguageSelector() {
+export function LanguageSelector({ className, showIcon = true }: { className?: string; showIcon?: boolean }) {
   const router = useRouter();
   const locale = useLocale() as AppLocale;
 
@@ -32,12 +32,8 @@ export function LanguageSelector() {
 
   return (
     <Select value={locale} onValueChange={(value) => updateLocale(value as AppLocale)}>
-      <SelectTrigger
-        size="sm"
-        aria-label="Select language"
-        className="h-8 w-[104px] border-transparent bg-background text-foreground hover:bg-muted dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:text-muted-foreground"
-      >
-        <Languages />
+      <SelectTrigger size="sm" aria-label="Select language" className={className}>
+        {showIcon ? <Languages /> : null}
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end" sideOffset={8}>
@@ -52,3 +48,5 @@ export function LanguageSelector() {
     </Select>
   );
 }
+
+export { languageOptions };

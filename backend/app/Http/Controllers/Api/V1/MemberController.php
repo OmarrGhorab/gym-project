@@ -29,6 +29,8 @@ final class MemberController extends ApiController
     {
         $this->authorize('viewAny', Member::class);
 
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
+
         $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan']))
             ->allowedFilters(
                 AllowedFilter::exact('status'),
@@ -47,6 +49,28 @@ final class MemberController extends ApiController
                         $q->where('plan_id', $value);
                     });
                 }),
+                AllowedFilter::callback('subscription_status', function ($query, string $value): void {
+                    if ($value === 'none') {
+                        $query->whereDoesntHave('subscriptions');
+
+                        return;
+                    }
+
+                    $query->whereHas('subscriptions', function ($q) use ($value): void {
+                        $q->where('status', $value);
+                    });
+                }),
+                AllowedFilter::callback('qr', function ($query, string $value): void {
+                    if ($value === 'ready') {
+                        $query->whereNotNull('attendance_code');
+
+                        return;
+                    }
+
+                    if ($value === 'missing') {
+                        $query->whereNull('attendance_code');
+                    }
+                }),
             )
             ->allowedSorts(
                 AllowedSort::field('name'),
@@ -55,7 +79,7 @@ final class MemberController extends ApiController
                 AllowedSort::field('created_at'),
             )
             ->defaultSort('-created_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         return $this->success(

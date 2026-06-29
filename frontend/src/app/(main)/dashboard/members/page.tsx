@@ -1,23 +1,32 @@
-import { Search } from "lucide-react";
-
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, getInitials } from "@/lib/utils";
 
 import { getMembersPageData } from "./_components/data";
-import { AddMemberDialog, MemberActionsMenu, MemberDetailsMenuItem } from "./_components/member-action-dialogs";
+import { MemberActionsMenu } from "./_components/member-action-dialogs";
+import { MembersFilterBar, MembersHeaderActions, MembersPagination } from "./_components/members-toolbar";
 
-export default async function Page() {
-  const { histories, members, visits } = await getMembersPageData();
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const query = normalizeQuery(params);
+  const { histories, members, meta, visits } = await getMembersPageData(query);
   const active = members.filter((member) => member.status === "active").length;
   const inactive = members.length - active;
   const withQr = members.filter((member) => member.attendance_qr).length;
+  const currentPage = Number(meta.current_page ?? query.page ?? 1);
+  const lastPage = Number(meta.last_page ?? 1);
+  const perPage = String(meta.per_page ?? query.per_page ?? "15");
 
   return (
     <Card className="mx-auto w-full max-w-[1440px] overflow-hidden">
@@ -29,43 +38,19 @@ export default async function Page() {
               Manage member profiles, QR attendance payloads, photos, and financial history.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="w-64 pl-8" placeholder="Search members..." />
-            </div>
-            <Button size="sm" variant="outline">
-              Hide
-            </Button>
-            <Button size="sm" variant="outline">
-              Customize
-            </Button>
-            <Button nativeButton={false} size="sm" variant="outline" render={<a href="/api/finance/export" />}>
-              Export
-            </Button>
-            <AddMemberDialog />
-          </div>
+          <MembersHeaderActions />
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
-        <div className="flex flex-col gap-3 border-b p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterSelect label="Status" values={["All", "Active", "Inactive"]} />
-              <FilterSelect label="Plan" values={["All", "Active plan", "No plan"]} />
-              <FilterSelect label="QR" values={["All", "Ready", "Missing"]} />
-            </div>
-            <FilterSelect label="Rows" values={["15", "25", "50"]} />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 text-muted-foreground text-sm">
-            <span>0 selected</span>
-            <div className="flex flex-wrap items-center gap-2">
-              <Metric label="Total" value={members.length} />
-              <Metric label="Active" value={active} />
-              <Metric label="Inactive" value={inactive} />
-              <Metric label="QR ready" value={withQr} />
-            </div>
+        <MembersFilterBar total={members.length} />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4 text-muted-foreground text-sm">
+          <span>0 selected</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Metric label="Total" value={members.length} />
+            <Metric label="Active" value={active} />
+            <Metric label="Inactive" value={inactive} />
+            <Metric label="QR ready" value={withQr} />
           </div>
         </div>
 
@@ -125,14 +110,8 @@ export default async function Page() {
                   <TableCell className="text-right">
                     <MemberActionsMenu
                       member={member}
-                      details={
-                        <MemberDetailsMenuItem
-                          history={histories[member.id]}
-                          member={member}
-                          visits={visits[member.id] ?? []}
-                        />
-                      }
-                      visits={null}
+                      history={histories[member.id]}
+                      visits={visits[member.id] ?? []}
                     />
                   </TableCell>
                 </TableRow>
@@ -147,45 +126,9 @@ export default async function Page() {
           </TableBody>
         </Table>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span>Rows per page</span>
-            <Select defaultValue="15">
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="15">15</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="text-muted-foreground">Page 1 of 1</div>
-        </div>
+        <MembersPagination currentPage={currentPage} lastPage={lastPage} perPage={perPage} />
       </CardContent>
     </Card>
-  );
-}
-
-function FilterSelect({ label, values }: { label: string; values: string[] }) {
-  return (
-    <Select defaultValue={values[0]}>
-      <SelectTrigger className="w-fit">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {values.map((value) => (
-            <SelectItem key={value} value={value}>
-              {label}: {value}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
   );
 }
 
@@ -195,4 +138,19 @@ function Metric({ label, value }: { label: string; value: number }) {
       {label}: <span className="text-foreground tabular-nums">{value}</span>
     </span>
   );
+}
+
+function normalizeQuery(params: Record<string, string | string[] | undefined>) {
+  return {
+    page: readParam(params.page),
+    per_page: readParam(params.per_page),
+    plan: readParam(params.plan),
+    q: readParam(params.q),
+    qr: readParam(params.qr),
+    status: readParam(params.status),
+  };
+}
+
+function readParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
