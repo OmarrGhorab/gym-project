@@ -68,6 +68,68 @@ test('accountant can view pos dashboard summary', function (): void {
         ]);
 });
 
+test('pos dashboard summary filters by period and payment method', function (): void {
+    Carbon::setTestNow('2026-06-29 10:30:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $product = Product::factory()->create(['name' => 'Gloves', 'category' => 'gear']);
+
+    $bankSale = Sale::factory()->create([
+        'total' => '200.00',
+        'payment_method' => 'bank_transfer',
+        'status' => 'completed',
+        'created_at' => Carbon::parse('2026-02-10 12:00:00'),
+    ]);
+    SaleItem::factory()->create([
+        'sale_id' => $bankSale->id,
+        'product_id' => $product->id,
+        'quantity' => 1,
+        'total' => '200.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Sale::class,
+        'payable_id' => $bankSale->id,
+        'amount' => '200.00',
+        'method' => 'bank_transfer',
+        'status' => 'paid',
+        'paid_at' => Carbon::parse('2026-02-10 12:00:00'),
+    ]);
+
+    $cashSale = Sale::factory()->create([
+        'total' => '500.00',
+        'payment_method' => 'cash',
+        'status' => 'completed',
+        'created_at' => Carbon::parse('2026-02-11 12:00:00'),
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Sale::class,
+        'payable_id' => $cashSale->id,
+        'amount' => '500.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => Carbon::parse('2026-02-11 12:00:00'),
+    ]);
+
+    Sale::factory()->create([
+        'total' => '300.00',
+        'payment_method' => 'bank_transfer',
+        'status' => 'completed',
+        'created_at' => Carbon::parse('2025-12-31 12:00:00'),
+    ]);
+
+    $this->getJson('/api/v1/reports/pos-summary?period=year-to-date&payment_method=bank_transfer')
+        ->assertOk()
+        ->assertJsonPath('data.totals.sales', '200.00')
+        ->assertJsonPath('data.totals.orders', 1)
+        ->assertJsonPath('data.payment_methods.0.amount', '0.00')
+        ->assertJsonPath('data.payment_methods.2.amount', '200.00')
+        ->assertJsonPath('data.recent_orders.0.payment_method', 'bank_transfer')
+        ->assertJsonFragment(['name' => 'Gloves']);
+});
+
 test('users without reports permission cannot view pos dashboard summary', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);

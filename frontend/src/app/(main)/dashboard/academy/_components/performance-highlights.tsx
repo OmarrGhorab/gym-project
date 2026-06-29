@@ -7,40 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 
-const performanceHighlights = [
-  {
-    className: "G11A",
-    start: 1.25,
-    duration: 1.45,
-    subject: "Pure Math",
-    score: 84,
-    avatars: ["AM", "LS", "NK"],
-  },
-  {
-    className: "G11B",
-    start: 0.72,
-    duration: 1.75,
-    subject: "Literature",
-    score: 78,
-    avatars: ["IR"],
-  },
-  {
-    className: "G11C",
-    start: 1.35,
-    duration: 1.9,
-    subject: "Physics",
-    score: 80,
-    avatars: ["SK", "MJ", "AT"],
-  },
-  {
-    className: "G11D",
-    start: 2.22,
-    duration: 1.66,
-    subject: "History",
-    score: 73,
-    avatars: ["RP", "EH"],
-  },
-];
+import type { StaffAcademyPerformance } from "./data";
 
 const chartConfig = {
   duration: {
@@ -49,7 +16,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-type PerformanceHighlight = (typeof performanceHighlights)[number];
+type PerformanceHighlight = StaffAcademyPerformance;
 
 function PerformanceHighlightBar({
   height = 0,
@@ -75,7 +42,7 @@ function PerformanceHighlightBar({
   const avatarSize = 22;
   const avatarStart = x + 8;
   const avatarY = barY + (barHeight - avatarSize) / 2 - 1.5;
-  const labelX = avatarStart + payload.avatars.length * 14 + 14;
+  const labelX = avatarStart + 34;
 
   return (
     <g>
@@ -89,17 +56,11 @@ function PerformanceHighlightBar({
       />
       <rect fill="var(--color-duration)" height={barHeight} rx={radius} width={fillWidth} x={x} y={barY} />
 
-      {payload.avatars.map((initials, index) => {
-        const avatarX = avatarStart + index * 14;
-
-        return (
-          <foreignObject height={avatarSize + 4} key={initials} width={avatarSize + 4} x={avatarX - 2} y={avatarY}>
-            <Avatar className="size-5 bg-muted" size="sm">
-              <AvatarFallback className="text-foreground">{initials}</AvatarFallback>
-            </Avatar>
-          </foreignObject>
-        );
-      })}
+      <foreignObject height={avatarSize + 4} width={avatarSize + 4} x={avatarStart - 2} y={avatarY}>
+        <Avatar className="size-5 bg-muted" size="sm">
+          <AvatarFallback className="text-foreground">{payload.initials}</AvatarFallback>
+        </Avatar>
+      </foreignObject>
 
       <text
         dominantBaseline="middle"
@@ -107,7 +68,7 @@ function PerformanceHighlightBar({
         y={barY + barHeight / 2 + 0.5}
         className="fill-primary-foreground font-medium text-xs"
       >
-        {payload.subject}
+        {payload.role}
       </text>
 
       <text
@@ -125,38 +86,44 @@ function PerformanceHighlightBar({
   );
 }
 
-export function PerformanceHighlights() {
+export function PerformanceHighlights({ highlights }: { highlights: StaffAcademyPerformance[] }) {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="text-sm">Performance Highlights</CardTitle>
+        <CardTitle className="text-sm">Coach Performance</CardTitle>
         <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          View Insights <ArrowRight className="size-4" />
+          Employee Report <ArrowRight className="size-4" />
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-70 w-full">
-          <BarChart
-            accessibilityLayer
-            data={performanceHighlights}
-            layout="vertical"
-            margin={{ bottom: 0, left: 0, right: 8, top: 0 }}
-          >
-            <CartesianGrid horizontal={false} strokeDasharray="4 4" />
-            <XAxis
-              axisLine={false}
-              domain={[0, 4]}
-              tickFormatter={(value) => ["Mon", "Tue", "Wed", "Thu", "Fri"][Number(value)] ?? ""}
-              tickLine={false}
-              tickMargin={10}
-              ticks={[0, 1, 2, 3, 4]}
-              type="number"
-            />
-            <YAxis axisLine={false} dataKey="className" tickLine={false} tickMargin={10} type="category" width={45} />
-            <Bar dataKey="start" fill="transparent" stackId="timeline" />
-            <Bar dataKey="duration" shape={<PerformanceHighlightBar />} stackId="timeline" />
-          </BarChart>
-        </ChartContainer>
+        {highlights.length === 0 ? (
+          <div className="grid h-70 place-items-center rounded-lg border border-dashed text-muted-foreground text-sm">
+            No staff performance data for this month yet.
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-70 w-full">
+            <BarChart
+              accessibilityLayer
+              data={highlights}
+              layout="vertical"
+              margin={{ bottom: 0, left: 0, right: 8, top: 0 }}
+            >
+              <CartesianGrid horizontal={false} strokeDasharray="4 4" />
+              <XAxis
+                axisLine={false}
+                domain={[0, 4]}
+                tickFormatter={(value) => ["Mon", "Tue", "Wed", "Thu", "Fri"][Number(value)] ?? ""}
+                tickLine={false}
+                tickMargin={10}
+                ticks={[0, 1, 2, 3, 4]}
+                type="number"
+              />
+              <YAxis axisLine={false} dataKey="name" tickLine={false} tickMargin={10} type="category" width={80} />
+              <Bar dataKey="start" fill="transparent" stackId="timeline" />
+              <Bar dataKey="duration" shape={<PerformanceHighlightBar />} stackId="timeline" />
+            </BarChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   );

@@ -8,6 +8,7 @@ use App\Actions\Reports\FinancialReport;
 use App\Actions\Reports\LiveAttendanceSummary;
 use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
+use App\Actions\Reports\StaffAcademySummary;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
@@ -61,6 +62,14 @@ final class ReportController extends ApiController
                 'payment_method' => ['nullable', 'string', Rule::in(['pos', 'cash', 'card', 'bank_transfer'])],
             ])),
             message: 'POS dashboard summary retrieved',
+        );
+    }
+
+    public function staffAcademy(StaffAcademySummary $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute(),
+            message: 'Staff academy summary retrieved',
         );
     }
 

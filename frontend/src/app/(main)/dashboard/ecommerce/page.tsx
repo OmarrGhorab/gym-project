@@ -1,18 +1,24 @@
 import { format } from "date-fns";
 
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
 import { CustomerReviews } from "./_components/customer-reviews";
-import { getPosDashboardData } from "./_components/data";
+import { getPosDashboardData, normalizePosPaymentMethodFilter, normalizePosPeriodFilter } from "./_components/data";
 import { Inventory } from "./_components/inventory";
 import { KpiStrip } from "./_components/kpi-strip";
+import { PosFilterToolbar } from "./_components/pos-filter-toolbar";
 import { RecentOrders } from "./_components/recent-orders";
 import { StoreTraffic } from "./_components/store-traffic";
 import { TopProducts } from "./_components/top-products";
 import { TrafficSources } from "./_components/traffic-sources";
 
-export default async function Page() {
-  const data = await getPosDashboardData();
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const period = normalizePosPeriodFilter(params?.period);
+  const paymentMethod = normalizePosPaymentMethodFilter(params?.payment_method);
+  const data = await getPosDashboardData({ paymentMethod, period });
   const formattedDate = format(new Date(), "EEEE, do MMMM yyyy");
 
   return (
@@ -23,35 +29,7 @@ export default async function Page() {
           <p className="text-muted-foreground text-sm">{formattedDate}</p>
         </div>
 
-        <div className="flex flex-wrap items-end justify-end gap-2 lg:w-fit">
-          <Select defaultValue="this-month">
-            <SelectTrigger className="w-34" id="ecommerce-period" size="sm">
-              <SelectValue placeholder="This Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="this-month">This Month</SelectItem>
-                <SelectItem value="last-month">Last Month</SelectItem>
-                <SelectItem value="last-30-days">Last 30 Days</SelectItem>
-                <SelectItem value="year-to-date">Year to Date</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-
-          <Select defaultValue="pos">
-            <SelectTrigger className="w-40" id="ecommerce-channel" size="sm">
-              <SelectValue placeholder="POS" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="pos">POS</SelectItem>
-                <SelectItem value="cash">Cash Sales</SelectItem>
-                <SelectItem value="card">Card Sales</SelectItem>
-                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+        <PosFilterToolbar paymentMethod={paymentMethod} period={period} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">

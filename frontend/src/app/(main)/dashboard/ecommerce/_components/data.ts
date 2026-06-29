@@ -140,10 +140,9 @@ export function normalizePosPaymentMethodFilter(value: string | string[] | undef
   return "pos";
 }
 
-export async function getPosDashboardData(filters: {
-  period?: PosPeriodFilter;
-  paymentMethod?: PosPaymentMethodFilter;
-} = {}): Promise<PosDashboardData> {
+export async function getPosDashboardData(
+  filters: { period?: PosPeriodFilter; paymentMethod?: PosPaymentMethodFilter } = {},
+): Promise<PosDashboardData> {
   try {
     const params = new URLSearchParams();
 
