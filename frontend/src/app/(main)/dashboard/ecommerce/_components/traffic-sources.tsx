@@ -1,54 +1,23 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Banknote, CreditCard, Landmark } from "lucide-react";
 import { Bar, BarChart, LabelList, type LabelProps, XAxis, YAxis } from "recharts";
-import { siEbay, siGoogle, siMeta, siShopify, siTiktok } from "simple-icons";
 
-import { SimpleIcon } from "@/components/simple-icon";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 
-const trafficSources = [
-  {
-    name: "Meta",
-    visits: "5,640",
-    share: 38,
-    change: "+18%",
-    icon: siMeta,
-  },
-  {
-    name: "Google",
-    visits: "3,740",
-    share: 25,
-    change: "-6%",
-    icon: siGoogle,
-  },
-  {
-    name: "Shopify",
-    visits: "2,960",
-    share: 20,
-    change: "+7%",
-    icon: siShopify,
-  },
-  {
-    name: "TikTok",
-    visits: "1,340",
-    share: 10,
-    change: "+9%",
-    icon: siTiktok,
-  },
-  {
-    name: "eBay",
-    visits: "1,080",
-    share: 7,
-    change: "-3%",
-    icon: siEbay,
-  },
-] as const;
+import type { PosPaymentMethod } from "./data";
+import { formatEgp } from "./format";
+
+const icons = {
+  bank_transfer: Landmark,
+  card: CreditCard,
+  cash: Banknote,
+} as const;
 
 const trafficSourcesConfig = {
-  share: {
-    label: "Visits",
+  percentage: {
+    label: "Share",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
@@ -73,12 +42,13 @@ function getNumber(value: number | string | undefined) {
   return typeof value === "number" ? value : Number(value);
 }
 
-function TrafficSourceIconLabel({ height, index, width, x, y }: IconLabelProps) {
+function PaymentIconLabel({ data, height, index, width, x, y }: IconLabelProps & { data: PosPaymentMethod[] }) {
   if (typeof index !== "number") {
     return null;
   }
 
-  const source = trafficSources[index];
+  const source = data[index];
+  const Icon = icons[source?.method as keyof typeof icons] ?? Banknote;
   const xValue = getNumber(x);
   const yValue = getNumber(y);
   const widthValue = getNumber(width);
@@ -100,50 +70,47 @@ function TrafficSourceIconLabel({ height, index, width, x, y }: IconLabelProps) 
 
   return (
     <foreignObject height={iconSize} x={iconX} y={iconY} width={iconSize}>
-      <SimpleIcon icon={source.icon} className="size-4 fill-foreground" />
+      <Icon className="size-4 text-foreground" />
     </foreignObject>
   );
 }
 
-function TrafficSourceNameLabel({ height, index, x, y }: SourceLabelProps) {
+function PaymentNameLabel({ data, height, index, y }: SourceLabelProps & { data: PosPaymentMethod[] }) {
   if (typeof index !== "number") {
     return null;
   }
 
-  const source = trafficSources[index];
-  const xValue = getNumber(x);
+  const source = data[index];
   const yValue = getNumber(y);
   const heightValue = getNumber(height);
 
-  if (!source || Number.isNaN(xValue) || Number.isNaN(yValue) || Number.isNaN(heightValue)) {
+  if (!source || Number.isNaN(yValue) || Number.isNaN(heightValue)) {
     return null;
   }
 
   return (
     <text dominantBaseline="middle" textAnchor="start" x={2} y={yValue + heightValue / 2}>
       <tspan className="fill-foreground font-medium" fontSize={13} x={2} y={yValue + heightValue / 2 - 7}>
-        {source.name}
+        {source.label}
       </tspan>
       <tspan className="fill-muted-foreground" fontSize={12} x={2} y={yValue + heightValue / 2 + 11}>
-        {source.visits}
+        {formatEgp(source.amount)} · {source.count} orders
       </tspan>
     </text>
   );
 }
 
-function TrafficSourceChangeLabel({ height, value, y }: SourceChangeLabelProps) {
+function PaymentShareLabel({ height, value, y }: SourceChangeLabelProps) {
   const yValue = getNumber(y);
   const heightValue = getNumber(height);
 
-  if (typeof value !== "string" || Number.isNaN(yValue) || Number.isNaN(heightValue)) {
+  if (Number.isNaN(yValue) || Number.isNaN(heightValue)) {
     return null;
   }
 
-  const isNegative = value.startsWith("-");
-
   return (
     <text
-      className={isNegative ? "fill-destructive" : "fill-green-700 dark:fill-green-300"}
+      className="fill-green-700 dark:fill-green-300"
       dominantBaseline="middle"
       dx={-6}
       fontSize={13}
@@ -151,18 +118,24 @@ function TrafficSourceChangeLabel({ height, value, y }: SourceChangeLabelProps) 
       x="100%"
       y={yValue + heightValue / 2}
     >
-      {value}
+      {String(value ?? "0")}%
     </text>
   );
 }
 
-export function TrafficSources() {
+export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
+  const total = methods.reduce((sum, method) => sum + method.count, 0);
+  const chartData = methods.map((method) => ({
+    ...method,
+    percentage: Number(method.percentage),
+  }));
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal text-muted-foreground text-sm">Traffic Sources</CardTitle>
+        <CardTitle className="font-normal text-muted-foreground text-sm">Payment Methods</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">
-          14.8K visits
+          {total.toLocaleString()} paid orders
         </CardDescription>
         <CardAction>
           <ArrowUpRight className="size-4" />
@@ -174,47 +147,24 @@ export function TrafficSources() {
           <BarChart
             accessibilityLayer
             barCategoryGap={12}
-            data={trafficSources}
+            data={chartData}
             layout="vertical"
-            margin={{ bottom: 0, left: 100, right: 50, top: 0 }}
+            margin={{ bottom: 0, left: 118, right: 50, top: 0 }}
           >
-            <defs>
-              <pattern
-                height="4"
-                id="ecommerce-traffic-source-background-pattern"
-                patternTransform="rotate(45)"
-                patternUnits="userSpaceOnUse"
-                width="4"
-              >
-                <rect height="6" width="6" fill="var(--muted)" fillOpacity="0.5" />
-                <line
-                  stroke="var(--muted-foreground)"
-                  strokeOpacity="0.10"
-                  strokeWidth="1.25"
-                  x1="0"
-                  x2="0"
-                  y1="0"
-                  y2="6"
-                />
-              </pattern>
-            </defs>
-            <XAxis dataKey="share" domain={[0, 100]} hide type="number" />
-            <YAxis dataKey="name" hide type="category" />
+            <XAxis dataKey="percentage" domain={[0, 100]} hide type="number" />
+            <YAxis dataKey="label" hide type="category" />
             <Bar
-              background={{ fill: "url(#ecommerce-traffic-source-background-pattern)", radius: 8 }}
+              background={{ fill: "var(--muted)", radius: 8 }}
               barSize={36}
-              dataKey="share"
-              fill="var(--color-share)"
+              dataKey="percentage"
+              fill="var(--color-percentage)"
               fillOpacity={0.5}
-              name="Visits"
+              name="Share"
               radius={8}
-              stroke="var(--color-share)"
-              strokeOpacity={0.1}
-              strokeWidth={0.5}
             >
-              <LabelList content={<TrafficSourceNameLabel />} dataKey="name" />
-              <LabelList content={<TrafficSourceIconLabel />} dataKey="share" />
-              <LabelList content={<TrafficSourceChangeLabel />} dataKey="change" />
+              <LabelList content={(props) => <PaymentNameLabel {...props} data={methods} />} dataKey="label" />
+              <LabelList content={(props) => <PaymentIconLabel {...props} data={methods} />} dataKey="percentage" />
+              <LabelList content={<PaymentShareLabel />} dataKey="percentage" />
             </Bar>
           </BarChart>
         </ChartContainer>

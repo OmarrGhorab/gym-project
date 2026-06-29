@@ -9,14 +9,6 @@ export function formatOrderCount(filter: OrderFilter, count: number) {
     return `${count.toLocaleString()} ${orderLabel}`;
   }
 
-  if (filter === "Needs action") {
-    return `${count.toLocaleString()} ${orderLabel} need action`;
-  }
-
-  if (filter === "Returns") {
-    return `${count.toLocaleString()} ${count === 1 ? "return" : "returns"}`;
-  }
-
   return `${count.toLocaleString()} ${filter.toLowerCase()} ${orderLabel}`;
 }
 

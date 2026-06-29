@@ -7,52 +7,9 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Separator } from "@/components/ui/separator";
 
-const chartData = [{ month: "current", "in-stock": 760, "low-stock": 320, "out-of-stock": 160 }];
-const totalUnits = chartData[0]["in-stock"] + chartData[0]["low-stock"] + chartData[0]["out-of-stock"];
-const availablePercent = Math.round((chartData[0]["in-stock"] / totalUnits) * 100);
+import type { PosDashboardData } from "./data";
+
 const gaugeSegmentCount = 32;
-const inStockSegments = Math.round((chartData[0]["in-stock"] / totalUnits) * gaugeSegmentCount);
-const lowStockSegments = Math.round((chartData[0]["low-stock"] / totalUnits) * gaugeSegmentCount);
-
-function getGaugeSegmentStatus(index: number) {
-  if (index < inStockSegments) {
-    return "in-stock";
-  }
-
-  if (index < inStockSegments + lowStockSegments) {
-    return "low-stock";
-  }
-
-  return "out-of-stock";
-}
-
-const gaugeSegments = Array.from({ length: gaugeSegmentCount }, (_, index) => {
-  const status = getGaugeSegmentStatus(index);
-  return {
-    fill: `var(--color-${status})`,
-    id: `segment-${index + 1}`,
-    status,
-    value: 1,
-  };
-});
-
-const inventorySummary = [
-  {
-    icon: PackageCheck,
-    label: "In stock",
-    value: chartData[0]["in-stock"],
-  },
-  {
-    icon: TriangleAlert,
-    label: "Low stock",
-    value: chartData[0]["low-stock"],
-  },
-  {
-    icon: PackageX,
-    label: "Out",
-    value: chartData[0]["out-of-stock"],
-  },
-] as const;
 
 const chartConfig = {
   "in-stock": {
@@ -69,7 +26,54 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function Inventory() {
+function makeGaugeSegments(inStock: number, lowStock: number, out: number) {
+  const total = Math.max(inStock + lowStock + out, 1);
+  const inStockSegments = Math.round((inStock / total) * gaugeSegmentCount);
+  const lowStockSegments = Math.round((lowStock / total) * gaugeSegmentCount);
+
+  return Array.from({ length: gaugeSegmentCount }, (_, index) => {
+    let status = "out-of-stock";
+
+    if (index < inStockSegments) {
+      status = "in-stock";
+    } else if (index < inStockSegments + lowStockSegments) {
+      status = "low-stock";
+    }
+
+    return {
+      fill: `var(--color-${status})`,
+      id: `segment-${index + 1}`,
+      status,
+      value: 1,
+    };
+  });
+}
+
+export function Inventory({ inventory }: { inventory: PosDashboardData["inventory"] }) {
+  const availablePercent = Number(inventory.availability_rate);
+  const gaugeSegments = makeGaugeSegments(
+    inventory.in_stock_products,
+    inventory.low_stock_products,
+    inventory.out_of_stock_products,
+  );
+  const inventorySummary = [
+    {
+      icon: PackageCheck,
+      label: "In stock",
+      value: inventory.in_stock_products,
+    },
+    {
+      icon: TriangleAlert,
+      label: "Low stock",
+      value: inventory.low_stock_products,
+    },
+    {
+      icon: PackageX,
+      label: "Out",
+      value: inventory.out_of_stock_products,
+    },
+  ] as const;
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -124,7 +128,7 @@ export function Inventory() {
         <Separator />
 
         <div className="grid grid-cols-3 divide-x">
-          {inventorySummary.map((item, _index) => (
+          {inventorySummary.map((item) => (
             <div key={item.label} className="flex flex-col items-center gap-3 text-center">
               <div className="grid size-9 place-items-center rounded-full bg-muted">
                 <item.icon className="size-4 text-muted-foreground" />

@@ -22,6 +22,9 @@ Route::prefix('reports')->group(function (): void {
     Route::get('/operations-summary', [ReportController::class, 'operationsSummary'])
         ->middleware('permission:reports.view');
 
+    Route::get('/pos-summary', [ReportController::class, 'posSummary'])
+        ->middleware('permission:reports.view');
+
     Route::post('/operations-calendar-events', [ReportController::class, 'storeOperationsCalendarEvent'])
         ->middleware('permission:reports.view');
 

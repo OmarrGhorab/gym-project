@@ -30,8 +30,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
+import type { PosRecentOrder } from "./data";
 import { recentOrdersColumns } from "./recent-orders-table/columns";
-import recentOrdersData from "./recent-orders-table/data.json";
 import {
   formatOrderCount,
   formatSelectedOrderCount,
@@ -39,9 +39,7 @@ import {
 } from "./recent-orders-table/formatters";
 import { type OrderFilter, type OrderRow, orderFilters } from "./recent-orders-table/schema";
 
-const recentOrders = recentOrdersData as OrderRow[];
-
-export function RecentOrders() {
+export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -49,6 +47,7 @@ export function RecentOrders() {
     pageIndex: 0,
     pageSize: 10,
   });
+  const recentOrders = orders as OrderRow[];
 
   const table = useReactTable({
     data: recentOrders,
@@ -93,15 +92,15 @@ export function RecentOrders() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal text-muted-foreground text-sm">Recent Orders</CardTitle>
+        <CardTitle className="font-normal text-muted-foreground text-sm">Recent POS Sales</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">
           {orderCountDescription}
         </CardDescription>
         <CardAction className="flex items-center gap-1">
-          <Button aria-label="Open orders" size="icon-sm" variant="outline">
+          <Button aria-label="Open sales" size="icon-sm" variant="outline">
             <ArrowUpRight />
           </Button>
-          <Button aria-label="Download orders" size="icon-sm" variant="outline">
+          <Button aria-label="Download sales" size="icon-sm" variant="outline">
             <Download />
           </Button>
           <Button size="icon-sm" variant="outline">
@@ -165,7 +164,7 @@ export function RecentOrders() {
               ) : (
                 <TableRow>
                   <TableCell className="h-24 text-center" colSpan={table.getVisibleLeafColumns().length}>
-                    No orders found.
+                    No POS sales found.
                   </TableCell>
                 </TableRow>
               )}
@@ -175,57 +174,59 @@ export function RecentOrders() {
 
         <div className="flex items-center justify-between gap-4 px-4 pb-1">
           <p className="text-muted-foreground text-sm">
-            Viewing {visibleOrderCount} out of {orderCount.toLocaleString()} orders
+            Viewing {visibleOrderCount} out of {orderCount.toLocaleString()} sales
           </p>
 
-          <Pagination className="mx-0 w-auto justify-end">
-            <PaginationContent className="gap-1.5">
-              <PaginationItem>
-                <PaginationPrevious
-                  className={!table.getCanPreviousPage() ? "pointer-events-none opacity-50" : undefined}
-                  href="#"
-                  onClick={(event) => {
-                    preventPaginationNavigation(event);
-                    table.previousPage();
-                  }}
-                />
-              </PaginationItem>
-              {pageNumbers[0] > 1 ? (
+          {pageCount > 1 ? (
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent className="gap-1.5">
                 <PaginationItem>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              ) : null}
-              {pageNumbers.map((pageNumber) => (
-                <PaginationItem key={`page-${pageNumber}`}>
-                  <PaginationLink
+                  <PaginationPrevious
+                    className={!table.getCanPreviousPage() ? "pointer-events-none opacity-50" : undefined}
                     href="#"
-                    isActive={table.getState().pagination.pageIndex === pageNumber - 1}
                     onClick={(event) => {
                       preventPaginationNavigation(event);
-                      table.setPageIndex(pageNumber - 1);
+                      table.previousPage();
                     }}
-                  >
-                    {pageNumber}
-                  </PaginationLink>
+                  />
                 </PaginationItem>
-              ))}
-              {pageNumbers[pageNumbers.length - 1] < pageCount ? (
+                {pageNumbers[0] > 1 ? (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : null}
+                {pageNumbers.map((pageNumber) => (
+                  <PaginationItem key={`page-${pageNumber}`}>
+                    <PaginationLink
+                      href="#"
+                      isActive={table.getState().pagination.pageIndex === pageNumber - 1}
+                      onClick={(event) => {
+                        preventPaginationNavigation(event);
+                        table.setPageIndex(pageNumber - 1);
+                      }}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                {pageNumbers[pageNumbers.length - 1] < pageCount ? (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : null}
                 <PaginationItem>
-                  <PaginationEllipsis />
+                  <PaginationNext
+                    className={!table.getCanNextPage() ? "pointer-events-none opacity-50" : undefined}
+                    href="#"
+                    onClick={(event) => {
+                      preventPaginationNavigation(event);
+                      table.nextPage();
+                    }}
+                  />
                 </PaginationItem>
-              ) : null}
-              <PaginationItem>
-                <PaginationNext
-                  className={!table.getCanNextPage() ? "pointer-events-none opacity-50" : undefined}
-                  href="#"
-                  onClick={(event) => {
-                    preventPaginationNavigation(event);
-                    table.nextPage();
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+              </PaginationContent>
+            </Pagination>
+          ) : null}
         </div>
       </CardContent>
     </Card>

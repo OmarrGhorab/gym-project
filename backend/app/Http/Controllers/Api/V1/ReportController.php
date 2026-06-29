@@ -7,11 +7,14 @@ use App\Actions\Reports\FinanceDashboardSummary;
 use App\Actions\Reports\FinancialReport;
 use App\Actions\Reports\LiveAttendanceSummary;
 use App\Actions\Reports\OperationsSummary;
+use App\Actions\Reports\PosDashboardSummary;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
 use App\Models\OperationsCalendarEvent;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 final class ReportController extends ApiController
 {
@@ -47,6 +50,17 @@ final class ReportController extends ApiController
         return $this->success(
             data: $action->execute(),
             message: 'Operations summary retrieved',
+        );
+    }
+
+    public function posSummary(Request $request, PosDashboardSummary $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute($request->validate([
+                'period' => ['nullable', 'string', Rule::in(['this-month', 'last-month', 'last-30-days', 'year-to-date'])],
+                'payment_method' => ['nullable', 'string', Rule::in(['pos', 'cash', 'card', 'bank_transfer'])],
+            ])),
+            message: 'POS dashboard summary retrieved',
         );
     }
 

@@ -14,9 +14,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { formatEgp } from "../format";
 import type { OrderRow } from "./schema";
 
-function formatOrderDate(date: string) {
+function formatOrderDate(date: string | null) {
+  if (!date) {
+    return "No date";
+  }
+
   return format(parseISO(date), "h:mm a, d MMM yyyy");
 }
 
@@ -33,15 +38,6 @@ function PaymentBadge({ status }: { status: OrderRow["payment"] }) {
     );
   }
 
-  if (status === "Refunded") {
-    return (
-      <Badge variant="destructive">
-        <span className="size-1.5 rounded-full bg-current" />
-        Refunded
-      </Badge>
-    );
-  }
-
   return (
     <Badge
       className="border-yellow-700/25 text-yellow-700 dark:border-yellow-300/25 dark:text-yellow-300"
@@ -53,32 +49,13 @@ function PaymentBadge({ status }: { status: OrderRow["payment"] }) {
   );
 }
 
-function FulfillmentBadge({ status }: { status: OrderRow["fulfillment"] }) {
-  if (status === "Fulfilled") {
-    return (
-      <Badge
-        className="border-green-700/25 text-green-700 dark:border-green-300/25 dark:text-green-300"
-        variant="outline"
-      >
-        <span className="size-1.5 rounded-full bg-current" />
-        Fulfilled
-      </Badge>
-    );
-  }
-
-  if (status === "Returned") {
-    return (
-      <Badge variant="destructive">
-        <span className="size-1.5 rounded-full bg-current" />
-        Returned
-      </Badge>
-    );
-  }
+function SaleStatusBadge({ status }: { status: string }) {
+  const isCompleted = status.toLowerCase() === "completed";
 
   return (
-    <Badge variant="destructive">
+    <Badge variant={isCompleted ? "outline" : "destructive"}>
       <span className="size-1.5 rounded-full bg-current" />
-      Unfulfilled
+      {status}
     </Badge>
   );
 }
@@ -89,7 +66,7 @@ export const recentOrdersColumns: ColumnDef<OrderRow>[] = [
     header: ({ table }) => (
       <div className="w-10">
         <Checkbox
-          aria-label="Select all orders"
+          aria-label="Select all POS orders"
           checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         />
@@ -98,7 +75,7 @@ export const recentOrdersColumns: ColumnDef<OrderRow>[] = [
     cell: ({ row }) => (
       <div className="w-10">
         <Checkbox
-          aria-label={`Select order ${row.original.id}`}
+          aria-label={`Select POS order ${row.original.id}`}
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
         />
@@ -109,7 +86,7 @@ export const recentOrdersColumns: ColumnDef<OrderRow>[] = [
   },
   {
     accessorKey: "id",
-    header: "Order",
+    header: "Sale",
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5">
         <div className="font-medium leading-none">{row.original.id}</div>
@@ -120,7 +97,11 @@ export const recentOrdersColumns: ColumnDef<OrderRow>[] = [
   },
   {
     accessorKey: "customer",
-    header: "Customer",
+    header: "Member",
+  },
+  {
+    accessorKey: "seller",
+    header: "Seller",
   },
   {
     id: "statusSummary",
@@ -128,38 +109,40 @@ export const recentOrdersColumns: ColumnDef<OrderRow>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
         <PaymentBadge status={row.original.payment} />
-        <FulfillmentBadge status={row.original.fulfillment} />
+        <SaleStatusBadge status={row.original.status} />
       </div>
     ),
     filterFn: (row, _columnId, value) => {
-      if (value === "Needs action") {
-        return (
-          row.original.payment === "Pending" ||
-          row.original.payment === "Refunded" ||
-          row.original.fulfillment === "Unfulfilled" ||
-          row.original.fulfillment === "Returned"
-        );
+      if (value === "Paid") {
+        return row.original.payment === "Paid";
       }
 
-      if (value === "Unfulfilled") {
-        return row.original.fulfillment === "Unfulfilled";
-      }
-
-      if (value === "Unpaid") {
+      if (value === "Pending") {
         return row.original.payment === "Pending";
       }
 
-      if (value === "Returns") {
-        return row.original.payment === "Refunded" || row.original.fulfillment === "Returned";
+      if (value === "Completed") {
+        return row.original.status.toLowerCase() === "completed";
+      }
+
+      if (value === "Voided") {
+        return row.original.status.toLowerCase() === "voided";
       }
 
       return true;
     },
   },
   {
+    accessorKey: "payment_method",
+    header: () => <div className="w-28">Method</div>,
+    cell: ({ row }) => (
+      <div className="w-28 text-muted-foreground capitalize">{row.original.payment_method.replaceAll("_", " ")}</div>
+    ),
+  },
+  {
     accessorKey: "total",
     header: () => <div className="w-28">Total</div>,
-    cell: ({ row }) => <div className="w-28 tabular-nums">{row.original.total}</div>,
+    cell: ({ row }) => <div className="w-28 tabular-nums">{formatEgp(row.original.total)}</div>,
   },
   {
     accessorKey: "date",
@@ -172,15 +155,15 @@ export const recentOrdersColumns: ColumnDef<OrderRow>[] = [
     cell: () => (
       <div className="flex w-full justify-end">
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button aria-label="Open order actions" size="icon-sm" variant="ghost" />}>
+          <DropdownMenuTrigger render={<Button aria-label="Open POS sale actions" size="icon-sm" variant="ghost" />}>
             <MoreHorizontal />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuLabel>Order Actions</DropdownMenuLabel>
+            <DropdownMenuLabel>Sale Actions</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem>View order</DropdownMenuItem>
-              <DropdownMenuItem>Contact customer</DropdownMenuItem>
-              <DropdownMenuItem>Copy order ID</DropdownMenuItem>
+              <DropdownMenuItem>View sale</DropdownMenuItem>
+              <DropdownMenuItem>Download receipt</DropdownMenuItem>
+              <DropdownMenuItem>Copy sale ID</DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
