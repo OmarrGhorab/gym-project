@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-import { statuses } from "./data";
+import { statuses } from "./types";
 
 interface TaskStatusFilterProps<TData> {
   table: Table<TData>;

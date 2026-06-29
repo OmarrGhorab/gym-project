@@ -13,9 +13,10 @@ interface KanbanColumnProps {
   column: Column;
   tasks: Task[];
   onAddTask: () => void;
+  onOpenTask?: (task: Task) => void;
 }
 
-export function KanbanColumn({ column, onAddTask, tasks }: KanbanColumnProps) {
+export function KanbanColumn({ column, onAddTask, onOpenTask, tasks }: KanbanColumnProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: column.id,
     data: { type: "column", columnId: column.id },
@@ -63,7 +64,7 @@ export function KanbanColumn({ column, onAddTask, tasks }: KanbanColumnProps) {
       <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
         <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3 [scrollbar-color:var(--border)_transparent] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1">
           {tasks.map((task) => (
-            <SortableTaskCard key={task.id} task={task} columnId={column.id} />
+            <SortableTaskCard key={task.id} task={task} columnId={column.id} onOpenTask={onOpenTask} />
           ))}
         </div>
       </SortableContext>

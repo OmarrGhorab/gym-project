@@ -16,7 +16,18 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Pagination,
   PaginationContent,
@@ -28,11 +39,15 @@ import {
 } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { columns } from "./columns";
-import type { Task } from "./data";
+import { createGymTaskComment, getGymTaskDetail, updateGymTaskProgress } from "../../kanban/_components/actions";
+import { toTask } from "../../kanban/_components/mappers";
+import type { ApiGymTask, ApiGymTaskComment } from "../../kanban/_components/types";
+import { getColumns } from "./columns";
 import { TasksToolbar } from "./tasks-toolbar";
+import { sourceLabel, type Task } from "./types";
 
 interface TasksProps {
   data: Task[];
@@ -54,6 +69,8 @@ function getPageNumbers(currentPage: number, pageCount: number) {
 }
 
 export function Tasks({ data }: TasksProps) {
+  const [tasks, setTasks] = React.useState(data);
+  const [detailTask, setDetailTask] = React.useState<Task | null>(null);
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -63,8 +80,10 @@ export function Tasks({ data }: TasksProps) {
     pageSize: 10,
   });
 
+  const columns = React.useMemo(() => getColumns(setDetailTask), []);
+
   const table = useReactTable({
-    data,
+    data: tasks,
     columns,
     state: {
       sorting,
@@ -244,6 +263,241 @@ export function Tasks({ data }: TasksProps) {
           </Pagination>
         </div>
       </div>
+      <TaskDetailsDialog
+        task={detailTask}
+        open={detailTask !== null}
+        onOpenChange={(open) => !open && setDetailTask(null)}
+        onTaskUpdated={(task) => {
+          const nextTask = toActionTask(task);
+          setTasks((current) => current.map((item) => (item.id === nextTask.id ? nextTask : item)));
+          setDetailTask(nextTask);
+        }}
+      />
     </div>
   );
+}
+
+function TaskDetailsDialog({
+  task,
+  open,
+  onOpenChange,
+  onTaskUpdated,
+}: {
+  task: Task | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onTaskUpdated: (task: ApiGymTask) => void;
+}) {
+  const [pending, startTransition] = React.useTransition();
+  const [comments, setComments] = React.useState<ApiGymTaskComment[]>([]);
+  const [progress, setProgress] = React.useState(0);
+  const [commentBody, setCommentBody] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open || !task) {
+      setComments([]);
+      setCommentBody("");
+      return;
+    }
+
+    setProgress(task.progress);
+
+    if (!task.editable || !task.sourceId) {
+      setComments([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    startTransition(async () => {
+      const result = await getGymTaskDetail(task.sourceId as number);
+
+      if (cancelled) return;
+
+      if (!result.ok) {
+        toast.error("Task not loaded", { description: result.message });
+        return;
+      }
+
+      setComments(result.task.comments);
+      setProgress(result.task.progress);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, task]);
+
+  if (!task) return null;
+
+  function saveProgress() {
+    if (!task?.editable || !task.sourceId) return;
+
+    startTransition(async () => {
+      const result = await updateGymTaskProgress(task.sourceId as number, progress);
+
+      if (!result.ok) {
+        toast.error("Progress not saved", { description: result.message });
+        return;
+      }
+
+      if (result.task) onTaskUpdated(result.task);
+      toast.success(result.message);
+    });
+  }
+
+  function submitComment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!task?.editable || !task.sourceId || !commentBody.trim()) return;
+
+    startTransition(async () => {
+      const result = await createGymTaskComment(task.sourceId as number, commentBody.trim());
+
+      if (!result.ok) {
+        toast.error("Comment not added", { description: result.message });
+        return;
+      }
+
+      setComments((current) => [...current, result.comment]);
+      setCommentBody("");
+      toast.success(result.message);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{task.title}</DialogTitle>
+          <DialogDescription>{task.description}</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 text-sm sm:grid-cols-4">
+            <InfoItem label="Assigned to" value={task.owner.name} />
+            <InfoItem label="Due date" value={task.dueDate} />
+            <InfoItem label="Team" value={task.team} />
+            <InfoItem label="Source" value={task.sourceLabel} />
+          </div>
+
+          <div className="rounded-lg border p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">Progress</div>
+                <div className="text-muted-foreground text-xs">
+                  {task.editable
+                    ? "Update progress for manual assigned tasks."
+                    : "Backend alert progress is read-only."}
+                </div>
+              </div>
+              <div className="font-medium text-sm tabular-nums">{progress}%</div>
+            </div>
+            <input
+              className="w-full accent-primary"
+              disabled={!task.editable || pending}
+              max={100}
+              min={0}
+              onChange={(event) => setProgress(Number(event.target.value))}
+              step={5}
+              type="range"
+              value={progress}
+            />
+            {task.editable ? (
+              <div className="mt-3 flex justify-end">
+                <Button disabled={pending || progress === task.progress} size="sm" onClick={saveProgress}>
+                  Save progress
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {task.href ? (
+            <div className="rounded-lg border p-4">
+              <div className="font-medium text-sm">Backend source</div>
+              <p className="mt-1 text-muted-foreground text-sm">Resolve generated alerts from their source page.</p>
+              <Button render={<a href={task.href} />} className="mt-3" size="sm" variant="outline">
+                Open source page
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="rounded-lg border p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">Comments</div>
+                <div className="text-muted-foreground text-xs">Admin, employee, and manager discussion.</div>
+              </div>
+              <Badge variant="secondary">{comments.length}</Badge>
+            </div>
+
+            {task.editable ? (
+              <form className="mb-4 grid gap-2" onSubmit={submitComment}>
+                <Textarea
+                  disabled={pending}
+                  onChange={(event) => setCommentBody(event.target.value)}
+                  placeholder="Add task update..."
+                  value={commentBody}
+                />
+                <div className="flex justify-end">
+                  <Button disabled={pending || !commentBody.trim()} size="sm" type="submit">
+                    Add comment
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+
+            <div className="grid gap-3">
+              {comments.length > 0 ? (
+                comments.map((comment) => (
+                  <div key={comment.id} className="rounded-md bg-muted/40 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium text-sm">{comment.user?.name ?? "System"}</div>
+                      <div className="text-muted-foreground text-xs">{formatCommentDate(comment.created_at)}</div>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm">{comment.body}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-md bg-muted/40 p-4 text-muted-foreground text-sm">
+                  {task.editable ? "No comments yet." : "Generated backend alerts do not store task comments here yet."}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter showCloseButton />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-muted-foreground text-xs">{label}</div>
+      <div className="font-medium">{value}</div>
+    </div>
+  );
+}
+
+function toActionTask(task: ApiGymTask): Task {
+  return {
+    ...toTask(task),
+    sourceLabel: sourceLabel(task.source),
+    status: task.status,
+  };
+}
+
+function formatCommentDate(value: string | null) {
+  if (!value) return "Just now";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Just now";
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+  }).format(date);
 }

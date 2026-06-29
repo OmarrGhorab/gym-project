@@ -25,6 +25,7 @@ import {
   ArrowUpDown,
   CalendarDays,
   ChevronDown,
+  ExternalLink,
   Kanban as KanbanIcon,
   List,
   Plus,
@@ -63,12 +64,18 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { createGymTask, updateGymTaskStatus } from "./actions";
+import {
+  createGymTask,
+  createGymTaskComment,
+  getGymTaskDetail,
+  updateGymTaskProgress,
+  updateGymTaskStatus,
+} from "./actions";
 import { columnIds, columns } from "./constants";
 import { KanbanColumn } from "./kanban-column";
 import { toColumnId, toTask } from "./mappers";
 import { TaskCard } from "./task-card";
-import type { ApiGymTask, BoardState, ColumnId, Task } from "./types";
+import type { ApiGymTask, ApiGymTaskComment, BoardState, ColumnId, Task } from "./types";
 import { findColumnId, findTask } from "./utils";
 
 interface KanbanProps {
@@ -90,6 +97,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
   const [sort, setSort] = React.useState<"default" | "priority" | "due">("default");
   const [view, setView] = React.useState<"board" | "list" | "table">("board");
   const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
+  const [detailTask, setDetailTask] = React.useState<Task | null>(null);
   const boardBeforeDrag = React.useRef<BoardState | null>(null);
   const orderedColumns = columnOrder.flatMap((columnId) => columns.find((column) => column.id === columnId) ?? []);
   const visibleBoard = React.useMemo(() => filterBoard(board, query, filter, sort), [board, filter, query, sort]);
@@ -108,6 +116,28 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
     const task = findTask(board, String(event.active.id));
     setActiveTask(task ?? null);
     setActiveColumnId(findColumnId(board, String(event.active.id)) ?? null);
+  }
+
+  function updateTaskInBoard(task: ApiGymTask) {
+    const nextTask = toTask(task);
+
+    setBoard((currentBoard) => {
+      const nextBoard: BoardState = {
+        doing: currentBoard.doing.filter((item) => item.id !== nextTask.id),
+        done: currentBoard.done.filter((item) => item.id !== nextTask.id),
+        ideas: currentBoard.ideas.filter((item) => item.id !== nextTask.id),
+        planned: currentBoard.planned.filter((item) => item.id !== nextTask.id),
+        review: currentBoard.review.filter((item) => item.id !== nextTask.id),
+      };
+      const columnId = toColumnId(task.status);
+
+      return {
+        ...nextBoard,
+        [columnId]: [nextTask, ...nextBoard[columnId]],
+      };
+    });
+
+    setDetailTask(nextTask);
   }
 
   function handleDragCancel() {
@@ -329,18 +359,21 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
                     column={column}
                     tasks={visibleBoard[column.id]}
                     onAddTask={() => setTaskDialogOpen(true)}
+                    onOpenTask={setDetailTask}
                   />
                 ))}
               </SortableContext>
             </div>
           </div>
           <DragOverlay dropAnimation={null}>
-            {activeTask ? <TaskCard task={activeTask} columnId={activeColumnId ?? undefined} isOverlay /> : null}
+            {activeTask ? (
+              <TaskCard task={activeTask} columnId={activeColumnId ?? undefined} isOverlay onOpenTask={setDetailTask} />
+            ) : null}
           </DragOverlay>
         </DndContext>
       ) : null}
-      {view === "list" ? <TaskListView rows={visibleRows} /> : null}
-      {view === "table" ? <TaskTableView rows={visibleRows} /> : null}
+      {view === "list" ? <TaskListView rows={visibleRows} onOpenTask={setDetailTask} /> : null}
+      {view === "table" ? <TaskTableView rows={visibleRows} onOpenTask={setDetailTask} /> : null}
       <CreateTaskDialog
         employees={employees}
         open={taskDialogOpen}
@@ -353,11 +386,17 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
           }));
         }}
       />
+      <TaskDetailDialog
+        task={detailTask}
+        open={detailTask !== null}
+        onOpenChange={(open) => !open && setDetailTask(null)}
+        onTaskUpdated={updateTaskInBoard}
+      />
     </div>
   );
 }
 
-function TaskListView({ rows }: { rows: TaskRow[] }) {
+function TaskListView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (task: Task) => void }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/25 p-4 lg:p-5">
       <div className="mx-auto grid max-w-5xl gap-3">
@@ -375,12 +414,10 @@ function TaskListView({ rows }: { rows: TaskRow[] }) {
                   </div>
                   <p className="mt-1 line-clamp-2 text-muted-foreground text-sm">{task.description}</p>
                 </div>
-                {task.href ? (
-                  <Button render={<a href={task.href} />} size="sm" variant="outline">
-                    Open
-                    <SquareArrowOutUpRight />
-                  </Button>
-                ) : null}
+                <Button size="sm" variant="outline" onClick={() => onOpenTask(task)}>
+                  Open
+                  <SquareArrowOutUpRight />
+                </Button>
               </div>
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
                 <InfoItem label="Owner" value={task.owner.name} />
@@ -398,7 +435,7 @@ function TaskListView({ rows }: { rows: TaskRow[] }) {
   );
 }
 
-function TaskTableView({ rows }: { rows: TaskRow[] }) {
+function TaskTableView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (task: Task) => void }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/25 p-4 lg:p-5">
       <div className="rounded-xl border bg-card">
@@ -434,13 +471,9 @@ function TaskTableView({ rows }: { rows: TaskRow[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {task.href ? (
-                      <Button render={<a href={task.href} />} size="sm" variant="ghost">
-                        Open
-                      </Button>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">Manual</span>
-                    )}
+                    <Button size="sm" variant="ghost" onClick={() => onOpenTask(task)}>
+                      Open
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -487,6 +520,217 @@ function PriorityBadge({ priority }: { priority: Task["priority"] }) {
     >
       {priority}
     </Badge>
+  );
+}
+
+function TaskDetailDialog({
+  task,
+  open,
+  onOpenChange,
+  onTaskUpdated,
+}: {
+  task: Task | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onTaskUpdated: (task: ApiGymTask) => void;
+}) {
+  const [pending, startTransition] = React.useTransition();
+  const [comments, setComments] = React.useState<ApiGymTaskComment[]>([]);
+  const [progress, setProgress] = React.useState(0);
+  const [commentBody, setCommentBody] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open || !task) {
+      setComments([]);
+      setCommentBody("");
+      return;
+    }
+
+    setProgress(task.progress);
+
+    if (!task.editable || !task.sourceId) {
+      setComments([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    startTransition(async () => {
+      const result = await getGymTaskDetail(task.sourceId as number);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!result.ok) {
+        toast.error("Task not loaded", { description: result.message });
+        return;
+      }
+
+      setComments(result.task.comments);
+      setProgress(result.task.progress);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, task]);
+
+  if (!task) {
+    return null;
+  }
+
+  function saveProgress() {
+    if (!task?.editable || !task.sourceId) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await updateGymTaskProgress(task.sourceId as number, progress);
+
+      if (!result.ok) {
+        toast.error("Progress not saved", { description: result.message });
+        return;
+      }
+
+      if (result.task) {
+        onTaskUpdated(result.task);
+      }
+
+      toast.success(result.message);
+    });
+  }
+
+  function submitComment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!task?.editable || !task.sourceId || !commentBody.trim()) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await createGymTaskComment(task.sourceId as number, commentBody.trim());
+
+      if (!result.ok) {
+        toast.error("Comment not added", { description: result.message });
+        return;
+      }
+
+      setComments((current) => [...current, result.comment]);
+      setCommentBody("");
+      toast.success(result.message);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{task.title}</DialogTitle>
+          <DialogDescription>{task.description}</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 text-sm sm:grid-cols-4">
+            <InfoItem label="Owner" value={task.owner.name} />
+            <InfoItem label="Due date" value={task.dueDate} />
+            <InfoItem label="Team" value={task.team} />
+            <InfoItem label="Source" value={task.editable ? "Manual task" : "Backend alert"} />
+          </div>
+
+          <div className="rounded-lg border p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="font-medium text-sm">Progress</div>
+                <div className="text-muted-foreground text-xs">
+                  {task.editable
+                    ? "Assigned employee or admin can update task progress."
+                    : "Generated alerts use backend progress."}
+                </div>
+              </div>
+              <div className="font-medium text-sm tabular-nums">{progress}%</div>
+            </div>
+            <Input
+              disabled={!task.editable || pending}
+              max={100}
+              min={0}
+              onChange={(event) => setProgress(Number(event.target.value))}
+              step={5}
+              type="range"
+              value={progress}
+            />
+            {task.editable ? (
+              <div className="mt-3 flex justify-end">
+                <Button disabled={pending || progress === task.progress} size="sm" onClick={saveProgress}>
+                  Save progress
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {!task.editable && task.href ? (
+            <div className="rounded-lg border p-4">
+              <div className="font-medium text-sm">Backend source</div>
+              <p className="mt-1 text-muted-foreground text-sm">
+                This card is generated from live backend data. Resolve it from the source page.
+              </p>
+              <Button render={<a href={task.href} />} className="mt-3" size="sm" variant="outline">
+                Open source page
+                <ExternalLink />
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="rounded-lg border p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">Comments</div>
+                <div className="text-muted-foreground text-xs">
+                  Admin, assigned employees, and managers can discuss the task here.
+                </div>
+              </div>
+              <Badge variant="secondary">{comments.length}</Badge>
+            </div>
+
+            {task.editable ? (
+              <form className="mb-4 grid gap-2" onSubmit={submitComment}>
+                <Textarea
+                  disabled={pending}
+                  onChange={(event) => setCommentBody(event.target.value)}
+                  placeholder="Add update, blocker, or admin note..."
+                  value={commentBody}
+                />
+                <div className="flex justify-end">
+                  <Button disabled={pending || !commentBody.trim()} size="sm" type="submit">
+                    Add comment
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+
+            <div className="grid gap-3">
+              {comments.length > 0 ? (
+                comments.map((comment) => (
+                  <div key={comment.id} className="rounded-md bg-muted/40 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium text-sm">{comment.user?.name ?? "System"}</div>
+                      <div className="text-muted-foreground text-xs">{formatCommentDate(comment.created_at)}</div>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm">{comment.body}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-md bg-muted/40 p-4 text-muted-foreground text-sm">
+                  {task.editable ? "No comments yet." : "Generated backend alerts do not store task comments here yet."}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter showCloseButton />
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -729,6 +973,25 @@ function formatDisplayDate(date: Date) {
     day: "numeric",
     month: "short",
     year: "numeric",
+  }).format(date);
+}
+
+function formatCommentDate(value: string | null) {
+  if (!value) {
+    return "Just now";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Just now";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
   }).format(date);
 }
 

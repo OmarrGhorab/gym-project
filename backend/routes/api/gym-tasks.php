@@ -10,9 +10,15 @@ Route::prefix('gym-tasks')->group(function (): void {
     Route::post('/', [GymTaskController::class, 'store'])
         ->middleware(['permission:reports.view', 'throttle:api']);
 
+    Route::get('/{gymTask}', [GymTaskController::class, 'show'])
+        ->middleware('permission:reports.view');
+
     Route::put('/{gymTask}', [GymTaskController::class, 'update'])
         ->middleware(['permission:reports.view', 'throttle:api']);
 
     Route::delete('/{gymTask}', [GymTaskController::class, 'destroy'])
+        ->middleware(['permission:reports.view', 'throttle:api']);
+
+    Route::post('/{gymTask}/comments', [GymTaskController::class, 'storeComment'])
         ->middleware(['permission:reports.view', 'throttle:api']);
 });

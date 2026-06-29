@@ -64,3 +64,18 @@ export type ApiGymTask = {
     attachments?: number;
   };
 };
+
+export type ApiGymTaskComment = {
+  id: number;
+  body: string;
+  created_at: string | null;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+};
+
+export type ApiGymTaskDetail = ApiGymTask & {
+  comments: ApiGymTaskComment[];
+};

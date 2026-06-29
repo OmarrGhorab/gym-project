@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-import { priorities } from "./data";
+import { priorities } from "./types";
 
 interface TaskPriorityFilterProps<TData> {
   table: Table<TData>;

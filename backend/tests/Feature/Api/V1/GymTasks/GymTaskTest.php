@@ -51,6 +51,18 @@ test('accountant can manage manual gym tasks and see generated alerts', function
         ->assertJsonPath('data.status', 'doing')
         ->assertJsonPath('data.progress', 55);
 
+    $this->postJson('/api/v1/gym-tasks/'.$taskId.'/comments', [
+        'body' => 'Belt is noisy. Need technician review.',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.body', 'Belt is noisy. Need technician review.')
+        ->assertJsonPath('data.user.name', $accountant->name);
+
+    $this->getJson('/api/v1/gym-tasks/'.$taskId)
+        ->assertOk()
+        ->assertJsonPath('data.metrics.comments', 1)
+        ->assertJsonPath('data.comments.0.body', 'Belt is noisy. Need technician review.');
+
     $this->getJson('/api/v1/gym-tasks')
         ->assertOk()
         ->assertJsonFragment(['title' => 'Check treadmill maintenance'])

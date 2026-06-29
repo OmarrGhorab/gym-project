@@ -53,10 +53,12 @@ export function TaskCard({
   task,
   columnId,
   isOverlay = false,
+  onOpenTask,
 }: {
   task: Task;
   columnId?: ColumnId;
   isOverlay?: boolean;
+  onOpenTask?: (task: Task) => void;
 }) {
   const isDone = columnId === "done";
   const showBuildingDetails = columnId === "doing" && typeof task.progress === "number";
@@ -169,16 +171,18 @@ export function TaskCard({
                 );
               })}
             </div>
-            {task.href ? (
-              <a
-                href={task.href}
-                className="inline-flex items-center gap-1 rounded-sm px-1 font-medium text-xs hover:text-foreground"
-                onPointerDown={(event) => event.stopPropagation()}
-              >
-                Open
-                <SquareArrowOutUpRight className="size-3" />
-              </a>
-            ) : null}
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-sm px-1 font-medium text-xs hover:text-foreground"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenTask?.(task);
+              }}
+            >
+              Open
+              <SquareArrowOutUpRight className="size-3" />
+            </button>
           </div>
         ) : null}
       </div>

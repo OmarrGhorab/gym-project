@@ -7,7 +7,15 @@ import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
 import type { ColumnId, Task } from "./types";
 
-export function SortableTaskCard({ task, columnId }: { task: Task; columnId: ColumnId }) {
+export function SortableTaskCard({
+  task,
+  columnId,
+  onOpenTask,
+}: {
+  task: Task;
+  columnId: ColumnId;
+  onOpenTask?: (task: Task) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "task", task },
@@ -24,7 +32,7 @@ export function SortableTaskCard({ task, columnId }: { task: Task; columnId: Col
       {...attributes}
       {...listeners}
     >
-      <TaskCard task={task} columnId={columnId} />
+      <TaskCard task={task} columnId={columnId} onOpenTask={onOpenTask} />
     </div>
   );
 }

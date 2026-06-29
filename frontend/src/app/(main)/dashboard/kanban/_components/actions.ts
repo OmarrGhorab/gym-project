@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { serverApiFetch } from "@/lib/api/server";
 
-import type { ApiGymTask, ColumnId } from "./types";
+import type { ApiGymTask, ApiGymTaskComment, ApiGymTaskDetail, ColumnId } from "./types";
 
 export type KanbanActionResult =
   | {
@@ -79,6 +79,94 @@ export async function updateGymTaskStatus(sourceId: number, status: ColumnId): P
     ok: true,
     message: "Task status updated.",
   };
+}
+
+export async function updateGymTaskProgress(sourceId: number, progress: number): Promise<KanbanActionResult> {
+  try {
+    const response = await serverApiFetch<ApiGymTask>(`/gym-tasks/${sourceId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ progress }),
+    });
+
+    revalidatePath("/dashboard/kanban");
+
+    return {
+      ok: true,
+      message: "Task progress updated.",
+      task: response.data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not update task progress.",
+    };
+  }
+}
+
+export async function getGymTaskDetail(sourceId: number): Promise<
+  | {
+      ok: true;
+      task: ApiGymTaskDetail;
+    }
+  | {
+      ok: false;
+      message: string;
+    }
+> {
+  try {
+    const response = await serverApiFetch<ApiGymTaskDetail>(`/gym-tasks/${sourceId}`);
+
+    return {
+      ok: true,
+      task: response.data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not load task.",
+    };
+  }
+}
+
+export async function createGymTaskComment(
+  sourceId: number,
+  body: string,
+): Promise<
+  | {
+      ok: true;
+      comment: ApiGymTaskComment;
+      message: string;
+    }
+  | {
+      ok: false;
+      message: string;
+    }
+> {
+  try {
+    const response = await serverApiFetch<ApiGymTaskComment>(`/gym-tasks/${sourceId}/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ body }),
+    });
+
+    revalidatePath("/dashboard/kanban");
+
+    return {
+      ok: true,
+      comment: response.data,
+      message: "Comment added.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not add comment.",
+    };
+  }
 }
 
 function progressForStatus(status: ColumnId) {

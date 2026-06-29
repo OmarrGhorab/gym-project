@@ -6,6 +6,7 @@ use App\Http\Requests\GymTasks\StoreGymTaskRequest;
 use App\Http\Requests\GymTasks\UpdateGymTaskRequest;
 use App\Models\AttendanceViolation;
 use App\Models\GymTask;
+use App\Models\GymTaskComment;
 use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Product;
@@ -19,6 +20,7 @@ final class GymTaskController extends ApiController
     {
         $manual = GymTask::query()
             ->with('assignedEmployee:id,name,role')
+            ->withCount('comments')
             ->latest()
             ->get()
             ->map(fn (GymTask $task): array => $this->formatTask($task));
@@ -43,7 +45,7 @@ final class GymTaskController extends ApiController
         ]);
 
         return $this->success(
-            data: $this->formatTask($task->fresh('assignedEmployee:id,name,role')),
+            data: $this->formatTask($task->fresh(['assignedEmployee:id,name,role'])->loadCount('comments')),
             message: 'Gym task created',
             status: 201,
         );
@@ -54,8 +56,66 @@ final class GymTaskController extends ApiController
         $gymTask->update($request->validated());
 
         return $this->success(
-            data: $this->formatTask($gymTask->fresh('assignedEmployee:id,name,role')),
+            data: $this->formatTask($gymTask->fresh(['assignedEmployee:id,name,role'])->loadCount('comments')),
             message: 'Gym task updated',
+        );
+    }
+
+    public function show(GymTask $gymTask): JsonResponse
+    {
+        $gymTask->load([
+            'assignedEmployee:id,name,role',
+            'comments.user:id,name,email',
+        ])->loadCount('comments');
+
+        return $this->success(
+            data: [
+                ...$this->formatTask($gymTask),
+                'comments' => $gymTask->comments
+                    ->sortBy('created_at')
+                    ->values()
+                    ->map(fn (GymTaskComment $comment): array => [
+                        'id' => $comment->id,
+                        'body' => $comment->body,
+                        'created_at' => $comment->created_at?->toIso8601String(),
+                        'user' => $comment->user ? [
+                            'id' => $comment->user->id,
+                            'name' => $comment->user->name,
+                            'email' => $comment->user->email,
+                        ] : null,
+                    ])
+                    ->all(),
+            ],
+            message: 'Gym task retrieved',
+        );
+    }
+
+    public function storeComment(GymTask $gymTask): JsonResponse
+    {
+        $validated = request()->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $comment = $gymTask->comments()->create([
+            'body' => $validated['body'],
+            'user_id' => request()->user()->id,
+        ]);
+
+        $comment->load('user:id,name,email');
+
+        return $this->success(
+            data: [
+                'id' => $comment->id,
+                'body' => $comment->body,
+                'created_at' => $comment->created_at?->toIso8601String(),
+                'user' => $comment->user ? [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                    'email' => $comment->user->email,
+                ] : null,
+            ],
+            message: 'Gym task comment created',
+            status: 201,
         );
     }
 
@@ -87,7 +147,7 @@ final class GymTaskController extends ApiController
                 'role' => $task->assignedEmployee->role,
             ] : null,
             'metrics' => [
-                'comments' => 0,
+                'comments' => (int) ($task->comments_count ?? 0),
                 'documents' => 0,
                 'attachments' => 0,
             ],
