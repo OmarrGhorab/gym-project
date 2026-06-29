@@ -28,6 +28,12 @@ Route::prefix('reports')->group(function (): void {
     Route::get('/staff-academy', [ReportController::class, 'staffAcademy'])
         ->middleware('permission:reports.view');
 
+    Route::get('/inventory-logistics', [ReportController::class, 'inventoryLogistics'])
+        ->middleware('permission:reports.view');
+
+    Route::get('/system-health', [ReportController::class, 'systemHealth'])
+        ->middleware('permission:reports.view');
+
     Route::post('/operations-calendar-events', [ReportController::class, 'storeOperationsCalendarEvent'])
         ->middleware('permission:reports.view');
 

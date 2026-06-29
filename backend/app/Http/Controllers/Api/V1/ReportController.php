@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Reports\EmployeePerformanceReport;
 use App\Actions\Reports\FinanceDashboardSummary;
 use App\Actions\Reports\FinancialReport;
+use App\Actions\Reports\InventoryLogisticsSummary;
 use App\Actions\Reports\LiveAttendanceSummary;
 use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
 use App\Actions\Reports\StaffAcademySummary;
+use App\Actions\Reports\SystemHealthSummary;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
@@ -70,6 +72,22 @@ final class ReportController extends ApiController
         return $this->success(
             data: $action->execute(),
             message: 'Staff academy summary retrieved',
+        );
+    }
+
+    public function inventoryLogistics(InventoryLogisticsSummary $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute(),
+            message: 'Inventory logistics summary retrieved',
+        );
+    }
+
+    public function systemHealth(SystemHealthSummary $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute(),
+            message: 'System health summary retrieved',
         );
     }
 

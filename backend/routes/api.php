@@ -98,6 +98,7 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/notifications.php';
         require __DIR__.'/api/dashboard.php';
         require __DIR__.'/api/products.php';
+        require __DIR__.'/api/purchase-orders.php';
         require __DIR__.'/api/sales.php';
         require __DIR__.'/api/employees.php';
         require __DIR__.'/api/commissions.php';

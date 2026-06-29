@@ -6,6 +6,7 @@ import {
   Forklift,
   Gauge,
   GraduationCap,
+  MapPinned,
   Kanban,
   LayoutDashboard,
   ListTodo,
@@ -13,8 +14,10 @@ import {
   type LucideIcon,
   Mail,
   MessageSquare,
+  PackageCheck,
   ReceiptText,
   Server,
+  Settings,
   ShoppingBag,
   SquareArrowUpRight,
   Users,
@@ -95,7 +98,7 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "ecommerce",
-        title: "E-commerce",
+        title: "POS",
         url: "/dashboard/ecommerce",
         icon: ShoppingBag,
       },
@@ -113,7 +116,7 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "infrastructure",
-        title: "Infrastructure",
+        title: "System Health",
         url: "/dashboard/infrastructure",
         icon: Server,
         badge: "new",
@@ -126,7 +129,7 @@ export const sidebarItems: NavGroup[] = [
     items: [
       {
         id: "email",
-        title: "Email",
+        title: "Notifications",
         url: "/dashboard/mail",
         icon: Mail,
       },
@@ -138,9 +141,16 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "calendar",
-        title: "Calendar",
+        title: "Schedule",
         url: "/dashboard/calendar",
         icon: Calendar,
+      },
+      {
+        id: "attendance",
+        title: "Attendance",
+        url: "/dashboard/attendance",
+        icon: MapPinned,
+        badge: "new",
       },
       {
         id: "kanban",
@@ -150,16 +160,28 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "tasks",
-        title: "Tasks",
+        title: "Action Queue",
         url: "/dashboard/tasks",
         icon: CheckSquare,
         badge: "new",
       },
       {
         id: "invoice",
-        title: "Invoice",
+        title: "Documents",
         url: "/dashboard/invoice",
         icon: ReceiptText,
+      },
+      {
+        id: "payroll",
+        title: "Payroll",
+        url: "/dashboard/payroll",
+        icon: Banknote,
+      },
+      {
+        id: "plans",
+        title: "Plans",
+        url: "/dashboard/plans",
+        icon: PackageCheck,
       },
       {
         id: "users",
@@ -172,6 +194,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Roles",
         url: "/dashboard/roles",
         icon: Lock,
+      },
+      {
+        id: "settings",
+        title: "Settings",
+        url: "/dashboard/settings",
+        icon: Settings,
       },
     ],
   },

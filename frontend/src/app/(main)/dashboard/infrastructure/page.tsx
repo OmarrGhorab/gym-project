@@ -1,20 +1,21 @@
-import { infrastructureGroups } from "./_components/infrastructure-data";
+import { getSystemHealthData } from "./_components/data";
 import { InfrastructureHeader } from "./_components/infrastructure-header";
-import { ProjectEnvironments } from "./_components/project-environments";
+import { ProjectEnvironments, SystemHealthSidePanel } from "./_components/project-environments";
 
-// Import this stylesheet in any page or component that renders country flag classes.
-import "@/styles/flag-icons/flags.css";
+export default async function Page() {
+  const data = await getSystemHealthData();
 
-export default function Page() {
   return (
     <div className="flex flex-col gap-4">
-      <InfrastructureHeader />
+      <InfrastructureHeader data={data} />
 
       <div className="flex flex-col gap-4">
-        {infrastructureGroups.map((group) => (
+        {data.groups.map((group) => (
           <ProjectEnvironments key={group.name} group={group} />
         ))}
       </div>
+
+      <SystemHealthSidePanel audits={data.audit_activity} warnings={data.setup_warnings} />
     </div>
   );
 }

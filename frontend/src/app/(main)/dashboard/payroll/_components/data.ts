@@ -1,0 +1,31 @@
+import { serverApiFetch } from "@/lib/api/server";
+
+import { unwrapList, type PaginatedData } from "../../_lib/api";
+
+export type PayrollRow = {
+  id: number;
+  employee: {
+    id: number;
+    name: string | null;
+    role: string | null;
+  };
+  month: string;
+  base_salary: string;
+  commissions_total: string;
+  bonuses: string;
+  deductions: string;
+  attendance_deductions: string;
+  net_salary: string;
+  status: string;
+  paid_at: string | null;
+};
+
+export async function getPayrollPageData() {
+  try {
+    const result = await serverApiFetch<PayrollRow[] | PaginatedData<PayrollRow>>("/payroll?sort=-created_at&page=1");
+
+    return unwrapList(result.data);
+  } catch {
+    return [];
+  }
+}
