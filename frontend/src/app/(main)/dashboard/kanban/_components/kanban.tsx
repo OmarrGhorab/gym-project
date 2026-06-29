@@ -34,6 +34,7 @@ import {
   SquareArrowOutUpRight,
   Table2,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,8 @@ interface KanbanProps {
 }
 
 export function Kanban({ employees, initialBoard }: KanbanProps) {
+  const t = useTranslations("Dashboard.tasks");
+  const locale = useLocale();
   const [board, setBoard] = React.useState<BoardState>(initialBoard);
   const [columnOrder, setColumnOrder] = React.useState<ColumnId[]>(columnIds);
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
@@ -242,7 +245,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
     });
 
     if (movedTask && !movedTask.editable && movedColumn && previousColumn !== movedColumn) {
-      toast.info("Backend alert cards are read-only. Open the source page to resolve them.");
+      toast.info(t("readonlyAlert"));
       if (snapshot) setBoard(snapshot);
       return;
     }
@@ -255,7 +258,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
         const result = await updateGymTaskStatus(taskId, nextColumn);
 
         if (!result.ok) {
-          toast.error("Task status not saved", { description: result.message });
+          toast.error(t("statusNotSaved"), { description: result.message });
           if (snapshot) setBoard(snapshot);
           return;
         }
@@ -272,15 +275,15 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
           <TabsList className="w-full *:data-[slot=tabs-trigger]:flex-1 sm:w-fit sm:*:data-[slot=tabs-trigger]:flex-none">
             <TabsTrigger value="board" className="gap-2">
               <KanbanIcon />
-              Board
+              {t("board")}
             </TabsTrigger>
             <TabsTrigger value="list" className="gap-2">
               <List />
-              List
+              {t("list")}
             </TabsTrigger>
             <TabsTrigger value="table" className="gap-2">
               <Table2 />
-              Table
+              {t("table")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -289,7 +292,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
           <InputGroup className="min-w-0 sm:w-64 2xl:w-48">
             <InputGroupInput
               type="search"
-              placeholder="Search tasks"
+              placeholder={t("searchTasks")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -300,40 +303,40 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" className="w-full sm:w-auto" />}>
               <SlidersHorizontal data-icon="inline-start" />
-              {getFilterLabel(filter)}
+              {getFilterLabel(filter, t)}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setFilter("all")}>All tasks</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilter("generated")}>Backend alerts</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilter("editable")}>Manual tasks</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilter("high")}>High priority</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilter("all")}>{t("allTasks")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilter("generated")}>{t("backendAlerts")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilter("editable")}>{t("manualTasks")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilter("high")}>{t("highPriority")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" className="w-full sm:w-auto" />}>
               <ArrowUpDown data-icon="inline-start" />
-              {getSortLabel(sort)}
+              {getSortLabel(sort, t)}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setSort("default")}>Default</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSort("priority")}>Priority</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSort("due")}>Due date</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSort("default")}>{t("default")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSort("priority")}>{t("priority")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSort("due")}>{t("dueDate")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <ButtonGroup className="w-full sm:w-fit">
             <Button className="flex-1 sm:flex-none" onClick={() => setTaskDialogOpen(true)}>
               <Plus data-icon="inline-start" />
-              Add task
+              {t("addTask")}
             </Button>
             <ButtonGroupSeparator />
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button aria-label="Open add task menu" />}>
+              <DropdownMenuTrigger render={<Button aria-label={t("openAddTaskMenu")} />}>
                 <ChevronDown />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setTaskDialogOpen(true)}>Create manual task</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter("generated")}>Show backend alerts</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilter("high")}>Show urgent tasks</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTaskDialogOpen(true)}>{t("createManualTask")}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter("generated")}>{t("showBackendAlerts")}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilter("high")}>{t("showUrgentTasks")}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </ButtonGroup>
@@ -357,9 +360,13 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
                   <KanbanColumn
                     key={column.id}
                     column={column}
+                    columnTitle={t(`statuses.${column.id}`)}
                     tasks={visibleBoard[column.id]}
+                    taskCountLabel={t("taskCount", { count: visibleBoard[column.id].length })}
                     onAddTask={() => setTaskDialogOpen(true)}
                     onOpenTask={setDetailTask}
+                    addTaskLabel={t("addTaskToColumn", { column: t(`statuses.${column.id}`) })}
+                    dragLabel={t("dragColumn", { column: t(`statuses.${column.id}`) })}
                   />
                 ))}
               </SortableContext>
@@ -385,18 +392,22 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
             [columnId]: [toTask(task), ...currentBoard[columnId]],
           }));
         }}
+        locale={locale}
       />
       <TaskDetailDialog
         task={detailTask}
         open={detailTask !== null}
         onOpenChange={(open) => !open && setDetailTask(null)}
         onTaskUpdated={updateTaskInBoard}
+        locale={locale}
       />
     </div>
   );
 }
 
 function TaskListView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (task: Task) => void }) {
+  const t = useTranslations("Dashboard.tasks");
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/25 p-4 lg:p-5">
       <div className="mx-auto grid max-w-5xl gap-3">
@@ -409,21 +420,21 @@ function TaskListView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (task
                     <h3 className="font-medium text-sm">{task.title}</h3>
                     <PriorityBadge priority={task.priority} />
                     <Badge variant="secondary" className="rounded-md border-transparent">
-                      {column.title}
+                      {t(`statuses.${column.id}`)}
                     </Badge>
                   </div>
                   <p className="mt-1 line-clamp-2 text-muted-foreground text-sm">{task.description}</p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => onOpenTask(task)}>
-                  Open
+                  {t("open")}
                   <SquareArrowOutUpRight />
                 </Button>
               </div>
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
-                <InfoItem label="Owner" value={task.owner.name} />
-                <InfoItem label="Due date" value={task.dueDate} />
-                <InfoItem label="Team" value={task.team} />
-                <InfoItem label="Source" value={task.editable ? "Manual" : "Backend alert"} />
+                <InfoItem label={t("owner")} value={task.owner.name} />
+                <InfoItem label={t("dueDate")} value={task.dueDate} />
+                <InfoItem label={t("team")} value={t(`teams.${task.team}`)} />
+                <InfoItem label={t("source")} value={task.editable ? t("sources.manual") : t("sources.backendAlert")} />
               </div>
             </div>
           ))
@@ -436,19 +447,21 @@ function TaskListView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (task
 }
 
 function TaskTableView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (task: Task) => void }) {
+  const t = useTranslations("Dashboard.tasks");
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto bg-muted/25 p-4 lg:p-5">
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Task</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Due date</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+              <TableHead>{t("task")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
+              <TableHead>{t("priority")}</TableHead>
+              <TableHead>{t("owner")}</TableHead>
+              <TableHead>{t("dueDate")}</TableHead>
+              <TableHead>{t("team")}</TableHead>
+              <TableHead className="text-end">{t("action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -459,7 +472,7 @@ function TaskTableView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (tas
                     <div className="font-medium">{task.title}</div>
                     <div className="line-clamp-1 text-muted-foreground text-xs">{task.description}</div>
                   </TableCell>
-                  <TableCell>{column.title}</TableCell>
+                  <TableCell>{t(`statuses.${column.id}`)}</TableCell>
                   <TableCell>
                     <PriorityBadge priority={task.priority} />
                   </TableCell>
@@ -467,12 +480,12 @@ function TaskTableView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (tas
                   <TableCell>{task.dueDate}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="rounded-md border-transparent">
-                      {task.team}
+                      {t(`teams.${task.team}`)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-end">
                     <Button size="sm" variant="ghost" onClick={() => onOpenTask(task)}>
-                      Open
+                      {t("open")}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -480,7 +493,7 @@ function TaskTableView({ onOpenTask, rows }: { rows: TaskRow[]; onOpenTask: (tas
             ) : (
               <TableRow>
                 <TableCell className="h-32 text-center text-muted-foreground" colSpan={7}>
-                  No tasks match the current filters.
+                  {t("noMatchingTasks")}
                 </TableCell>
               </TableRow>
             )}
@@ -501,14 +514,18 @@ function InfoItem({ label, value }: { label: string; value: string }) {
 }
 
 function EmptyTasks() {
+  const t = useTranslations("Dashboard.tasks");
+
   return (
     <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground text-sm">
-      No tasks match the current filters.
+      {t("noMatchingTasks")}
     </div>
   );
 }
 
 function PriorityBadge({ priority }: { priority: Task["priority"] }) {
+  const t = useTranslations("Dashboard.tasks");
+
   return (
     <Badge
       variant={priority === "High" ? "destructive" : "secondary"}
@@ -518,7 +535,7 @@ function PriorityBadge({ priority }: { priority: Task["priority"] }) {
         priority === "Low" && "bg-slate-500/10 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
       )}
     >
-      {priority}
+      {t(`priorities.${priority}`)}
     </Badge>
   );
 }
@@ -527,13 +544,16 @@ function TaskDetailDialog({
   task,
   open,
   onOpenChange,
+  locale,
   onTaskUpdated,
 }: {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  locale: string;
   onTaskUpdated: (task: ApiGymTask) => void;
 }) {
+  const t = useTranslations("Dashboard.tasks");
   const [pending, startTransition] = React.useTransition();
   const [comments, setComments] = React.useState<ApiGymTaskComment[]>([]);
   const [progress, setProgress] = React.useState(0);
@@ -563,7 +583,7 @@ function TaskDetailDialog({
       }
 
       if (!result.ok) {
-        toast.error("Task not loaded", { description: result.message });
+        toast.error(t("taskNotLoaded"), { description: result.message });
         return;
       }
 
@@ -574,7 +594,7 @@ function TaskDetailDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, task]);
+  }, [open, task, t]);
 
   if (!task) {
     return null;
@@ -589,7 +609,7 @@ function TaskDetailDialog({
       const result = await updateGymTaskProgress(task.sourceId as number, progress);
 
       if (!result.ok) {
-        toast.error("Progress not saved", { description: result.message });
+        toast.error(t("progressNotSaved"), { description: result.message });
         return;
       }
 
@@ -612,7 +632,7 @@ function TaskDetailDialog({
       const result = await createGymTaskComment(task.sourceId as number, commentBody.trim());
 
       if (!result.ok) {
-        toast.error("Comment not added", { description: result.message });
+        toast.error(t("commentNotAdded"), { description: result.message });
         return;
       }
 
@@ -632,20 +652,18 @@ function TaskDetailDialog({
 
         <div className="grid gap-4">
           <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 text-sm sm:grid-cols-4">
-            <InfoItem label="Owner" value={task.owner.name} />
-            <InfoItem label="Due date" value={task.dueDate} />
-            <InfoItem label="Team" value={task.team} />
-            <InfoItem label="Source" value={task.editable ? "Manual task" : "Backend alert"} />
+            <InfoItem label={t("owner")} value={task.owner.name} />
+            <InfoItem label={t("dueDate")} value={task.dueDate} />
+            <InfoItem label={t("team")} value={t(`teams.${task.team}`)} />
+            <InfoItem label={t("source")} value={task.editable ? t("sources.manualTask") : t("sources.backendAlert")} />
           </div>
 
           <div className="rounded-lg border p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <div className="font-medium text-sm">Progress</div>
+                <div className="font-medium text-sm">{t("progress")}</div>
                 <div className="text-muted-foreground text-xs">
-                  {task.editable
-                    ? "Assigned employee or admin can update task progress."
-                    : "Generated alerts use backend progress."}
+                  {task.editable ? t("assignedProgressDescription") : t("generatedProgressDescription")}
                 </div>
               </div>
               <div className="font-medium text-sm tabular-nums">{progress}%</div>
@@ -662,7 +680,7 @@ function TaskDetailDialog({
             {task.editable ? (
               <div className="mt-3 flex justify-end">
                 <Button disabled={pending || progress === task.progress} size="sm" onClick={saveProgress}>
-                  Save progress
+                  {t("saveProgress")}
                 </Button>
               </div>
             ) : null}
@@ -670,12 +688,10 @@ function TaskDetailDialog({
 
           {!task.editable && task.href ? (
             <div className="rounded-lg border p-4">
-              <div className="font-medium text-sm">Backend source</div>
-              <p className="mt-1 text-muted-foreground text-sm">
-                This card is generated from live backend data. Resolve it from the source page.
-              </p>
+              <div className="font-medium text-sm">{t("backendSource")}</div>
+              <p className="mt-1 text-muted-foreground text-sm">{t("generatedSourceDescription")}</p>
               <Button render={<a href={task.href} />} className="mt-3" size="sm" variant="outline">
-                Open source page
+                {t("openSourcePage")}
                 <ExternalLink />
               </Button>
             </div>
@@ -684,10 +700,8 @@ function TaskDetailDialog({
           <div className="rounded-lg border p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="font-medium text-sm">Comments</div>
-                <div className="text-muted-foreground text-xs">
-                  Admin, assigned employees, and managers can discuss the task here.
-                </div>
+                <div className="font-medium text-sm">{t("comments")}</div>
+                <div className="text-muted-foreground text-xs">{t("commentsLongDescription")}</div>
               </div>
               <Badge variant="secondary">{comments.length}</Badge>
             </div>
@@ -697,12 +711,12 @@ function TaskDetailDialog({
                 <Textarea
                   disabled={pending}
                   onChange={(event) => setCommentBody(event.target.value)}
-                  placeholder="Add update, blocker, or admin note..."
+                  placeholder={t("addUpdatePlaceholder")}
                   value={commentBody}
                 />
                 <div className="flex justify-end">
                   <Button disabled={pending || !commentBody.trim()} size="sm" type="submit">
-                    Add comment
+                    {t("addComment")}
                   </Button>
                 </div>
               </form>
@@ -713,15 +727,17 @@ function TaskDetailDialog({
                 comments.map((comment) => (
                   <div key={comment.id} className="rounded-md bg-muted/40 p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium text-sm">{comment.user?.name ?? "System"}</div>
-                      <div className="text-muted-foreground text-xs">{formatCommentDate(comment.created_at)}</div>
+                      <div className="font-medium text-sm">{comment.user?.name ?? t("system")}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {formatCommentDate(comment.created_at, locale, t("justNow"))}
+                      </div>
                     </div>
                     <p className="mt-1 whitespace-pre-wrap text-sm">{comment.body}</p>
                   </div>
                 ))
               ) : (
                 <div className="rounded-md bg-muted/40 p-4 text-muted-foreground text-sm">
-                  {task.editable ? "No comments yet." : "Generated backend alerts do not store task comments here yet."}
+                  {task.editable ? t("noComments") : t("generatedNoComments")}
                 </div>
               )}
             </div>
@@ -736,15 +752,18 @@ function TaskDetailDialog({
 
 function CreateTaskDialog({
   employees,
+  locale,
   open,
   onOpenChange,
   onTaskCreated,
 }: {
   employees: KanbanProps["employees"];
+  locale: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTaskCreated: (task: ApiGymTask) => void;
 }) {
+  const t = useTranslations("Dashboard.tasks");
   const [pending, startTransition] = React.useTransition();
   const [selectedEmployeeId, setSelectedEmployeeId] = React.useState("none");
   const [dueDate, setDueDate] = React.useState<Date | undefined>();
@@ -769,7 +788,7 @@ function CreateTaskDialog({
         return;
       }
 
-      toast.error("Task not created", { description: result.message });
+      toast.error(t("taskNotCreated"), { description: result.message });
     });
   }
 
@@ -777,33 +796,31 @@ function CreateTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add gym task</DialogTitle>
-          <DialogDescription>
-            Create a manual operational task for staff, managers, or admin follow-up.
-          </DialogDescription>
+          <DialogTitle>{t("addGymTask")}</DialogTitle>
+          <DialogDescription>{t("addGymTaskDescription")}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="task-title">Title</Label>
-              <Input id="task-title" name="title" required placeholder="Check treadmill maintenance" />
+              <Label htmlFor="task-title">{t("titleField")}</Label>
+              <Input id="task-title" name="title" required placeholder={t("titlePlaceholder")} />
             </div>
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="task-description">Description</Label>
-              <Textarea id="task-description" name="description" placeholder="What needs to happen?" />
+              <Label htmlFor="task-description">{t("descriptionField")}</Label>
+              <Textarea id="task-description" name="description" placeholder={t("descriptionPlaceholder")} />
             </div>
-            <TaskSelect name="status" label="Status" options={statusOptions} />
-            <TaskSelect name="priority" label="Priority" options={priorityOptions} />
-            <TaskSelect name="category" label="Category" options={categoryOptions} />
+            <TaskSelect name="status" label={t("status")} options={getStatusOptions(t)} />
+            <TaskSelect name="priority" label={t("priority")} options={getPriorityOptions(t)} />
+            <TaskSelect name="category" label={t("category")} options={getCategoryOptions(t)} />
             <div className="grid gap-2">
-              <Label>Due date</Label>
+              <Label>{t("dueDate")}</Label>
               <input name="due_date" type="hidden" value={dueDateValue} />
               <Popover>
                 <PopoverTrigger
                   render={<Button type="button" variant="outline" className="justify-start text-left font-normal" />}
                 >
                   <CalendarDays />
-                  {dueDate ? formatDisplayDate(dueDate) : "Pick due date"}
+                  {dueDate ? formatDisplayDate(dueDate, locale) : t("pickDueDate")}
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-2">
                   <Calendar mode="single" selected={dueDate} onSelect={setDueDate} fixedWeeks />
@@ -811,18 +828,18 @@ function CreateTaskDialog({
               </Popover>
             </div>
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="task-employee">Assigned employee</Label>
+              <Label htmlFor="task-employee">{t("assignedEmployee")}</Label>
               <Select
                 value={selectedEmployeeId}
                 onValueChange={(value) => value && setSelectedEmployeeId(value)}
                 name="assigned_employee_id"
               >
                 <SelectTrigger id="task-employee" className="w-full">
-                  <span className="truncate">{selectedEmployee ? selectedEmployee.name : "No employee"}</span>
+                  <span className="truncate">{selectedEmployee ? selectedEmployee.name : t("noEmployee")}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="none">No employee</SelectItem>
+                    <SelectItem value="none">{t("noEmployee")}</SelectItem>
                     {employees.map((employee) => (
                       <SelectItem key={employee.id} value={String(employee.id)}>
                         {employee.name}
@@ -835,10 +852,10 @@ function CreateTaskDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Creating..." : "Create task"}
+              {pending ? t("creating") : t("createTask")}
             </Button>
           </DialogFooter>
         </form>
@@ -933,19 +950,22 @@ function flattenBoard(board: BoardState, orderedColumnIds: ColumnId[]): TaskRow[
   });
 }
 
-function getFilterLabel(filter: "all" | "editable" | "generated" | "high") {
-  if (filter === "editable") return "Manual";
-  if (filter === "generated") return "Backend";
-  if (filter === "high") return "Urgent";
+function getFilterLabel(
+  filter: "all" | "editable" | "generated" | "high",
+  t: ReturnType<typeof useTranslations<"Dashboard.tasks">>,
+) {
+  if (filter === "editable") return t("sources.manual");
+  if (filter === "generated") return t("sources.backend");
+  if (filter === "high") return t("urgent");
 
-  return "Filter";
+  return t("filter");
 }
 
-function getSortLabel(sort: "default" | "priority" | "due") {
-  if (sort === "priority") return "Priority";
-  if (sort === "due") return "Due date";
+function getSortLabel(sort: "default" | "priority" | "due", t: ReturnType<typeof useTranslations<"Dashboard.tasks">>) {
+  if (sort === "priority") return t("priority");
+  if (sort === "due") return t("dueDate");
 
-  return "Sort";
+  return t("sort");
 }
 
 function priorityRank(priority: Task["priority"]) {
@@ -968,26 +988,26 @@ function formatDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function formatDisplayDate(date: Date) {
-  return new Intl.DateTimeFormat("en", {
+function formatDisplayDate(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(date);
 }
 
-function formatCommentDate(value: string | null) {
+function formatCommentDate(value: string | null, locale: string, fallback: string) {
   if (!value) {
-    return "Just now";
+    return fallback;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Just now";
+    return fallback;
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
@@ -995,25 +1015,31 @@ function formatCommentDate(value: string | null) {
   }).format(date);
 }
 
-const statusOptions = [
-  { label: "Planned", value: "planned" },
-  { label: "Ideas", value: "ideas" },
-  { label: "In Progress", value: "doing" },
-  { label: "Review", value: "review" },
-] as const;
+function getStatusOptions(t: ReturnType<typeof useTranslations<"Dashboard.tasks">>) {
+  return [
+    { label: t("statuses.planned"), value: "planned" },
+    { label: t("statuses.ideas"), value: "ideas" },
+    { label: t("statuses.doing"), value: "doing" },
+    { label: t("statuses.review"), value: "review" },
+  ] as const;
+}
 
-const priorityOptions = [
-  { label: "Medium", value: "medium" },
-  { label: "High", value: "high" },
-  { label: "Low", value: "low" },
-] as const;
+function getPriorityOptions(t: ReturnType<typeof useTranslations<"Dashboard.tasks">>) {
+  return [
+    { label: t("priorities.Medium"), value: "medium" },
+    { label: t("priorities.High"), value: "high" },
+    { label: t("priorities.Low"), value: "low" },
+  ] as const;
+}
 
-const categoryOptions = [
-  { label: "Operations", value: "operations" },
-  { label: "Membership", value: "membership" },
-  { label: "Attendance", value: "attendance" },
-  { label: "Finance", value: "finance" },
-  { label: "Payroll", value: "payroll" },
-  { label: "Inventory", value: "inventory" },
-  { label: "Maintenance", value: "maintenance" },
-] as const;
+function getCategoryOptions(t: ReturnType<typeof useTranslations<"Dashboard.tasks">>) {
+  return [
+    { label: t("teams.Operations"), value: "operations" },
+    { label: t("teams.Membership"), value: "membership" },
+    { label: t("teams.Attendance"), value: "attendance" },
+    { label: t("teams.Finance"), value: "finance" },
+    { label: t("teams.Payroll"), value: "payroll" },
+    { label: t("teams.Inventory"), value: "inventory" },
+    { label: t("teams.Maintenance"), value: "maintenance" },
+  ] as const;
+}

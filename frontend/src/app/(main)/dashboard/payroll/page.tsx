@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { Banknote, ReceiptText } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { getPayrollPageData } from "./_components/data";
 import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
 export default async function Page() {
+  const t = await getTranslations("Dashboard.payroll");
   const rows = await getPayrollPageData();
   const pending = rows.filter((row) => row.status === "pending");
   const totalPending = pending.reduce((sum, row) => sum + Number(row.net_salary), 0);
@@ -23,56 +25,59 @@ export default async function Page() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl tracking-tight">Payroll</h1>
-          <p className="text-muted-foreground text-sm">
-            Generate salary receipts, review deductions, and mark payroll paid.
-          </p>
+          <h1 className="text-3xl tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
         <form action={generatePayroll} className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">
-            <Label htmlFor="month">Month</Label>
+            <Label htmlFor="month">{t("month")}</Label>
             <PayrollMonthPicker defaultMonth={defaultMonth} />
           </div>
           <Button type="submit">
             <Banknote />
-            Generate
+            {t("generate")}
           </Button>
         </form>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Summary label="Entries" value={rows.length.toString()} />
-        <Summary label="Pending payroll" value={formatCurrency(totalPending, { currency: "EGP", noDecimals: true })} />
+        <Summary label={t("entries")} value={rows.length.toString()} />
         <Summary
-          label="Attendance deductions"
+          label={t("pendingPayroll")}
+          value={formatCurrency(totalPending, { currency: "EGP", noDecimals: true })}
+        />
+        <Summary
+          label={t("attendanceDeductions")}
           value={formatCurrency(attendanceDeductions, { currency: "EGP", noDecimals: true })}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-normal">Salary receipts</CardTitle>
-          <CardDescription>Backend payroll records with attendance deductions included.</CardDescription>
+          <CardTitle className="font-normal">{t("salaryReceipts")}</CardTitle>
+          <CardDescription>{t("salaryReceiptsDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Month</TableHead>
-                <TableHead>Base</TableHead>
-                <TableHead>Attendance</TableHead>
-                <TableHead>Net</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("employee")}</TableHead>
+                <TableHead>{t("month")}</TableHead>
+                <TableHead>{t("base")}</TableHead>
+                <TableHead>{t("attendance")}</TableHead>
+                <TableHead>{t("net")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+                <TableHead className="text-end">{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>
-                    <div className="font-medium">{row.employee.name ?? `Employee #${row.employee.id}`}</div>
-                    <div className="text-muted-foreground text-xs">{row.employee.role ?? "staff"}</div>
+                    <div className="font-medium">
+                      {row.employee.name ?? t("employeeFallback", { id: row.employee.id })}
+                    </div>
+                    <div className="text-muted-foreground text-xs">{row.employee.role ?? t("staff")}</div>
                   </TableCell>
                   <TableCell>{row.month}</TableCell>
                   <TableCell>
@@ -87,7 +92,7 @@ export default async function Page() {
                   <TableCell>
                     <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{row.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-end">
                     <div className="flex justify-end gap-2">
                       <Button
                         render={<a href={`/api/payroll/${row.id}/payslip`} />}
@@ -96,13 +101,13 @@ export default async function Page() {
                         variant="outline"
                       >
                         <ReceiptText />
-                        Payslip
+                        {t("payslip")}
                       </Button>
                       {row.status !== "paid" ? (
                         <form action={markPayrollPaid}>
                           <input type="hidden" name="id" value={row.id} />
                           <Button type="submit" size="sm">
-                            Pay
+                            {t("pay")}
                           </Button>
                         </form>
                       ) : null}
@@ -113,7 +118,7 @@ export default async function Page() {
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                    No payroll records yet.
+                    {t("noRecords")}
                   </TableCell>
                 </TableRow>
               ) : null}

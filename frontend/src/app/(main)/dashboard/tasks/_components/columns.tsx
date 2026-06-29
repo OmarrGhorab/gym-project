@@ -2,6 +2,7 @@
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, MessageSquare, RotateCcw } from "lucide-react";
+import type { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import { cn } from "@/lib/utils";
 
 import { priorities, statuses, type Task } from "./types";
 
+type TasksT = ReturnType<typeof useTranslations<"Dashboard.tasks">>;
+
 const statusStyles: Record<string, string> = {
   doing: "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
   done: "border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-300",
@@ -33,35 +36,35 @@ function SortIcon({ sortDirection }: { sortDirection: false | "asc" | "desc" }) 
   return <ArrowUpDown data-icon="inline-end" />;
 }
 
-function TitleColumnHeader({ column }: { column: Column<Task, unknown> }) {
+function TitleColumnHeader({ column, t }: { column: Column<Task, unknown>; t: TasksT }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={<Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground data-popup-open:bg-accent" />}
       >
-        Task
+        {t("task")}
         <SortIcon sortDirection={column.getIsSorted()} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onSelect={() => column.toggleSorting(false)}>
           <ArrowUp />
-          Asc
+          {t("asc")}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => column.toggleSorting(true)}>
           <ArrowDown />
-          Desc
+          {t("desc")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => column.clearSorting()}>
           <RotateCcw />
-          Reset
+          {t("reset")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] {
+export function getColumns(onOpenTask: (task: Task) => void, t: TasksT): ColumnDef<Task>[] {
   return [
     {
       id: "select",
@@ -70,7 +73,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
           checked={table.getIsAllPageRowsSelected()}
           indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
+          aria-label={t("selectAll")}
           className="translate-y-0.5"
         />
       ),
@@ -78,7 +81,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
+          aria-label={t("selectRow")}
           className="translate-y-0.5"
         />
       ),
@@ -87,14 +90,14 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
     },
     {
       accessorKey: "id",
-      header: "ID",
+      header: t("id"),
       cell: ({ row }) => <div className="w-24 font-mono text-muted-foreground text-sm">{row.original.id}</div>,
       enableSorting: false,
       enableHiding: false,
     },
     {
       accessorKey: "title",
-      header: ({ column }) => <TitleColumnHeader column={column} />,
+      header: ({ column }) => <TitleColumnHeader column={column} t={t} />,
       cell: ({ row }) => (
         <div className="flex min-w-0 items-center gap-2">
           <Badge className="rounded-sm bg-transparent" variant="outline">
@@ -110,12 +113,12 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
     {
       accessorKey: "owner.name",
       id: "owner",
-      header: "Assigned to",
+      header: t("assignedTo"),
       cell: ({ row }) => <span className="text-sm">{row.original.owner.name}</span>,
     },
     {
       accessorKey: "status",
-      header: "Status",
+      header: t("status"),
       cell: ({ row }) => {
         const status = statuses.find((status) => status.value === row.original.status);
 
@@ -124,7 +127,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
         return (
           <Badge className={cn("gap-1.5 rounded-sm border font-medium", statusStyles[status.value])} variant="outline">
             <status.icon className="size-4" />
-            {status.label}
+            {t(`statuses.${status.value}`)}
           </Badge>
         );
       },
@@ -132,7 +135,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
     },
     {
       accessorKey: "priority",
-      header: "Priority",
+      header: t("priority"),
       cell: ({ row }) => {
         const priority = priorities.find((priority) => priority.value === row.original.priority);
 
@@ -141,7 +144,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
         return (
           <div className="flex items-center gap-2 text-sm">
             <priority.icon className="size-4 text-muted-foreground" />
-            {priority.label}
+            {t(`priorities.${priority.value}`)}
           </div>
         );
       },
@@ -149,7 +152,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
     },
     {
       accessorKey: "progress",
-      header: "Progress",
+      header: t("progress"),
       cell: ({ row }) => (
         <div className="flex w-32 items-center gap-2">
           <Progress value={row.original.progress} />
@@ -159,7 +162,7 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
     },
     {
       id: "comments",
-      header: "Comments",
+      header: t("comments"),
       cell: ({ row }) => {
         const count = row.original.insights.find((item) => item.label === "Comments")?.count ?? 0;
 
@@ -173,15 +176,15 @@ export function getColumns(onOpenTask: (task: Task) => void): ColumnDef<Task>[] 
     },
     {
       accessorKey: "dueDate",
-      header: "Due date",
+      header: t("dueDate"),
       cell: ({ row }) => <span className="text-sm">{row.original.dueDate}</span>,
     },
     {
       id: "actions",
       cell: ({ row }) => (
-        <div className="text-right">
+        <div className="text-end">
           <Button size="sm" variant="ghost" onClick={() => onOpenTask(row.original)}>
-            Open
+            {t("open")}
           </Button>
         </div>
       ),

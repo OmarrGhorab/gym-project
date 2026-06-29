@@ -1,4 +1,5 @@
 import { ChevronRight, CircleDollarSign, ReceiptText, Zap } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -13,6 +14,9 @@ export function UpcomingTransactions({
   totals: FinanceDashboardData["totals"];
   upcoming: FinanceDashboardData["upcoming"];
 }) {
+  const t = useTranslations("Dashboard.finance");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const items: Array<FinanceUpcomingItem & { kind: "due" | "expense" | "payroll" }> = [
     ...upcoming.dues.map((item) => ({ ...item, kind: "due" as const })),
     ...upcoming.pending_payroll.map((item) => ({ ...item, kind: "payroll" as const })),
@@ -22,7 +26,7 @@ export function UpcomingTransactions({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Collections & Obligations</CardTitle>
+        <CardTitle className="font-normal">{t("collectionsObligations")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-col gap-3">
@@ -33,17 +37,15 @@ export function UpcomingTransactions({
               </span>
             </h2>
             <p className="text-muted-foreground text-sm leading-none">
-              <span className="font-medium text-foreground">{totals.outstanding_dues_count}</span> balances need
-              collection
+              {t("balancesNeedCollection", { count: numberFormatter.format(totals.outstanding_dues_count) })}
             </p>
           </div>
           <div className="flex w-max items-center gap-2 rounded-md border border-border bg-muted/70 px-2 py-1.5 text-sm">
             <Zap className="size-4 fill-primary text-primary" />
             <span className="text-muted-foreground">
-              Pending payroll:{" "}
-              <span className="font-medium text-foreground">
-                {formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true })}
-              </span>
+              {t("pendingPayrollAmount", {
+                value: formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true }),
+              })}
             </span>
           </div>
         </div>
@@ -54,8 +56,8 @@ export function UpcomingTransactions({
           ) : (
             <Item variant="outline" size="xs">
               <ItemContent>
-                <ItemTitle>No open finance follow-ups</ItemTitle>
-                <ItemDescription>Collections, payroll, and expenses are clear.</ItemDescription>
+                <ItemTitle>{t("noOpenFollowUps")}</ItemTitle>
+                <ItemDescription>{t("allClear")}</ItemDescription>
               </ItemContent>
             </Item>
           )}

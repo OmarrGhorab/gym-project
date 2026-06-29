@@ -3,6 +3,7 @@
 
 import type { Table } from "@tanstack/react-table";
 import { ListFilter, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ interface TaskStatusFilterProps<TData> {
 }
 
 export function TaskStatusFilter<TData>({ table }: TaskStatusFilterProps<TData>) {
+  const t = useTranslations("Dashboard.tasks");
   const column = table.getColumn("status");
 
   if (!column) {
@@ -60,7 +62,7 @@ export function TaskStatusFilter<TData>({ table }: TaskStatusFilterProps<TData>)
         }
       >
         <ListFilter data-icon="inline-start" />
-        Status
+        {t("status")}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-50">
         <DropdownMenuGroup>
@@ -75,7 +77,7 @@ export function TaskStatusFilter<TData>({ table }: TaskStatusFilterProps<TData>)
                 onSelect={(event) => event.preventDefault()}
               >
                 <status.icon className="text-muted-foreground" />
-                {status.label}
+                {t(`statuses.${status.value}`)}
               </DropdownMenuCheckboxItem>
             );
           })}
@@ -86,7 +88,7 @@ export function TaskStatusFilter<TData>({ table }: TaskStatusFilterProps<TData>)
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={clearFilter} className="justify-center text-center">
                 <X />
-                Clear filters
+                {t("clearFilters")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </>

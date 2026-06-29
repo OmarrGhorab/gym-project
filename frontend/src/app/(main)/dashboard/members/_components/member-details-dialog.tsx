@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,40 +23,43 @@ export function MemberDetailsDialog({
   open?: boolean;
   visits: MemberVisitRow[];
 }) {
+  const t = useTranslations("Dashboard.membersPage");
+  const locale = useLocale();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open === undefined ? (
         <Button type="button" size="sm" variant="outline">
-          Details
+          {t("details")}
         </Button>
       ) : null}
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{member.name}</DialogTitle>
           <DialogDescription>
-            {member.phone} · {member.latest_subscription?.plan_name ?? "No active plan"}
+            {member.phone} · {member.latest_subscription?.plan_name ?? t("noActivePlan")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <Metric label="Subscription paid" value={history?.totals.subscription_paid ?? member.total_paid} />
-          <Metric label="Product purchases" value={history?.totals.product_paid ?? "0"} />
-          <Metric label="Total paid" value={history?.totals.total_paid ?? member.total_paid} />
-          <Metric label="Outstanding" value={history?.totals.outstanding_balance ?? "0"} />
+          <Metric label={t("subscriptionPaid")} value={history?.totals.subscription_paid ?? member.total_paid} />
+          <Metric label={t("productPurchases")} value={history?.totals.product_paid ?? "0"} />
+          <Metric label={t("totalPaid")} value={history?.totals.total_paid ?? member.total_paid} />
+          <Metric label={t("outstanding")} value={history?.totals.outstanding_balance ?? "0"} />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-lg border">
             <div className="border-b p-3">
-              <h3 className="font-medium text-sm">Subscription payments</h3>
+              <h3 className="font-medium text-sm">{t("subscriptionPayments")}</h3>
             </div>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>{t("plan")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("paid")}</TableHead>
+                  <TableHead className="text-end">{t("amount")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -65,14 +70,14 @@ export function MemberDetailsDialog({
                       <TableCell>
                         <Badge variant={payment.status === "paid" ? "secondary" : "outline"}>{payment.status}</Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(payment.paid_at)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-muted-foreground">{formatDate(payment.paid_at, locale)}</TableCell>
+                      <TableCell className="text-end">
                         {formatCurrency(Number(payment.amount), { currency: "EGP", noDecimals: true })}
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <EmptyRow colSpan={4} label="No subscription payments." />
+                  <EmptyRow colSpan={4} label={t("noSubscriptionPayments")} />
                 )}
               </TableBody>
             </Table>
@@ -80,23 +85,23 @@ export function MemberDetailsDialog({
 
           <div className="rounded-lg border">
             <div className="border-b p-3">
-              <h3 className="font-medium text-sm">Member visits</h3>
+              <h3 className="font-medium text-sm">{t("memberVisits")}</h3>
             </div>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Check in</TableHead>
-                  <TableHead>Check out</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Method</TableHead>
+                  <TableHead>{t("checkIn")}</TableHead>
+                  <TableHead>{t("checkOut")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("method")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visits.length ? (
                   visits.map((visit) => (
                     <TableRow key={visit.id}>
-                      <TableCell>{formatDate(visit.check_in_at)}</TableCell>
-                      <TableCell>{formatDate(visit.check_out_at)}</TableCell>
+                      <TableCell>{formatDate(visit.check_in_at, locale)}</TableCell>
+                      <TableCell>{formatDate(visit.check_out_at, locale)}</TableCell>
                       <TableCell>
                         <Badge variant={visit.status === "allowed" ? "secondary" : "outline"}>{visit.status}</Badge>
                       </TableCell>
@@ -104,7 +109,7 @@ export function MemberDetailsDialog({
                     </TableRow>
                   ))
                 ) : (
-                  <EmptyRow colSpan={4} label="No visits recorded." />
+                  <EmptyRow colSpan={4} label={t("noVisits")} />
                 )}
               </TableBody>
             </Table>
@@ -113,16 +118,16 @@ export function MemberDetailsDialog({
 
         <div className="rounded-lg border">
           <div className="border-b p-3">
-            <h3 className="font-medium text-sm">Product purchases</h3>
+            <h3 className="font-medium text-sm">{t("productPurchases")}</h3>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Sale</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Sold by</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead>{t("sale")}</TableHead>
+                <TableHead>{t("items")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("soldBy")}</TableHead>
+                <TableHead className="text-end">{t("total")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,7 +136,9 @@ export function MemberDetailsDialog({
                   <TableRow key={purchase.id}>
                     <TableCell>#{purchase.id}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {purchase.items.map((item) => `${item.product_name ?? "Product"} x${item.quantity}`).join(", ")}
+                      {purchase.items
+                        .map((item) => `${item.product_name ?? t("product")} x${item.quantity}`)
+                        .join(", ")}
                     </TableCell>
                     <TableCell>
                       <Badge variant={purchase.status === "completed" ? "secondary" : "outline"}>
@@ -139,13 +146,13 @@ export function MemberDetailsDialog({
                       </Badge>
                     </TableCell>
                     <TableCell>{purchase.sold_by ?? "-"}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       {formatCurrency(Number(purchase.total), { currency: "EGP", noDecimals: true })}
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
-                <EmptyRow colSpan={5} label="No product purchases." />
+                <EmptyRow colSpan={5} label={t("noProductPurchases")} />
               )}
             </TableBody>
           </Table>
@@ -174,12 +181,12 @@ function EmptyRow({ colSpan, label }: { colSpan: number; label: string }) {
   );
 }
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null, locale: string) {
   if (!value) {
     return "-";
   }
 
-  return new Date(value).toLocaleString("en", {
+  return new Date(value).toLocaleString(locale, {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",

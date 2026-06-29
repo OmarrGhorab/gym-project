@@ -1,4 +1,7 @@
+"use client";
+
 import { ShieldCheck, UserCog, UsersRound } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,36 +14,35 @@ import { syncUserRoles } from "./actions";
 import type { AccessRole, AccessUser } from "./data";
 
 export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser[] }) {
+  const t = useTranslations("Dashboard.users");
   const assignedUsers = users.filter((user) => user.roles.length > 0).length;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
-        <h1 className="text-3xl tracking-tight">Users</h1>
-        <p className="text-muted-foreground text-sm">
-          Real dashboard users from the backend with role assignment controls.
-        </p>
+        <h1 className="text-3xl tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("description")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Summary icon={UsersRound} label="Users" value={users.length.toString()} />
-        <Summary icon={UserCog} label="With roles" value={assignedUsers.toString()} />
-        <Summary icon={ShieldCheck} label="Available roles" value={roles.length.toString()} />
+        <Summary icon={UsersRound} label={t("users")} value={users.length.toString()} />
+        <Summary icon={UserCog} label={t("withRoles")} value={assignedUsers.toString()} />
+        <Summary icon={ShieldCheck} label={t("availableRoles")} value={roles.length.toString()} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-normal">Access assignments</CardTitle>
-          <CardDescription>Assign existing backend roles to dashboard users.</CardDescription>
+          <CardTitle className="font-normal">{t("accessAssignments")}</CardTitle>
+          <CardDescription>{t("accessDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Current roles</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead className="w-[420px]">Assign roles</TableHead>
+                <TableHead>{t("user")}</TableHead>
+                <TableHead>{t("currentRoles")}</TableHead>
+                <TableHead>{t("permissions")}</TableHead>
+                <TableHead className="w-[420px]">{t("assignRoles")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -66,7 +68,7 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
                           </Badge>
                         ))
                       ) : (
-                        <Badge variant="outline">No role</Badge>
+                        <Badge variant="outline">{t("noRole")}</Badge>
                       )}
                     </div>
                   </TableCell>
@@ -85,19 +87,19 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
                                 name="roles"
                                 value={role.name}
                                 defaultChecked={user.roles.includes(role.name)}
-                                aria-label={`Assign ${role.name} to ${user.name}`}
+                                aria-label={t("assignRoleToUser", { role: role.name, user: user.name })}
                               />
                               <span className="truncate">{role.name}</span>
                             </div>
                           ))}
                         </div>
                         <Button type="submit" size="sm" variant="outline">
-                          Save roles
+                          {t("saveRoles")}
                         </Button>
                       </form>
                     ) : (
                       <div className="rounded-md border bg-muted/40 px-3 py-2 text-muted-foreground text-sm">
-                        No roles available. Check role management permissions.
+                        {t("noRolesAvailable")}
                       </div>
                     )}
                   </TableCell>
@@ -106,7 +108,7 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
               {users.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                    No users returned by the backend.
+                    {t("noUsers")}
                   </TableCell>
                 </TableRow>
               ) : null}

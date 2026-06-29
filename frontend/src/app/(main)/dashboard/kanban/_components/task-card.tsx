@@ -12,6 +12,7 @@ import {
   Paperclip,
   SquareArrowOutUpRight,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ export function TaskCard({
   isOverlay?: boolean;
   onOpenTask?: (task: Task) => void;
 }) {
+  const t = useTranslations("Dashboard.tasks");
   const isDone = columnId === "done";
   const showBuildingDetails = columnId === "doing" && typeof task.progress === "number";
   const owner = task.owner;
@@ -83,7 +85,7 @@ export function TaskCard({
             )}
           >
             <PriorityIcon data-icon="inline-start" />
-            {task.priority}
+            {t(`priorities.${task.priority}`)}
           </Badge>
         </div>
         <p className="line-clamp-2 text-muted-foreground text-sm leading-5">{task.description}</p>
@@ -110,14 +112,14 @@ export function TaskCard({
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-muted-foreground text-xs">
-              <span className="leading-none">Progress</span>
+              <span className="leading-none">{t("progress")}</span>
               <span className="tabular-nums leading-none">{task.progress}%</span>
             </div>
             <Progress value={task.progress} />
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground text-sm">Owner</span>
+              <span className="text-muted-foreground text-sm">{t("owner")}</span>
               <div className="flex items-center gap-1.5">
                 <span className="truncate text-muted-foreground text-sm">{owner.name}</span>
                 <Avatar className={cn("size-5 after:rounded-sm", owner.tone)}>
@@ -127,7 +129,7 @@ export function TaskCard({
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground text-sm">Due date</span>
+              <span className="text-muted-foreground text-sm">{t("dueDate")}</span>
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <span className="truncate text-sm">{task.dueDate}</span>
                 <CalendarDays className="size-3" />
@@ -135,12 +137,12 @@ export function TaskCard({
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground text-sm">Team</span>
+              <span className="text-muted-foreground text-sm">{t("team")}</span>
               <Badge
                 variant="secondary"
                 className={cn("rounded-md border-transparent px-2 font-medium", tagTones[task.team])}
               >
-                {task.team}
+                {t(`teams.${task.team}`)}
               </Badge>
             </div>
           </div>
@@ -153,7 +155,7 @@ export function TaskCard({
         {isDone ? (
           <div className="flex items-center gap-1 font-medium text-green-700 text-sm dark:text-green-600">
             <BadgeCheck className="size-4" />
-            Done
+            {t("statuses.done")}
           </div>
         ) : null}
 
@@ -180,7 +182,7 @@ export function TaskCard({
                 onOpenTask?.(task);
               }}
             >
-              Open
+              {t("open")}
               <SquareArrowOutUpRight className="size-3" />
             </button>
           </div>

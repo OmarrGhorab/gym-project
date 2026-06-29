@@ -1,4 +1,5 @@
 import { Clock3, MapPinned, Palette, ShieldAlert } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { updateSettings } from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
 
 export default async function Page() {
+  const t = await getTranslations("Dashboard.settings");
   const { rules, settings, shifts } = await getSettingsPageData();
   const gpsReady =
     settings.attendance.gym_latitude !== null &&
@@ -22,14 +24,12 @@ export default async function Page() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl tracking-tight">Settings</h1>
-          <p className="text-muted-foreground text-sm">
-            Gym identity, GPS geofence, attendance grace period, shifts, and violation rules.
-          </p>
+          <h1 className="text-3xl tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
         <Badge variant="outline" className={gpsReady ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
           <MapPinned />
-          {gpsReady ? "GPS ready" : "GPS missing"}
+          {gpsReady ? t("gpsReady") : t("gpsMissing")}
         </Badge>
       </div>
 
@@ -38,19 +38,23 @@ export default async function Page() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <Palette className="size-4" />
-              Gym profile
+              {t("gymProfile")}
             </CardTitle>
-            <CardDescription>These values feed receipts, documents, and dashboard identity.</CardDescription>
+            <CardDescription>{t("gymProfileDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field label="Gym name" name="gym.name" defaultValue={settings.gym.name} />
-            <Field label="Currency" name="currency" defaultValue={settings.currency} />
-            <Field label="Primary color" name="gym.colors.primary" defaultValue={settings.gym.colors.primary} />
-            <Field label="Secondary color" name="gym.colors.secondary" defaultValue={settings.gym.colors.secondary} />
-            <Field label="Reminder days" name="reminder_days" type="number" defaultValue={settings.reminder_days} />
-            <Field label="VAT rate" name="vat_rate" type="number" step="0.01" defaultValue={settings.vat_rate} />
+            <Field label={t("gymName")} name="gym.name" defaultValue={settings.gym.name} />
+            <Field label={t("currency")} name="currency" defaultValue={settings.currency} />
+            <Field label={t("primaryColor")} name="gym.colors.primary" defaultValue={settings.gym.colors.primary} />
+            <Field
+              label={t("secondaryColor")}
+              name="gym.colors.secondary"
+              defaultValue={settings.gym.colors.secondary}
+            />
+            <Field label={t("reminderDays")} name="reminder_days" type="number" defaultValue={settings.reminder_days} />
+            <Field label={t("vatRate")} name="vat_rate" type="number" step="0.01" defaultValue={settings.vat_rate} />
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="receipt_template">Receipt template</Label>
+              <Label htmlFor="receipt_template">{t("receiptTemplate")}</Label>
               <Textarea id="receipt_template" name="receipt_template" defaultValue={settings.receipt_template} />
             </div>
           </CardContent>
@@ -60,39 +64,39 @@ export default async function Page() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <MapPinned className="size-4" />
-              Attendance GPS
+              {t("attendanceGps")}
             </CardTitle>
-            <CardDescription>Used by staff and member scans to flag out-of-gym check-ins.</CardDescription>
+            <CardDescription>{t("attendanceGpsDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <Field
-              label="Latitude"
+              label={t("latitude")}
               name="attendance.gym_latitude"
               type="number"
               step="0.000001"
               defaultValue={settings.attendance.gym_latitude ?? ""}
             />
             <Field
-              label="Longitude"
+              label={t("longitude")}
               name="attendance.gym_longitude"
               type="number"
               step="0.000001"
               defaultValue={settings.attendance.gym_longitude ?? ""}
             />
             <Field
-              label="Radius meters"
+              label={t("radiusMeters")}
               name="attendance.gym_radius_meters"
               type="number"
               defaultValue={settings.attendance.gym_radius_meters}
             />
             <Field
-              label="Default grace minutes"
+              label={t("defaultGraceMinutes")}
               name="attendance.default_grace_minutes"
               type="number"
               defaultValue={settings.attendance.default_grace_minutes}
             />
             <Button type="submit" className="w-full">
-              Save settings
+              {t("saveSettings")}
             </Button>
           </CardContent>
         </Card>
@@ -103,18 +107,18 @@ export default async function Page() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <Clock3 className="size-4" />
-              Staff shifts
+              {t("staffShifts")}
             </CardTitle>
-            <CardDescription>Existing backend shifts used by attendance scans.</CardDescription>
+            <CardDescription>{t("staffShiftsDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Grace</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("time")}</TableHead>
+                  <TableHead>{t("grace")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -124,16 +128,16 @@ export default async function Page() {
                     <TableCell>
                       {shift.starts_at} - {shift.ends_at}
                     </TableCell>
-                    <TableCell>{shift.grace_minutes}m</TableCell>
+                    <TableCell>{t("minutesShort", { count: shift.grace_minutes })}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{shift.is_active ? "Active" : "Inactive"}</Badge>
+                      <Badge variant="outline">{shift.is_active ? t("active") : t("inactive")}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
                 {shifts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                      No shifts found.
+                      {t("noShifts")}
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -146,18 +150,18 @@ export default async function Page() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <ShieldAlert className="size-4" />
-              Attendance rules
+              {t("attendanceRules")}
             </CardTitle>
-            <CardDescription>Seeded warning and salary deduction rules from the backend.</CardDescription>
+            <CardDescription>{t("attendanceRulesDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Rule</TableHead>
-                  <TableHead>Threshold</TableHead>
-                  <TableHead>Deduction</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("rule")}</TableHead>
+                  <TableHead>{t("threshold")}</TableHead>
+                  <TableHead>{t("deduction")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -167,17 +171,17 @@ export default async function Page() {
                       <div className="font-medium">{rule.name}</div>
                       <div className="text-muted-foreground text-xs">{rule.code}</div>
                     </TableCell>
-                    <TableCell>{rule.threshold_minutes ?? 0}m</TableCell>
-                    <TableCell>{rule.deduction_days} days</TableCell>
+                    <TableCell>{t("minutesShort", { count: rule.threshold_minutes ?? 0 })}</TableCell>
+                    <TableCell>{t("days", { count: rule.deduction_days })}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{rule.is_active ? "Active" : "Inactive"}</Badge>
+                      <Badge variant="outline">{rule.is_active ? t("active") : t("inactive")}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
                 {rules.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                      No rules found.
+                      {t("noRules")}
                     </TableCell>
                   </TableRow>
                 ) : null}

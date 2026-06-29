@@ -5,6 +5,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { MoreHorizontal, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ type ActionResult = {
 };
 
 function useActionSubmit({ label, run, success }: ActionResult, close?: () => void) {
+  const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
 
@@ -51,8 +53,8 @@ function useActionSubmit({ label, run, success }: ActionResult, close?: () => vo
         close?.();
         router.refresh();
       } catch (error) {
-        toast.error(`${label} failed`, {
-          description: error instanceof Error ? error.message : "Please try again.",
+        toast.error(t("failed", { label }), {
+          description: error instanceof Error ? error.message : t("pleaseTryAgain"),
         });
       }
     });
@@ -62,9 +64,10 @@ function useActionSubmit({ label, run, success }: ActionResult, close?: () => vo
 }
 
 export function AddMemberDialog() {
+  const t = useTranslations("Dashboard.membersPage");
   const [open, setOpen] = React.useState(false);
   const { pending, submit } = useActionSubmit(
-    { label: "Create member", run: createMember, success: "Member created." },
+    { label: t("createMember"), run: createMember, success: t("memberCreated") },
     () => setOpen(false),
   );
 
@@ -72,65 +75,67 @@ export function AddMemberDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>
         <UserPlus data-icon="inline-start" />
-        Add Member
+        {t("addMember")}
       </DialogTrigger>
       <MemberFormContent
-        description="Create a backend member record. Subscriptions can be managed from Membership."
+        description={t("addMemberDescription")}
         pending={pending}
         submit={submit}
-        submitLabel="Create member"
-        title="Add member"
+        submitLabel={t("createMember")}
+        title={t("addMemberTitle")}
       />
     </Dialog>
   );
 }
 
 export function EditMemberDialog({ member }: { member: MemberRow }) {
+  const t = useTranslations("Dashboard.membersPage");
   const [open, setOpen] = React.useState(false);
   const { pending, submit } = useActionSubmit(
-    { label: "Update member", run: updateMember, success: "Member updated." },
+    { label: t("updateMember"), run: updateMember, success: t("memberUpdated") },
     () => setOpen(false),
   );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" className="sr-only" />}>Edit member</DialogTrigger>
+      <DialogTrigger render={<Button type="button" className="sr-only" />}>{t("editMember")}</DialogTrigger>
       <MemberFormContent
-        description="Update profile fields stored in the backend."
+        description={t("editMemberDescription")}
         member={member}
         pending={pending}
         submit={submit}
-        submitLabel="Save changes"
-        title="Edit member"
+        submitLabel={t("saveChanges")}
+        title={t("editMember")}
       />
     </Dialog>
   );
 }
 
 export function MemberPhotoDialog({ member }: { member: MemberRow }) {
+  const t = useTranslations("Dashboard.membersPage");
   const [open, setOpen] = React.useState(false);
   const { pending, submit } = useActionSubmit(
-    { label: "Upload photo", run: uploadMemberPhoto, success: "Member photo updated." },
+    { label: t("uploadPhoto"), run: uploadMemberPhoto, success: t("memberPhotoUpdated") },
     () => setOpen(false),
   );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" className="sr-only" />}>Upload photo</DialogTrigger>
+      <DialogTrigger render={<Button type="button" className="sr-only" />}>{t("uploadPhoto")}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Upload photo</DialogTitle>
-          <DialogDescription>Attach a profile photo for {member.name}.</DialogDescription>
+          <DialogTitle>{t("uploadPhoto")}</DialogTitle>
+          <DialogDescription>{t("uploadPhotoDescription", { name: member.name })}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
           <input type="hidden" name="member_id" value={member.id} />
           <Input name="photo" type="file" accept="image/*" required />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Uploading..." : "Upload photo"}
+              {pending ? t("uploading") : t("uploadPhoto")}
             </Button>
           </DialogFooter>
         </form>
@@ -148,6 +153,7 @@ export function MemberActionsMenu({
   member: MemberRow;
   visits: React.ComponentProps<typeof MemberDetailsDialog>["visits"];
 }) {
+  const t = useTranslations("Dashboard.membersPage");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
@@ -156,15 +162,15 @@ export function MemberActionsMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button size="icon-sm" variant="ghost" aria-label={`Actions for ${member.name}`} />}
+          render={<Button size="icon-sm" variant="ghost" aria-label={t("actionsFor", { name: member.name })} />}
         >
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setDetailsOpen(true)}>View details</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setEditOpen(true)}>Edit member</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setPhotoOpen(true)}>Upload photo</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{t("viewDetails")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setEditOpen(true)}>{t("editMember")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{t("uploadPhoto")}</DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -194,20 +200,21 @@ function EditMemberControlledDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const t = useTranslations("Dashboard.membersPage");
   const { pending, submit } = useActionSubmit(
-    { label: "Update member", run: updateMember, success: "Member updated." },
+    { label: t("updateMember"), run: updateMember, success: t("memberUpdated") },
     () => onOpenChange(false),
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <MemberFormContent
-        description="Update profile fields stored in the backend."
+        description={t("editMemberDescription")}
         member={member}
         pending={pending}
         submit={submit}
-        submitLabel="Save changes"
-        title="Edit member"
+        submitLabel={t("saveChanges")}
+        title={t("editMember")}
       />
     </Dialog>
   );
@@ -222,8 +229,9 @@ function MemberPhotoControlledDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const t = useTranslations("Dashboard.membersPage");
   const { pending, submit } = useActionSubmit(
-    { label: "Upload photo", run: uploadMemberPhoto, success: "Member photo updated." },
+    { label: t("uploadPhoto"), run: uploadMemberPhoto, success: t("memberPhotoUpdated") },
     () => onOpenChange(false),
   );
 
@@ -231,18 +239,18 @@ function MemberPhotoControlledDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Upload photo</DialogTitle>
-          <DialogDescription>Attach a profile photo for {member.name}.</DialogDescription>
+          <DialogTitle>{t("uploadPhoto")}</DialogTitle>
+          <DialogDescription>{t("uploadPhotoDescription", { name: member.name })}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
           <input type="hidden" name="member_id" value={member.id} />
           <Input name="photo" type="file" accept="image/*" required />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Uploading..." : "Upload photo"}
+              {pending ? t("uploading") : t("uploadPhoto")}
             </Button>
           </DialogFooter>
         </form>
@@ -252,6 +260,7 @@ function MemberPhotoControlledDialog({
 }
 
 function DeactivateMemberItem({ member }: { member: MemberRow }) {
+  const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
 
@@ -266,17 +275,17 @@ function DeactivateMemberItem({ member }: { member: MemberRow }) {
         startTransition(async () => {
           try {
             await deactivateMember(formData);
-            toast.success("Member deactivated.");
+            toast.success(t("memberDeactivated"));
             router.refresh();
           } catch (error) {
-            toast.error("Deactivate failed", {
-              description: error instanceof Error ? error.message : "Please try again.",
+            toast.error(t("deactivateFailed"), {
+              description: error instanceof Error ? error.message : t("pleaseTryAgain"),
             });
           }
         });
       }}
     >
-      Deactivate
+      {t("deactivate")}
     </DropdownMenuItem>
   );
 }
@@ -296,6 +305,8 @@ function MemberFormContent({
   submitLabel: string;
   title: string;
 }) {
+  const t = useTranslations("Dashboard.membersPage");
+
   return (
     <DialogContent className="sm:max-w-3xl">
       <DialogHeader>
@@ -305,48 +316,48 @@ function MemberFormContent({
       <form action={submit} className="grid gap-4">
         {member ? <input type="hidden" name="id" value={member.id} /> : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Name" name="name" defaultValue={member?.name} required />
-          <Field label="Phone" name="phone" defaultValue={member?.phone} required />
-          <Field label="Email" name="email" type="email" defaultValue={member?.email ?? ""} />
+          <Field label={t("nameField")} name="name" defaultValue={member?.name} required />
+          <Field label={t("phone")} name="phone" defaultValue={member?.phone} required />
+          <Field label={t("email")} name="email" type="email" defaultValue={member?.email ?? ""} />
           <div className="grid gap-2">
-            <span className="font-medium text-sm">Gender</span>
+            <span className="font-medium text-sm">{t("gender")}</span>
             <Select name="gender" defaultValue={member?.gender ?? ""}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select gender" />
+                <SelectValue placeholder={t("selectGender")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="male">{t("male")}</SelectItem>
+                  <SelectItem value="female">{t("female")}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
-          <Field label="Join date" name="join_date" type="date" defaultValue={member?.join_date ?? ""} />
-          <Field label="Birth date" name="birth_date" type="date" defaultValue={member?.birth_date ?? ""} />
-          <Field label="National ID" name="national_id" defaultValue="" />
+          <Field label={t("joinDate")} name="join_date" type="date" defaultValue={member?.join_date ?? ""} />
+          <Field label={t("birthDate")} name="birth_date" type="date" defaultValue={member?.birth_date ?? ""} />
+          <Field label={t("nationalId")} name="national_id" defaultValue="" />
           <div className="grid gap-2">
-            <span className="font-medium text-sm">Status</span>
+            <span className="font-medium text-sm">{t("status")}</span>
             <Select name="status" defaultValue={member?.status ?? "active"}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select status" />
+                <SelectValue placeholder={t("selectStatus")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="active">{t("active")}</SelectItem>
+                  <SelectItem value="inactive">{t("inactive")}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
         </div>
         <div className="grid gap-2">
-          <span className="font-medium text-sm">Notes</span>
+          <span className="font-medium text-sm">{t("notes")}</span>
           <Textarea name="notes" defaultValue={member?.notes ?? ""} />
         </div>
         <DialogFooter>
           <Button type="submit" disabled={pending}>
-            {pending ? "Saving..." : submitLabel}
+            {pending ? t("saving") : submitLabel}
           </Button>
         </DialogFooter>
       </form>

@@ -1,3 +1,5 @@
+import { getLocale, getTranslations } from "next-intl/server";
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -18,6 +20,9 @@ export default async function Page({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations("Dashboard.membersPage");
+  const locale = await getLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const params = await searchParams;
   const query = normalizeQuery(params);
   const { histories, members, meta, visits } = await getMembersPageData(query);
@@ -33,10 +38,8 @@ export default async function Page({
       <CardHeader className="border-b">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-2xl tracking-tight">Members</h1>
-            <p className="text-muted-foreground text-sm">
-              Manage member profiles, QR attendance payloads, photos, and financial history.
-            </p>
+            <h1 className="text-2xl tracking-tight">{t("title")}</h1>
+            <p className="text-muted-foreground text-sm">{t("description")}</p>
           </div>
           <MembersHeaderActions />
         </div>
@@ -45,12 +48,12 @@ export default async function Page({
       <CardContent className="p-0">
         <MembersFilterBar total={members.length} />
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4 text-muted-foreground text-sm">
-          <span>0 selected</span>
+          <span>{t("selected", { count: numberFormatter.format(0) })}</span>
           <div className="flex flex-wrap items-center gap-2">
-            <Metric label="Total" value={members.length} />
-            <Metric label="Active" value={active} />
-            <Metric label="Inactive" value={inactive} />
-            <Metric label="QR ready" value={withQr} />
+            <Metric label={t("total")} value={numberFormatter.format(members.length)} />
+            <Metric label={t("active")} value={numberFormatter.format(active)} />
+            <Metric label={t("inactive")} value={numberFormatter.format(inactive)} />
+            <Metric label={t("qrReady")} value={numberFormatter.format(withQr)} />
           </div>
         </div>
 
@@ -58,15 +61,15 @@ export default async function Page({
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">
-                <Checkbox aria-label="Select all members" />
+                <Checkbox aria-label={t("selectAll")} />
               </TableHead>
-              <TableHead>Member</TableHead>
-              <TableHead>Subscription</TableHead>
-              <TableHead>QR</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Total paid</TableHead>
-              <TableHead>Joined date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t("member")}</TableHead>
+              <TableHead>{t("subscription")}</TableHead>
+              <TableHead>{t("qr")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
+              <TableHead>{t("totalPaid")}</TableHead>
+              <TableHead>{t("joinedDate")}</TableHead>
+              <TableHead className="text-end">{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -74,7 +77,7 @@ export default async function Page({
               members.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell>
-                    <Checkbox aria-label={`Select ${member.name}`} />
+                    <Checkbox aria-label={t("selectMember", { name: member.name })} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -88,16 +91,16 @@ export default async function Page({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{member.latest_subscription?.plan_name ?? "No subscription"}</div>
+                    <div className="font-medium">{member.latest_subscription?.plan_name ?? t("noSubscription")}</div>
                     <div className="text-muted-foreground text-xs">
-                      {member.latest_subscription?.status ?? "none"} · {member.expiry_date ?? "no expiry"}
+                      {member.latest_subscription?.status ?? t("none")} · {member.expiry_date ?? t("noExpiry")}
                     </div>
                   </TableCell>
                   <TableCell>
                     {member.attendance_qr ? (
-                      <Badge variant="outline">Ready</Badge>
+                      <Badge variant="outline">{t("ready")}</Badge>
                     ) : (
-                      <Badge variant="outline">Missing</Badge>
+                      <Badge variant="outline">{t("missing")}</Badge>
                     )}
                   </TableCell>
                   <TableCell>
@@ -107,7 +110,7 @@ export default async function Page({
                     {formatCurrency(Number(member.total_paid), { currency: "EGP", noDecimals: true })}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{member.join_date ?? "-"}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-end">
                     <MemberActionsMenu
                       member={member}
                       history={histories[member.id]}
@@ -119,7 +122,7 @@ export default async function Page({
             ) : (
               <TableRow>
                 <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                  No members returned by the backend.
+                  {t("noMembers")}
                 </TableCell>
               </TableRow>
             )}
@@ -132,7 +135,7 @@ export default async function Page({
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <span className="rounded-md border px-2 py-1">
       {label}: <span className="text-foreground tabular-nums">{value}</span>

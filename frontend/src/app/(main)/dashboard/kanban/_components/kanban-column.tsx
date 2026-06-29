@@ -11,12 +11,25 @@ import type { Column, Task } from "./types";
 
 interface KanbanColumnProps {
   column: Column;
+  columnTitle: string;
   tasks: Task[];
+  taskCountLabel: string;
   onAddTask: () => void;
   onOpenTask?: (task: Task) => void;
+  addTaskLabel: string;
+  dragLabel: string;
 }
 
-export function KanbanColumn({ column, onAddTask, onOpenTask, tasks }: KanbanColumnProps) {
+export function KanbanColumn({
+  addTaskLabel,
+  column,
+  columnTitle,
+  dragLabel,
+  onAddTask,
+  onOpenTask,
+  taskCountLabel,
+  tasks,
+}: KanbanColumnProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: column.id,
     data: { type: "column", columnId: column.id },
@@ -42,20 +55,18 @@ export function KanbanColumn({ column, onAddTask, onOpenTask, tasks }: KanbanCol
               variant="ghost"
               size="icon-xs"
               className="-ml-2 cursor-grab text-foreground/70 active:cursor-grabbing"
-              aria-label={`Drag ${column.title} column`}
+              aria-label={dragLabel}
               {...attributes}
               {...listeners}
             >
               <GripVertical />
             </Button>
-            <h2 className="truncate font-medium text-base leading-none">{column.title}</h2>
+            <h2 className="truncate font-medium text-base leading-none">{columnTitle}</h2>
           </div>
-          <p className="text-muted-foreground text-sm tabular-nums leading-none">
-            {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
-          </p>
+          <p className="text-muted-foreground text-sm tabular-nums leading-none">{taskCountLabel}</p>
         </div>
         <div className="-mr-2 flex items-center gap-0.5 text-muted-foreground">
-          <Button variant="ghost" size="icon-sm" aria-label={`Add task to ${column.title}`} onClick={onAddTask}>
+          <Button variant="ghost" size="icon-sm" aria-label={addTaskLabel} onClick={onAddTask}>
             <Plus />
           </Button>
         </div>

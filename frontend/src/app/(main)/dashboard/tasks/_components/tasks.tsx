@@ -16,6 +16,7 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,8 @@ function getPageNumbers(currentPage: number, pageCount: number) {
 }
 
 export function Tasks({ data }: TasksProps) {
+  const t = useTranslations("Dashboard.tasks");
+  const locale = useLocale();
   const [tasks, setTasks] = React.useState(data);
   const [detailTask, setDetailTask] = React.useState<Task | null>(null);
   const [rowSelection, setRowSelection] = React.useState({});
@@ -80,7 +83,7 @@ export function Tasks({ data }: TasksProps) {
     pageSize: 10,
   });
 
-  const columns = React.useMemo(() => getColumns(setDetailTask), []);
+  const columns = React.useMemo(() => getColumns(setDetailTask, t), [t]);
 
   const table = useReactTable({
     data: tasks,
@@ -145,7 +148,7 @@ export function Tasks({ data }: TasksProps) {
           ) : (
             <TableRow>
               <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-24 text-center">
-                No results.
+                {t("noResults")}
               </TableCell>
             </TableRow>
           )}
@@ -153,12 +156,14 @@ export function Tasks({ data }: TasksProps) {
       </Table>
       <div className="flex flex-col gap-3 border-t px-4 py-4 md:flex-row md:items-center md:justify-between">
         <div className="text-muted-foreground text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
-          selected.
+          {t("selectedRows", {
+            selected: table.getFilteredSelectedRowModel().rows.length,
+            total: table.getFilteredRowModel().rows.length,
+          })}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-6 lg:gap-8">
           <div className="flex items-center gap-2">
-            <p className="font-medium text-muted-foreground text-sm">Rows per page</p>
+            <p className="font-medium text-muted-foreground text-sm">{t("rowsPerPage")}</p>
             <Select
               value={`${table.getState().pagination.pageSize}`}
               onValueChange={(value) => {
@@ -180,14 +185,14 @@ export function Tasks({ data }: TasksProps) {
             </Select>
           </div>
           <div className="flex w-24 items-center justify-start font-medium text-sm sm:justify-center">
-            Page {currentPage} of {pageCount}
+            {t("pageOf", { page: currentPage, total: pageCount })}
           </div>
           <Pagination className="mx-0 w-auto justify-start sm:justify-end">
             <PaginationContent className="gap-1">
               <PaginationItem className="hidden lg:block">
                 <PaginationLink
                   href="#"
-                  aria-label="Go to first page"
+                  aria-label={t("goFirst")}
                   aria-disabled={!canPreviousPage}
                   className={cn(!canPreviousPage && "pointer-events-none opacity-50")}
                   onClick={(event) => {
@@ -201,7 +206,7 @@ export function Tasks({ data }: TasksProps) {
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
-                  text="Prev"
+                  text={t("prev")}
                   aria-disabled={!canPreviousPage}
                   className={cn(!canPreviousPage && "pointer-events-none opacity-50")}
                   onClick={(event) => {
@@ -248,7 +253,7 @@ export function Tasks({ data }: TasksProps) {
               <PaginationItem className="hidden lg:block">
                 <PaginationLink
                   href="#"
-                  aria-label="Go to last page"
+                  aria-label={t("goLast")}
                   aria-disabled={!canNextPage}
                   className={cn(!canNextPage && "pointer-events-none opacity-50")}
                   onClick={(event) => {
@@ -267,6 +272,7 @@ export function Tasks({ data }: TasksProps) {
         task={detailTask}
         open={detailTask !== null}
         onOpenChange={(open) => !open && setDetailTask(null)}
+        locale={locale}
         onTaskUpdated={(task) => {
           const nextTask = toActionTask(task);
           setTasks((current) => current.map((item) => (item.id === nextTask.id ? nextTask : item)));
@@ -281,13 +287,16 @@ function TaskDetailsDialog({
   task,
   open,
   onOpenChange,
+  locale,
   onTaskUpdated,
 }: {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  locale: string;
   onTaskUpdated: (task: ApiGymTask) => void;
 }) {
+  const t = useTranslations("Dashboard.tasks");
   const [pending, startTransition] = React.useTransition();
   const [comments, setComments] = React.useState<ApiGymTaskComment[]>([]);
   const [progress, setProgress] = React.useState(0);
@@ -315,7 +324,7 @@ function TaskDetailsDialog({
       if (cancelled) return;
 
       if (!result.ok) {
-        toast.error("Task not loaded", { description: result.message });
+        toast.error(t("taskNotLoaded"), { description: result.message });
         return;
       }
 
@@ -326,7 +335,7 @@ function TaskDetailsDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, task]);
+  }, [open, task, t]);
 
   if (!task) return null;
 
@@ -337,7 +346,7 @@ function TaskDetailsDialog({
       const result = await updateGymTaskProgress(task.sourceId as number, progress);
 
       if (!result.ok) {
-        toast.error("Progress not saved", { description: result.message });
+        toast.error(t("progressNotSaved"), { description: result.message });
         return;
       }
 
@@ -354,7 +363,7 @@ function TaskDetailsDialog({
       const result = await createGymTaskComment(task.sourceId as number, commentBody.trim());
 
       if (!result.ok) {
-        toast.error("Comment not added", { description: result.message });
+        toast.error(t("commentNotAdded"), { description: result.message });
         return;
       }
 
@@ -374,20 +383,18 @@ function TaskDetailsDialog({
 
         <div className="grid gap-4">
           <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 text-sm sm:grid-cols-4">
-            <InfoItem label="Assigned to" value={task.owner.name} />
-            <InfoItem label="Due date" value={task.dueDate} />
-            <InfoItem label="Team" value={task.team} />
-            <InfoItem label="Source" value={task.sourceLabel} />
+            <InfoItem label={t("assignedTo")} value={task.owner.name} />
+            <InfoItem label={t("dueDate")} value={task.dueDate} />
+            <InfoItem label={t("team")} value={task.team} />
+            <InfoItem label={t("source")} value={task.sourceLabel} />
           </div>
 
           <div className="rounded-lg border p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="font-medium text-sm">Progress</div>
+                <div className="font-medium text-sm">{t("progress")}</div>
                 <div className="text-muted-foreground text-xs">
-                  {task.editable
-                    ? "Update progress for manual assigned tasks."
-                    : "Backend alert progress is read-only."}
+                  {task.editable ? t("progressManualDescription") : t("progressReadonlyDescription")}
                 </div>
               </div>
               <div className="font-medium text-sm tabular-nums">{progress}%</div>
@@ -405,7 +412,7 @@ function TaskDetailsDialog({
             {task.editable ? (
               <div className="mt-3 flex justify-end">
                 <Button disabled={pending || progress === task.progress} size="sm" onClick={saveProgress}>
-                  Save progress
+                  {t("saveProgress")}
                 </Button>
               </div>
             ) : null}
@@ -413,10 +420,10 @@ function TaskDetailsDialog({
 
           {task.href ? (
             <div className="rounded-lg border p-4">
-              <div className="font-medium text-sm">Backend source</div>
-              <p className="mt-1 text-muted-foreground text-sm">Resolve generated alerts from their source page.</p>
+              <div className="font-medium text-sm">{t("backendSource")}</div>
+              <p className="mt-1 text-muted-foreground text-sm">{t("backendSourceDescription")}</p>
               <Button render={<a href={task.href} />} className="mt-3" size="sm" variant="outline">
-                Open source page
+                {t("openSourcePage")}
               </Button>
             </div>
           ) : null}
@@ -424,8 +431,8 @@ function TaskDetailsDialog({
           <div className="rounded-lg border p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="font-medium text-sm">Comments</div>
-                <div className="text-muted-foreground text-xs">Admin, employee, and manager discussion.</div>
+                <div className="font-medium text-sm">{t("comments")}</div>
+                <div className="text-muted-foreground text-xs">{t("commentsDescription")}</div>
               </div>
               <Badge variant="secondary">{comments.length}</Badge>
             </div>
@@ -435,12 +442,12 @@ function TaskDetailsDialog({
                 <Textarea
                   disabled={pending}
                   onChange={(event) => setCommentBody(event.target.value)}
-                  placeholder="Add task update..."
+                  placeholder={t("addTaskUpdate")}
                   value={commentBody}
                 />
                 <div className="flex justify-end">
                   <Button disabled={pending || !commentBody.trim()} size="sm" type="submit">
-                    Add comment
+                    {t("addComment")}
                   </Button>
                 </div>
               </form>
@@ -451,15 +458,17 @@ function TaskDetailsDialog({
                 comments.map((comment) => (
                   <div key={comment.id} className="rounded-md bg-muted/40 p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium text-sm">{comment.user?.name ?? "System"}</div>
-                      <div className="text-muted-foreground text-xs">{formatCommentDate(comment.created_at)}</div>
+                      <div className="font-medium text-sm">{comment.user?.name ?? t("system")}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {formatCommentDate(comment.created_at, locale, t("justNow"))}
+                      </div>
                     </div>
                     <p className="mt-1 whitespace-pre-wrap text-sm">{comment.body}</p>
                   </div>
                 ))
               ) : (
                 <div className="rounded-md bg-muted/40 p-4 text-muted-foreground text-sm">
-                  {task.editable ? "No comments yet." : "Generated backend alerts do not store task comments here yet."}
+                  {task.editable ? t("noComments") : t("generatedNoComments")}
                 </div>
               )}
             </div>
@@ -489,12 +498,12 @@ function toActionTask(task: ApiGymTask): Task {
   };
 }
 
-function formatCommentDate(value: string | null) {
-  if (!value) return "Just now";
+function formatCommentDate(value: string | null, locale: string, fallback: string) {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Just now";
+  if (Number.isNaN(date.getTime())) return fallback;
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",

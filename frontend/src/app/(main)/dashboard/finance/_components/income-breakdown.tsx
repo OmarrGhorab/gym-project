@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
@@ -5,12 +7,13 @@ import { formatCurrency } from "@/lib/utils";
 import type { FinanceMoneySource } from "./data";
 
 export function IncomeBreakdown({ sources }: { sources: FinanceMoneySource[] }) {
+  const t = useTranslations("Dashboard.finance");
   const visibleSources = sources.length > 0 ? sources : [];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Revenue sources</CardTitle>
+        <CardTitle className="font-normal">{t("revenueSources")}</CardTitle>
       </CardHeader>
 
       <CardContent className="grid grid-cols-1 gap-1 md:grid-cols-3">

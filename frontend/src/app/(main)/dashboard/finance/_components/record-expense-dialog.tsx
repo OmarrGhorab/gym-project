@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, ReceiptText } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,17 +41,23 @@ function parseDateString(value: string) {
 }
 
 function DatePickerField({ name }: { name: string }) {
+  const t = useTranslations("Dashboard.finance");
+  const locale = useLocale();
   const [value, setValue] = React.useState(formatDateString(new Date()));
   const selectedDate = parseDateString(value);
 
   return (
     <div className="grid gap-2">
-      <span className="font-medium text-sm">Date</span>
+      <span className="font-medium text-sm">{t("date")}</span>
       <Popover>
         <PopoverTrigger
           render={
             <Button type="button" variant="outline" className="w-full justify-between font-normal">
-              {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Select date"}
+              {selectedDate
+                ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(
+                    selectedDate,
+                  )
+                : t("selectDate")}
               <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
             </Button>
           }
@@ -74,6 +81,7 @@ function DatePickerField({ name }: { name: string }) {
 }
 
 export function RecordExpenseDialog() {
+  const t = useTranslations("Dashboard.finance");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -89,7 +97,7 @@ export function RecordExpenseDialog() {
         return;
       }
 
-      toast.error("Expense not recorded", { description: result.message });
+      toast.error(t("expenseNotRecorded"), { description: result.message });
     });
   }
 
@@ -97,35 +105,35 @@ export function RecordExpenseDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" variant="outline" />}>
         <ReceiptText data-icon="inline-start" />
-        Record expense
+        {t("actions.recordExpense")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record expense</DialogTitle>
-          <DialogDescription>Add an operational cost to the finance ledger.</DialogDescription>
+          <DialogTitle>{t("actions.recordExpense")}</DialogTitle>
+          <DialogDescription>{t("recordExpenseDescription")}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <span className="font-medium text-sm">Category</span>
-              <Input name="category" required placeholder="Rent, utilities, maintenance" />
+              <span className="font-medium text-sm">{t("category")}</span>
+              <Input name="category" required placeholder={t("categoryPlaceholder")} />
             </div>
             <div className="grid gap-2">
-              <span className="font-medium text-sm">Amount</span>
+              <span className="font-medium text-sm">{t("amount")}</span>
               <Input name="amount" required type="number" min="0.01" step="0.01" placeholder="1500" />
             </div>
           </div>
           <DatePickerField name="date" />
           <div className="grid gap-2">
-            <span className="font-medium text-sm">Description</span>
-            <Textarea name="description" placeholder="Optional note" />
+            <span className="font-medium text-sm">{t("description")}</span>
+            <Textarea name="description" placeholder={t("descriptionPlaceholder")} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Saving..." : "Save expense"}
+              {pending ? t("saving") : t("saveExpense")}
             </Button>
           </DialogFooter>
         </form>

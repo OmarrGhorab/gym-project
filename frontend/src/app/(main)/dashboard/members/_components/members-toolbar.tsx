@@ -5,6 +5,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Search } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,35 +14,36 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { AddMemberDialog } from "./member-action-dialogs";
 
 type Option = {
-  label: string;
+  labelKey: "15" | "25" | "50" | "active" | "activePlan" | "all" | "inactive" | "missing" | "noPlan" | "ready";
   value: string;
 };
 
 const statusOptions: Option[] = [
-  { label: "All", value: "all" },
-  { label: "Active", value: "active" },
-  { label: "Inactive", value: "inactive" },
+  { labelKey: "all", value: "all" },
+  { labelKey: "active", value: "active" },
+  { labelKey: "inactive", value: "inactive" },
 ];
 
 const planOptions: Option[] = [
-  { label: "All", value: "all" },
-  { label: "Active plan", value: "active" },
-  { label: "No plan", value: "none" },
+  { labelKey: "all", value: "all" },
+  { labelKey: "activePlan", value: "active" },
+  { labelKey: "noPlan", value: "none" },
 ];
 
 const qrOptions: Option[] = [
-  { label: "All", value: "all" },
-  { label: "Ready", value: "ready" },
-  { label: "Missing", value: "missing" },
+  { labelKey: "all", value: "all" },
+  { labelKey: "ready", value: "ready" },
+  { labelKey: "missing", value: "missing" },
 ];
 
 const rowsOptions: Option[] = [
-  { label: "15", value: "15" },
-  { label: "25", value: "25" },
-  { label: "50", value: "50" },
+  { labelKey: "15", value: "15" },
+  { labelKey: "25", value: "25" },
+  { labelKey: "50", value: "50" },
 ];
 
 export function MembersHeaderActions() {
+  const t = useTranslations("Dashboard.membersPage");
   const router = useQueryRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
@@ -54,10 +56,10 @@ export function MembersHeaderActions() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <form onSubmit={submit} className="relative">
-        <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          className="w-64 pl-8"
-          placeholder="Search members..."
+          className="w-64 ps-8"
+          placeholder={t("searchMembers")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -70,10 +72,10 @@ export function MembersHeaderActions() {
           router.replace({});
         }}
       >
-        Reset
+        {t("reset")}
       </Button>
       <Button nativeButton={false} size="sm" variant="outline" render={<a href="/api/finance/export" />}>
-        Export
+        {t("export")}
       </Button>
       <AddMemberDialog />
     </div>
@@ -81,6 +83,9 @@ export function MembersHeaderActions() {
 }
 
 export function MembersFilterBar({ total }: { total: number }) {
+  const t = useTranslations("Dashboard.membersPage");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const router = useQueryRouter();
   const searchParams = useSearchParams();
 
@@ -89,33 +94,33 @@ export function MembersFilterBar({ total }: { total: number }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <FilterSelect
-            label="Status"
+            label={t("status")}
             options={statusOptions}
             value={searchParams.get("status") ?? "all"}
             onValueChange={(value) => router.set({ page: null, status: value === "all" ? null : value })}
           />
           <FilterSelect
-            label="Plan"
+            label={t("plan")}
             options={planOptions}
             value={searchParams.get("plan") ?? "all"}
             onValueChange={(value) => router.set({ page: null, plan: value === "all" ? null : value })}
           />
           <FilterSelect
-            label="QR"
+            label={t("qr")}
             options={qrOptions}
             value={searchParams.get("qr") ?? "all"}
             onValueChange={(value) => router.set({ page: null, qr: value === "all" ? null : value })}
           />
         </div>
         <FilterSelect
-          label="Rows"
+          label={t("rows")}
           options={rowsOptions}
           value={searchParams.get("per_page") ?? "15"}
           onValueChange={(value) => router.set({ page: null, per_page: value })}
         />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 text-muted-foreground text-sm">
-        <span>Showing {total} members</span>
+        <span>{t("showingMembers", { count: numberFormatter.format(total) })}</span>
       </div>
     </div>
   );
@@ -130,14 +135,17 @@ export function MembersPagination({
   lastPage: number;
   perPage: string;
 }) {
+  const t = useTranslations("Dashboard.membersPage");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const router = useQueryRouter();
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4 text-sm">
       <div className="flex items-center gap-2 text-muted-foreground">
-        <span>Rows per page</span>
+        <span>{t("rowsPerPage")}</span>
         <FilterSelect
-          label="Rows"
+          label={t("rows")}
           options={rowsOptions}
           value={perPage}
           onValueChange={(value) => router.set({ page: null, per_page: value })}
@@ -150,10 +158,10 @@ export function MembersPagination({
           disabled={currentPage <= 1}
           onClick={() => router.set({ page: String(Math.max(1, currentPage - 1)) })}
         >
-          Previous
+          {t("previous")}
         </Button>
         <div className="text-muted-foreground">
-          Page {currentPage} of {lastPage}
+          {t("pageOf", { page: numberFormatter.format(currentPage), total: numberFormatter.format(lastPage) })}
         </div>
         <Button
           size="sm"
@@ -161,7 +169,7 @@ export function MembersPagination({
           disabled={currentPage >= lastPage}
           onClick={() => router.set({ page: String(Math.min(lastPage, currentPage + 1)) })}
         >
-          Next
+          {t("next")}
         </Button>
       </div>
     </div>
@@ -179,6 +187,8 @@ function FilterSelect({
   options: Option[];
   value: string;
 }) {
+  const t = useTranslations("Dashboard.membersPage");
+
   return (
     <Select
       value={value}
@@ -195,13 +205,21 @@ function FilterSelect({
         <SelectGroup>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
-              {label}: {option.label}
+              {label}: {getOptionLabel(option, t)}
             </SelectItem>
           ))}
         </SelectGroup>
       </SelectContent>
     </Select>
   );
+}
+
+function getOptionLabel(option: Option, t: ReturnType<typeof useTranslations>) {
+  if (/^\d+$/.test(option.labelKey)) {
+    return option.labelKey;
+  }
+
+  return t(option.labelKey);
 }
 
 function useQueryRouter() {

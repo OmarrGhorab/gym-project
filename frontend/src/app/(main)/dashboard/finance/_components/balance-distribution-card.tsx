@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Label, Pie, PieChart } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,36 +11,37 @@ import type { FinanceMoneySource } from "./data";
 
 const methodColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
-const chartConfig = {
-  amount: {
-    label: "Amount",
-  },
-  bank_transfer: {
-    color: "var(--chart-1)",
-    label: "Bank transfer",
-  },
-  card: {
-    color: "var(--chart-2)",
-    label: "Card",
-  },
-  cash: {
-    color: "var(--chart-3)",
-    label: "Cash",
-  },
-} satisfies ChartConfig;
-
 export function BalanceDistributionCard({ methods }: { methods: FinanceMoneySource[] }) {
+  const t = useTranslations("Dashboard.finance");
+  const chartConfig = {
+    amount: {
+      label: t("amount"),
+    },
+    bank_transfer: {
+      color: "var(--chart-1)",
+      label: t("bankTransfer"),
+    },
+    card: {
+      color: "var(--chart-2)",
+      label: t("card"),
+    },
+    cash: {
+      color: "var(--chart-3)",
+      label: t("cash"),
+    },
+  } satisfies ChartConfig;
   const chartData = methods.map((item, index) => ({
     ...item,
     amountValue: Number(item.amount),
     fill: methodColors[index % methodColors.length],
+    label: chartConfig[item.key as keyof typeof chartConfig]?.label ?? item.label,
   }));
   const total = chartData.reduce((sum, item) => sum + item.amountValue, 0);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Payment Method Allocation</CardTitle>
+        <CardTitle className="font-normal">{t("paymentMethodAllocation")}</CardTitle>
       </CardHeader>
 
       <CardContent className="grid items-center gap-4 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)]">
@@ -65,7 +67,7 @@ export function BalanceDistributionCard({ methods }: { methods: FinanceMoneySour
                   return (
                     <text dominantBaseline="middle" textAnchor="middle" x={viewBox.cx} y={viewBox.cy}>
                       <tspan className="fill-muted-foreground text-xs" x={viewBox.cx} y={(viewBox.cy ?? 0) - 8}>
-                        Collected
+                        {t("collected")}
                       </tspan>
                       <tspan
                         className="fill-foreground font-heading font-medium text-lg tabular-nums"

@@ -3,6 +3,7 @@
 
 import type { Table } from "@tanstack/react-table";
 import { Settings2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ interface TasksToolbarProps<TData> {
 }
 
 export function TasksToolbar<TData>({ table }: TasksToolbarProps<TData>) {
+  const t = useTranslations("Dashboard.tasks");
   const isFiltered = table.getState().columnFilters.length > 0;
   const searchValue = (table.getColumn("title")?.getFilterValue() as string) ?? "";
   const hideableColumns = table
@@ -36,7 +38,7 @@ export function TasksToolbar<TData>({ table }: TasksToolbarProps<TData>) {
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
         <Input
-          placeholder="Filter tasks..."
+          placeholder={t("filterTasks")}
           value={searchValue}
           onChange={(event) => {
             table.getColumn("title")?.setFilterValue(event.target.value);
@@ -55,7 +57,7 @@ export function TasksToolbar<TData>({ table }: TasksToolbarProps<TData>) {
             }}
           >
             <X data-icon="inline-start" />
-            Reset
+            {t("reset")}
           </Button>
         )}
       </div>
@@ -71,10 +73,10 @@ export function TasksToolbar<TData>({ table }: TasksToolbarProps<TData>) {
             }
           >
             <Settings2 data-icon="inline-start" />
-            View
+            {t("view")}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-38">
-            <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("toggleColumns")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {hideableColumns.map((column) => (

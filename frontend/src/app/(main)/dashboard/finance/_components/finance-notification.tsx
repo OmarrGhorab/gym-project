@@ -1,4 +1,5 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -7,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { FinanceDashboardData } from "./data";
 
 export function FinanceNotification({ totals }: { totals: FinanceDashboardData["totals"] }) {
+  const t = useTranslations("Dashboard.finance");
   const dues = Number(totals.outstanding_dues);
   const profit = Number(totals.net_profit_mtd);
   const margin = Number(totals.profit_margin);
@@ -18,15 +20,17 @@ export function FinanceNotification({ totals }: { totals: FinanceDashboardData["
         <Icon />
       </ItemMedia>
       <ItemContent>
-        <ItemTitle>{profit >= 0 ? "Finance position is positive" : "Finance position needs attention"}</ItemTitle>
+        <ItemTitle>{profit >= 0 ? t("positivePosition") : t("attentionPosition")}</ItemTitle>
         <ItemDescription>
-          {formatCurrency(dues, { currency: "EGP", noDecimals: true })} outstanding dues · {margin.toFixed(1)}% margin
-          this month.
+          {t("positionDescription", {
+            dues: formatCurrency(dues, { currency: "EGP", noDecimals: true }),
+            margin: margin.toFixed(1),
+          })}
         </ItemDescription>
       </ItemContent>
       <ItemActions>
         <Button size="sm" variant="outline">
-          View dues
+          {t("viewDues")}
         </Button>
       </ItemActions>
     </Item>

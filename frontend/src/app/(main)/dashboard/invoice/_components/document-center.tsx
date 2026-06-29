@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, FileArchive, IdCard, Printer, ReceiptText, ShieldAlert } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,8 @@ const qrPreviewCells = Array.from({ length: 25 }, (_, index) => ({
 }));
 
 export function DocumentCenter({ data }: { data: DocumentCenterData }) {
+  const t = useTranslations("Dashboard.documents");
+  const locale = useLocale();
   const firstMemberWithCode = data.members.find((member) => member.attendance_code || member.attendance_qr);
 
   return (
@@ -24,50 +27,52 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
       <TabsList className="w-full flex-wrap justify-start">
         <TabsTrigger value="payroll">
           <ReceiptText data-icon="inline-start" />
-          Payroll
+          {t("tabs.payroll")}
         </TabsTrigger>
         <TabsTrigger value="sales">
           <Printer data-icon="inline-start" />
-          Receipts
+          {t("tabs.receipts")}
         </TabsTrigger>
         <TabsTrigger value="members">
           <IdCard data-icon="inline-start" />
-          Member QR
+          {t("tabs.memberQr")}
         </TabsTrigger>
         <TabsTrigger value="attendance">
           <ShieldAlert data-icon="inline-start" />
-          Attendance
+          {t("tabs.attendance")}
         </TabsTrigger>
         <TabsTrigger value="exports">
           <FileArchive data-icon="inline-start" />
-          Exports
+          {t("tabs.exports")}
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="payroll">
         <Card>
           <CardHeader>
-            <CardTitle>Salary Receipts</CardTitle>
-            <CardDescription>Download backend-generated salary receipts with attendance deductions.</CardDescription>
+            <CardTitle>{t("salaryReceipts")}</CardTitle>
+            <CardDescription>{t("salaryReceiptsDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Month</TableHead>
-                  <TableHead>Attendance deductions</TableHead>
-                  <TableHead>Net salary</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Download</TableHead>
+                  <TableHead>{t("employee")}</TableHead>
+                  <TableHead>{t("month")}</TableHead>
+                  <TableHead>{t("attendanceDeductions")}</TableHead>
+                  <TableHead>{t("netSalary")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead className="text-end">{t("download")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.payroll.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>
-                      <div className="font-medium">{row.employee.name ?? `Employee #${row.employee.id}`}</div>
-                      <div className="text-muted-foreground text-xs">{row.employee.role ?? "Staff"}</div>
+                      <div className="font-medium">
+                        {row.employee.name ?? t("employeeFallback", { id: row.employee.id })}
+                      </div>
+                      <div className="text-muted-foreground text-xs">{row.employee.role ?? t("staff")}</div>
                     </TableCell>
                     <TableCell>{row.month}</TableCell>
                     <TableCell>{money(row.attendance_deductions)}</TableCell>
@@ -75,7 +80,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                     <TableCell>
                       <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{cleanLabel(row.status)}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <Button
                         render={<a href={`/api/payroll/${row.id}/payslip`} />}
                         nativeButton={false}
@@ -88,7 +93,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {data.payroll.length === 0 ? <EmptyRow colSpan={6} label="No payroll receipts yet." /> : null}
+                {data.payroll.length === 0 ? <EmptyRow colSpan={6} label={t("noPayrollReceipts")} /> : null}
               </TableBody>
             </Table>
           </CardContent>
@@ -98,41 +103,40 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
       <TabsContent value="sales">
         <Card>
           <CardHeader>
-            <CardTitle>POS Sale Receipts</CardTitle>
-            <CardDescription>
-              Recent sales can be reprinted or downloaded through the authenticated PDF proxy.
-            </CardDescription>
+            <CardTitle>{t("posSaleReceipts")}</CardTitle>
+            <CardDescription>{t("posSaleReceiptsDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Sale</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Seller</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Receipt</TableHead>
+                  <TableHead>{t("sale")}</TableHead>
+                  <TableHead>{t("customer")}</TableHead>
+                  <TableHead>{t("seller")}</TableHead>
+                  <TableHead>{t("total")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead className="text-end">{t("receipt")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.sales.map((sale) => (
                   <TableRow key={sale.id}>
                     <TableCell>
-                      <div className="font-medium">Sale #{sale.id}</div>
-                      <div className="text-muted-foreground text-xs">{formatDateTime(sale.created_at)}</div>
+                      <div className="font-medium">{t("saleNumber", { id: sale.id })}</div>
+                      <div className="text-muted-foreground text-xs">{formatDateTime(sale.created_at, locale, t)}</div>
                     </TableCell>
                     <TableCell>
-                      {sale.member?.name ?? (sale.member_id ? `Member #${sale.member_id}` : "Walk-in")}
+                      {sale.member?.name ??
+                        (sale.member_id ? t("memberFallback", { id: sale.member_id }) : t("walkIn"))}
                     </TableCell>
-                    <TableCell>{sale.sold_by?.name ?? "POS staff"}</TableCell>
+                    <TableCell>{sale.sold_by?.name ?? t("posStaff")}</TableCell>
                     <TableCell className="font-medium">{money(sale.total)}</TableCell>
                     <TableCell>
                       <Badge variant={sale.status === "completed" ? "secondary" : "outline"}>
                         {cleanLabel(sale.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-end">
                       <Button
                         render={<a href={`/api/sales/${sale.id}/receipt`} />}
                         nativeButton={false}
@@ -145,7 +149,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {data.sales.length === 0 ? <EmptyRow colSpan={6} label="No sale receipts yet." /> : null}
+                {data.sales.length === 0 ? <EmptyRow colSpan={6} label={t("noSaleReceipts")} /> : null}
               </TableBody>
             </Table>
           </CardContent>
@@ -156,17 +160,17 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
         <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
           <Card>
             <CardHeader>
-              <CardTitle>Member QR Cards</CardTitle>
-              <CardDescription>Use these codes for front-desk check-in/out scanning.</CardDescription>
+              <CardTitle>{t("memberQrCards")}</CardTitle>
+              <CardDescription>{t("memberQrDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>QR payload</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("member")}</TableHead>
+                    <TableHead>{t("plan")}</TableHead>
+                    <TableHead>{t("qrPayload")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -177,13 +181,13 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                         <div className="text-muted-foreground text-xs">{member.phone}</div>
                       </TableCell>
                       <TableCell>
-                        <div>{member.latest_subscription?.plan_name ?? "No active plan"}</div>
+                        <div>{member.latest_subscription?.plan_name ?? t("noActivePlan")}</div>
                         <div className="text-muted-foreground text-xs">
-                          Ends {member.latest_subscription?.end_date ?? "not set"}
+                          {t("ends", { date: member.latest_subscription?.end_date ?? t("notSet") })}
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {member.attendance_qr ?? member.attendance_code ?? "Missing"}
+                        {member.attendance_qr ?? member.attendance_code ?? t("missing")}
                       </TableCell>
                       <TableCell>
                         <Badge variant={member.status === "active" ? "secondary" : "outline"}>
@@ -192,7 +196,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {data.members.length === 0 ? <EmptyRow colSpan={4} label="No members available." /> : null}
+                  {data.members.length === 0 ? <EmptyRow colSpan={4} label={t("noMembers")} /> : null}
                 </TableBody>
               </Table>
             </CardContent>
@@ -205,19 +209,19 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
       <TabsContent value="attendance">
         <Card>
           <CardHeader>
-            <CardTitle>Attendance Summaries</CardTitle>
-            <CardDescription>Monthly staff attendance figures used by payroll and warnings.</CardDescription>
+            <CardTitle>{t("attendanceSummaries")}</CardTitle>
+            <CardDescription>{t("attendanceSummariesDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Month</TableHead>
-                  <TableHead>Present</TableHead>
-                  <TableHead>Late</TableHead>
-                  <TableHead>Absent</TableHead>
-                  <TableHead>Late minutes</TableHead>
+                  <TableHead>{t("employee")}</TableHead>
+                  <TableHead>{t("month")}</TableHead>
+                  <TableHead>{t("present")}</TableHead>
+                  <TableHead>{t("late")}</TableHead>
+                  <TableHead>{t("absent")}</TableHead>
+                  <TableHead>{t("lateMinutes")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -235,7 +239,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                   </TableRow>
                 ))}
                 {data.attendance.summary.length === 0 ? (
-                  <EmptyRow colSpan={6} label="No attendance summaries yet." />
+                  <EmptyRow colSpan={6} label={t("noAttendanceSummaries")} />
                 ) : null}
               </TableBody>
             </Table>
@@ -247,26 +251,26 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Finance Workbook</CardTitle>
-              <CardDescription>Exports the current year financial report as an XLSX file.</CardDescription>
+              <CardTitle>{t("financeWorkbook")}</CardTitle>
+              <CardDescription>{t("financeWorkbookDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Button render={<a href="/api/finance/export" />} nativeButton={false}>
                 <Download data-icon="inline-start" />
-                Download finance report
+                {t("downloadFinanceReport")}
               </Button>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Document Readiness</CardTitle>
-              <CardDescription>Backend-backed document sources currently connected to this dashboard.</CardDescription>
+              <CardTitle>{t("documentReadiness")}</CardTitle>
+              <CardDescription>{t("documentReadinessDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
-              <Readiness label="Payroll PDF route" ready={data.payroll.length > 0} />
-              <Readiness label="Sale receipt PDF route" ready={data.sales.length > 0} />
-              <Readiness label="Member QR payloads" ready={data.members.some((member) => member.attendance_code)} />
-              <Readiness label="Attendance summary" ready={data.attendance.summary.length > 0} />
+              <Readiness label={t("payrollPdfRoute")} ready={data.payroll.length > 0} />
+              <Readiness label={t("saleReceiptPdfRoute")} ready={data.sales.length > 0} />
+              <Readiness label={t("memberQrPayloads")} ready={data.members.some((member) => member.attendance_code)} />
+              <Readiness label={t("attendanceSummary")} ready={data.attendance.summary.length > 0} />
             </CardContent>
           </Card>
         </div>
@@ -276,13 +280,14 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
 }
 
 function MemberQrPreview({ member }: { member: DocumentMemberRow | null }) {
+  const t = useTranslations("Dashboard.documents");
   const payload = member?.attendance_qr ?? member?.attendance_code ?? null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Printable QR Card</CardTitle>
-        <CardDescription>Front desk can print this card from the browser for physical scanning.</CardDescription>
+        <CardTitle>{t("printableQrCard")}</CardTitle>
+        <CardDescription>{t("printableQrDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         {member ? (
@@ -299,11 +304,11 @@ function MemberQrPreview({ member }: { member: DocumentMemberRow | null }) {
             </div>
             <div className="mt-4 font-medium">{member.name}</div>
             <div className="text-muted-foreground text-sm">{member.phone}</div>
-            <div className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-xs">{payload ?? "QR code missing"}</div>
+            <div className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-xs">{payload ?? t("qrCodeMissing")}</div>
           </div>
         ) : (
           <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground text-sm">
-            Add members to generate printable cards.
+            {t("addMembers")}
           </div>
         )}
       </CardContent>
@@ -312,10 +317,12 @@ function MemberQrPreview({ member }: { member: DocumentMemberRow | null }) {
 }
 
 function Readiness({ label, ready }: { label: string; ready: boolean }) {
+  const t = useTranslations("Dashboard.documents");
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
       <span>{label}</span>
-      <Badge variant={ready ? "secondary" : "outline"}>{ready ? "Ready" : "No rows yet"}</Badge>
+      <Badge variant={ready ? "secondary" : "outline"}>{ready ? t("ready") : t("noRowsYet")}</Badge>
     </div>
   );
 }
@@ -334,9 +341,13 @@ function cleanLabel(value: string) {
   return value.replace(/[_-]/g, " ");
 }
 
-function formatDateTime(value: string | null) {
+function formatDateTime(
+  value: string | null,
+  locale: string,
+  t: ReturnType<typeof useTranslations<"Dashboard.documents">>,
+) {
   if (!value) {
-    return "Not recorded";
+    return t("notRecorded");
   }
 
   const date = new Date(value);
@@ -345,7 +356,7 @@ function formatDateTime(value: string | null) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
