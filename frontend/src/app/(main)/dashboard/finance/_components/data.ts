@@ -1,5 +1,7 @@
 import { serverApiFetch } from "@/lib/api/server";
 
+import { type PaginatedData, unwrapList } from "../../_lib/api";
+
 export type FinanceMoneySource = {
   key: string;
   label: string;
@@ -45,6 +47,47 @@ export type FinanceDashboardData = {
   };
 };
 
+export type FinancePayment = {
+  id: number;
+  amount: string;
+  method: string;
+  status: string;
+  paid_at: string | null;
+  due_date: string | null;
+  created_by: number | null;
+};
+
+export type FinanceDue = {
+  id: number;
+  member_id?: number;
+  member_name?: string;
+  plan_name?: string;
+  subscription_id?: number;
+  amount_due?: string;
+  outstanding_balance?: string;
+  due_date?: string | null;
+  status?: string;
+};
+
+export type FinanceExpense = {
+  id: number;
+  category: string;
+  amount: string;
+  description: string | null;
+  date: string | null;
+  creator?: {
+    id: number;
+    name: string;
+  } | null;
+  created_at: string | null;
+};
+
+export type FinancePageData = FinanceDashboardData & {
+  duesLedger: FinanceDue[];
+  expensesLedger: FinanceExpense[];
+  paymentsLedger: FinancePayment[];
+};
+
 const emptyFinanceData: FinanceDashboardData = {
   totals: {
     revenue_mtd: "0.00",
@@ -69,12 +112,35 @@ const emptyFinanceData: FinanceDashboardData = {
   },
 };
 
-export async function getFinanceDashboardData(): Promise<FinanceDashboardData> {
+export async function getFinanceDashboardData(): Promise<FinancePageData> {
   try {
-    const result = await serverApiFetch<FinanceDashboardData>("/reports/finance-summary");
+    const [summaryResult, paymentsResult, duesResult, expensesResult] = await Promise.all([
+      serverApiFetch<FinanceDashboardData>("/reports/finance-summary"),
+      safeFetch<FinancePayment[] | PaginatedData<FinancePayment>>("/payments?page=1&per_page=15", []),
+      safeFetch<FinanceDue[] | PaginatedData<FinanceDue>>("/payments/dues", []),
+      safeFetch<FinanceExpense[] | PaginatedData<FinanceExpense>>("/expenses?sort=-date&page=1&per_page=15", []),
+    ]);
 
-    return result.data;
+    return {
+      ...summaryResult.data,
+      duesLedger: unwrapList(duesResult.data),
+      expensesLedger: unwrapList(expensesResult.data),
+      paymentsLedger: unwrapList(paymentsResult.data),
+    };
   } catch {
-    return emptyFinanceData;
+    return {
+      ...emptyFinanceData,
+      duesLedger: [],
+      expensesLedger: [],
+      paymentsLedger: [],
+    };
+  }
+}
+
+async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
+  try {
+    return await serverApiFetch<T>(path);
+  } catch {
+    return { data: fallback };
   }
 }

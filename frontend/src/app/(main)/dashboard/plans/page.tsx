@@ -21,7 +21,9 @@ export default async function Page() {
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
         <h1 className="text-3xl tracking-tight">Membership Plans</h1>
-        <p className="text-muted-foreground text-sm">Backend plans used by subscriptions, renewals, pricing, and freezes.</p>
+        <p className="text-muted-foreground text-sm">
+          Backend plans used by subscriptions, renewals, pricing, and freezes.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -62,7 +64,9 @@ export default async function Page() {
         <Card className="xl:col-span-8">
           <CardHeader>
             <CardTitle className="font-normal">Plans catalog</CardTitle>
-            <CardDescription>Toggle or delete plans. Backend blocks deletion if active subscriptions exist.</CardDescription>
+            <CardDescription>
+              Toggle or delete plans. Backend blocks deletion if active subscriptions exist.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -87,7 +91,9 @@ export default async function Page() {
                     <TableCell>{formatCurrency(Number(plan.price), { currency: "EGP", noDecimals: true })}</TableCell>
                     <TableCell>{plan.duration_days} days</TableCell>
                     <TableCell>
-                      <Badge variant={plan.is_active ? "secondary" : "outline"}>{plan.is_active ? "Active" : "Inactive"}</Badge>
+                      <Badge variant={plan.is_active ? "secondary" : "outline"}>
+                        {plan.is_active ? "Active" : "Inactive"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

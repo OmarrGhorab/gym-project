@@ -1,5 +1,7 @@
 import { serverApiFetch } from "@/lib/api/server";
 
+import { type PaginatedData, unwrapList } from "../../_lib/api";
+
 export type StaffAcademyKpi = {
   label: string;
   value: number | string;
@@ -60,6 +62,64 @@ export type StaffAcademyData = {
   };
 };
 
+export type AcademyEmployee = {
+  id: number;
+  name: string;
+  phone: string | null;
+  attendance_code: string | null;
+  attendance_qr: string | null;
+  role: string;
+  base_salary: string;
+  commission_rate: string;
+  shift?: {
+    id: number;
+    name: string;
+    starts_at: string;
+    ends_at: string;
+    grace_minutes: number;
+  } | null;
+  status: string;
+};
+
+export type AcademyCommission = {
+  id: number;
+  employee_id: number;
+  amount: string;
+  month: string;
+  rate: string;
+  status: string;
+  source: {
+    type: string;
+    id: number;
+  };
+};
+
+export type AcademyPerformanceDetail = {
+  employee?: {
+    id: number;
+    name: string;
+    role: string;
+  };
+  subscriptions_sold?: number;
+  pos_sales_volume?: string;
+  commissions_total?: string;
+  attendance_count?: number;
+  previous_period?: {
+    subscriptions_sold?: number;
+    pos_sales_volume?: string;
+    commissions_total?: string;
+    attendance_count?: number;
+  };
+};
+
+export type StaffAcademyPageData = StaffAcademyData & {
+  employeeRows: {
+    commissions: AcademyCommission[];
+    employee: AcademyEmployee;
+    performance: AcademyPerformanceDetail | null;
+  }[];
+};
+
 const emptyStaffAcademyData: StaffAcademyData = {
   generated_at: new Date().toISOString(),
   kpis: [
@@ -84,12 +144,44 @@ const emptyStaffAcademyData: StaffAcademyData = {
   },
 };
 
-export async function getStaffAcademyData(): Promise<StaffAcademyData> {
+export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
   try {
-    const result = await serverApiFetch<StaffAcademyData>("/reports/staff-academy");
+    const [reportResult, employeesResult] = await Promise.all([
+      serverApiFetch<StaffAcademyData>("/reports/staff-academy"),
+      safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=8", []),
+    ]);
+    const employees = unwrapList(employeesResult.data);
+    const employeeRows = await Promise.all(
+      employees.map(async (employee) => {
+        const [performanceResult, commissionsResult] = await Promise.all([
+          safeFetch<AcademyPerformanceDetail | null>(`/employees/${employee.id}/performance`, null),
+          safeFetch<AcademyCommission[] | PaginatedData<AcademyCommission>>(
+            `/employees/${employee.id}/commissions?per_page=5`,
+            [],
+          ),
+        ]);
 
-    return result.data;
+        return {
+          commissions: unwrapList(commissionsResult.data),
+          employee,
+          performance: performanceResult.data,
+        };
+      }),
+    );
+
+    return {
+      ...reportResult.data,
+      employeeRows,
+    };
   } catch {
-    return emptyStaffAcademyData;
+    return { ...emptyStaffAcademyData, employeeRows: [] };
+  }
+}
+
+async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
+  try {
+    return await serverApiFetch<T>(path);
+  } catch {
+    return { data: fallback };
   }
 }

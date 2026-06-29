@@ -9,9 +9,13 @@ export type PaginatedData<T> = {
 };
 
 export function unwrapList<T>(payload: T[] | PaginatedData<T> | null | undefined): T[] {
+  if (!payload) {
+    return [];
+  }
+
   if (Array.isArray(payload)) {
     return payload;
   }
 
-  return payload?.data ?? [];
+  return payload.data;
 }

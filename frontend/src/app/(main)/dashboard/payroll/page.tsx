@@ -4,13 +4,13 @@ import { Banknote, ReceiptText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
 import { generatePayroll, markPayrollPaid } from "./_components/actions";
 import { getPayrollPageData } from "./_components/data";
+import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
 export default async function Page() {
   const rows = await getPayrollPageData();
@@ -24,12 +24,14 @@ export default async function Page() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl tracking-tight">Payroll</h1>
-          <p className="text-muted-foreground text-sm">Generate salary receipts, review deductions, and mark payroll paid.</p>
+          <p className="text-muted-foreground text-sm">
+            Generate salary receipts, review deductions, and mark payroll paid.
+          </p>
         </div>
         <form action={generatePayroll} className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">
             <Label htmlFor="month">Month</Label>
-            <Input id="month" name="month" type="month" defaultValue={defaultMonth} />
+            <PayrollMonthPicker defaultMonth={defaultMonth} />
           </div>
           <Button type="submit">
             <Banknote />
@@ -73,8 +75,12 @@ export default async function Page() {
                     <div className="text-muted-foreground text-xs">{row.employee.role ?? "staff"}</div>
                   </TableCell>
                   <TableCell>{row.month}</TableCell>
-                  <TableCell>{formatCurrency(Number(row.base_salary), { currency: "EGP", noDecimals: true })}</TableCell>
-                  <TableCell>{formatCurrency(Number(row.attendance_deductions), { currency: "EGP", noDecimals: true })}</TableCell>
+                  <TableCell>
+                    {formatCurrency(Number(row.base_salary), { currency: "EGP", noDecimals: true })}
+                  </TableCell>
+                  <TableCell>
+                    {formatCurrency(Number(row.attendance_deductions), { currency: "EGP", noDecimals: true })}
+                  </TableCell>
                   <TableCell className="font-medium">
                     {formatCurrency(Number(row.net_salary), { currency: "EGP", noDecimals: true })}
                   </TableCell>
@@ -83,7 +89,12 @@ export default async function Page() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button render={<a href={`/api/payroll/${row.id}/payslip`} />} nativeButton={false} size="sm" variant="outline">
+                      <Button
+                        render={<a href={`/api/payroll/${row.id}/payslip`} />}
+                        nativeButton={false}
+                        size="sm"
+                        variant="outline"
+                      >
                         <ReceiptText />
                         Payslip
                       </Button>

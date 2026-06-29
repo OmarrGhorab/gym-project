@@ -20,6 +20,7 @@ final class RoleResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'is_preset' => in_array($this->name, FoundationPermissions::ALL_ROLES, true),
+            'users_count' => (int) ($this->users_count ?? 0),
             'permissions' => $this->whenLoaded('permissions',
                 fn () => $this->permissions->pluck('name')->values()->all(),
                 [],

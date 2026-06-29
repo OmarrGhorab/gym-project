@@ -1,6 +1,8 @@
+import { getRolesPageData } from "./_components/data-live";
 import { Roles } from "./_components/roles";
-import { roles } from "./_components/roles-table/data";
 
-export default function Page() {
-  return <Roles roles={roles} />;
+export default async function Page() {
+  const data = await getRolesPageData();
+
+  return <Roles permissionGroups={data.permissionGroups} roles={data.roles} />;
 }

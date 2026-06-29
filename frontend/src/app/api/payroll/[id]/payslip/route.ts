@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { API_BASE_URL } from "@/app/api/auth/_lib";
 import { getAuthToken } from "@/lib/session";

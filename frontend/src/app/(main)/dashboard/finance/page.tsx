@@ -9,6 +9,7 @@ import { FinanceNotification } from "./_components/finance-notification";
 import { FinanceToolbarActions } from "./_components/finance-toolbar-actions";
 import { FinancialReportsTab } from "./_components/financial-reports-tab";
 import { IncomeBreakdown } from "./_components/income-breakdown";
+import { LedgerTab } from "./_components/ledger-tab";
 import { OverviewKpis } from "./_components/overview-kpis";
 import { QuickActions } from "./_components/quick-actions";
 import { TransactionsOverviewCard } from "./_components/transactions-overview-card";
@@ -32,6 +33,7 @@ export default async function Page() {
             <TabsTrigger value="30-days">Dashboard</TabsTrigger>
             <TabsTrigger value="12-months">Reports</TabsTrigger>
             <TabsTrigger value="custom">Collections</TabsTrigger>
+            <TabsTrigger value="ledger">Ledger</TabsTrigger>
           </TabsList>
 
           <FinanceToolbarActions updatedAt={format(new Date(), "hh:mm a")} />
@@ -77,6 +79,10 @@ export default async function Page() {
 
         <TabsContent value="custom">
           <CollectionsTab totals={data.totals} upcoming={data.upcoming} />
+        </TabsContent>
+
+        <TabsContent value="ledger">
+          <LedgerTab dues={data.duesLedger} expenses={data.expensesLedger} payments={data.paymentsLedger} />
         </TabsContent>
       </Tabs>
     </div>

@@ -4,46 +4,24 @@ import { revalidatePath } from "next/cache";
 
 import { serverApiFetch } from "@/lib/api/server";
 
-export type PayrollActionResult =
-  | {
-      ok: true;
-      message: string;
-    }
-  | {
-      ok: false;
-      message: string;
-    };
-
-export async function generatePayroll(input: FormData): Promise<PayrollActionResult> {
+export async function generatePayroll(input: FormData): Promise<void> {
   const month = String(input.get("month") || "");
 
-  try {
-    await serverApiFetch(`/payroll/generate?month=${encodeURIComponent(month)}`, {
-      method: "POST",
-    });
-  } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Could not generate payroll." };
-  }
+  await serverApiFetch(`/payroll/generate?month=${encodeURIComponent(month)}`, {
+    method: "POST",
+  });
 
   revalidatePath("/dashboard/payroll");
   revalidatePath("/dashboard/finance");
-
-  return { ok: true, message: "Payroll generated." };
 }
 
-export async function markPayrollPaid(input: FormData): Promise<PayrollActionResult> {
+export async function markPayrollPaid(input: FormData): Promise<void> {
   const id = Number(input.get("id"));
 
-  try {
-    await serverApiFetch(`/payroll/${id}/pay`, {
-      method: "POST",
-    });
-  } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Could not mark payroll paid." };
-  }
+  await serverApiFetch(`/payroll/${id}/pay`, {
+    method: "POST",
+  });
 
   revalidatePath("/dashboard/payroll");
   revalidatePath("/dashboard/finance");
-
-  return { ok: true, message: "Payroll paid." };
 }

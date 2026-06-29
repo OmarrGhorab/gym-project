@@ -4,17 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { serverApiFetch } from "@/lib/api/server";
 
-export type PlanActionResult =
-  | {
-      ok: true;
-      message: string;
-    }
-  | {
-      ok: false;
-      message: string;
-    };
-
-export async function createPlan(input: FormData): Promise<PlanActionResult> {
+export async function createPlan(input: FormData): Promise<void> {
   const payload = {
     description: String(input.get("description") || ""),
     duration_days: Number(input.get("duration_days") || 30),
@@ -25,36 +15,30 @@ export async function createPlan(input: FormData): Promise<PlanActionResult> {
     type: String(input.get("type") || "monthly"),
   };
 
-  return mutate("/plans", "POST", payload, "Plan created.");
+  await mutate("/plans", "POST", payload);
 }
 
-export async function togglePlan(input: FormData): Promise<PlanActionResult> {
-  return mutate(`/plans/${Number(input.get("id"))}/toggle`, "PATCH", undefined, "Plan status updated.");
+export async function togglePlan(input: FormData): Promise<void> {
+  await mutate(`/plans/${Number(input.get("id"))}/toggle`, "PATCH");
 }
 
-export async function deletePlan(input: FormData): Promise<PlanActionResult> {
-  return mutate(`/plans/${Number(input.get("id"))}`, "DELETE", undefined, "Plan deleted.");
+export async function deletePlan(input: FormData): Promise<void> {
+  await mutate(`/plans/${Number(input.get("id"))}`, "DELETE");
 }
 
-async function mutate(path: string, method: string, body: Record<string, unknown> | undefined, success: string) {
-  try {
-    await serverApiFetch(path, {
-      ...(body
-        ? {
-            body: JSON.stringify(body),
-            headers: { "Content-Type": "application/json" },
-          }
-        : {}),
-      method,
-    });
-  } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Plan action failed." };
-  }
+async function mutate(path: string, method: string, body?: Record<string, unknown>) {
+  await serverApiFetch(path, {
+    ...(body
+      ? {
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+        }
+      : {}),
+    method,
+  });
 
   revalidatePath("/dashboard/plans");
   revalidatePath("/dashboard/crm");
-
-  return { ok: true, message: success };
 }
 
 function nullableNumber(value: FormDataEntryValue | null) {

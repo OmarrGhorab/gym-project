@@ -4,17 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { serverApiFetch } from "@/lib/api/server";
 
-export type SettingsActionResult =
-  | {
-      ok: true;
-      message: string;
-    }
-  | {
-      ok: false;
-      message: string;
-    };
-
-export async function updateSettings(input: FormData): Promise<SettingsActionResult> {
+export async function updateSettings(input: FormData): Promise<void> {
   const payload = {
     attendance: {
       default_grace_minutes: Number(input.get("attendance.default_grace_minutes") || 0),
@@ -35,28 +25,16 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
     vat_rate: Number(input.get("vat_rate") || 0),
   };
 
-  try {
-    await serverApiFetch("/settings", {
-      body: JSON.stringify(payload),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "PUT",
-    });
-  } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "Could not update settings.",
-    };
-  }
+  await serverApiFetch("/settings", {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "PUT",
+  });
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/infrastructure");
-
-  return {
-    ok: true,
-    message: "Settings updated.",
-  };
 }
 
 function nullableNumber(value: FormDataEntryValue | null) {

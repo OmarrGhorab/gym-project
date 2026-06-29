@@ -1,6 +1,6 @@
 import { serverApiFetch } from "@/lib/api/server";
 
-import { unwrapList, type PaginatedData } from "../../_lib/api";
+import { type PaginatedData, unwrapList } from "../../_lib/api";
 
 export type PayrollRow = {
   id: number;

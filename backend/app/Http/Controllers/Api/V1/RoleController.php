@@ -10,6 +10,7 @@ use App\Http\Requests\Roles\UpdateRoleRequest;
 use App\Http\Resources\RoleResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 
 final class RoleController extends ApiController
@@ -19,6 +20,15 @@ final class RoleController extends ApiController
         $this->authorize('viewAny', Role::class);
 
         $roles = Role::with('permissions')->paginate(15);
+        $userCounts = DB::table(config('permission.table_names.model_has_roles', 'model_has_roles'))
+            ->select('role_id', DB::raw('COUNT(*) as users_count'))
+            ->where('model_type', config('auth.providers.users.model'))
+            ->groupBy('role_id')
+            ->pluck('users_count', 'role_id');
+
+        $roles->getCollection()->each(function (Role $role) use ($userCounts): void {
+            $role->setAttribute('users_count', (int) ($userCounts[$role->id] ?? 0));
+        });
 
         return RoleResource::collection($roles)
             ->additional([

@@ -176,13 +176,29 @@ function MetricCard({
 }
 
 function StatusBadge({ value }: { value: string }) {
-  const tone = value === "present" ? "ready" : value === "late" ? "warning" : value === "absent" ? "critical" : "neutral";
+  const tone = statusTone(value);
 
   return (
     <Badge variant={tone === "critical" ? "destructive" : "outline"} className={toneClass(tone)}>
       {value}
     </Badge>
   );
+}
+
+function statusTone(value: string): "critical" | "neutral" | "ready" | "warning" {
+  if (value === "present") {
+    return "ready";
+  }
+
+  if (value === "late") {
+    return "warning";
+  }
+
+  if (value === "absent") {
+    return "critical";
+  }
+
+  return "neutral";
 }
 
 function toneClass(tone: "neutral" | "ready" | "warning" | "critical") {

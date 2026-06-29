@@ -15,7 +15,9 @@ export default async function Page() {
       <div className="flex items-end justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-3xl tracking-tight">Notifications</h1>
-          <p className="text-muted-foreground text-sm">Backend notifications for renewals, reminders, and admin alerts.</p>
+          <p className="text-muted-foreground text-sm">
+            Backend notifications for renewals, reminders, and admin alerts.
+          </p>
         </div>
         <Badge variant="outline">
           <Bell />
@@ -43,7 +45,9 @@ export default async function Page() {
                 <TableRow key={notification.id}>
                   <TableCell>
                     <div className="font-medium">{notificationTitle(notification.data)}</div>
-                    <div className="line-clamp-1 text-muted-foreground text-xs">{notificationBody(notification.data)}</div>
+                    <div className="line-clamp-1 text-muted-foreground text-xs">
+                      {notificationBody(notification.data)}
+                    </div>
                   </TableCell>
                   <TableCell>{notification.type.split("\\").pop()}</TableCell>
                   <TableCell>

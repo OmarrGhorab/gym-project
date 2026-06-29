@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AssignmentStatus } from "./_components/assignment-status";
 import { ClassSchedule } from "./_components/class-schedule";
 import { getStaffAcademyData } from "./_components/data";
+import { EmployeePerformanceTable } from "./_components/employee-performance-table";
 import { KpiCards } from "./_components/kpi-cards";
 import { PerformanceHighlights } from "./_components/performance-highlights";
 import { UpcomingEvents } from "./_components/upcoming-events";
@@ -57,6 +58,8 @@ export default async function Page() {
           <UpcomingEvents events={data.upcoming_events} />
         </div>
       </div>
+
+      <EmployeePerformanceTable rows={data.employeeRows} />
     </div>
   );
 }
