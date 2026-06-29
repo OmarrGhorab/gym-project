@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { ArrowUpRight, PackageCheck, PackageX, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Label, Pie, PieChart } from "recharts";
@@ -11,21 +13,6 @@ import { Separator } from "@/components/ui/separator";
 import type { PosDashboardData } from "./data";
 
 const gaugeSegmentCount = 32;
-
-const chartConfig = {
-  "in-stock": {
-    label: "In stock",
-    color: "var(--chart-2)",
-  },
-  "low-stock": {
-    label: "Low stock",
-    color: "var(--chart-1)",
-  },
-  "out-of-stock": {
-    label: "Out of stock",
-    color: "var(--destructive)",
-  },
-} satisfies ChartConfig;
 
 function makeGaugeSegments(inStock: number, lowStock: number, out: number) {
   const total = Math.max(inStock + lowStock + out, 1);
@@ -52,6 +39,24 @@ function makeGaugeSegments(inStock: number, lowStock: number, out: number) {
 
 export function Inventory({ inventory }: { inventory: PosDashboardData["inventory"] }) {
   const t = useTranslations("Dashboard.ecommerce");
+  const chartConfig = useMemo(
+    () =>
+      ({
+        "in-stock": {
+          label: t("inStock"),
+          color: "var(--chart-2)",
+        },
+        "low-stock": {
+          label: t("lowStock"),
+          color: "var(--chart-1)",
+        },
+        "out-of-stock": {
+          label: t("outOfStock"),
+          color: "var(--destructive)",
+        },
+      }) satisfies ChartConfig,
+    [t],
+  );
   const availablePercent = Number(inventory.availability_rate);
   const gaugeSegments = makeGaugeSegments(
     inventory.in_stock_products,

@@ -13,7 +13,6 @@ import {
   type LucideIcon,
   Mail,
   MapPinned,
-  MessageSquare,
   PackageCheck,
   ReceiptText,
   Server,
@@ -130,12 +129,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Notifications",
         url: "/dashboard/mail",
         icon: Mail,
-      },
-      {
-        id: "chat",
-        title: "Chat",
-        url: "/dashboard/chat",
-        icon: MessageSquare,
       },
       {
         id: "calendar",

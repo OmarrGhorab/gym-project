@@ -129,6 +129,9 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
   const pipelineRows = useMemo(() => toMembershipFunnel(summary, totals, t), [summary, totals, t]);
   const sourceRows = useMemo(() => toGymSourceRows(summary, totals, t), [summary, totals, t]);
   const actionItems = useMemo(() => toGymActionItems(summary, t), [summary, t]);
+  const crmMiniBarConfig = useMemo(() => getCrmMiniBarConfig(t), [t]);
+  const crmAreaConfig = useMemo(() => getCrmAreaConfig(t), [t]);
+  const crmRevenueConfig = useMemo(() => getCrmRevenueConfig(t), [t]);
   const revenueGrowth = Number(summary.revenue_growth_rate ?? 0);
 
   return (
@@ -265,6 +268,7 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
   const t = useTranslations("Dashboard.default.charts");
   const locale = useLocale();
   const monthly = useMemo(() => toMonthlyCashFlowData(data, locale), [data, locale]);
+  const financeCashFlowConfig = useMemo(() => getFinanceCashFlowConfig(t), [t]);
   const totalIncome = monthly.reduce((sum, item) => sum + item.income, 0);
   const totalCostBasis = monthly.reduce((sum, item) => sum + Math.abs(item.costBasis), 0);
 
@@ -329,6 +333,7 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
 function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
   const t = useTranslations("Dashboard.default.charts");
   const locale = useLocale();
+  const gymBreakdownConfig = useMemo(() => getGymBreakdownConfig(t), [t]);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
@@ -396,6 +401,7 @@ function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
 
 function RevenueTargetBars({ rows }: { rows: RevenueTargetRow[] }) {
   const t = useTranslations("Dashboard.default.charts");
+  const revenueTargetConfig = useMemo(() => getRevenueTargetConfig(t), [t]);
   const averageProgress =
     rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.progress, 0) / rows.length) : 0;
   const aboveTarget = rows.filter((row) => row.progress >= 100).length;
@@ -441,6 +447,7 @@ function RevenueTargetBars({ rows }: { rows: RevenueTargetRow[] }) {
 
 function MembershipFunnel({ rows, summary }: { rows: FunnelRow[]; summary: DashboardSummary }) {
   const t = useTranslations("Dashboard.default.charts");
+  const membershipFunnelConfig = useMemo(() => getMembershipFunnelConfig(t), [t]);
   const memberGrowth = Number(summary.new_members_growth_rate ?? 0);
 
   return (
@@ -557,93 +564,107 @@ function GymActionItems({ items }: { items: GymActionItem[] }) {
   );
 }
 
-const crmMiniBarConfig = {
-  orders: {
-    label: "Orders",
-    color: "var(--chart-1)",
-  },
-  units: {
-    label: "Units",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig;
+function getCrmMiniBarConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    orders: {
+      label: t("orders"),
+      color: "var(--chart-1)",
+    },
+    units: {
+      label: t("units"),
+      color: "var(--chart-2)",
+    },
+  } satisfies ChartConfig;
+}
 
-const crmAreaConfig = {
-  sales: {
-    label: "Orders",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
+function getCrmAreaConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    sales: {
+      label: t("orders"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+}
 
-const crmRevenueConfig = {
-  revenue: {
-    label: "Revenue",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
+function getCrmRevenueConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    revenue: {
+      label: t("revenue"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig;
+}
 
-const financeCashFlowConfig = {
-  income: {
-    label: "Income",
-    color: "var(--chart-1)",
-  },
-  costBasis: {
-    label: "Activity basis",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig;
+function getFinanceCashFlowConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    income: {
+      label: t("income"),
+      color: "var(--chart-1)",
+    },
+    costBasis: {
+      label: t("activityBasis"),
+      color: "var(--chart-2)",
+    },
+  } satisfies ChartConfig;
+}
 
-const gymBreakdownConfig = {
-  value: {
-    label: "Total",
-  },
-  active: {
-    label: "Active Subs",
-    color: "var(--chart-1)",
-  },
-  newMembers: {
-    label: "New Members",
-    color: "var(--chart-2)",
-  },
-  sales: {
-    label: "Sales",
-    color: "var(--chart-3)",
-  },
-  units: {
-    label: "Units",
-    color: "var(--chart-4)",
-  },
-  expiring: {
-    label: "Expiring",
-    color: "var(--chart-5)",
-  },
-} satisfies ChartConfig;
+function getGymBreakdownConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    value: {
+      label: t("total"),
+    },
+    active: {
+      label: t("activeSubs"),
+      color: "var(--chart-1)",
+    },
+    newMembers: {
+      label: t("newMembers"),
+      color: "var(--chart-2)",
+    },
+    sales: {
+      label: t("sales"),
+      color: "var(--chart-3)",
+    },
+    units: {
+      label: t("units"),
+      color: "var(--chart-4)",
+    },
+    expiring: {
+      label: t("expiring"),
+      color: "var(--chart-5)",
+    },
+  } satisfies ChartConfig;
+}
 
-const revenueTargetConfig = {
-  actual: {
-    label: "Actual",
-    color: "var(--chart-1)",
-  },
-  remaining: {
-    label: "Remaining",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig;
+function getRevenueTargetConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    actual: {
+      label: t("actual"),
+      color: "var(--chart-1)",
+    },
+    remaining: {
+      label: t("remaining"),
+      color: "var(--chart-2)",
+    },
+  } satisfies ChartConfig;
+}
 
-const membershipFunnelConfig = {
-  value: {
-    label: "Count",
-    color: "var(--chart-1)",
-  },
-  stage: {
-    label: "Stage",
-  },
-} satisfies ChartConfig;
+function getMembershipFunnelConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
+  return {
+    value: {
+      label: t("count"),
+      color: "var(--chart-1)",
+    },
+    stage: {
+      label: t("stage"),
+    },
+  } satisfies ChartConfig;
+}
 
 type GymBreakdownRow = {
   fill: string;
   label: string;
-  source: keyof typeof gymBreakdownConfig;
+  source: keyof ReturnType<typeof getGymBreakdownConfig>;
   value: number;
 };
 

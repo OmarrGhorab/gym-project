@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, EllipsisVertical } from "lucide-react";
+import type { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import {
@@ -58,13 +59,10 @@ const healthStripSlots = Array.from({ length: 18 }, (_, index) => ({
   threshold: index + 1,
 }));
 
-const paymentMethodItems = [
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-  { value: "bank_transfer", label: "Bank transfer" },
-] as const;
+const paymentMethodItems = [{ value: "cash" }, { value: "card" }, { value: "bank_transfer" }] as const;
 
 type SubscriptionAction = "renew" | "freeze" | "stop" | "unfreeze";
+type CrmT = ReturnType<typeof useTranslations<"Dashboard.crm">>;
 
 function getHealthScore(health: MembershipPipelineRow["health"]) {
   switch (health) {
@@ -83,104 +81,106 @@ function getHealthScore(health: MembershipPipelineRow["health"]) {
   }
 }
 
-export const opportunitiesColumns: ColumnDef<MembershipPipelineRow>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all subscriptions"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label={`Select ${row.original.member}`}
-      />
-    ),
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <div className="text-sm tracking-tight">#{row.original.subscriptionId}</div>,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "member",
-    header: "Member",
-    cell: ({ row }) => <div className="font-medium text-sm">{row.original.member}</div>,
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="rounded-full px-2.5">
-        {row.original.status}
-      </Badge>
-    ),
-    filterFn: "equalsString",
-  },
-  {
-    accessorKey: "plan",
-    header: "Plan",
-    cell: ({ row }) => <div className="text-sm">{row.original.plan}</div>,
-  },
-  {
-    accessorKey: "health",
-    header: "Health",
-    cell: ({ row }) => (
-      <div className="grid gap-1" title={row.original.healthReason}>
-        <div className="flex items-end gap-0.5">
-          <span className="sr-only">{row.original.health}</span>
-          {healthStripSlots.map((slot) => (
-            <div
-              key={`${row.original.id}-${slot.id}`}
-              className={cn(
-                "h-5 w-1 rounded-full",
-                slot.threshold <= getHealthScore(row.original.health) ? "bg-green-500/85" : "bg-green-500/15",
-              )}
-            />
-          ))}
+export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRow>[] {
+  return [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected() ? true : table.getIsSomePageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label={t("selectAllSubscriptions")}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label={t("selectSubscription", { member: row.original.member })}
+        />
+      ),
+      enableHiding: false,
+    },
+    {
+      accessorKey: "id",
+      header: t("id"),
+      cell: ({ row }) => <div className="text-sm tracking-tight">#{row.original.subscriptionId}</div>,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "member",
+      header: t("member"),
+      cell: ({ row }) => <div className="font-medium text-sm">{row.original.member}</div>,
+    },
+    {
+      accessorKey: "status",
+      header: t("status"),
+      cell: ({ row }) => (
+        <Badge variant="outline" className="rounded-full px-2.5">
+          {translateStatus(row.original.status, t)}
+        </Badge>
+      ),
+      filterFn: "equalsString",
+    },
+    {
+      accessorKey: "plan",
+      header: t("plan"),
+      cell: ({ row }) => <div className="text-sm">{row.original.plan}</div>,
+    },
+    {
+      accessorKey: "health",
+      header: t("health"),
+      cell: ({ row }) => (
+        <div className="grid gap-1" title={row.original.healthReason}>
+          <div className="flex items-end gap-0.5">
+            <span className="sr-only">{translateHealth(row.original.health, t)}</span>
+            {healthStripSlots.map((slot) => (
+              <div
+                key={`${row.original.id}-${slot.id}`}
+                className={cn(
+                  "h-5 w-1 rounded-full",
+                  slot.threshold <= getHealthScore(row.original.health) ? "bg-green-500/85" : "bg-green-500/15",
+                )}
+              />
+            ))}
+          </div>
+          <span className="text-muted-foreground text-xs">{translateHealth(row.original.health, t)}</span>
         </div>
-        <span className="text-muted-foreground text-xs">{row.original.health}</span>
-      </div>
-    ),
-    filterFn: "equalsString",
-  },
-  {
-    accessorKey: "value",
-    header: "Value",
-    cell: ({ row }) => (
-      <div className="font-medium text-sm tabular-nums">
-        {formatCurrency(row.original.value, { currency: "EGP", noDecimals: true })}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "balance",
-    header: "Balance",
-    cell: ({ row }) => (
-      <div className="font-medium text-sm tabular-nums">
-        {formatCurrency(row.original.balance, { currency: "EGP", noDecimals: true })}
-      </div>
-    ),
-  },
-  {
-    id: "actions",
-    header: () => <div className="text-right">Actions</div>,
-    cell: ({ row }) => (
-      <div className="text-right">
-        <SubscriptionActions subscription={row.original} />
-      </div>
-    ),
-    enableHiding: false,
-  },
-];
+      ),
+      filterFn: "equalsString",
+    },
+    {
+      accessorKey: "value",
+      header: t("value"),
+      cell: ({ row }) => (
+        <div className="font-medium text-sm tabular-nums">
+          {formatCurrency(row.original.value, { currency: "EGP", noDecimals: true })}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "balance",
+      header: t("balance"),
+      cell: ({ row }) => (
+        <div className="font-medium text-sm tabular-nums">
+          {formatCurrency(row.original.balance, { currency: "EGP", noDecimals: true })}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">{t("actions")}</div>,
+      cell: ({ row }) => (
+        <div className="text-right">
+          <SubscriptionActions subscription={row.original} t={t} />
+        </div>
+      ),
+      enableHiding: false,
+    },
+  ];
+}
 
-function SubscriptionActions({ subscription }: { subscription: MembershipPipelineRow }) {
+function SubscriptionActions({ subscription, t }: { subscription: MembershipPipelineRow; t: CrmT }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"stop" | "unfreeze" | null>(null);
@@ -190,10 +190,9 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
   const [freezeStartDate, setFreezeStartDate] = React.useState(() => getTodayDateString());
   const [freezeEndDate, setFreezeEndDate] = React.useState(() => getTodayDateString());
   const backendActions = getBackendActions(subscription.status);
-  const freezeDisabledReason =
-    subscription.maxFreezeDays < 1 ? "This plan does not allow subscription freeze days." : null;
+  const freezeDisabledReason = subscription.maxFreezeDays < 1 ? t("freezeUnavailableReason") : null;
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
-  const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction);
+  const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
 
   async function submitRenew(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -203,7 +202,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
     const discount = String(formData.get("discount") ?? "").trim();
 
     if (!amount || Number(amount) <= 0) {
-      toast.error("Payment amount is required.");
+      toast.error(t("paymentAmountRequired"));
       return;
     }
 
@@ -229,7 +228,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
     const reason = String(formData.get("reason") ?? "").trim();
 
     if (!freezeStart || !freezeEnd) {
-      toast.error("Freeze start and end dates are required.");
+      toast.error(t("freezeDatesRequired"));
       return;
     }
 
@@ -247,7 +246,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
   async function runAction(action: string) {
     if (action === "renew" || action === "freeze") {
       if (action === "freeze" && freezeDisabledReason) {
-        toast.error("Freeze unavailable", { description: freezeDisabledReason });
+        toast.error(t("freezeUnavailable"), { description: freezeDisabledReason });
         return;
       }
 
@@ -281,7 +280,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
     setPendingAction(null);
 
     if (!result.ok) {
-      toast.error("Action failed", { description: result.message });
+      toast.error(t("actionFailed"), { description: result.message });
       return;
     }
 
@@ -304,7 +303,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
           }
         >
           <EllipsisVertical />
-          <span className="sr-only">Open subscription actions</span>
+          <span className="sr-only">{t("openSubscriptionActions")}</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem
@@ -313,7 +312,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
               setOpen(true);
             }}
           >
-            View details
+            {t("viewDetails")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {backendActions.map((action) => {
@@ -327,7 +326,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
                 data-disabled={isDisabled ? "" : undefined}
                 onClick={() => {
                   if (disabledReason) {
-                    toast.error("Freeze unavailable", { description: disabledReason });
+                    toast.error(t("freezeUnavailable"), { description: disabledReason });
                     return;
                   }
 
@@ -336,7 +335,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
                   }
                 }}
               >
-                {pendingAction === action ? "Working..." : getActionMenuLabel(action, disabledReason)}
+                {pendingAction === action ? t("working") : getActionMenuLabel(action, disabledReason, t)}
               </DropdownMenuItem>
             );
           })}
@@ -346,26 +345,32 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Subscription #{subscription.subscriptionId}</DialogTitle>
-            <DialogDescription>{getDialogDescription(dialogMode)}</DialogDescription>
+            <DialogTitle>{t("subscriptionTitle", { id: subscription.subscriptionId })}</DialogTitle>
+            <DialogDescription>{getDialogDescription(dialogMode, t)}</DialogDescription>
           </DialogHeader>
 
           {dialogMode === "details" ? (
             <div className="grid gap-3">
-              <DetailRow label="Member" value={subscription.member} />
-              <DetailRow label="Member ID" value={subscription.memberId ? `#${subscription.memberId}` : "Not linked"} />
-              <DetailRow label="Plan" value={subscription.plan} />
-              <DetailRow label="Status" value={subscription.status} />
-              <DetailRow label="Health" value={`${subscription.health} - ${subscription.healthReason}`} />
-              <DetailRow label="Starts" value={subscription.startDate || "No start date"} />
-              <DetailRow label="Ends" value={subscription.endDate || "No end date"} />
-              <DetailRow label="Days left" value={`${subscription.daysLeft} day(s)`} />
+              <DetailRow label={t("member")} value={subscription.member} />
               <DetailRow
-                label="Value"
+                label={t("memberId")}
+                value={subscription.memberId ? `#${subscription.memberId}` : t("notLinked")}
+              />
+              <DetailRow label={t("plan")} value={subscription.plan} />
+              <DetailRow label={t("status")} value={translateStatus(subscription.status, t)} />
+              <DetailRow
+                label={t("health")}
+                value={`${translateHealth(subscription.health, t)} - ${translateHealthReason(subscription.healthReason, t)}`}
+              />
+              <DetailRow label={t("starts")} value={subscription.startDate || t("noStartDate")} />
+              <DetailRow label={t("ends")} value={subscription.endDate || t("noEndDate")} />
+              <DetailRow label={t("daysLeft")} value={t("daysValue", { count: subscription.daysLeft })} />
+              <DetailRow
+                label={t("value")}
                 value={formatCurrency(subscription.value, { currency: "EGP", noDecimals: true })}
               />
               <DetailRow
-                label="Balance"
+                label={t("balance")}
                 value={formatCurrency(subscription.balance, { currency: "EGP", noDecimals: true })}
               />
             </div>
@@ -374,14 +379,12 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
           {dialogMode === "renew" ? (
             <form className="grid gap-3 rounded-lg border border-border/70 p-3" onSubmit={submitRenew}>
               <div>
-                <div className="font-medium text-sm">Renew subscription</div>
-                <p className="text-muted-foreground text-xs">
-                  Creates the next subscription period and records payment.
-                </p>
+                <div className="font-medium text-sm">{t("renewSubscription")}</div>
+                <p className="text-muted-foreground text-xs">{t("renewDescription")}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("renew-amount")}>
-                  Payment amount
+                  {t("paymentAmount")}
                   <Input
                     id={fieldId("renew-amount")}
                     name="amount"
@@ -392,7 +395,7 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
                   />
                 </label>
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("renew-discount")}>
-                  Discount
+                  {t("discount")}
                   <Input
                     id={fieldId("renew-discount")}
                     name="discount"
@@ -404,20 +407,19 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
                 </label>
               </div>
               <div className="grid gap-1.5 text-sm">
-                Payment method
+                {t("paymentMethod")}
                 <Select
                   value={paymentMethod}
                   onValueChange={(value) => setPaymentMethod(value as "cash" | "card" | "bank_transfer")}
-                  items={paymentMethodItems}
                 >
                   <SelectTrigger id={fieldId("renew-method")} className="w-full">
-                    <SelectValue placeholder="Select payment method" />
+                    <SelectValue placeholder={t("selectPaymentMethod")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
                       {paymentMethodItems.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
-                          {item.label}
+                          {t(`paymentMethods.${item.value}`)}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -426,10 +428,10 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button type="submit" size="sm" disabled={pendingAction !== null}>
-                  {pendingAction === "renew" ? "Renewing..." : "Renew"}
+                  {pendingAction === "renew" ? t("renewing") : t("renew")}
                 </Button>
               </div>
             </form>
@@ -438,35 +440,37 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
           {dialogMode === "freeze" ? (
             <form className="grid gap-3 rounded-lg border border-border/70 p-3" onSubmit={submitFreeze}>
               <div>
-                <div className="font-medium text-sm">Freeze subscription</div>
-                <p className="text-muted-foreground text-xs">Freezing extends the end date by the selected days.</p>
+                <div className="font-medium text-sm">{t("freezeSubscription")}</div>
+                <p className="text-muted-foreground text-xs">{t("freezeDescription")}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <DatePickerField
                   id={fieldId("freeze-start")}
-                  label="Freeze start"
+                  label={t("freezeStart")}
                   name="freeze_start"
                   value={freezeStartDate}
                   onChange={setFreezeStartDate}
+                  t={t}
                 />
                 <DatePickerField
                   id={fieldId("freeze-end")}
-                  label="Freeze end"
+                  label={t("freezeEnd")}
                   name="freeze_end"
                   value={freezeEndDate}
                   onChange={setFreezeEndDate}
+                  t={t}
                 />
               </div>
               <label className="grid gap-1.5 text-sm" htmlFor={fieldId("freeze-reason")}>
-                Reason
-                <Textarea id={fieldId("freeze-reason")} name="reason" placeholder="Optional note" />
+                {t("reason")}
+                <Textarea id={fieldId("freeze-reason")} name="reason" placeholder={t("optionalNote")} />
               </label>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button type="submit" size="sm" disabled={pendingAction !== null}>
-                  {pendingAction === "freeze" ? "Freezing..." : "Freeze"}
+                  {pendingAction === "freeze" ? t("freezing") : t("freeze")}
                 </Button>
               </div>
             </form>
@@ -480,16 +484,20 @@ function SubscriptionActions({ subscription }: { subscription: MembershipPipelin
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction ? `${labelAction(confirmAction)} subscription?` : "Confirm action"}
+              {confirmAction ? t("confirmActionTitle", { action: labelAction(confirmAction, t) }) : t("confirmAction")}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction
-                ? `This will ${labelAction(confirmAction).toLowerCase()} subscription #${subscription.subscriptionId} for ${subscription.member}.`
+                ? t("confirmActionDescription", {
+                    action: labelAction(confirmAction, t).toLowerCase(),
+                    id: subscription.subscriptionId,
+                    member: subscription.member,
+                  })
                 : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={pendingAction !== null}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={pendingAction !== null}>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant={confirmAction === "stop" ? "destructive" : "default"}
               disabled={pendingAction !== null || confirmAction === null}
@@ -514,12 +522,14 @@ function DatePickerField({
   name,
   value,
   onChange,
+  t,
 }: {
   id: string;
   label: string;
   name: string;
   value: string;
   onChange: (value: string) => void;
+  t: CrmT;
 }) {
   const selectedDate = parseDateString(value);
 
@@ -530,7 +540,7 @@ function DatePickerField({
         <PopoverTrigger
           render={
             <Button type="button" variant="outline" className="w-full justify-between font-normal">
-              {formatDateLabel(value)}
+              {formatDateLabel(value, t)}
               <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
             </Button>
           }
@@ -553,49 +563,49 @@ function DatePickerField({
   );
 }
 
-function labelAction(action: string) {
+function labelAction(action: string, t: CrmT) {
   switch (action) {
     case "renew":
-      return "Renew";
+      return t("renew");
     case "freeze":
-      return "Freeze";
+      return t("freeze");
     case "unfreeze":
-      return "Unfreeze";
+      return t("unfreeze");
     case "stop":
-      return "Stop";
+      return t("stop");
     default:
       return action;
   }
 }
 
-function getActionMenuLabel(action: SubscriptionAction, disabledReason: string | null) {
+function getActionMenuLabel(action: SubscriptionAction, disabledReason: string | null, t: CrmT) {
   if (action === "freeze" && disabledReason) {
-    return "Freeze unavailable";
+    return t("freezeUnavailable");
   }
 
-  return labelAction(action);
+  return labelAction(action, t);
 }
 
-function getConfirmActionLabel(action: "stop" | "unfreeze" | null, pendingAction: string | null) {
+function getConfirmActionLabel(action: "stop" | "unfreeze" | null, pendingAction: string | null, t: CrmT) {
   if (pendingAction === action) {
-    return "Working...";
+    return t("working");
   }
 
   if (action) {
-    return labelAction(action);
+    return labelAction(action, t);
   }
 
-  return "Confirm";
+  return t("confirm");
 }
 
-function getDialogDescription(mode: "details" | "renew" | "freeze") {
+function getDialogDescription(mode: "details" | "renew" | "freeze", t: CrmT) {
   switch (mode) {
     case "renew":
-      return "Renew this subscription by creating the next period and recording payment.";
+      return t("renewDialogDescription");
     case "freeze":
-      return "Freeze this subscription for a selected date range.";
+      return t("freezeDialogDescription");
     default:
-      return "Read-only subscription details.";
+      return t("detailsDescription");
   }
 }
 
@@ -624,14 +634,70 @@ function parseDateString(value: string) {
   }
 }
 
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string, t: CrmT) {
   const date = parseDateString(value);
 
   if (!date) {
-    return "Select date";
+    return t("selectDate");
   }
 
   return format(date, "d MMM yyyy");
+}
+
+export function translateHealth(value: string, t: CrmT) {
+  if (
+    value === "Active" ||
+    value === "Renewed" ||
+    value === "Renew Soon" ||
+    value === "Needs Action" ||
+    value === "Paused"
+  ) {
+    return t(`healthLabels.${value}`);
+  }
+
+  return value;
+}
+
+export function translateStatus(value: string, t: CrmT) {
+  if (value === "Active" || value === "Frozen" || value === "Expired" || value === "Stopped" || value === "Pending") {
+    return t(`statuses.${value}`);
+  }
+
+  return value;
+}
+
+function translateHealthReason(value: string, t: CrmT) {
+  if (value.startsWith("Next period starts on ")) {
+    return t("healthReasons.nextPeriodStarts", { date: value.replace("Next period starts on ", "") });
+  }
+
+  if (value === "Has outstanding balance") {
+    return t("healthReasons.hasBalance");
+  }
+
+  if (value === "Subscription is expired") {
+    return t("healthReasons.expired");
+  }
+
+  if (value === "Subscription is frozen") {
+    return t("healthReasons.frozen");
+  }
+
+  if (value === "Subscription was stopped") {
+    return t("healthReasons.stopped");
+  }
+
+  const endsInMatch = value.match(/^Ends in (\d+) day\(s\)$/);
+
+  if (endsInMatch) {
+    return t("healthReasons.endsIn", { count: Number(endsInMatch[1]) });
+  }
+
+  if (value === "Active with no balance due") {
+    return t("healthReasons.activeNoBalance");
+  }
+
+  return value;
 }
 
 function getBackendActions(status: string): SubscriptionAction[] {

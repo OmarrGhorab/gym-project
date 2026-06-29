@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Controller, useFormContext } from "react-hook-form";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,15 +11,16 @@ import { getInitials } from "@/lib/utils";
 import { type InvoiceFormValues, invoiceClients } from "./data";
 
 export function ClientSelector() {
+  const t = useTranslations("Dashboard.documents.invoiceBuilder");
   const { control } = useFormContext<InvoiceFormValues>();
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-medium tracking-tight">Billed To</h2>
+        <h2 className="font-medium tracking-tight">{t("billedTo")}</h2>
         <Button type="button" variant="ghost" size="sm">
           <Plus data-icon="inline-start" />
-          Add New Client
+          {t("addNewClient")}
         </Button>
       </div>
 
@@ -30,7 +32,7 @@ export function ClientSelector() {
 
           return (
             <Field className="gap-1">
-              <FieldLabel className="text-xs">Client</FieldLabel>
+              <FieldLabel className="text-xs">{t("client")}</FieldLabel>
               <Select
                 value={selectedClient.id}
                 onValueChange={(clientId) => {
@@ -42,7 +44,7 @@ export function ClientSelector() {
                 }}
               >
                 <SelectTrigger className="w-full data-[size=default]:h-auto">
-                  <SelectValue placeholder="Select client">
+                  <SelectValue placeholder={t("selectClient")}>
                     <div className="flex items-center gap-1.5">
                       <Avatar className="after:rounded-md">
                         <AvatarFallback className="rounded-md bg-card text-foreground">

@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Download, Printer } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -13,6 +14,7 @@ import { PrintInvoice } from "./print-invoice";
 import { useVisibleCenterPosition } from "./use-visible-center-position";
 
 export function InvoicePreview({ invoice }: { invoice: InvoiceFormValues }) {
+  const t = useTranslations("Dashboard.documents.invoiceBuilder");
   const previewBodyRef = React.useRef<HTMLDivElement>(null);
   const paperLayout = useVisibleCenterPosition(previewBodyRef, {
     height: INVOICE_PAPER_HEIGHT,
@@ -29,15 +31,15 @@ export function InvoicePreview({ invoice }: { invoice: InvoiceFormValues }) {
       <PrintInvoice invoice={invoice} />
       <div className="flex flex-col rounded-xl border bg-card">
         <div className="flex items-center justify-between px-4 py-4">
-          <h2 className="font-medium text-lg">Preview</h2>
+          <h2 className="font-medium text-lg">{t("preview")}</h2>
           <ButtonGroup>
             <Button type="button" variant="outline" onClick={handlePrint}>
               <Printer data-icon="inline-start" />
-              Print
+              {t("print")}
             </Button>
             <Button type="button" variant="outline">
               <Download data-icon="inline-start" />
-              Download PDF
+              {t("downloadPdf")}
             </Button>
           </ButtonGroup>
         </div>
@@ -48,7 +50,7 @@ export function InvoicePreview({ invoice }: { invoice: InvoiceFormValues }) {
         >
           {paperLayout === null ? (
             <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
-              Loading Preview
+              {t("loadingPreview")}
             </div>
           ) : null}
           <div

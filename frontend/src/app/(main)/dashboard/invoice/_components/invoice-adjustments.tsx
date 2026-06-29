@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -7,12 +8,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { type InvoiceFormValues, invoiceTaxOptions } from "./data";
 
 export function InvoiceAdjustments() {
+  const t = useTranslations("Dashboard.documents.invoiceBuilder");
   const { control, register } = useFormContext<InvoiceFormValues>();
   const discountType = useWatch({ control, name: "discountType" });
 
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="font-medium tracking-tight">Adjustments</h2>
+      <h2 className="font-medium tracking-tight">{t("adjustments")}</h2>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
         <Controller
@@ -20,10 +22,10 @@ export function InvoiceAdjustments() {
           name="taxId"
           render={({ field }) => (
             <Field className="gap-1">
-              <FieldLabel className="text-xs">Tax</FieldLabel>
+              <FieldLabel className="text-xs">{t("tax")}</FieldLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger className="h-10 w-full">
-                  <SelectValue placeholder="Select tax" />
+                  <SelectValue placeholder={t("selectTax")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -45,15 +47,15 @@ export function InvoiceAdjustments() {
             name="discountType"
             render={({ field }) => (
               <Field className="gap-1">
-                <FieldLabel className="text-xs">Discount</FieldLabel>
+                <FieldLabel className="text-xs">{t("discount")}</FieldLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="h-10 w-full">
-                    <SelectValue placeholder="Discount type" />
+                    <SelectValue placeholder={t("discountType")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="fixed">Fixed amount</SelectItem>
-                      <SelectItem value="percent">Percent</SelectItem>
+                      <SelectItem value="fixed">{t("fixedAmount")}</SelectItem>
+                      <SelectItem value="percent">{t("percent")}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -61,12 +63,12 @@ export function InvoiceAdjustments() {
             )}
           />
           <Field className="gap-1">
-            <FieldLabel className="text-xs opacity-0">Value</FieldLabel>
+            <FieldLabel className="text-xs opacity-0">{t("value")}</FieldLabel>
             <InputGroup>
               <InputGroupInput
                 type="number"
                 step="0.01"
-                aria-label="Discount value"
+                aria-label={t("discountValue")}
                 {...register("discountValue", { valueAsNumber: true })}
               />
               <InputGroupAddon align="inline-end">{discountType === "fixed" ? "$" : "%"}</InputGroupAddon>

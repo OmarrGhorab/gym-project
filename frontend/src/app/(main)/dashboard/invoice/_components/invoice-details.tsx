@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, Hash } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Controller, useFormContext } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -14,22 +15,23 @@ import type { InvoiceFormValues } from "./data";
 
 const dateFields: Array<{
   id: string;
-  label: string;
+  labelKey: "issuedDate" | "dueDate";
   name: "issuedDate" | "paymentDueDate";
 }> = [
   {
     id: "issued-date",
-    label: "Issued Date",
+    labelKey: "issuedDate",
     name: "issuedDate",
   },
   {
     id: "payment-due-date",
-    label: "Due Date",
+    labelKey: "dueDate",
     name: "paymentDueDate",
   },
 ];
 
 export function InvoiceDetails() {
+  const t = useTranslations("Dashboard.documents.invoiceBuilder");
   const { control, register } = useFormContext<InvoiceFormValues>();
 
   return (
@@ -37,7 +39,7 @@ export function InvoiceDetails() {
       <FieldGroup>
         <Field className="gap-1">
           <FieldLabel className="text-xs" htmlFor="reference-number">
-            Reference Number
+            {t("referenceNumber")}
           </FieldLabel>
           <InputGroup>
             <InputGroupInput id="reference-number" {...register("referenceNumber")} />
@@ -56,7 +58,7 @@ export function InvoiceDetails() {
               render={({ field }) => (
                 <Field className="gap-1">
                   <FieldLabel className="text-xs" htmlFor={dateField.id}>
-                    {dateField.label}
+                    {t(dateField.labelKey)}
                   </FieldLabel>
                   <DatePicker id={dateField.id} value={field.value} onChange={field.onChange} />
                 </Field>
@@ -70,6 +72,7 @@ export function InvoiceDetails() {
 }
 
 function DatePicker({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+  const t = useTranslations("Dashboard.documents.invoiceBuilder");
   const [open, setOpen] = React.useState(false);
   const date = parseDateValue(value);
 
@@ -85,7 +88,7 @@ function DatePicker({ id, value, onChange }: { id: string; value: string; onChan
           />
         }
       >
-        {date ? format(date, "PPP") : <span>Pick a date</span>}
+        {date ? format(date, "PPP") : <span>{t("pickDate")}</span>}
         <CalendarIcon className="text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { opportunitiesColumns } from "./opportunities-table/columns";
+import { getOpportunitiesColumns, translateHealth, translateStatus } from "./opportunities-table/columns";
 import type { MembershipPipelineRow } from "./opportunities-table/schema";
 
 function preventPaginationNavigation(event: React.MouseEvent<HTMLAnchorElement>) {
@@ -56,10 +56,11 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
     pageIndex: 0,
     pageSize: 10,
   });
+  const columns = React.useMemo(() => getOpportunitiesColumns(t), [t]);
 
   const table = useReactTable({
     data: rows,
-    columns: opportunitiesColumns,
+    columns,
     state: {
       rowSelection,
       columnFilters,
@@ -131,7 +132,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
                   >
                     {statusOptions.map((option) => (
                       <DropdownMenuRadioItem key={option} value={option}>
-                        {option === "all" ? t("allStatuses") : option}
+                        {option === "all" ? t("allStatuses") : translateStatus(option, t)}
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
@@ -153,7 +154,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
                   >
                     {healthOptions.map((option) => (
                       <DropdownMenuRadioItem key={option} value={option}>
-                        {option === "all" ? t("allHealth") : option}
+                        {option === "all" ? t("allHealth") : translateHealth(option, t)}
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
