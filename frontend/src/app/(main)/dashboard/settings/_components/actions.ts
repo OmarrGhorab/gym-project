@@ -37,10 +37,71 @@ export async function updateSettings(input: FormData): Promise<void> {
   revalidatePath("/dashboard/infrastructure");
 }
 
+export async function saveShift(input: FormData): Promise<void> {
+  const id = Number(input.get("id"));
+  const payload = {
+    ends_at: String(input.get("ends_at") || ""),
+    grace_minutes: Number(input.get("grace_minutes") || 0),
+    is_active: input.get("is_active") === "on" || input.get("is_active") === "true",
+    name: String(input.get("name") || ""),
+    starts_at: String(input.get("starts_at") || ""),
+  };
+
+  await serverApiFetch(id > 0 ? `/attendance/shifts/${id}` : "/attendance/shifts", {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: id > 0 ? "PUT" : "POST",
+  });
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/attendance");
+}
+
+export async function deactivateShift(input: FormData): Promise<void> {
+  await serverApiFetch(`/attendance/shifts/${Number(input.get("id"))}`, {
+    method: "DELETE",
+  });
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/attendance");
+}
+
+export async function updateViolationRule(input: FormData): Promise<void> {
+  const payload = {
+    auto_apply_if_unreviewed: input.get("auto_apply_if_unreviewed") === "on",
+    deduction_days: String(input.get("deduction_days") || "0"),
+    description: nullableString(input.get("description")),
+    is_active: input.get("is_active") === "on",
+    name: String(input.get("name") || ""),
+    requires_admin_approval: input.get("requires_admin_approval") === "on",
+    threshold_minutes: nullableNumber(input.get("threshold_minutes")),
+  };
+
+  await serverApiFetch(`/attendance/violation-rules/${Number(input.get("id"))}`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "PUT",
+  });
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/attendance");
+  revalidatePath("/dashboard/payroll");
+}
+
 function nullableNumber(value: FormDataEntryValue | null) {
   if (value === null || String(value).trim() === "") {
     return null;
   }
 
   return Number(value);
+}
+
+function nullableString(value: FormDataEntryValue | null) {
+  const normalized = String(value ?? "").trim();
+
+  return normalized.length > 0 ? normalized : null;
 }

@@ -19,6 +19,7 @@ import {
   type InventoryProduct,
   type PurchaseOrder,
 } from "./shipment-data";
+import { ProductQuickActions, ReceivePurchaseOrderForm } from "./logistics-actions";
 
 type ShipmentDetailsProps = {
   data: InventoryLogisticsData;
@@ -225,6 +226,8 @@ function OrderOverview({ order }: { order: PurchaseOrder }) {
         ))}
       </div>
 
+      {order.status !== "received" ? <ReceivePurchaseOrderForm order={order} /> : null}
+
       {order.notes && (
         <Card>
           <CardContent className="p-4 text-sm">{order.notes}</CardContent>
@@ -245,7 +248,8 @@ function LowStockProducts({ products }: { products: InventoryProduct[] }) {
         </div>
       ) : (
         products.map((product) => (
-          <div key={product.id} className="flex items-center gap-3 rounded-lg border p-3">
+          <div key={product.id} className="grid gap-3 rounded-lg border p-3">
+            <div className="flex items-center gap-3">
             <ProductImage product={product} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="truncate font-medium text-sm">{product.name}</div>
@@ -256,6 +260,8 @@ function LowStockProducts({ products }: { products: InventoryProduct[] }) {
             <Badge variant={product.stock_quantity <= 0 ? "destructive" : "outline"}>
               {t("left", { count: product.stock_quantity })}
             </Badge>
+            </div>
+            <ProductQuickActions product={product} compact />
           </div>
         ))
       )}

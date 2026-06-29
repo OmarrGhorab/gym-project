@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,8 +26,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createProduct, createPurchaseOrder } from "./actions";
-import type { InventoryProduct } from "./shipment-data";
+import {
+  adjustProductStock,
+  createProduct,
+  createPurchaseOrder,
+  deleteProduct,
+  receivePurchaseOrder,
+  toggleProduct,
+  updateProduct,
+} from "./actions";
+import type { InventoryProduct, PurchaseOrder } from "./shipment-data";
 
 function Field({ children, label }: { children: React.ReactNode; label: string }) {
   return (
@@ -254,5 +263,140 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function ProductQuickActions({ compact = false, product }: { compact?: boolean; product: InventoryProduct }) {
+  const t = useTranslations("Dashboard.logistics");
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+
+  function run(action: (formData: FormData) => Promise<{ ok: boolean; message: string }>, formData: FormData) {
+    startTransition(async () => {
+      const result = await action(formData);
+
+      if (result.ok) {
+        toast.success(result.message);
+        router.refresh();
+        return;
+      }
+
+      toast.error(t("actionFailed"), { description: result.message });
+    });
+  }
+
+  return (
+    <div className={compact ? "grid gap-2" : "grid gap-3"}>
+      <form action={(formData) => run(adjustProductStock, formData)} className="grid grid-cols-[80px_1fr_auto] gap-2">
+        <input type="hidden" name="id" value={product.id} />
+        <Select name="type" defaultValue="in">
+          <SelectTrigger className="h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="in">{t("stockIn")}</SelectItem>
+            <SelectItem value="out">{t("stockOut")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input name="quantity" type="number" min="1" defaultValue="1" className="h-8" aria-label={t("quantity")} />
+        <input type="hidden" name="reason" value={t("manualAdjustment")} />
+        <Button type="submit" size="sm" disabled={pending}>
+          {t("adjust")}
+        </Button>
+      </form>
+
+      <details className="rounded-md border p-2">
+        <summary className="cursor-pointer text-sm">{t("editProduct")}</summary>
+        <form action={(formData) => run(updateProduct, formData)} className="mt-3 grid gap-2">
+          <input type="hidden" name="id" value={product.id} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Input name="name" defaultValue={product.name} aria-label={t("name")} />
+            <Input name="category" defaultValue={product.category} aria-label={t("category")} />
+            <Input name="sku" defaultValue={product.sku} aria-label={t("sku")} />
+            <Input
+              name="price"
+              type="number"
+              min="0.01"
+              step="0.01"
+              defaultValue={product.price}
+              aria-label={t("salePrice")}
+            />
+            <Input name="cost" type="number" min="0" step="0.01" defaultValue={product.cost} aria-label={t("cost")} />
+            <Input
+              name="low_stock_threshold"
+              type="number"
+              min="0"
+              defaultValue={product.low_stock_threshold}
+              aria-label={t("lowStockThreshold")}
+            />
+          </div>
+          <Input name="stock_quantity" type="hidden" value={product.stock_quantity} readOnly />
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" disabled={pending}>
+              {t("saveProduct")}
+            </Button>
+            <Button formAction={(formData) => run(toggleProduct, formData)} type="submit" size="sm" variant="outline">
+              {t("toggle")}
+            </Button>
+            <Button formAction={(formData) => run(deleteProduct, formData)} type="submit" size="sm" variant="outline">
+              {t("delete")}
+            </Button>
+          </div>
+        </form>
+      </details>
+    </div>
+  );
+}
+
+export function ReceivePurchaseOrderForm({ order }: { order: PurchaseOrder }) {
+  const t = useTranslations("Dashboard.logistics");
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const items = order.items.map((item) => `${item.id}:${item.quantity_ordered}`).join("|");
+
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const result = await receivePurchaseOrder(formData);
+
+      if (result.ok) {
+        toast.success(result.message);
+        router.refresh();
+        return;
+      }
+
+      toast.error(t("receiveFailed"), { description: result.message });
+    });
+  }
+
+  return (
+    <Card>
+      <CardContent className="grid gap-3 p-4">
+        <div>
+          <div className="font-medium text-sm">{t("receivePurchaseOrder")}</div>
+          <div className="text-muted-foreground text-xs">{t("receivePurchaseOrderDescription")}</div>
+        </div>
+        <form action={submit} className="grid gap-3">
+          <input type="hidden" name="id" value={order.id} />
+          <input type="hidden" name="items" value={items} />
+          <div className="grid gap-2">
+            {order.items.map((item) => (
+              <Field key={item.id} label={item.product?.name ?? t("product")}>
+                <Input
+                  name={`received_${item.id}`}
+                  type="number"
+                  min="0"
+                  max={item.quantity_ordered}
+                  defaultValue={item.quantity_ordered - item.quantity_received}
+                />
+              </Field>
+            ))}
+          </div>
+          <Textarea name="notes" placeholder={t("notesPlaceholder")} />
+          <Button type="submit" disabled={pending}>
+            {pending ? t("saving") : t("receiveStock")}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

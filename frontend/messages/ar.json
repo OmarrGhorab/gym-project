@@ -416,7 +416,61 @@
       "statuses": {
         "present": "حاضر",
         "late": "متأخر",
-        "absent": "غائب"
+        "absent": "غائب",
+        "excused": "بعذر"
+      },
+      "memberStation": "محطة دخول الأعضاء",
+      "memberStationDescription": "امسح QR العضو المطبوع أو استخدم الرقم أو الهاتف أو الاسم كبديل.",
+      "staffStation": "محطة حضور الموظفين",
+      "staffStationDescription": "سجل حضور الموظفين والكباتن بالـ QR أو يدويًا مع الموقع عند توفره.",
+      "checkIn": "دخول",
+      "checkOut": "خروج",
+      "memberQrPlaceholder": "رمز QR للعضو",
+      "employeeQrPlaceholder": "رمز QR للموظف",
+      "memberIdPlaceholder": "رقم العضو",
+      "phonePlaceholder": "رقم الهاتف",
+      "namePlaceholder": "اسم العضو",
+      "notesPlaceholder": "ملاحظات",
+      "gpsReady": "الموقع جاهز",
+      "gpsUnavailable": "الموقع غير متاح",
+      "submitMemberScan": "تسجيل مسح العضو",
+      "submitStaffScan": "تسجيل مسح الموظف",
+      "submitting": "جار الحفظ...",
+      "manualAttendance": "تصحيح حضور يدوي",
+      "manualAttendanceDescription": "أنشئ سجل حضور للموظف عند فقدان المسح أو الموافقة اليدوية.",
+      "selectEmployee": "اختر الموظف",
+      "noShift": "بدون وردية",
+      "scheduleStatus": "حالة الوردية",
+      "approvalStatus": "حالة الموافقة",
+      "createAttendance": "إنشاء حضور",
+      "reviewWarnings": "مراجعة التحذيرات",
+      "reviewWarningsDescription": "اعتمد أو ارفض خصومات الحضور قبل الرواتب.",
+      "selectWarning": "اختر التحذير",
+      "deductionAmount": "مبلغ الخصم",
+      "deductionDays": "أيام الخصم",
+      "reviewNotes": "ملاحظات المراجعة",
+      "reviewWarning": "مراجعة التحذير",
+      "recentMemberVisits": "آخر زيارات الأعضاء",
+      "recentMemberVisitsDescription": "أحدث دخول وخروج للأعضاء من QR أو التسجيل اليدوي.",
+      "member": "العضو",
+      "scanMethod": "طريقة المسح",
+      "alert": "تنبيه",
+      "noMemberVisits": "لا توجد زيارات أعضاء بعد.",
+      "scheduleStatuses": {
+        "on_shift": "ضمن الوردية",
+        "late": "متأخر",
+        "off_shift": "خارج الوردية",
+        "unassigned": "غير معين"
+      },
+      "approvalStatuses": {
+        "approved": "معتمد",
+        "pending": "معلق",
+        "dismissed": "مرفوض"
+      },
+      "visitStatuses": {
+        "allowed": "مسموح",
+        "blocked": "محظور",
+        "flagged": "محتاج مراجعة"
       }
     },
     "analytics": {
@@ -566,7 +620,16 @@
       "descriptionPlaceholder": "ملاحظة اختيارية",
       "cancel": "إلغاء",
       "saving": "جاري الحفظ...",
-      "saveExpense": "حفظ المصروف"
+      "saveExpense": "حفظ المصروف",
+      "collect": "تحصيل",
+      "notAvailable": "غير متاح",
+      "save": "حفظ",
+      "delete": "حذف",
+      "paymentMethods": {
+        "cash": "نقدي",
+        "card": "بطاقة",
+        "bank_transfer": "تحويل"
+      }
     },
     "membersPage": {
       "title": "الأعضاء",
@@ -706,7 +769,11 @@
       "employeeFallback": "موظف #{id}",
       "payslip": "قسيمة الراتب",
       "pay": "دفع",
-      "noRecords": "لا توجد سجلات رواتب بعد."
+      "noRecords": "لا توجد سجلات رواتب بعد.",
+      "adjustments": "التعديلات",
+      "bonuses": "المكافآت",
+      "deductions": "الخصومات",
+      "save": "حفظ"
     },
     "users": {
       "title": "المستخدمون",
@@ -763,7 +830,20 @@
       "threshold": "الحد",
       "deduction": "الخصم",
       "days": "{count} يوم",
-      "noRules": "لا توجد قواعد."
+      "noRules": "لا توجد قواعد.",
+      "shiftFormHint": "أنشئ وردية جديدة أو عدل أوقات الورديات الحالية مباشرة.",
+      "shiftName": "اسم الوردية",
+      "startsAt": "تبدأ في",
+      "endsAt": "تنتهي في",
+      "createShift": "إنشاء وردية",
+      "save": "حفظ",
+      "deactivate": "تعطيل",
+      "ruleName": "اسم القاعدة",
+      "deductionDays": "أيام الخصم",
+      "requiresApproval": "تحتاج موافقة",
+      "autoApply": "تطبيق تلقائيًا إذا لم تراجع",
+      "ruleDescription": "وصف القاعدة",
+      "saveRule": "حفظ القاعدة"
     },
     "roles": {
       "title": "الأدوار والصلاحيات",
@@ -940,7 +1020,9 @@
       "unreadStatus": "غير مقروء",
       "empty": "لا توجد إشعارات.",
       "fallbackTitle": "إشعار",
-      "notRecorded": "--"
+      "notRecorded": "--",
+      "actions": "الإجراءات",
+      "markRead": "تحديد كمقروء"
     },
     "tasks": {
       "title": "قائمة الإجراءات",
@@ -1273,7 +1355,14 @@
         "cash": "مبيعات نقدية",
         "card": "مبيعات البطاقة",
         "bankTransfer": "تحويل بنكي"
-      }
+      },
+      "checkout": "بيع",
+      "checkoutTitle": "إنشاء عملية بيع",
+      "checkoutDescription": "بيع منتج نشط وتحديث المخزون وتسجيل الدفع.",
+      "memberId": "رقم العضو",
+      "notes": "ملاحظات",
+      "createSale": "إنشاء البيع",
+      "voidSale": "إلغاء البيع"
     },
     "logistics": {
       "products": "المنتجات",
@@ -1368,7 +1457,20 @@
       "overview": "نظرة عامة",
       "alerts": "مخزون منخفض",
       "activity": "النشاط",
-      "noInventoryActivity": "لا يوجد نشاط مخزون بعد."
+      "noInventoryActivity": "لا يوجد نشاط مخزون بعد.",
+      "actionFailed": "فشل الإجراء",
+      "stockIn": "إضافة",
+      "stockOut": "خصم",
+      "manualAdjustment": "تعديل مخزون يدوي",
+      "adjust": "تعديل",
+      "editProduct": "تعديل المنتج",
+      "saveProduct": "حفظ المنتج",
+      "toggle": "تبديل",
+      "delete": "حذف",
+      "receiveFailed": "فشل الاستلام",
+      "receivePurchaseOrder": "استلام أمر الشراء",
+      "receivePurchaseOrderDescription": "أكد الكميات المستلمة وأضفها لمخزون المنتجات.",
+      "receiveStock": "استلام المخزون"
     },
     "academy": {
       "title": "أكاديمية الموظفين",
@@ -1416,7 +1518,26 @@
       },
       "upcomingEvents": "أحداث الموظفين القادمة",
       "viewCalendar": "عرض التقويم",
-      "noEvents": "لا توجد أحداث موظفين قادمة."
+      "noEvents": "لا توجد أحداث موظفين قادمة.",
+      "staffManagement": "إدارة الموظفين",
+      "staffManagementDescription": "أنشئ موظفين وحدد الورديات والرواتب ونسب العمولة ومعرف المستخدم المرتبط.",
+      "commissionBackfill": "إعادة حساب العمولات",
+      "commissionBackfillDescription": "أعد حساب العمولات لنطاق تاريخ محدد.",
+      "dryRun": "تجربة فقط",
+      "backfillCommissions": "إعادة حساب العمولات",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "userId": "رقم المستخدم",
+      "create": "إنشاء",
+      "save": "حفظ",
+      "delete": "حذف",
+      "roles": {
+        "employee": "موظف",
+        "captain": "كابتن",
+        "manager": "مدير"
+      }
     },
     "infrastructure": {
       "title": "صحة النظام",

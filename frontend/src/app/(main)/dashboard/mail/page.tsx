@@ -2,10 +2,12 @@ import { Bell, CheckCircle2 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { getNotificationsPageData } from "./_components/data";
+import { markNotificationRead } from "./_components/actions";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.mail");
@@ -39,6 +41,7 @@ export default async function Page() {
                 <TableHead>{t("type")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("created")}</TableHead>
+                <TableHead className="text-end">{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -58,11 +61,21 @@ export default async function Page() {
                     </Badge>
                   </TableCell>
                   <TableCell>{formatDate(notification.created_at, locale, t)}</TableCell>
+                  <TableCell className="text-end">
+                    {!notification.read_at ? (
+                      <form action={markNotificationRead}>
+                        <input type="hidden" name="id" value={notification.id} />
+                        <Button type="submit" size="sm" variant="outline">
+                          {t("markRead")}
+                        </Button>
+                      </form>
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ))}
               {notifications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                     {t("empty")}
                   </TableCell>
                 </TableRow>

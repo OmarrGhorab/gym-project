@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-import { AddProductDialog, CreatePurchaseOrderDialog } from "./logistics-actions";
+import { AddProductDialog, CreatePurchaseOrderDialog, ProductQuickActions } from "./logistics-actions";
 import type { InventoryLogisticsData, PurchaseOrder } from "./shipment-data";
 import { ShipmentDetails } from "./shipment-details";
 import { ShipmentList } from "./shipment-list";
@@ -86,16 +86,19 @@ function InventorySummarySheet({
               </div>
             ) : (
               data.low_stock_products.slice(0, 8).map((product) => (
-                <div key={product.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-sm">{product.name}</div>
-                    <div className="truncate text-muted-foreground text-xs">
-                      {product.category} • {t("threshold", { value: product.low_stock_threshold })}
+                <div key={product.id} className="grid gap-3 rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium text-sm">{product.name}</div>
+                      <div className="truncate text-muted-foreground text-xs">
+                        {product.category} • {t("threshold", { value: product.low_stock_threshold })}
+                      </div>
                     </div>
+                    <Badge variant={product.stock_quantity <= 0 ? "destructive" : "outline"}>
+                      {t("left", { count: product.stock_quantity })}
+                    </Badge>
                   </div>
-                  <Badge variant={product.stock_quantity <= 0 ? "destructive" : "outline"}>
-                    {t("left", { count: product.stock_quantity })}
-                  </Badge>
+                  <ProductQuickActions product={product} compact />
                 </div>
               ))
             )}

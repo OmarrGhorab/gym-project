@@ -25,3 +25,21 @@ export async function markPayrollPaid(input: FormData): Promise<void> {
   revalidatePath("/dashboard/payroll");
   revalidatePath("/dashboard/finance");
 }
+
+export async function updatePayroll(input: FormData): Promise<void> {
+  const id = Number(input.get("id"));
+
+  await serverApiFetch(`/payroll/${id}`, {
+    body: JSON.stringify({
+      bonuses: String(input.get("bonuses") || "0"),
+      deductions: String(input.get("deductions") || "0"),
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "PUT",
+  });
+
+  revalidatePath("/dashboard/payroll");
+  revalidatePath("/dashboard/finance");
+}

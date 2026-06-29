@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { getAttendancePageData } from "./_components/data";
 
 export default async function Page() {
@@ -40,6 +41,8 @@ export default async function Page() {
           tone="critical"
         />
       </div>
+
+      <AttendanceActionPanels employees={data.employees} shifts={data.shifts} violations={data.violations} />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <Card className="xl:col-span-7">
@@ -120,6 +123,45 @@ export default async function Page() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="font-normal">{t("recentMemberVisits")}</CardTitle>
+          <CardDescription>{t("recentMemberVisitsDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("member")}</TableHead>
+                <TableHead>{t("inOut")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("scanMethod")}</TableHead>
+                <TableHead>{t("alert")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.memberVisits.map((visit) => (
+                <TableRow key={visit.id}>
+                  <TableCell>
+                    <div className="font-medium">{visit.member?.name ?? t("member")}</div>
+                    <div className="text-muted-foreground text-xs">{visit.member?.phone ?? "--"}</div>
+                  </TableCell>
+                  <TableCell>
+                    {formatDateTime(visit.check_in_at, locale)} / {formatDateTime(visit.check_out_at, locale)}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge label={t(`visitStatuses.${visit.status}`)} value={visit.status} />
+                  </TableCell>
+                  <TableCell>{visit.scan_method}</TableCell>
+                  <TableCell>{visit.alert_reason ?? "--"}</TableCell>
+                </TableRow>
+              ))}
+              {data.memberVisits.length === 0 ? <EmptyRow cols={5} label={t("noMemberVisits")} /> : null}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="font-normal">{t("monthlyStaffSummary")}</CardTitle>
           <CardDescription>{t("monthlyStaffDescription")}</CardDescription>
         </CardHeader>
@@ -193,19 +235,32 @@ function StatusBadge({ label, value }: { label: string; value: string }) {
 }
 
 function statusTone(value: string): "critical" | "neutral" | "ready" | "warning" {
-  if (value === "present") {
+  if (value === "present" || value === "allowed") {
     return "ready";
   }
 
-  if (value === "late") {
+  if (value === "late" || value === "flagged") {
     return "warning";
   }
 
-  if (value === "absent") {
+  if (value === "absent" || value === "blocked") {
     return "critical";
   }
 
   return "neutral";
+}
+
+function formatDateTime(value: string | null, locale: string) {
+  if (!value) {
+    return "--";
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+  }).format(new Date(value));
 }
 
 function toneClass(tone: "neutral" | "ready" | "warning" | "critical") {

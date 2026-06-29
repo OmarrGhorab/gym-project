@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
-import { updateSettings } from "./_components/actions";
+import { deactivateShift, saveShift, updateSettings, updateViolationRule } from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
 
 export default async function Page() {
@@ -143,6 +143,44 @@ export default async function Page() {
                 ) : null}
               </TableBody>
             </Table>
+            <div className="mt-4 grid gap-3 rounded-lg border p-3">
+              <p className="text-muted-foreground text-xs">{t("shiftFormHint")}</p>
+              <form action={saveShift} className="grid gap-3 md:grid-cols-5">
+                <input type="hidden" name="id" value="0" />
+                <Input name="name" placeholder={t("shiftName")} required />
+                <Input name="starts_at" type="time" required />
+                <Input name="ends_at" type="time" required />
+                <Input name="grace_minutes" type="number" min={0} defaultValue={settings.attendance.default_grace_minutes} />
+                <label className="flex items-center gap-2 text-sm">
+                  <input name="is_active" type="checkbox" defaultChecked />
+                  {t("active")}
+                </label>
+                <Button type="submit" className="md:col-span-5">
+                  {t("createShift")}
+                </Button>
+              </form>
+              {shifts.map((shift) => (
+                <form key={`edit-${shift.id}`} action={saveShift} className="grid gap-3 border-t pt-3 md:grid-cols-6">
+                  <input type="hidden" name="id" value={shift.id} />
+                  <Input name="name" defaultValue={shift.name} aria-label={t("shiftName")} />
+                  <Input name="starts_at" type="time" defaultValue={shift.starts_at.slice(0, 5)} aria-label={t("startsAt")} />
+                  <Input name="ends_at" type="time" defaultValue={shift.ends_at.slice(0, 5)} aria-label={t("endsAt")} />
+                  <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} aria-label={t("grace")} />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input name="is_active" type="checkbox" defaultChecked={shift.is_active} />
+                    {t("active")}
+                  </label>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm">
+                      {t("save")}
+                    </Button>
+                    <Button formAction={deactivateShift} type="submit" size="sm" variant="outline">
+                      {t("deactivate")}
+                    </Button>
+                  </div>
+                </form>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -187,6 +225,41 @@ export default async function Page() {
                 ) : null}
               </TableBody>
             </Table>
+            <div className="mt-4 grid gap-3">
+              {rules.map((rule) => (
+                <form key={`rule-${rule.id}`} action={updateViolationRule} className="grid gap-3 rounded-lg border p-3">
+                  <input type="hidden" name="id" value={rule.id} />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Field label={t("ruleName")} name="name" defaultValue={rule.name} />
+                    <Field
+                      label={t("threshold")}
+                      name="threshold_minutes"
+                      type="number"
+                      defaultValue={rule.threshold_minutes ?? ""}
+                    />
+                    <Field label={t("deductionDays")} name="deduction_days" type="number" step="0.01" defaultValue={rule.deduction_days} />
+                    <div className="flex flex-wrap items-center gap-4 pt-7 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input name="requires_admin_approval" type="checkbox" defaultChecked={rule.requires_admin_approval} />
+                        {t("requiresApproval")}
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input name="auto_apply_if_unreviewed" type="checkbox" defaultChecked={rule.auto_apply_if_unreviewed} />
+                        {t("autoApply")}
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input name="is_active" type="checkbox" defaultChecked={rule.is_active} />
+                        {t("active")}
+                      </label>
+                    </div>
+                  </div>
+                  <Textarea name="description" defaultValue={rule.description ?? ""} placeholder={t("ruleDescription")} />
+                  <Button type="submit" size="sm">
+                    {t("saveRule")}
+                  </Button>
+                </form>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>

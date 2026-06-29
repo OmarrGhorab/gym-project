@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { voidSale } from "../actions";
 import { formatEgp } from "../format";
 import type { OrderRow } from "./schema";
 
@@ -172,7 +173,7 @@ export function getRecentOrdersColumns(t: EcommerceT): ColumnDef<OrderRow>[] {
     {
       id: "actions",
       header: () => <div className="flex w-full justify-end">{t("actions")}</div>,
-      cell: () => (
+      cell: ({ row }) => (
         <div className="flex w-full justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button aria-label={t("openSaleActions")} size="icon-sm" variant="ghost" />}>
@@ -182,8 +183,24 @@ export function getRecentOrdersColumns(t: EcommerceT): ColumnDef<OrderRow>[] {
               <DropdownMenuLabel>{t("saleActions")}</DropdownMenuLabel>
               <DropdownMenuGroup>
                 <DropdownMenuItem>{t("viewSale")}</DropdownMenuItem>
-                <DropdownMenuItem>{t("downloadReceipt")}</DropdownMenuItem>
+                <DropdownMenuItem render={<a href={`/api/sales/${row.original.id.replace(/^#/, "")}/receipt`} />}>
+                  {t("downloadReceipt")}
+                </DropdownMenuItem>
                 <DropdownMenuItem>{t("copySaleId")}</DropdownMenuItem>
+                {row.original.status.toLowerCase() !== "voided" ? (
+                  <DropdownMenuItem
+                    render={
+                      <form action={voidSale}>
+                        <input type="hidden" name="id" value={row.original.id} />
+                        <input type="hidden" name="reason" value="Voided from POS table" />
+                        <button type="submit" className="w-full text-left">
+                          {t("voidSale")}
+                        </button>
+                      </form>
+                    }
+                    nativeButton={false}
+                  />
+                ) : null}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

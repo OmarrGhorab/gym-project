@@ -416,7 +416,61 @@
       "statuses": {
         "present": "Present",
         "late": "Late",
-        "absent": "Absent"
+        "absent": "Absent",
+        "excused": "Excused"
+      },
+      "memberStation": "Member check-in station",
+      "memberStationDescription": "Scan a printed member QR code or use ID, phone, or name fallback.",
+      "staffStation": "Staff check-in station",
+      "staffStationDescription": "Record employee and captain attendance with QR/manual fallback and GPS when available.",
+      "checkIn": "Check in",
+      "checkOut": "Check out",
+      "memberQrPlaceholder": "Member QR token or code",
+      "employeeQrPlaceholder": "Employee QR token or code",
+      "memberIdPlaceholder": "Member ID",
+      "phonePlaceholder": "Phone number",
+      "namePlaceholder": "Member name",
+      "notesPlaceholder": "Notes",
+      "gpsReady": "GPS ready",
+      "gpsUnavailable": "GPS unavailable",
+      "submitMemberScan": "Record member scan",
+      "submitStaffScan": "Record staff scan",
+      "submitting": "Saving...",
+      "manualAttendance": "Manual attendance correction",
+      "manualAttendanceDescription": "Create a staff attendance record when a scan was missed or approved manually.",
+      "selectEmployee": "Select employee",
+      "noShift": "No shift",
+      "scheduleStatus": "Schedule status",
+      "approvalStatus": "Approval status",
+      "createAttendance": "Create attendance",
+      "reviewWarnings": "Review warnings",
+      "reviewWarningsDescription": "Approve or dismiss attendance deductions before payroll.",
+      "selectWarning": "Select warning",
+      "deductionAmount": "Deduction amount",
+      "deductionDays": "Deduction days",
+      "reviewNotes": "Review notes",
+      "reviewWarning": "Review warning",
+      "recentMemberVisits": "Recent member visits",
+      "recentMemberVisitsDescription": "Latest member gym check-ins and check-outs from QR/manual scans.",
+      "member": "Member",
+      "scanMethod": "Scan method",
+      "alert": "Alert",
+      "noMemberVisits": "No member visits yet.",
+      "scheduleStatuses": {
+        "on_shift": "On shift",
+        "late": "Late",
+        "off_shift": "Off shift",
+        "unassigned": "Unassigned"
+      },
+      "approvalStatuses": {
+        "approved": "Approved",
+        "pending": "Pending",
+        "dismissed": "Dismissed"
+      },
+      "visitStatuses": {
+        "allowed": "Allowed",
+        "blocked": "Blocked",
+        "flagged": "Flagged"
       }
     },
     "analytics": {
@@ -566,7 +620,16 @@
       "descriptionPlaceholder": "Optional note",
       "cancel": "Cancel",
       "saving": "Saving...",
-      "saveExpense": "Save expense"
+      "saveExpense": "Save expense",
+      "collect": "Collect",
+      "notAvailable": "N/A",
+      "save": "Save",
+      "delete": "Delete",
+      "paymentMethods": {
+        "cash": "Cash",
+        "card": "Card",
+        "bank_transfer": "Bank"
+      }
     },
     "membersPage": {
       "title": "Members",
@@ -706,7 +769,11 @@
       "employeeFallback": "Employee #{id}",
       "payslip": "Payslip",
       "pay": "Pay",
-      "noRecords": "No payroll records yet."
+      "noRecords": "No payroll records yet.",
+      "adjustments": "Adjustments",
+      "bonuses": "Bonuses",
+      "deductions": "Deductions",
+      "save": "Save"
     },
     "users": {
       "title": "Users",
@@ -763,7 +830,20 @@
       "threshold": "Threshold",
       "deduction": "Deduction",
       "days": "{count} days",
-      "noRules": "No rules found."
+      "noRules": "No rules found.",
+      "shiftFormHint": "Create a new shift or edit existing shift times directly.",
+      "shiftName": "Shift name",
+      "startsAt": "Starts at",
+      "endsAt": "Ends at",
+      "createShift": "Create shift",
+      "save": "Save",
+      "deactivate": "Deactivate",
+      "ruleName": "Rule name",
+      "deductionDays": "Deduction days",
+      "requiresApproval": "Requires approval",
+      "autoApply": "Auto apply if unreviewed",
+      "ruleDescription": "Rule description",
+      "saveRule": "Save rule"
     },
     "roles": {
       "title": "Roles & Permissions",
@@ -940,7 +1020,9 @@
       "unreadStatus": "Unread",
       "empty": "No notifications found.",
       "fallbackTitle": "Notification",
-      "notRecorded": "--"
+      "notRecorded": "--",
+      "actions": "Actions",
+      "markRead": "Mark read"
     },
     "tasks": {
       "title": "Action Queue",
@@ -1273,7 +1355,14 @@
         "cash": "Cash Sales",
         "card": "Card Sales",
         "bankTransfer": "Bank Transfer"
-      }
+      },
+      "checkout": "Checkout",
+      "checkoutTitle": "Create POS sale",
+      "checkoutDescription": "Sell one active product, decrement stock, and record payment.",
+      "memberId": "Member ID",
+      "notes": "Notes",
+      "createSale": "Create sale",
+      "voidSale": "Void sale"
     },
     "logistics": {
       "products": "Products",
@@ -1368,7 +1457,20 @@
       "overview": "Overview",
       "alerts": "Low Stock",
       "activity": "Activity",
-      "noInventoryActivity": "No inventory activity yet."
+      "noInventoryActivity": "No inventory activity yet.",
+      "actionFailed": "Action failed",
+      "stockIn": "In",
+      "stockOut": "Out",
+      "manualAdjustment": "Manual stock adjustment",
+      "adjust": "Adjust",
+      "editProduct": "Edit product",
+      "saveProduct": "Save product",
+      "toggle": "Toggle",
+      "delete": "Delete",
+      "receiveFailed": "Receive failed",
+      "receivePurchaseOrder": "Receive purchase order",
+      "receivePurchaseOrderDescription": "Confirm received quantities and add them to product stock.",
+      "receiveStock": "Receive stock"
     },
     "academy": {
       "title": "Staff Academy",
@@ -1416,7 +1518,26 @@
       },
       "upcomingEvents": "Upcoming Staff Events",
       "viewCalendar": "View Calendar",
-      "noEvents": "No upcoming staff events."
+      "noEvents": "No upcoming staff events.",
+      "staffManagement": "Staff management",
+      "staffManagementDescription": "Create employees, assign shifts, salaries, commission rates, and linked user IDs.",
+      "commissionBackfill": "Commission backfill",
+      "commissionBackfillDescription": "Recalculate commissions for a controlled date range.",
+      "dryRun": "Dry run only",
+      "backfillCommissions": "Backfill commissions",
+      "name": "Name",
+      "phone": "Phone",
+      "active": "Active",
+      "inactive": "Inactive",
+      "userId": "User ID",
+      "create": "Create",
+      "save": "Save",
+      "delete": "Delete",
+      "roles": {
+        "employee": "Employee",
+        "captain": "Captain",
+        "manager": "Manager"
+      }
     },
     "infrastructure": {
       "title": "System Health",

@@ -54,6 +54,13 @@ export type PosRecentOrder = {
   status: string;
 };
 
+export type PosProductOption = {
+  id: number;
+  name: string;
+  price: string;
+  stock_quantity: number;
+};
+
 export type PosDashboardData = {
   generated_at: string;
   totals: {
@@ -85,6 +92,7 @@ export type PosDashboardData = {
   };
   stock_alerts: PosStockAlert[];
   recent_orders: PosRecentOrder[];
+  products: PosProductOption[];
 };
 
 const emptyPosData: PosDashboardData = {
@@ -118,6 +126,7 @@ const emptyPosData: PosDashboardData = {
   },
   stock_alerts: [],
   recent_orders: [],
+  products: [],
 };
 
 export function normalizePosPeriodFilter(value: string | string[] | undefined): PosPeriodFilter {
@@ -149,10 +158,24 @@ export async function getPosDashboardData(
     params.set("period", filters.period ?? "this-month");
     params.set("payment_method", filters.paymentMethod ?? "pos");
 
-    const result = await serverApiFetch<PosDashboardData>(`/reports/pos-summary?${params.toString()}`);
+    const [result, productsResult] = await Promise.all([
+      serverApiFetch<PosDashboardData>(`/reports/pos-summary?${params.toString()}`),
+      safeFetch<PosProductOption[] | { data: PosProductOption[] }>("/products?filter[is_active]=1&sort=name&per_page=100", []),
+    ]);
 
-    return result.data;
+    return {
+      ...result.data,
+      products: Array.isArray(productsResult.data) ? productsResult.data : productsResult.data.data,
+    };
   } catch {
     return emptyPosData;
+  }
+}
+
+async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
+  try {
+    return await serverApiFetch<T>(path);
+  } catch {
+    return { data: fallback };
   }
 }

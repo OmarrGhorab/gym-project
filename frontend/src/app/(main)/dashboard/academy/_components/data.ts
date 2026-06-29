@@ -118,6 +118,12 @@ export type StaffAcademyPageData = StaffAcademyData & {
     employee: AcademyEmployee;
     performance: AcademyPerformanceDetail | null;
   }[];
+  shifts: {
+    id: number;
+    name: string;
+    starts_at: string;
+    ends_at: string;
+  }[];
 };
 
 const emptyStaffAcademyData: StaffAcademyData = {
@@ -146,9 +152,10 @@ const emptyStaffAcademyData: StaffAcademyData = {
 
 export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
   try {
-    const [reportResult, employeesResult] = await Promise.all([
+    const [reportResult, employeesResult, shiftsResult] = await Promise.all([
       serverApiFetch<StaffAcademyData>("/reports/staff-academy"),
       safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=8", []),
+      safeFetch<StaffAcademyPageData["shifts"]>("/attendance/shifts", []),
     ]);
     const employees = unwrapList(employeesResult.data);
     const employeeRows = await Promise.all(
@@ -172,9 +179,10 @@ export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
     return {
       ...reportResult.data,
       employeeRows,
+      shifts: shiftsResult.data,
     };
   } catch {
-    return { ...emptyStaffAcademyData, employeeRows: [] };
+    return { ...emptyStaffAcademyData, employeeRows: [], shifts: [] };
   }
 }
 

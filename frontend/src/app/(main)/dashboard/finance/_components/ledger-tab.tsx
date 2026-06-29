@@ -1,10 +1,14 @@
 import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
+import { deleteExpenseForm, recordPaymentForm, updateExpenseForm } from "./actions";
 import type { FinanceDue, FinanceExpense, FinancePayment } from "./data";
 
 export function LedgerTab({
@@ -101,6 +105,7 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
           <TableHead>{t("member")}</TableHead>
           <TableHead>{t("due")}</TableHead>
           <TableHead className="text-end">{t("balance")}</TableHead>
+          <TableHead className="text-end">{t("actions.title")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -118,10 +123,36 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
                   noDecimals: true,
                 })}
               </TableCell>
+              <TableCell>
+                {due.subscription_id ? (
+                  <form action={recordPaymentForm} className="flex justify-end gap-2">
+                    <input type="hidden" name="subscription_id" value={due.subscription_id} />
+                    <Input
+                      className="h-8 w-24"
+                      name="amount"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      defaultValue={due.outstanding_balance ?? due.amount_due ?? ""}
+                      aria-label={t("amount")}
+                    />
+                    <NativeSelect name="method" defaultValue="cash" className="w-24">
+                      <option value="cash">{t("paymentMethods.cash")}</option>
+                      <option value="card">{t("paymentMethods.card")}</option>
+                      <option value="bank_transfer">{t("paymentMethods.bank_transfer")}</option>
+                    </NativeSelect>
+                    <Button type="submit" size="sm">
+                      {t("collect")}
+                    </Button>
+                  </form>
+                ) : (
+                  <span className="text-muted-foreground text-xs">{t("notAvailable")}</span>
+                )}
+              </TableCell>
             </TableRow>
           ))
         ) : (
-          <EmptyRow colSpan={3} label={t("noOutstandingDues")} />
+          <EmptyRow colSpan={4} label={t("noOutstandingDues")} />
         )}
       </TableBody>
     </Table>
@@ -140,6 +171,7 @@ function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
           <TableHead>{t("description")}</TableHead>
           <TableHead>{t("createdBy")}</TableHead>
           <TableHead className="text-end">{t("amount")}</TableHead>
+          <TableHead className="text-end">{t("actions.title")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -153,10 +185,25 @@ function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
               <TableCell className="text-end">
                 {formatCurrency(Number(expense.amount), { currency: "EGP", noDecimals: true })}
               </TableCell>
+              <TableCell>
+                <form action={updateExpenseForm} className="grid min-w-[520px] grid-cols-[1fr_110px_130px_auto_auto] gap-2">
+                  <input type="hidden" name="id" value={expense.id} />
+                  <Input name="category" defaultValue={expense.category} aria-label={t("category")} />
+                  <Input name="amount" type="number" min="0.01" step="0.01" defaultValue={expense.amount} aria-label={t("amount")} />
+                  <Input name="date" type="date" defaultValue={expense.date ?? ""} aria-label={t("date")} />
+                  <input type="hidden" name="description" value={expense.description ?? ""} />
+                  <Button type="submit" size="sm">
+                    {t("save")}
+                  </Button>
+                  <Button formAction={deleteExpenseForm} type="submit" size="sm" variant="outline">
+                    {t("delete")}
+                  </Button>
+                </form>
+              </TableCell>
             </TableRow>
           ))
         ) : (
-          <EmptyRow colSpan={5} label={t("noExpenses")} />
+          <EmptyRow colSpan={6} label={t("noExpenses")} />
         )}
       </TableBody>
     </Table>

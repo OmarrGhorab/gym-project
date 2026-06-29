@@ -5,6 +5,7 @@ import { getPosDashboardData, normalizePosPaymentMethodFilter, normalizePosPerio
 import { Inventory } from "./_components/inventory";
 import { KpiStrip } from "./_components/kpi-strip";
 import { PosFilterToolbar } from "./_components/pos-filter-toolbar";
+import { PosCheckoutDialog } from "./_components/pos-checkout-dialog";
 import { RecentOrders } from "./_components/recent-orders";
 import { StoreTraffic } from "./_components/store-traffic";
 import { TopProducts } from "./_components/top-products";
@@ -32,6 +33,7 @@ export default async function Page({
         </div>
 
         <PosFilterToolbar paymentMethod={paymentMethod} period={period} />
+        <PosCheckoutDialog products={data.products} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">

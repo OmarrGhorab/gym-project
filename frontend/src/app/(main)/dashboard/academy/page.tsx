@@ -9,6 +9,7 @@ import { getStaffAcademyData } from "./_components/data";
 import { EmployeePerformanceTable } from "./_components/employee-performance-table";
 import { KpiCards } from "./_components/kpi-cards";
 import { PerformanceHighlights } from "./_components/performance-highlights";
+import { StaffManagement } from "./_components/staff-management";
 import { UpcomingEvents } from "./_components/upcoming-events";
 
 export default async function Page() {
@@ -60,6 +61,8 @@ export default async function Page() {
       </div>
 
       <EmployeePerformanceTable rows={data.employeeRows} />
+
+      <StaffManagement employees={data.employeeRows.map((row) => row.employee)} shifts={data.shifts} />
     </div>
   );
 }

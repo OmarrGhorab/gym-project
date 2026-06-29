@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { generatePayroll, markPayrollPaid } from "./_components/actions";
+import { generatePayroll, markPayrollPaid, updatePayroll } from "./_components/actions";
 import { getPayrollPageData } from "./_components/data";
 import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
@@ -65,6 +66,7 @@ export default async function Page() {
                 <TableHead>{t("month")}</TableHead>
                 <TableHead>{t("base")}</TableHead>
                 <TableHead>{t("attendance")}</TableHead>
+                <TableHead>{t("adjustments")}</TableHead>
                 <TableHead>{t("net")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead className="text-end">{t("actions")}</TableHead>
@@ -85,6 +87,16 @@ export default async function Page() {
                   </TableCell>
                   <TableCell>
                     {formatCurrency(Number(row.attendance_deductions), { currency: "EGP", noDecimals: true })}
+                  </TableCell>
+                  <TableCell>
+                    <form action={updatePayroll} className="grid min-w-[240px] grid-cols-[1fr_1fr_auto] gap-2">
+                      <input type="hidden" name="id" value={row.id} />
+                      <Input name="bonuses" type="number" min="0" step="0.01" defaultValue={row.bonuses} aria-label={t("bonuses")} />
+                      <Input name="deductions" type="number" min="0" step="0.01" defaultValue={row.deductions} aria-label={t("deductions")} />
+                      <Button type="submit" size="sm" variant="outline">
+                        {t("save")}
+                      </Button>
+                    </form>
                   </TableCell>
                   <TableCell className="font-medium">
                     {formatCurrency(Number(row.net_salary), { currency: "EGP", noDecimals: true })}
