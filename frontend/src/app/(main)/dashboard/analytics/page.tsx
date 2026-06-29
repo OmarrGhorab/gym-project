@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { AnalyticsKpiStrip } from "./_components/analytics-kpi-strip";
 import { AnalyticsToolbar } from "./_components/analytics-toolbar";
 import { getLiveAttendanceData } from "./_components/data";
@@ -7,16 +9,15 @@ import { TopTrafficSources } from "./_components/top-traffic-sources";
 import { TrafficQuality } from "./_components/traffic-quality";
 
 export default async function Page() {
+  const t = await getTranslations("Dashboard.analytics");
   const data = await getLiveAttendanceData();
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-3xl tracking-tight">Live Gym Analytics</h1>
-          <p className="text-muted-foreground text-sm">
-            Monitor current occupancy, member visits, staff attendance, and flagged scans from today.
-          </p>
+          <h1 className="text-3xl tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
 
         <AnalyticsToolbar generatedAt={data.generated_at} />
@@ -43,10 +44,7 @@ export default async function Page() {
       </div>
 
       {data.currently_inside.total === 0 && data.today.member_visits === 0 && data.today.staff_checkins === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No attendance scans have been recorded today yet. Once members or staff check in, this page will fill up
-          automatically.
-        </p>
+        <p className="text-muted-foreground text-sm">{t("emptyToday")}</p>
       ) : null}
     </div>
   );

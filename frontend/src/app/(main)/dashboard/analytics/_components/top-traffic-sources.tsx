@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,19 +12,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { LiveAttendanceAlert, LiveAttendanceScanMethod } from "./data";
 import { formatTime } from "./format";
 
-const chartConfig = {
-  count: {
-    color: "var(--chart-1)",
-    label: "Scans",
-  },
-} satisfies ChartConfig;
-
 function labelMethod(method: unknown) {
   return String(method ?? "").replaceAll("_", " ");
 }
 
 function ScanMethodsChart({ methods }: { methods: LiveAttendanceScanMethod[] }) {
-  const data = methods.length > 0 ? methods : [{ method: "No scans", count: 0 }];
+  const t = useTranslations("Dashboard.analytics");
+  const chartConfig = {
+    count: {
+      color: "var(--chart-1)",
+      label: t("scans"),
+    },
+  } satisfies ChartConfig;
+  const data = methods.length > 0 ? methods : [{ method: t("noScans"), count: 0 }];
 
   return (
     <ChartContainer config={chartConfig} className="h-64 w-full">
@@ -55,20 +56,23 @@ export function TopTrafficSources({
   alerts: LiveAttendanceAlert[];
   methods: LiveAttendanceScanMethod[];
 }) {
+  const t = useTranslations("Dashboard.analytics");
+  const locale = useLocale();
+
   return (
     <Card className="h-full gap-2">
       <CardHeader>
-        <CardTitle className="font-normal">Scan Methods & Alerts</CardTitle>
+        <CardTitle className="font-normal">{t("scanMethodsAlerts")}</CardTitle>
       </CardHeader>
 
       <CardContent className="px-0">
         <Tabs defaultValue="methods" className="flex flex-col gap-3">
           <TabsList className="w-full justify-start border-b px-2.5" variant="line">
             <TabsTrigger className="flex-none font-normal" value="methods">
-              Methods
+              {t("methods")}
             </TabsTrigger>
             <TabsTrigger className="flex-none font-normal" value="alerts">
-              Alerts
+              {t("alerts")}
             </TabsTrigger>
           </TabsList>
 
@@ -92,13 +96,13 @@ export function TopTrafficSources({
                       </Badge>
                     </div>
                     <div className="mt-2 text-muted-foreground text-xs">
-                      {alert.type} · {formatTime(alert.time)}
+                      {alert.type} · {formatTime(alert.time, locale, t("notScanned"))}
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="flex h-64 items-center justify-center rounded-lg border border-dashed text-muted-foreground text-sm">
-                  No flagged scans, blocked visits, or staff warnings today.
+                  {t("noAlerts")}
                 </div>
               )}
             </div>

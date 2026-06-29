@@ -1,4 +1,5 @@
 import { AlertTriangle, Clock3, DoorOpen, ShieldAlert, UserCheck } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,50 +10,59 @@ const cards = [
   {
     icon: DoorOpen,
     key: "inside",
-    title: "Currently inside",
+    titleKey: "currentlyInside",
   },
   {
     icon: UserCheck,
     key: "visits",
-    title: "Member visits",
+    titleKey: "memberVisits",
   },
   {
     icon: Clock3,
     key: "staff",
-    title: "Staff check-ins",
+    titleKey: "staffCheckins",
   },
   {
     icon: ShieldAlert,
     key: "risk",
-    title: "Flagged or blocked",
+    titleKey: "flaggedOrBlocked",
   },
   {
     icon: AlertTriangle,
     key: "late",
-    title: "Late staff",
+    titleKey: "lateStaff",
   },
 ] as const;
 
 export function AnalyticsKpiStrip({ data }: { data: LiveAttendanceData }) {
+  const t = useTranslations("Dashboard.analytics");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const values = {
     inside: {
-      detail: `${data.currently_inside.members} members / ${data.currently_inside.staff} staff`,
+      detail: t("insideDetail", {
+        members: numberFormatter.format(data.currently_inside.members),
+        staff: numberFormatter.format(data.currently_inside.staff),
+      }),
       value: data.currently_inside.total,
     },
     visits: {
-      detail: "Total member entries today",
+      detail: t("totalMemberEntries"),
       value: data.today.member_visits,
     },
     staff: {
-      detail: "Employee and captain scans",
+      detail: t("staffScanDetail"),
       value: data.today.staff_checkins,
     },
     risk: {
-      detail: `${data.today.flagged_scans} flagged / ${data.today.blocked_visits} blocked`,
+      detail: t("riskDetail", {
+        blocked: numberFormatter.format(data.today.blocked_visits),
+        flagged: numberFormatter.format(data.today.flagged_scans),
+      }),
       value: data.today.flagged_scans + data.today.blocked_visits,
     },
     late: {
-      detail: data.today.peak_hour ? `Peak occupancy at ${data.today.peak_hour}` : "No peak hour yet",
+      detail: data.today.peak_hour ? t("peakOccupancy", { time: data.today.peak_hour }) : t("noPeakHour"),
       value: data.today.late_staff,
     },
   };
@@ -68,11 +78,13 @@ export function AnalyticsKpiStrip({ data }: { data: LiveAttendanceData }) {
           return (
             <Card key={card.key}>
               <CardHeader>
-                <CardTitle className="font-normal text-sm">{card.title}</CardTitle>
+                <CardTitle className="font-normal text-sm">{t(card.titleKey)}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
-                  <div className="text-2xl tabular-nums leading-none tracking-tight">{metric.value}</div>
+                  <div className="text-2xl tabular-nums leading-none tracking-tight">
+                    {numberFormatter.format(metric.value)}
+                  </div>
                   <Badge
                     className={
                       risky && metric.value > 0
@@ -81,7 +93,7 @@ export function AnalyticsKpiStrip({ data }: { data: LiveAttendanceData }) {
                     }
                   >
                     <Icon />
-                    Live
+                    {t("live")}
                   </Badge>
                 </div>
 

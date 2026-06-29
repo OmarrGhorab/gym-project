@@ -1,4 +1,5 @@
 import { CalendarRange } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -14,6 +15,9 @@ export function TaskReminders({
   followUps: RenewalFollowUp[];
   renewalGoal: { expiringSoon: number; target: number; percentage: number };
 }) {
+  const t = useTranslations("Dashboard.crm");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const activeRenewalBars = Math.round((renewalGoal.percentage / 100) * renewalGoalBarCount);
   const renewalGoalBars = Array.from({ length: renewalGoalBarCount }, (_, index) => ({
     id: `renewal-goal-${index + 1}`,
@@ -24,7 +28,7 @@ export function TaskReminders({
     <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <Card className="xl:col-span-8">
         <CardHeader>
-          <CardTitle>Renewal Follow-ups</CardTitle>
+          <CardTitle>{t("renewalFollowUps")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">
@@ -37,17 +41,17 @@ export function TaskReminders({
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium text-sm">{followUp.memberName}</div>
                     <div className="truncate text-muted-foreground text-xs">
-                      {followUp.planName} ends in {followUp.daysLeft} day(s)
+                      {t("planEndsIn", { plan: followUp.planName, days: numberFormatter.format(followUp.daysLeft) })}
                     </div>
                   </div>
-                  <div className="text-right text-sm tabular-nums">
+                  <div className="text-end text-sm tabular-nums">
                     {formatCurrency(followUp.amount, { currency: "EGP", noDecimals: true })}
                   </div>
                 </div>
               ))
             ) : (
               <div className="rounded-lg border border-dashed p-4 text-muted-foreground text-sm md:col-span-2">
-                No subscriptions are due for renewal right now.
+                {t("noRenewals")}
               </div>
             )}
           </div>
@@ -56,14 +60,17 @@ export function TaskReminders({
 
       <Card className="xl:col-span-4">
         <CardHeader>
-          <CardTitle>Renewal Attention</CardTitle>
+          <CardTitle>{t("renewalAttention")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex items-end justify-between gap-3">
             <div className="font-medium text-2xl tabular-nums leading-none">
-              {renewalGoal.expiringSoon} <span className="font-normal text-base text-muted-foreground">soon</span>
+              {numberFormatter.format(renewalGoal.expiringSoon)}{" "}
+              <span className="font-normal text-base text-muted-foreground">{t("soon")}</span>
             </div>
-            <div className="text-muted-foreground text-sm tabular-nums">{renewalGoal.target} active</div>
+            <div className="text-muted-foreground text-sm tabular-nums">
+              {t("active", { count: numberFormatter.format(renewalGoal.target) })}
+            </div>
           </div>
           <div className="flex h-10 w-full items-end gap-0.5">
             {renewalGoalBars.map((bar) => (
@@ -78,7 +85,7 @@ export function TaskReminders({
             ))}
           </div>
           <p className="text-muted-foreground text-sm">
-            {renewalGoal.percentage}% of active subscriptions need renewal attention.
+            {t("renewalAttentionDescription", { percentage: numberFormatter.format(renewalGoal.percentage) })}
           </p>
         </CardContent>
       </Card>

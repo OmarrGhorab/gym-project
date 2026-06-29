@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { useLocale, useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,37 +20,37 @@ export type MembershipChartPoint = {
   units: number;
 };
 
-const pipelineChartConfig = {
-  revenue: {
-    label: "Revenue",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig;
+const pipelineRangeValues = ["last-30-days", "last-quarter", "last-12-months"] as const;
 
-const pipelineRangeItems = [
-  { value: "last-30-days", label: "Last 30 days" },
-  { value: "last-quarter", label: "Last quarter" },
-  { value: "last-12-months", label: "Last 12 months" },
-] as const;
-
-type PipelineRange = (typeof pipelineRangeItems)[number]["value"];
-
-const axisMonthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
-const tooltipMonthFormatter = new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" });
+type PipelineRange = (typeof pipelineRangeValues)[number];
 
 export function PipelineActivity({ data, summary }: { data: MembershipChartPoint[]; summary: MembershipSummary }) {
+  const t = useTranslations("Dashboard.crm");
+  const locale = useLocale();
   const [range, setRange] = React.useState<PipelineRange>("last-12-months");
+  const pipelineChartConfig = {
+    revenue: {
+      label: t("revenue"),
+      color: "var(--chart-2)",
+    },
+  } satisfies ChartConfig;
+  const pipelineRangeItems = pipelineRangeValues.map((value) => ({
+    value,
+    label: getRangeLabel(value, t),
+  }));
   const filteredData = React.useMemo(() => filterChartData(data, range), [data, range]);
   const selectedRange = pipelineRangeItems.find((item) => item.value === range) ?? pipelineRangeItems[2];
   const rangeRevenue = filteredData.reduce((sum, item) => sum + item.revenue, 0);
   const rangeSales = filteredData.reduce((sum, item) => sum + item.sales, 0);
   const dueProgress = rangeRevenue > 0 ? Math.round((summary.outstandingDuesTotal / rangeRevenue) * 100) : 0;
+  const axisMonthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
+  const tooltipMonthFormatter = new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit" });
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <Card className="xl:col-span-12">
         <CardHeader>
-          <CardTitle>Membership Revenue Flow</CardTitle>
+          <CardTitle>{t("membershipRevenueFlow")}</CardTitle>
           <CardAction>
             <Select
               value={range}
@@ -57,7 +58,7 @@ export function PipelineActivity({ data, summary }: { data: MembershipChartPoint
               items={pipelineRangeItems}
             >
               <SelectTrigger size="sm" className="min-w-40">
-                <SelectValue placeholder="Select range" />
+                <SelectValue placeholder={t("selectRange")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -127,23 +128,27 @@ export function PipelineActivity({ data, summary }: { data: MembershipChartPoint
               <div className="flex flex-col gap-1">
                 <div className="font-medium text-4xl tabular-nums leading-none">
                   {formatCurrency(rangeRevenue, { currency: "EGP", noDecimals: true })}{" "}
-                  <span className="font-normal text-lg text-muted-foreground">revenue</span>
+                  <span className="font-normal text-lg text-muted-foreground">{t("rangeRevenue")}</span>
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  Completed sales and POS activity for {selectedRange.label.toLowerCase()}.
+                  {t("rangeDescription", { range: selectedRange.label.toLowerCase() })}
                 </p>
               </div>
 
               <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-3">
-                <div className="text-[11px] text-muted-foreground uppercase tracking-widest">Balances To Collect</div>
+                <div className="text-[11px] text-muted-foreground uppercase tracking-widest">
+                  {t("balancesToCollect")}
+                </div>
 
                 <div className="flex flex-col gap-1.5">
                   <div className="font-medium text-2xl tabular-nums leading-none">
                     {formatCurrency(summary.outstandingDuesTotal, { currency: "EGP", noDecimals: true })}{" "}
-                    <span className="font-normal text-muted-foreground text-sm">due</span>
+                    <span className="font-normal text-muted-foreground text-sm">{t("due")}</span>
                   </div>
                   <p className="text-muted-foreground text-sm">
-                    {summary.outstandingDuesCount} member balances need follow-up.
+                    {t("balancesNeedFollowUp", {
+                      count: new Intl.NumberFormat(locale).format(summary.outstandingDuesCount),
+                    })}
                   </p>
                 </div>
 
@@ -153,8 +158,12 @@ export function PipelineActivity({ data, summary }: { data: MembershipChartPoint
                     className="h-2.5 bg-chart-2/12 *:data-[slot='progress-indicator']:bg-chart-2"
                   />
                   <div className="flex items-center justify-between text-xs">
-                    <div className="font-medium tabular-nums">{Math.min(dueProgress, 100)}% due ratio</div>
-                    <div className="text-muted-foreground tabular-nums">{rangeSales} sales</div>
+                    <div className="font-medium tabular-nums">
+                      {t("dueRatio", { value: new Intl.NumberFormat(locale).format(Math.min(dueProgress, 100)) })}
+                    </div>
+                    <div className="text-muted-foreground tabular-nums">
+                      {t("salesCount", { count: new Intl.NumberFormat(locale).format(rangeSales) })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -164,6 +173,18 @@ export function PipelineActivity({ data, summary }: { data: MembershipChartPoint
       </Card>
     </div>
   );
+}
+
+function getRangeLabel(value: PipelineRange, t: ReturnType<typeof useTranslations>) {
+  if (value === "last-30-days") {
+    return t("last30Days");
+  }
+
+  if (value === "last-quarter") {
+    return t("lastQuarter");
+  }
+
+  return t("last12Months");
 }
 
 function filterChartData(data: MembershipChartPoint[], range: PipelineRange) {

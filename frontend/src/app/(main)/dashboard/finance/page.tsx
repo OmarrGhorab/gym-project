@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -17,26 +17,30 @@ import { UpcomingTransactions } from "./_components/upcoming-transactions";
 import { Wallet } from "./_components/wallet";
 
 export default async function Page() {
+  const t = await getTranslations("Dashboard.finance");
+  const locale = await getLocale();
   const data = await getFinanceDashboardData();
-  const formattedDate = format(new Date(), "EEEE, do MMMM yyyy");
+  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
 
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
-        <h1 className="text-3xl tracking-tight">Gym Finance</h1>
+        <h1 className="text-3xl tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm">{formattedDate}</p>
       </div>
 
       <Tabs defaultValue="30-days" className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <TabsList variant="line">
-            <TabsTrigger value="30-days">Dashboard</TabsTrigger>
-            <TabsTrigger value="12-months">Reports</TabsTrigger>
-            <TabsTrigger value="custom">Collections</TabsTrigger>
-            <TabsTrigger value="ledger">Ledger</TabsTrigger>
+            <TabsTrigger value="30-days">{t("tabs.dashboard")}</TabsTrigger>
+            <TabsTrigger value="12-months">{t("tabs.reports")}</TabsTrigger>
+            <TabsTrigger value="custom">{t("tabs.collections")}</TabsTrigger>
+            <TabsTrigger value="ledger">{t("tabs.ledger")}</TabsTrigger>
           </TabsList>
 
-          <FinanceToolbarActions updatedAt={format(new Date(), "hh:mm a")} />
+          <FinanceToolbarActions
+            updatedAt={new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date())}
+          />
         </div>
 
         <TabsContent value="30-days" className="flex flex-col gap-4">

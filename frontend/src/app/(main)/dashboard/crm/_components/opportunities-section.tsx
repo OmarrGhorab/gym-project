@@ -14,6 +14,7 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { ChevronDownIcon, ListFilter } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +45,9 @@ function preventPaginationNavigation(event: React.MouseEvent<HTMLAnchorElement>)
 }
 
 export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }) {
+  const t = useTranslations("Dashboard.crm");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility] = React.useState<VisibilityState>({});
@@ -98,13 +102,13 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
     <section>
       <Card>
         <CardHeader>
-          <CardTitle className="leading-none">Renewal Pipeline</CardTitle>
-          <CardDescription>Track subscriptions by member, plan, renewal status, and balances.</CardDescription>
+          <CardTitle className="leading-none">{t("renewalPipeline")}</CardTitle>
+          <CardDescription>{t("renewalPipelineDescription")}</CardDescription>
           <CardAction>
             <div className="flex items-center gap-2">
               <Input
                 className="h-7 w-44 md:w-52"
-                placeholder="Search members..."
+                placeholder={t("searchMembers")}
                 value={searchQuery}
                 onChange={(event) => {
                   table.setGlobalFilter(event.target.value || undefined);
@@ -114,7 +118,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
                   <ListFilter data-icon="inline-start" />
-                  Status
+                  {t("status")}
                   <ChevronDownIcon data-icon="inline-end" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
@@ -127,7 +131,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
                   >
                     {statusOptions.map((option) => (
                       <DropdownMenuRadioItem key={option} value={option}>
-                        {option === "all" ? "All statuses" : option}
+                        {option === "all" ? t("allStatuses") : option}
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
@@ -136,7 +140,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
                   <ListFilter data-icon="inline-start" />
-                  Health
+                  {t("health")}
                   <ChevronDownIcon data-icon="inline-end" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
@@ -149,7 +153,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
                   >
                     {healthOptions.map((option) => (
                       <DropdownMenuRadioItem key={option} value={option}>
-                        {option === "all" ? "All health" : option}
+                        {option === "all" ? t("allHealth") : option}
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
@@ -184,7 +188,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
                 ) : (
                   <TableRow>
                     <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-24 text-center">
-                      No subscriptions found.
+                      {t("noSubscriptions")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -193,7 +197,10 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
           </div>
           <div className="flex items-center justify-between gap-4 px-4 pb-1">
             <p className="text-muted-foreground text-sm">
-              Viewing {visibleOpportunityCount} out of {filteredOpportunityCount.toLocaleString()} subscriptions
+              {t("viewingSubscriptions", {
+                visible: numberFormatter.format(visibleOpportunityCount),
+                total: numberFormatter.format(filteredOpportunityCount),
+              })}
             </p>
 
             <Pagination className="mx-0 w-auto justify-end">

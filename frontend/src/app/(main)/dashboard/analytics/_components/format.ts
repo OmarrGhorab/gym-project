@@ -1,26 +1,30 @@
-export function formatDuration(minutes: number) {
+export function formatDuration(minutes: number, locale = "en") {
+  const numberFormatter = new Intl.NumberFormat(locale);
+
   if (minutes < 60) {
-    return `${minutes}m`;
+    return `${numberFormatter.format(minutes)}m`;
   }
 
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
 
-  return rest > 0 ? `${hours}h ${rest}m` : `${hours}h`;
+  return rest > 0
+    ? `${numberFormatter.format(hours)}h ${numberFormatter.format(rest)}m`
+    : `${numberFormatter.format(hours)}h`;
 }
 
-export function formatTime(value: string | null) {
+export function formatTime(value: string | null, locale = "en", fallback = "Not scanned") {
   if (!value) {
-    return "Not scanned";
+    return fallback;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not scanned";
+    return fallback;
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,24 +10,24 @@ import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceChartPoint } from "./data";
 
-const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
-
-const chartConfig = {
-  revenue: {
-    color: "var(--chart-2)",
-    label: "Revenue",
-  },
-  expenses: {
-    color: "var(--chart-4)",
-    label: "Expenses",
-  },
-  netProfit: {
-    color: "var(--chart-3)",
-    label: "Net profit",
-  },
-} satisfies ChartConfig;
-
 export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[] }) {
+  const t = useTranslations("Dashboard.finance");
+  const locale = useLocale();
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
+  const chartConfig = {
+    revenue: {
+      color: "var(--chart-2)",
+      label: t("revenue"),
+    },
+    expenses: {
+      color: "var(--chart-4)",
+      label: t("expenses"),
+    },
+    netProfit: {
+      color: "var(--chart-3)",
+      label: t("netProfit"),
+    },
+  } satisfies ChartConfig;
   const chartData = chart
     .map((point) => ({
       period: point.period,
@@ -40,7 +41,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Finance Overview</CardTitle>
+        <CardTitle className="font-normal">{t("financeOverview")}</CardTitle>
         <CardAction>
           <Select defaultValue="monthly">
             <SelectTrigger className="w-28" size="sm">
@@ -48,7 +49,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="monthly">{t("monthly")}</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -63,7 +64,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
               axisLine={false}
               dataKey="date"
               scale="time"
-              tickFormatter={formatMonthLabel}
+              tickFormatter={(value) => formatMonthLabel(value, monthFormatter)}
               tickLine={false}
               tickMargin={10}
               tick={{ fontSize: 12 }}
@@ -76,7 +77,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
                 <ChartTooltipContent
                   active={active}
                   label={label}
-                  labelFormatter={formatMonthLabel}
+                  labelFormatter={(value) => formatMonthLabel(value, monthFormatter)}
                   payload={payload?.map((item) => ({
                     ...item,
                     value:
@@ -121,7 +122,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
   );
 }
 
-function formatMonthLabel(value: unknown) {
+function formatMonthLabel(value: unknown, monthFormatter: Intl.DateTimeFormat) {
   const timestamp = typeof value === "number" ? value : Number(value);
 
   if (Number.isFinite(timestamp)) {

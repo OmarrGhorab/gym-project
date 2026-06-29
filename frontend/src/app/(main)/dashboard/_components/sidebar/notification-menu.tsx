@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, CalendarClock, CircleDollarSign, UserPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,38 +16,40 @@ import {
 const notifications = [
   {
     id: "trial-ending",
-    title: "3 memberships expire today",
-    description: "Review renewals before closing.",
+    titleKey: "trialEndingTitle",
+    descriptionKey: "trialEndingDescription",
     icon: CalendarClock,
   },
   {
     id: "payment-due",
-    title: "2 payments need follow-up",
-    description: "Outstanding dues were detected.",
+    titleKey: "paymentDueTitle",
+    descriptionKey: "paymentDueDescription",
     icon: CircleDollarSign,
   },
   {
     id: "new-member",
-    title: "New member registered",
-    description: "Profile is ready for review.",
+    titleKey: "newMemberTitle",
+    descriptionKey: "newMemberDescription",
     icon: UserPlus,
   },
-];
+] as const;
 
 export function NotificationMenu() {
+  const t = useTranslations("Dashboard.shell");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button size="icon" aria-label="Open notifications">
+          <Button size="icon" aria-label={t("openNotifications")}>
             <Bell />
           </Button>
         }
       />
       <DropdownMenuContent className="w-80 rounded-lg" align="end" side="bottom" sideOffset={8}>
         <div className="px-2 py-1.5">
-          <p className="font-medium text-sm">Notifications</p>
-          <p className="text-muted-foreground text-xs">Latest gym activity</p>
+          <p className="font-medium text-sm">{t("notifications")}</p>
+          <p className="text-muted-foreground text-xs">{t("latestActivity")}</p>
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -57,8 +60,10 @@ export function NotificationMenu() {
               <DropdownMenuItem key={notification.id} className="items-start gap-2 py-2">
                 <Icon className="mt-0.5" />
                 <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="font-medium">{notification.title}</span>
-                  <span className="text-muted-foreground text-xs">{notification.description}</span>
+                  <span className="font-medium">{t(`notificationsItems.${notification.titleKey}`)}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {t(`notificationsItems.${notification.descriptionKey}`)}
+                  </span>
                 </span>
               </DropdownMenuItem>
             );

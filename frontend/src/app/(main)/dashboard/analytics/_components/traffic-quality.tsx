@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,27 +8,28 @@ import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } f
 
 import type { LiveAttendanceHourlyPoint } from "./data";
 
-const chartConfig = {
-  members: {
-    color: "var(--chart-3)",
-    label: "Members",
-  },
-  staff: {
-    color: "var(--chart-1)",
-    label: "Staff",
-  },
-  total: {
-    color: "var(--foreground)",
-    label: "Total inside",
-  },
-} satisfies ChartConfig;
-
 export function TrafficQuality({ data }: { data: LiveAttendanceHourlyPoint[] }) {
+  const t = useTranslations("Dashboard.analytics");
+  const chartConfig = {
+    members: {
+      color: "var(--chart-3)",
+      label: t("members"),
+    },
+    staff: {
+      color: "var(--chart-1)",
+      label: t("staff"),
+    },
+    total: {
+      color: "var(--foreground)",
+      label: t("totalInside"),
+    },
+  } satisfies ChartConfig;
+
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="font-normal">Hourly Occupancy</CardTitle>
-        <CardDescription>Inside count by hour from today&apos;s member and staff scans.</CardDescription>
+        <CardTitle className="font-normal">{t("hourlyOccupancy")}</CardTitle>
+        <CardDescription>{t("hourlyOccupancyDescription")}</CardDescription>
       </CardHeader>
 
       <CardContent>

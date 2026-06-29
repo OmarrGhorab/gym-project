@@ -1,3 +1,7 @@
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -5,6 +9,9 @@ import { formatCurrency } from "@/lib/utils";
 import type { FinanceDashboardData } from "./data";
 
 export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"] }) {
+  const t = useTranslations("Dashboard.finance");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const revenue = Number(totals.revenue_mtd);
   const previousRevenue = Number(totals.previous_revenue_mtd);
   const expenses = Number(totals.expenses_mtd);
@@ -17,22 +24,22 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
       <div className="grid grid-cols-1 xl:grid-cols-8">
         <Card className="gap-5 overflow-hidden rounded-none border-0 border-foreground/10 border-b ring-0 xl:col-span-4 xl:border-r">
           <CardHeader>
-            <CardTitle className="font-normal">Net profit</CardTitle>
+            <CardTitle className="font-normal">{t("netProfit")}</CardTitle>
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="space-y-1">
               <div className="font-heading text-3xl leading-none tracking-tight">
                 {formatCurrency(netProfit, { currency: "EGP", noDecimals: true })}
               </div>
-              <p className="text-muted-foreground text-xs">Revenue after expenses and pending payroll</p>
+              <p className="text-muted-foreground text-xs">{t("netProfitDescription")}</p>
             </div>
-            <GrowthBadge value={netProfit >= 0 ? margin : -Math.abs(margin)} suffix="% margin" />
+            <GrowthBadge value={netProfit >= 0 ? margin : -Math.abs(margin)} suffix={t("margin")} />
           </CardContent>
         </Card>
 
         <Card className="gap-5 overflow-hidden rounded-none border-0 border-foreground/10 border-b ring-0 xl:col-span-4">
           <CardHeader>
-            <CardTitle className="font-normal">Collected revenue</CardTitle>
+            <CardTitle className="font-normal">{t("collectedRevenue")}</CardTitle>
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="flex flex-col gap-1">
@@ -40,7 +47,7 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
                 {formatCurrency(revenue, { currency: "EGP", noDecimals: true })}
               </div>
               <p className="text-muted-foreground text-xs">
-                {formatDelta(revenue - previousRevenue)} vs previous month
+                {t("vsPreviousMonth", { value: formatDelta(revenue - previousRevenue, t) })}
               </p>
             </div>
             <GrowthBadge value={Number(totals.revenue_growth_rate)} />
@@ -49,7 +56,7 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
 
         <Card className="gap-5 overflow-hidden rounded-none border-0 border-foreground/10 ring-0 xl:col-span-4 xl:border-r">
           <CardHeader>
-            <CardTitle className="font-normal">Operating expenses</CardTitle>
+            <CardTitle className="font-normal">{t("operatingExpenses")}</CardTitle>
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="flex flex-col gap-1">
@@ -57,7 +64,7 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
                 {formatCurrency(expenses, { currency: "EGP", noDecimals: true })}
               </div>
               <p className="text-muted-foreground text-xs">
-                {formatDelta(expenses - previousExpenses)} vs previous month
+                {t("vsPreviousMonth", { value: formatDelta(expenses - previousExpenses, t) })}
               </p>
             </div>
             <GrowthBadge value={Number(totals.expense_growth_rate)} inverse />
@@ -66,7 +73,7 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
 
         <Card className="gap-5 overflow-hidden rounded-none border-0 ring-0 xl:col-span-4">
           <CardHeader>
-            <CardTitle className="font-normal">Pending payroll</CardTitle>
+            <CardTitle className="font-normal">{t("pendingPayroll")}</CardTitle>
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="flex flex-col gap-1">
@@ -74,10 +81,14 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
                 {formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true })}
               </div>
               <p className="text-muted-foreground text-xs">
-                {formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true })} dues to collect
+                {t("duesToCollect", {
+                  value: formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true }),
+                })}
               </p>
             </div>
-            <Badge className="bg-chart-2/10 text-chart-2">{totals.outstanding_dues_count} due</Badge>
+            <Badge className="bg-chart-2/10 text-chart-2">
+              {t("dueCount", { count: numberFormatter.format(totals.outstanding_dues_count) })}
+            </Badge>
           </CardContent>
         </Card>
       </div>
@@ -101,11 +112,11 @@ function GrowthBadge({ value, inverse = false, suffix = "%" }: { value: number; 
   );
 }
 
-function formatDelta(value: number) {
+function formatDelta(value: number, t: ReturnType<typeof useTranslations>) {
   const formatted = formatCurrency(Math.abs(value), { currency: "EGP", noDecimals: true });
 
   if (value === 0) {
-    return "No change";
+    return t("noChange");
   }
 
   return `${value > 0 ? "+" : "-"}${formatted}`;

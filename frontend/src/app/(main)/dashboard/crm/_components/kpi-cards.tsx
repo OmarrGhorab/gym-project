@@ -1,4 +1,5 @@
 import { ArrowUpRight, TrendingDown, TrendingUp } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -7,19 +8,21 @@ import { formatCurrency } from "@/lib/utils";
 import type { MembershipSummary } from "./data";
 
 export function KpiCards({ summary }: { summary: MembershipSummary }) {
+  const t = useTranslations("Dashboard.crm");
+  const locale = useLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
+
   return (
     <section className="space-y-5">
       <div className="space-y-1">
-        <h2 className="text-3xl tracking-tight">Membership Pipeline</h2>
-        <p className="text-muted-foreground text-sm">
-          Track active subscriptions, renewal follow-ups, member growth, and balances that need attention.
-        </p>
+        <h2 className="text-3xl tracking-tight">{t("title")}</h2>
+        <p className="text-muted-foreground text-sm">{t("description")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardDescription>Subscription Revenue</CardDescription>
+            <CardDescription>{t("subscriptionRevenue")}</CardDescription>
             <CardAction>
               <ArrowUpRight className="size-4" />
             </CardAction>
@@ -31,19 +34,21 @@ export function KpiCards({ summary }: { summary: MembershipSummary }) {
               </span>
 
               <PositiveBadge
-                value={`${formatCurrency(summary.salesTodayRevenue, { currency: "EGP", noDecimals: true })} today`}
+                value={t("today", {
+                  value: formatCurrency(summary.salesTodayRevenue, { currency: "EGP", noDecimals: true }),
+                })}
               />
             </div>
             <p className="text-sm">
-              <span className="font-medium text-foreground">All subscription value</span>{" "}
-              <span className="text-muted-foreground">currently tracked</span>
+              <span className="font-medium text-foreground">{t("allSubscriptionValue")}</span>{" "}
+              <span className="text-muted-foreground">{t("currentlyTracked")}</span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardDescription>Outstanding Dues</CardDescription>
+            <CardDescription>{t("outstandingDues")}</CardDescription>
             <CardAction>
               <ArrowUpRight className="size-4" />
             </CardAction>
@@ -56,52 +61,56 @@ export function KpiCards({ summary }: { summary: MembershipSummary }) {
 
               <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
                 <TrendingDown />
-                {summary.outstandingDuesCount} due
+                {t("dueCount", { count: numberFormatter.format(summary.outstandingDuesCount) })}
               </Badge>
             </div>
             <p className="text-sm">
-              <span className="font-medium text-foreground">Unpaid balances</span>{" "}
-              <span className="text-muted-foreground">from subscriptions</span>
+              <span className="font-medium text-foreground">{t("unpaidBalances")}</span>{" "}
+              <span className="text-muted-foreground">{t("fromSubscriptions")}</span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardDescription>Renewal Follow-ups</CardDescription>
+            <CardDescription>{t("renewalFollowUps")}</CardDescription>
             <CardAction>
               <ArrowUpRight className="size-4" />
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="text-3xl leading-none tracking-tight">{summary.expiringSoon}</span>
+              <span className="text-3xl leading-none tracking-tight">
+                {numberFormatter.format(summary.expiringSoon)}
+              </span>
 
-              <PositiveBadge value="soon" />
+              <PositiveBadge value={t("soon")} />
             </div>
             <p className="text-sm">
-              <span className="font-medium text-foreground">Active subscriptions</span>{" "}
-              <span className="text-muted-foreground">near expiry</span>
+              <span className="font-medium text-foreground">{t("activeSubscriptions")}</span>{" "}
+              <span className="text-muted-foreground">{t("nearExpiry")}</span>
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardDescription>New Members</CardDescription>
+            <CardDescription>{t("newMembers")}</CardDescription>
             <CardAction>
               <ArrowUpRight className="size-4" />
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="text-3xl leading-none tracking-tight">{summary.newMembersThisMonth}</span>
+              <span className="text-3xl leading-none tracking-tight">
+                {numberFormatter.format(summary.newMembersThisMonth)}
+              </span>
 
               <PositiveBadge value={`${formatPercent(summary.memberGrowthRate)}`} />
             </div>
             <p className="text-sm">
-              <span className="font-medium text-foreground">{summary.activeSubscriptions}</span>{" "}
-              <span className="text-muted-foreground">active subscriptions</span>
+              <span className="font-medium text-foreground">{numberFormatter.format(summary.activeSubscriptions)}</span>{" "}
+              <span className="text-muted-foreground">{t("activeSubscriptions")}</span>
             </p>
           </CardContent>
         </Card>
