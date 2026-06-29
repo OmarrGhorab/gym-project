@@ -30,10 +30,12 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
+  SquareArrowOutUpRight,
   Table2,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
@@ -56,13 +58,15 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 import { createGymTask, updateGymTaskStatus } from "./actions";
 import { columnIds, columns } from "./constants";
-import { toColumnId, toTask } from "./data";
 import { KanbanColumn } from "./kanban-column";
+import { toColumnId, toTask } from "./mappers";
 import { TaskCard } from "./task-card";
 import type { ApiGymTask, BoardState, ColumnId, Task } from "./types";
 import { findColumnId, findTask } from "./utils";
@@ -84,10 +88,12 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<"all" | "editable" | "generated" | "high">("all");
   const [sort, setSort] = React.useState<"default" | "priority" | "due">("default");
+  const [view, setView] = React.useState<"board" | "list" | "table">("board");
   const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
   const boardBeforeDrag = React.useRef<BoardState | null>(null);
   const orderedColumns = columnOrder.flatMap((columnId) => columns.find((column) => column.id === columnId) ?? []);
   const visibleBoard = React.useMemo(() => filterBoard(board, query, filter, sort), [board, filter, query, sort]);
+  const visibleRows = React.useMemo(() => flattenBoard(visibleBoard, columnOrder), [columnOrder, visibleBoard]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -232,7 +238,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
   return (
     <div className="flex h-[calc(100dvh-var(--dashboard-header-height))] min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-6">
-        <Tabs defaultValue="board" className="min-w-0">
+        <Tabs value={view} onValueChange={(value) => setView(value as typeof view)} className="min-w-0">
           <TabsList className="w-full *:data-[slot=tabs-trigger]:flex-1 sm:w-fit sm:*:data-[slot=tabs-trigger]:flex-none">
             <TabsTrigger value="board" className="gap-2">
               <KanbanIcon />
@@ -264,7 +270,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" className="w-full sm:w-auto" />}>
               <SlidersHorizontal data-icon="inline-start" />
-              Filter
+              {getFilterLabel(filter)}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={() => setFilter("all")}>All tasks</DropdownMenuItem>
@@ -276,7 +282,7 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" className="w-full sm:w-auto" />}>
               <ArrowUpDown data-icon="inline-start" />
-              Sort
+              {getSortLabel(sort)}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={() => setSort("default")}>Default</DropdownMenuItem>
@@ -304,33 +310,37 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
         </div>
       </div>
 
-      <DndContext
-        id="kanban-board"
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        <div className="scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden bg-muted/25 px-4 pt-4 pb-0 [scrollbar-color:var(--border)_transparent] lg:px-5 lg:pt-5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
-          <div className="inline-grid h-full min-w-full grid-cols-[repeat(5,minmax(20rem,1fr))] gap-4">
-            <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-              {orderedColumns.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column}
-                  tasks={visibleBoard[column.id]}
-                  onAddTask={() => setTaskDialogOpen(true)}
-                />
-              ))}
-            </SortableContext>
+      {view === "board" ? (
+        <DndContext
+          id="kanban-board"
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <div className="scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden bg-muted/25 px-4 pt-4 pb-0 [scrollbar-color:var(--border)_transparent] lg:px-5 lg:pt-5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
+            <div className="inline-grid h-full min-w-full grid-cols-[repeat(5,minmax(20rem,1fr))] gap-4">
+              <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
+                {orderedColumns.map((column) => (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column}
+                    tasks={visibleBoard[column.id]}
+                    onAddTask={() => setTaskDialogOpen(true)}
+                  />
+                ))}
+              </SortableContext>
+            </div>
           </div>
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {activeTask ? <TaskCard task={activeTask} columnId={activeColumnId ?? undefined} isOverlay /> : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay dropAnimation={null}>
+            {activeTask ? <TaskCard task={activeTask} columnId={activeColumnId ?? undefined} isOverlay /> : null}
+          </DragOverlay>
+        </DndContext>
+      ) : null}
+      {view === "list" ? <TaskListView rows={visibleRows} /> : null}
+      {view === "table" ? <TaskTableView rows={visibleRows} /> : null}
       <CreateTaskDialog
         employees={employees}
         open={taskDialogOpen}
@@ -344,6 +354,139 @@ export function Kanban({ employees, initialBoard }: KanbanProps) {
         }}
       />
     </div>
+  );
+}
+
+function TaskListView({ rows }: { rows: TaskRow[] }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto bg-muted/25 p-4 lg:p-5">
+      <div className="mx-auto grid max-w-5xl gap-3">
+        {rows.length > 0 ? (
+          rows.map(({ column, task }) => (
+            <div key={task.id} className="rounded-xl border bg-card p-4 text-card-foreground">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium text-sm">{task.title}</h3>
+                    <PriorityBadge priority={task.priority} />
+                    <Badge variant="secondary" className="rounded-md border-transparent">
+                      {column.title}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-muted-foreground text-sm">{task.description}</p>
+                </div>
+                {task.href ? (
+                  <Button render={<a href={task.href} />} size="sm" variant="outline">
+                    Open
+                    <SquareArrowOutUpRight />
+                  </Button>
+                ) : null}
+              </div>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-4">
+                <InfoItem label="Owner" value={task.owner.name} />
+                <InfoItem label="Due date" value={task.dueDate} />
+                <InfoItem label="Team" value={task.team} />
+                <InfoItem label="Source" value={task.editable ? "Manual" : "Backend alert"} />
+              </div>
+            </div>
+          ))
+        ) : (
+          <EmptyTasks />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TaskTableView({ rows }: { rows: TaskRow[] }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto bg-muted/25 p-4 lg:p-5">
+      <div className="rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Task</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Due date</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead className="text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.length > 0 ? (
+              rows.map(({ column, task }) => (
+                <TableRow key={task.id}>
+                  <TableCell className="max-w-md whitespace-normal">
+                    <div className="font-medium">{task.title}</div>
+                    <div className="line-clamp-1 text-muted-foreground text-xs">{task.description}</div>
+                  </TableCell>
+                  <TableCell>{column.title}</TableCell>
+                  <TableCell>
+                    <PriorityBadge priority={task.priority} />
+                  </TableCell>
+                  <TableCell>{task.owner.name}</TableCell>
+                  <TableCell>{task.dueDate}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="rounded-md border-transparent">
+                      {task.team}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {task.href ? (
+                      <Button render={<a href={task.href} />} size="sm" variant="ghost">
+                        Open
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Manual</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell className="h-32 text-center text-muted-foreground" colSpan={7}>
+                  No tasks match the current filters.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-muted-foreground text-xs">{label}</div>
+      <div className="font-medium">{value}</div>
+    </div>
+  );
+}
+
+function EmptyTasks() {
+  return (
+    <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground text-sm">
+      No tasks match the current filters.
+    </div>
+  );
+}
+
+function PriorityBadge({ priority }: { priority: Task["priority"] }) {
+  return (
+    <Badge
+      variant={priority === "High" ? "destructive" : "secondary"}
+      className={cn(
+        "rounded-md border-transparent",
+        priority === "Medium" && "bg-amber-500/10 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+        priority === "Low" && "bg-slate-500/10 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
+      )}
+    >
+      {priority}
+    </Badge>
   );
 }
 
@@ -527,6 +670,38 @@ function filterBoard(
   }
 
   return next;
+}
+
+type TaskRow = {
+  column: (typeof columns)[number];
+  task: Task;
+};
+
+function flattenBoard(board: BoardState, orderedColumnIds: ColumnId[]): TaskRow[] {
+  return orderedColumnIds.flatMap((columnId) => {
+    const column = columns.find((item) => item.id === columnId);
+
+    if (!column) {
+      return [];
+    }
+
+    return board[columnId].map((task) => ({ column, task }));
+  });
+}
+
+function getFilterLabel(filter: "all" | "editable" | "generated" | "high") {
+  if (filter === "editable") return "Manual";
+  if (filter === "generated") return "Backend";
+  if (filter === "high") return "Urgent";
+
+  return "Filter";
+}
+
+function getSortLabel(sort: "default" | "priority" | "due") {
+  if (sort === "priority") return "Priority";
+  if (sort === "due") return "Due date";
+
+  return "Sort";
 }
 
 function priorityRank(priority: Task["priority"]) {
