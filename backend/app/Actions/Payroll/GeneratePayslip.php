@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceViolation;
 use App\Models\Commission;
 use App\Models\Payroll;
+use ArPHP\I18N\Arabic;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -50,9 +51,15 @@ class GeneratePayslip
             $payroll->setRelation('attendanceViolations', $violations);
 
             if (str_contains($acceptHeader, 'application/pdf')) {
+                $arabic = new Arabic;
                 $pdf = Pdf::loadView('payroll.payslip', [
+                    'pdfArabic' => static fn (?string $text): string => $text
+                        ? $arabic->utf8Glyphs($text, 120, false, true)
+                        : '',
                     'payroll' => $payroll,
-                ]);
+                ])->setPaper('a4', 'landscape')
+                    ->setOption('defaultFont', 'DejaVu Sans')
+                    ->setOption('isHtml5ParserEnabled', true);
 
                 return response($pdf->output(), 200, [
                     'Content-Type' => 'application/pdf',
@@ -68,6 +75,7 @@ class GeneratePayslip
             }
 
             return response()->view('payroll.payslip', [
+                'pdfArabic' => static fn (?string $text): string => $text ?? '',
                 'payroll' => $payroll,
             ]);
         } catch (\Throwable $e) {

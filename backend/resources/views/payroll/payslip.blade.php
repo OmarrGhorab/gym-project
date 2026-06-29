@@ -115,47 +115,48 @@
     $attendance = $payroll->getRelation('monthAttendance') ?? collect();
     $violations = $payroll->getRelation('attendanceViolations') ?? collect();
     $snapshot = $payroll->attendance_snapshot ?? [];
+    $ar = $pdfArabic ?? static fn (?string $text): string => $text ?? '';
 @endphp
 
 <div class="page">
     <div class="watermark">ATP GYM</div>
     <div class="grid">
         <div class="col">
-            <h1>لائحة المخالفات</h1>
+            <h1>{{ $ar('لائحة المخالفات') }}</h1>
             <table>
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>نوع المخالفة</th>
-                        <th>الجزاء</th>
-                        <th>الحالة</th>
+                        <th>{{ $ar('نوع المخالفة') }}</th>
+                        <th>{{ $ar('الجزاء') }}</th>
+                        <th>{{ $ar('الحالة') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($violations as $violation)
                         <tr>
                             <td>{{ $loop->iteration }}</td>
-                            <td>{{ $violation->rule?->description ?? $violation->type }}</td>
-                            <td>{{ number_format((float) $violation->deduction_days, 2) }} يوم / {{ number_format((float) $violation->deduction_amount, 2) }}</td>
-                            <td>{{ $violation->status }}</td>
+                            <td>{{ $ar($violation->rule?->description ?? $violation->type) }}</td>
+                            <td><span class="ltr">{{ number_format((float) $violation->deduction_days, 2) }}</span> {{ $ar('يوم') }} / <span class="ltr">{{ number_format((float) $violation->deduction_amount, 2) }}</span></td>
+                            <td>{{ $ar($violation->status) }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4">لا توجد مخالفات مسجلة لهذا الشهر</td>
+                            <td colspan="4">{{ $ar('لا توجد مخالفات مسجلة لهذا الشهر') }}</td>
                         </tr>
                     @endforelse
                     <tr class="totals">
-                        <td colspan="2">الإجمالي</td>
+                        <td colspan="2">{{ $ar('الإجمالي') }}</td>
                         <td colspan="2">{{ number_format((float) $payroll->attendance_deductions, 2) }}</td>
                     </tr>
                 </tbody>
             </table>
             <div class="notes">
-                <strong>تنبيه:</strong>
+                <strong>{{ $ar('تنبيه:') }}</strong>
                 <ul>
-                    <li>هذه اللائحة تتضمن عدم فعل المخالفة وعدم تكرارها.</li>
-                    <li>أي مخالفة معلقة يمكن مراجعتها من الإدارة قبل صرف الراتب.</li>
-                    <li>المخالفات غير المراجعة تطبق تلقائيا حسب إعدادات النظام.</li>
+                    <li>{{ $ar('هذه اللائحة تتضمن عدم فعل المخالفة وعدم تكرارها.') }}</li>
+                    <li>{{ $ar('أي مخالفة معلقة يمكن مراجعتها من الإدارة قبل صرف الراتب.') }}</li>
+                    <li>{{ $ar('المخالفات غير المراجعة تطبق تلقائيا حسب إعدادات النظام.') }}</li>
                 </ul>
             </div>
         </div>
@@ -165,19 +166,19 @@
                 <div class="brand">ATP GYM</div>
                 <div>Unleash Your Energy</div>
             </div>
-            <div class="month">مرتبات شهر / <span class="ltr">{{ $payroll->month }}</span></div>
-            <h2>البيانات الشخصية</h2>
-            <div class="line"><span class="label">الاسم :</span><span class="value">{{ $payroll->employee?->name }}</span></div>
-            <div class="line"><span class="label">الوظيفة :</span><span class="value">{{ $payroll->employee?->role }}</span></div>
-            <div class="line"><span class="label">نظام العمل :</span><span class="value">{{ $payroll->employee?->shift?->name ?? '-' }}</span></div>
-            <div class="line"><span class="label">أساسي المرتب :</span><span class="value">{{ number_format((float) $payroll->base_salary, 2) }}</span></div>
-            <div class="line"><span class="label">العمولات :</span><span class="value">{{ number_format((float) $payroll->commissions_total, 2) }}</span></div>
-            <div class="line"><span class="label">بونص :</span><span class="value">{{ number_format((float) $payroll->bonuses, 2) }}</span></div>
-            <div class="line"><span class="label">أيام الغياب :</span><span class="value">{{ $attendance->where('status', 'absent')->count() }}</span></div>
-            <div class="line"><span class="label">السلف / الخصم اليدوي :</span><span class="value">{{ number_format((float) $payroll->deductions, 2) }}</span></div>
-            <div class="line"><span class="label">الخصم طبقا للائحة :</span><span class="value">{{ number_format((float) $payroll->attendance_deductions, 2) }}</span></div>
-            <div class="line highlight"><span class="label">صافي الراتب :</span><span class="value">{{ number_format((float) $payroll->net_salary, 2) }}</span></div>
-            <div class="line"><span class="label">ملاحظات :</span><span class="value">{{ $snapshot['notes'] ?? '' }}</span></div>
+            <div class="month">{{ $ar('مرتبات شهر') }} / <span class="ltr">{{ $payroll->month }}</span></div>
+            <h2>{{ $ar('البيانات الشخصية') }}</h2>
+            <div class="line"><span class="label">{{ $ar('الاسم :') }}</span><span class="value">{{ $ar($payroll->employee?->name) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('الوظيفة :') }}</span><span class="value">{{ $ar($payroll->employee?->role) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('نظام العمل :') }}</span><span class="value">{{ $ar($payroll->employee?->shift?->name ?? '-') }}</span></div>
+            <div class="line"><span class="label">{{ $ar('أساسي المرتب :') }}</span><span class="value">{{ number_format((float) $payroll->base_salary, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('العمولات :') }}</span><span class="value">{{ number_format((float) $payroll->commissions_total, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('بونص :') }}</span><span class="value">{{ number_format((float) $payroll->bonuses, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('أيام الغياب :') }}</span><span class="value">{{ $attendance->where('status', 'absent')->count() }}</span></div>
+            <div class="line"><span class="label">{{ $ar('السلف / الخصم اليدوي :') }}</span><span class="value">{{ number_format((float) $payroll->deductions, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('الخصم طبقا للائحة :') }}</span><span class="value">{{ number_format((float) $payroll->attendance_deductions, 2) }}</span></div>
+            <div class="line highlight"><span class="label">{{ $ar('صافي الراتب :') }}</span><span class="value">{{ number_format((float) $payroll->net_salary, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('ملاحظات :') }}</span><span class="value">{{ $ar($snapshot['notes'] ?? '') }}</span></div>
         </div>
     </div>
 </div>
