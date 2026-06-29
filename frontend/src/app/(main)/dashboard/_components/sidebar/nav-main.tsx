@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ChevronRight, MailIcon, PlusCircleIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -85,6 +86,7 @@ function hasSubItems(item: NavMainItem): item is NavMainParentItem {
 
 export function NavMain({ items }: NavMainProps) {
   const path = usePathname();
+  const t = useTranslations("Dashboard.nav");
 
   const isItemActive = (item: NavMainItem) => {
     if (hasSubItems(item)) {
@@ -109,11 +111,11 @@ export function NavMain({ items }: NavMainProps) {
           <SidebarMenu>
             <SidebarMenuItem className="flex items-center gap-2">
               <SidebarMenuButton
-                tooltip="Quick Create"
+                tooltip={t("quickCreate")}
                 className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
               >
                 <PlusCircleIcon />
-                <span>Quick Create</span>
+                <span>{t("quickCreate")}</span>
               </SidebarMenuButton>
               <Button
                 size="icon"
@@ -121,7 +123,7 @@ export function NavMain({ items }: NavMainProps) {
                 variant="outline"
               >
                 <MailIcon />
-                <span className="sr-only">Inbox</span>
+                <span className="sr-only">{t("inbox")}</span>
               </Button>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -131,7 +133,7 @@ export function NavMain({ items }: NavMainProps) {
         <SidebarGroup key={group.id}>
           {group.label && (
             <SidebarGroupLabel className="group-data-[collapsible=icon]:pointer-events-none">
-              {group.label}
+              {t(`groups.${getGroupTranslationKey(group.label)}`)}
             </SidebarGroupLabel>
           )}
           <SidebarGroupContent>
@@ -140,6 +142,7 @@ export function NavMain({ items }: NavMainProps) {
                 <NavItem
                   key={item.id}
                   item={item}
+                  t={t}
                   isItemActive={isItemActive}
                   isSubItemActive={isSubItemActive}
                   isSubmenuOpen={isSubmenuOpen}
@@ -153,21 +156,28 @@ export function NavMain({ items }: NavMainProps) {
   );
 }
 
-function NavItem({ item, isItemActive, isSubItemActive, isSubmenuOpen }: NavItemProps) {
+function NavItem({
+  item,
+  t,
+  isItemActive,
+  isSubItemActive,
+  isSubmenuOpen,
+}: NavItemProps & { t: ReturnType<typeof useTranslations> }) {
   const { state, isMobile } = useSidebar();
   const isCollapsedDesktop = state === "collapsed" && !isMobile;
 
   if (!hasSubItems(item)) {
-    return <NavLinkItem item={item} isActive={isItemActive(item)} showIconFallback={isCollapsedDesktop} />;
+    return <NavLinkItem item={item} t={t} isActive={isItemActive(item)} showIconFallback={isCollapsedDesktop} />;
   }
 
   if (isCollapsedDesktop) {
-    return <NavDropdownItem item={item} isActive={isItemActive(item)} isSubItemActive={isSubItemActive} />;
+    return <NavDropdownItem item={item} t={t} isActive={isItemActive(item)} isSubItemActive={isSubItemActive} />;
   }
 
   return (
     <NavCollapsibleItem
       item={item}
+      t={t}
       isActive={isItemActive(item)}
       defaultOpen={isSubmenuOpen(item)}
       isSubItemActive={isSubItemActive}
@@ -175,7 +185,14 @@ function NavItem({ item, isItemActive, isSubItemActive, isSubmenuOpen }: NavItem
   );
 }
 
-function NavLinkItem({ item, isActive, showIconFallback }: NavLinkItemProps) {
+function NavLinkItem({
+  item,
+  t,
+  isActive,
+  showIconFallback,
+}: NavLinkItemProps & { t: ReturnType<typeof useTranslations> }) {
+  const title = t(`items.${item.id}`);
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
@@ -188,18 +205,18 @@ function NavLinkItem({ item, isActive, showIconFallback }: NavLinkItemProps) {
           />
         }
         aria-disabled={item.disabled}
-        tooltip={item.title}
+        tooltip={title}
         isActive={isActive}
       >
-        <NavLinkIcon item={item} showFallback={showIconFallback} />
-        <span>{item.title}</span>
+        <NavLinkIcon item={item} title={title} showFallback={showIconFallback} />
+        <span>{title}</span>
       </SidebarMenuButton>
-      <NavItemBadge badge={item.badge} />
+      <NavItemBadge badge={item.badge} t={t} />
     </SidebarMenuItem>
   );
 }
 
-function NavLinkIcon({ item, showFallback }: NavLinkIconProps) {
+function NavLinkIcon({ item, title, showFallback }: NavLinkIconProps & { title: string }) {
   const Icon = item.icon;
 
   if (Icon) {
@@ -207,23 +224,29 @@ function NavLinkIcon({ item, showFallback }: NavLinkIconProps) {
   }
 
   if (showFallback) {
-    return <CollapsedIconFallback title={item.title} />;
+    return <CollapsedIconFallback title={title} />;
   }
 
   return null;
 }
 
-function NavDropdownItem({ item, isActive, isSubItemActive }: NavDropdownItemProps) {
+function NavDropdownItem({
+  item,
+  t,
+  isActive,
+  isSubItemActive,
+}: NavDropdownItemProps & { t: ReturnType<typeof useTranslations> }) {
   const Icon = item.icon;
+  const title = t(`items.${item.id}`);
 
   return (
     <SidebarMenuItem>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<SidebarMenuButton tooltip={item.title} isActive={isActive} disabled={item.disabled} />}
+          render={<SidebarMenuButton tooltip={title} isActive={isActive} disabled={item.disabled} />}
         >
-          {Icon ? <Icon /> : <CollapsedIconFallback title={item.title} />}
-          <span>{item.title}</span>
+          {Icon ? <Icon /> : <CollapsedIconFallback title={title} />}
+          <span>{title}</span>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent side="right" align="start" sideOffset={12} className="w-48">
@@ -247,7 +270,7 @@ function NavDropdownItem({ item, isActive, isSubItemActive }: NavDropdownItemPro
                   disabled={subItem.disabled}
                 >
                   {SubIcon && <SubIcon />}
-                  <span>{subItem.title}</span>
+                  <span>{t(`items.${subItem.id}`)}</span>
                 </DropdownMenuItem>
               );
             })}
@@ -258,8 +281,15 @@ function NavDropdownItem({ item, isActive, isSubItemActive }: NavDropdownItemPro
   );
 }
 
-function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: NavCollapsibleItemProps) {
+function NavCollapsibleItem({
+  item,
+  t,
+  isActive,
+  defaultOpen,
+  isSubItemActive,
+}: NavCollapsibleItemProps & { t: ReturnType<typeof useTranslations> }) {
   const Icon = item.icon;
+  const title = t(`items.${item.id}`);
 
   return (
     <Collapsible
@@ -267,14 +297,12 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
       defaultOpen={defaultOpen}
       className="group/collapsible"
     >
-      <CollapsibleTrigger
-        render={<SidebarMenuButton tooltip={item.title} isActive={isActive} disabled={item.disabled} />}
-      >
+      <CollapsibleTrigger render={<SidebarMenuButton tooltip={title} isActive={isActive} disabled={item.disabled} />}>
         {Icon && <Icon />}
-        <span>{item.title}</span>
-        <ChevronRight className="ml-auto transition-transform duration-200 group-data-panel-open/menu-button:rotate-90" />
+        <span>{title}</span>
+        <ChevronRight className="ms-auto transition-transform duration-200 group-data-panel-open/menu-button:rotate-90" />
       </CollapsibleTrigger>
-      <NavItemBadge badge={item.badge} />
+      <NavItemBadge badge={item.badge} t={t} />
 
       <CollapsibleContent>
         <SidebarMenuSub>
@@ -296,7 +324,7 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
                   isActive={isSubItemActive(subItem.url)}
                 >
                   {SubIcon && <SubIcon />}
-                  <span>{subItem.title}</span>
+                  <span>{t(`items.${subItem.id}`)}</span>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             );
@@ -307,7 +335,7 @@ function NavCollapsibleItem({ item, isActive, defaultOpen, isSubItemActive }: Na
   );
 }
 
-function NavItemBadge({ badge }: { badge?: NavBadge }) {
+function NavItemBadge({ badge, t }: { badge?: NavBadge; t: ReturnType<typeof useTranslations> }) {
   if (!badge) {
     return null;
   }
@@ -321,7 +349,11 @@ function NavItemBadge({ badge }: { badge?: NavBadge }) {
         badge === "soon" && "border-muted-foreground text-muted-foreground",
       )}
     >
-      {badge}
+      {t(`badges.${badge}`)}
     </SidebarMenuBadge>
   );
+}
+
+function getGroupTranslationKey(label: string) {
+  return label.toLowerCase().replace(/\s+/g, "");
 }

@@ -1,4 +1,5 @@
 import { DollarSign, TrendingDown, TrendingUp, UserPlus, Users, Waves } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +12,11 @@ type MetricCardsProps = {
 };
 
 export function MetricCards({ summary }: MetricCardsProps) {
+  const t = useTranslations("Dashboard.default.metrics");
+  const locale = useLocale();
   const revenueGrowth = Number(summary.revenue_growth_rate ?? 0);
   const memberGrowth = Number(summary.new_members_growth_rate ?? 0);
+  const numberFormatter = new Intl.NumberFormat(locale);
 
   return (
     <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs xl:grid-cols-4 dark:*:data-[slot=card]:bg-card">
@@ -23,7 +27,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
               <DollarSign className="size-4" />
             </div>
           </CardTitle>
-          <CardDescription>Total Revenue</CardDescription>
+          <CardDescription>{t("totalRevenue")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -32,7 +36,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
             </div>
             <TrendBadge value={revenueGrowth} />
           </div>
-          <p className="text-muted-foreground text-sm">Paid revenue for the current month</p>
+          <p className="text-muted-foreground text-sm">{t("totalRevenueHelp")}</p>
         </CardContent>
       </Card>
 
@@ -43,7 +47,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
               <UserPlus className="size-4" />
             </div>
           </CardTitle>
-          <CardDescription>New Customers</CardDescription>
+          <CardDescription>{t("newCustomers")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -52,7 +56,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
             </div>
             <TrendBadge value={memberGrowth} />
           </div>
-          <p className="text-muted-foreground text-sm">Members added this month</p>
+          <p className="text-muted-foreground text-sm">{t("newCustomersHelp")}</p>
         </CardContent>
       </Card>
 
@@ -63,16 +67,16 @@ export function MetricCards({ summary }: MetricCardsProps) {
               <Users className="size-4" />
             </div>
           </CardTitle>
-          <CardDescription>Active Accounts</CardDescription>
+          <CardDescription>{t("activeAccounts")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">
               {numberFormatter.format(summary.active_subscriptions)}
             </div>
-            <Badge variant="secondary">Live</Badge>
+            <Badge variant="secondary">{t("live")}</Badge>
           </div>
-          <p className="text-muted-foreground text-sm">Currently active subscriptions</p>
+          <p className="text-muted-foreground text-sm">{t("activeAccountsHelp")}</p>
         </CardContent>
       </Card>
 
@@ -83,7 +87,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
               <Waves className="size-4" />
             </div>
           </CardTitle>
-          <CardDescription>Growth Rate</CardDescription>
+          <CardDescription>{t("growthRate")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -92,14 +96,12 @@ export function MetricCards({ summary }: MetricCardsProps) {
             </div>
             <TrendBadge value={memberGrowth} />
           </div>
-          <p className="text-muted-foreground text-sm">New members vs previous month</p>
+          <p className="text-muted-foreground text-sm">{t("growthRateHelp")}</p>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 function TrendBadge({ value }: { value: number }) {
   const isDown = value < 0;

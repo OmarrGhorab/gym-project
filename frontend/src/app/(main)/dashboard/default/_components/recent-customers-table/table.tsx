@@ -26,6 +26,7 @@ import {
   Search,
   UsersRound,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,46 +41,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { recentCustomersColumns } from "./columns";
+import { createRecentCustomersColumns } from "./columns";
 import type { RecentCustomerRow } from "./schema";
 
-const statusOptions = [
-  { value: "all", label: "All" },
-  { value: "Active", label: "Active" },
-  { value: "Expired", label: "Expired" },
-  { value: "Frozen", label: "Frozen" },
-  { value: "Stopped", label: "Stopped" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Unknown", label: "Unknown" },
-] as const;
-
-const billingOptions = [
-  { value: "all", label: "All" },
-  { value: "Paid", label: "Paid" },
-  { value: "Pending", label: "Pending" },
-  { value: "Overdue", label: "Overdue" },
-  { value: "Trial", label: "Trial" },
-] as const;
-
-const joinedDateOptions = [
-  { value: "all", label: "All time" },
-  { value: "30", label: "Last 30 days" },
-  { value: "90", label: "Last 90 days" },
-] as const;
-
-const sortOptions = [
-  { value: "newest", label: "Newest first" },
-  { value: "oldest", label: "Oldest first" },
-  { value: "name-asc", label: "Name A-Z" },
-  { value: "name-desc", label: "Name Z-A" },
-] as const;
+const statusValues = ["all", "Active", "Expired", "Frozen", "Stopped", "Inactive", "Unknown"] as const;
+const billingValues = ["all", "Paid", "Pending", "Overdue", "Trial"] as const;
+const joinedDateValues = ["all", "30", "90"] as const;
+const sortValues = ["newest", "oldest", "name-asc", "name-desc"] as const;
 
 const sortOptionState = {
   newest: [{ id: "joined", desc: true }],
   oldest: [{ id: "joined", desc: false }],
   "name-asc": [{ id: "name", desc: false }],
   "name-desc": [{ id: "name", desc: true }],
-} satisfies Record<(typeof sortOptions)[number]["value"], SortingState>;
+} satisfies Record<(typeof sortValues)[number], SortingState>;
 
 const pageSizeItems = [10, 20, 30, 40, 50].map((pageSize) => ({
   value: `${pageSize}`,
@@ -87,6 +62,8 @@ const pageSizeItems = [10, 20, 30, 40, 50].map((pageSize) => ({
 }));
 
 export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
+  const t = useTranslations("Dashboard.default.members");
+  const locale = useLocale();
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = React.useState<SortingState>([{ id: "joined", desc: true }]);
@@ -98,10 +75,65 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
     pageIndex: 0,
     pageSize: 10,
   });
+  const statusOptions = React.useMemo(
+    () =>
+      statusValues.map((value) => ({
+        value,
+        label: value === "all" ? t("filters.all") : t(`statuses.${value}`),
+      })),
+    [t],
+  );
+  const billingOptions = React.useMemo(
+    () =>
+      billingValues.map((value) => ({
+        value,
+        label: value === "all" ? t("filters.all") : t(`billingStatuses.${value}`),
+      })),
+    [t],
+  );
+  const joinedDateOptions = React.useMemo(
+    () =>
+      joinedDateValues.map((value) => ({
+        value,
+        label: getJoinedDateLabel(value, t),
+      })),
+    [t],
+  );
+  const sortOptions = React.useMemo(
+    () =>
+      sortValues.map((value) => ({
+        value,
+        label: getSortLabel(value, t),
+      })),
+    [t],
+  );
+  const columns = React.useMemo(
+    () =>
+      createRecentCustomersColumns({
+        labels: {
+          atTime: (values) => t("atTime", values),
+          billing: t("billing"),
+          billingStatuses: Object.fromEntries(
+            billingValues.filter((value) => value !== "all").map((value) => [value, t(`billingStatuses.${value}`)]),
+          ),
+          joined: t("joined"),
+          member: t("member"),
+          plan: t("plan"),
+          selectAll: t("selectAll"),
+          selectMember: (values) => t("selectMember", values),
+          status: t("status"),
+          statuses: Object.fromEntries(
+            statusValues.filter((value) => value !== "all").map((value) => [value, t(`statuses.${value}`)]),
+          ),
+        },
+        locale,
+      }),
+    [locale, t],
+  );
 
   const table = useReactTable({
     data,
-    columns: recentCustomersColumns,
+    columns,
     state: {
       rowSelection,
       columnFilters,
@@ -142,10 +174,10 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full lg:w-80">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-7 rounded-[min(var(--radius-md),12px)] pl-8"
-              placeholder="Search members..."
+              className="h-7 rounded-[min(var(--radius-md),12px)] ps-8"
+              placeholder={t("search")}
               value={searchQuery}
               onChange={(event) => {
                 table.getColumn("search")?.setFilterValue(event.target.value || undefined);
@@ -156,7 +188,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
               <UsersRound />
-              Status
+              {t("status")}
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-35" align="start">
               <DropdownMenuRadioGroup
@@ -177,7 +209,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
               <CalendarDays />
-              Joined date
+              {t("joinedDate")}
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-40" align="start">
               <DropdownMenuRadioGroup
@@ -200,7 +232,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
               <CreditCard />
-              Billing
+              {t("billing")}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuRadioGroup
@@ -221,7 +253,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
               <ArrowUpDown />
-              Sort
+              {t("sort")}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuRadioGroup
@@ -269,7 +301,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             ) : (
               <TableRow>
                 <TableCell colSpan={table.getVisibleLeafColumns().length} className="h-24 text-center">
-                  No members found.
+                  {t("noMembers")}
                 </TableCell>
               </TableRow>
             )}
@@ -279,13 +311,15 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
 
       <div className="flex items-center justify-between px-1">
         <div className="hidden flex-1 text-muted-foreground text-sm lg:flex">
-          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} member(s)
-          selected.
+          {t("selected", {
+            selected: table.getFilteredSelectedRowModel().rows.length,
+            total: table.getFilteredRowModel().rows.length,
+          })}
         </div>
         <div className="flex w-full items-center gap-8 lg:w-fit">
           <div className="hidden items-center gap-2 lg:flex">
             <Label htmlFor="recent-customers-rows-per-page" className="font-medium text-sm">
-              Rows per page
+              {t("rowsPerPage")}
             </Label>
             <Select
               value={`${table.getState().pagination.pageSize}`}
@@ -309,9 +343,9 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             </Select>
           </div>
           <div className="flex w-fit items-center justify-center font-medium text-sm">
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            {t("pageOf", { page: table.getState().pagination.pageIndex + 1, total: table.getPageCount() })}
           </div>
-          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+          <div className="ms-auto flex items-center gap-2 lg:ms-0">
             <Button
               variant="outline"
               className="hidden size-8 lg:flex"
@@ -319,7 +353,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
             >
-              <span className="sr-only">Go to first page</span>
+              <span className="sr-only">{t("goFirst")}</span>
               <ChevronsLeft className="size-4" />
             </Button>
             <Button
@@ -329,7 +363,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
-              <span className="sr-only">Go to previous page</span>
+              <span className="sr-only">{t("goPrevious")}</span>
               <ChevronLeft className="size-4" />
             </Button>
             <Button
@@ -339,7 +373,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >
-              <span className="sr-only">Go to next page</span>
+              <span className="sr-only">{t("goNext")}</span>
               <ChevronRight className="size-4" />
             </Button>
             <Button
@@ -349,7 +383,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
               disabled={!table.getCanNextPage()}
             >
-              <span className="sr-only">Go to last page</span>
+              <span className="sr-only">{t("goLast")}</span>
               <ChevronsRight className="size-4" />
             </Button>
           </div>
@@ -357,4 +391,32 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
       </div>
     </div>
   );
+}
+
+function getJoinedDateLabel(value: (typeof joinedDateValues)[number], t: ReturnType<typeof useTranslations>) {
+  if (value === "all") {
+    return t("filters.allTime");
+  }
+
+  if (value === "30") {
+    return t("filters.last30");
+  }
+
+  return t("filters.last90");
+}
+
+function getSortLabel(value: (typeof sortValues)[number], t: ReturnType<typeof useTranslations>) {
+  if (value === "newest") {
+    return t("filters.newest");
+  }
+
+  if (value === "oldest") {
+    return t("filters.oldest");
+  }
+
+  if (value === "name-asc") {
+    return t("filters.nameAsc");
+  }
+
+  return t("filters.nameDesc");
 }

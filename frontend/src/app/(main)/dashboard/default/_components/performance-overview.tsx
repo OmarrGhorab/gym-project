@@ -1,6 +1,7 @@
 "use client";
 
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { useLocale, useTranslations } from "next-intl";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis } from "recharts";
 
 import { Button } from "@/components/ui/button";
@@ -30,46 +31,51 @@ export type SalesChartPoint = {
   units: number;
 };
 
-const chartConfig = {
-  revenue: {
-    label: "Revenue",
-    color: "var(--chart-1)",
-  },
-  sales: {
-    label: "Sales",
-    color: "var(--chart-2)",
-  },
-  units: {
-    label: "Units Sold",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
-
-const performancePeriodItems = [{ value: "quarter", label: "3 months" }] as const;
-
-const performanceSegmentItems = [
-  { value: "all", label: "All sales" },
-  { value: "orders", label: "Orders" },
-  { value: "products", label: "Products" },
-] as const;
+const performancePeriodValues = ["quarter"] as const;
+const performanceSegmentValues = ["all", "orders", "products"] as const;
 
 export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
+  const t = useTranslations("Dashboard.default.charts");
+  const locale = useLocale();
+  const chartConfig = {
+    revenue: {
+      label: t("revenue"),
+      color: "var(--chart-1)",
+    },
+    sales: {
+      label: t("sales"),
+      color: "var(--chart-2)",
+    },
+    units: {
+      label: t("unitsSold"),
+      color: "var(--chart-3)",
+    },
+  } satisfies ChartConfig;
+  const performancePeriodItems = performancePeriodValues.map((value) => ({
+    value,
+    label: t("threeMonths"),
+  }));
+  const performanceSegmentItems = performanceSegmentValues.map((value) => ({
+    value,
+    label: getPerformanceSegmentLabel(value, t),
+  }));
+
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle className="leading-none">Sales Activity</CardTitle>
+        <CardTitle className="leading-none">{t("salesActivity")}</CardTitle>
         <CardDescription>
-          <span className="@[540px]/card:block hidden">Revenue, orders, and product units for the last 90 days</span>
-          <span className="@[540px]/card:hidden">Last 3 months</span>
+          <span className="@[540px]/card:block hidden">{t("salesActivityWide")}</span>
+          <span className="@[540px]/card:hidden">{t("lastThreeMonths")}</span>
         </CardDescription>
         <CardAction className="flex items-center gap-2">
           <Select defaultValue="quarter" items={performancePeriodItems}>
             <SelectTrigger size="sm" className="w-28">
-              <SelectValue placeholder="3 months" />
+              <SelectValue placeholder={t("threeMonths")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectLabel>Period</SelectLabel>
+                <SelectLabel>{t("period")}</SelectLabel>
                 {performancePeriodItems.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
@@ -81,11 +87,11 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
 
           <Select defaultValue="all" items={performanceSegmentItems}>
             <SelectTrigger size="sm" className="w-32">
-              <SelectValue placeholder="All segments" />
+              <SelectValue placeholder={t("allSales")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectLabel>Segments</SelectLabel>
+                <SelectLabel>{t("segments")}</SelectLabel>
                 {performanceSegmentItems.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
@@ -96,7 +102,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
           </Select>
 
           <Button variant="outline" size="sm">
-            View report
+            {t("viewReport")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -119,7 +125,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
               tickMargin={8}
               minTickGap={48}
               tickFormatter={(value) =>
-                parseISO(value).toLocaleDateString("en-US", {
+                parseISO(value).toLocaleDateString(locale, {
                   month: "short",
                   day: "numeric",
                 })
@@ -132,7 +138,9 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
                 <ChartTooltipContent
                   className="w-50"
                   indicator="line"
-                  labelFormatter={(value) => format(parseISO(value), "d MMMM yyyy")}
+                  labelFormatter={(value) =>
+                    new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(parseISO(value))
+                  }
                 />
               }
             />
@@ -154,4 +162,19 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
       </CardContent>
     </Card>
   );
+}
+
+function getPerformanceSegmentLabel(
+  value: (typeof performanceSegmentValues)[number],
+  t: ReturnType<typeof useTranslations>,
+) {
+  if (value === "all") {
+    return t("allSales");
+  }
+
+  if (value === "orders") {
+    return t("orders");
+  }
+
+  return t("products");
 }

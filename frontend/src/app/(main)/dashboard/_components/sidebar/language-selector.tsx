@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { Languages } from "lucide-react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type AppLocale, getLocaleDirection } from "@/i18n/config";
@@ -16,6 +16,7 @@ const languageOptions: { label: string; value: AppLocale }[] = [
 export function LanguageSelector({ className, showIcon = true }: { className?: string; showIcon?: boolean }) {
   const router = useRouter();
   const locale = useLocale() as AppLocale;
+  const t = useTranslations("Dashboard.nav");
 
   async function updateLocale(nextLocale: AppLocale) {
     document.documentElement.lang = nextLocale;
@@ -32,7 +33,7 @@ export function LanguageSelector({ className, showIcon = true }: { className?: s
 
   return (
     <Select value={locale} onValueChange={(value) => updateLocale(value as AppLocale)}>
-      <SelectTrigger size="sm" aria-label="Select language" className={className}>
+      <SelectTrigger size="sm" aria-label={t("selectLanguage")} className={className}>
         {showIcon ? <Languages /> : null}
         <SelectValue />
       </SelectTrigger>

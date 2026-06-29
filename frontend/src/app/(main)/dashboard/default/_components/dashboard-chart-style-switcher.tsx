@@ -2,8 +2,9 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, Clock } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Area,
   AreaChart,
@@ -60,14 +61,15 @@ type DashboardChartStyleSwitcherProps = {
 
 const storageKey = "dashboard.default.chartStyle";
 
-const chartStyleOptions = [
-  { label: "Default", value: "default" },
-  { label: "CRM V1", value: "crm-v1" },
-  { label: "Finance V1", value: "finance-v1" },
-] satisfies Array<{ label: string; value: ChartStyle }>;
+const chartStyleValues = ["default", "crm-v1", "finance-v1"] as const;
 
 export function DashboardChartStyleSwitcher({ data, summary }: DashboardChartStyleSwitcherProps) {
+  const t = useTranslations("Dashboard.default.charts");
   const [style, setStyle] = useState<ChartStyle>("default");
+  const chartStyleOptions = chartStyleValues.map((value) => ({
+    label: getChartStyleLabel(value, t),
+    value,
+  }));
 
   useEffect(() => {
     const savedStyle = window.localStorage.getItem(storageKey);
@@ -89,16 +91,16 @@ export function DashboardChartStyleSwitcher({ data, summary }: DashboardChartSty
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <ChartNoAxesCombined className="size-4" />
-          <span>Same gym sales data, different chart style.</span>
+          <span>{t("styleHelp")}</span>
         </div>
 
         <Select value={style} onValueChange={handleStyleChange} items={chartStyleOptions}>
           <SelectTrigger size="sm" className="w-40">
-            <SelectValue placeholder="Chart style" />
+            <SelectValue placeholder={t("styleLabel")} />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectLabel>Chart style</SelectLabel>
+              <SelectLabel>{t("styleLabel")}</SelectLabel>
               {chartStyleOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -117,14 +119,16 @@ export function DashboardChartStyleSwitcher({ data, summary }: DashboardChartSty
 }
 
 function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
+  const t = useTranslations("Dashboard.default.charts");
+  const locale = useLocale();
   const compactBars = useMemo(() => toCompactBarData(data), [data]);
-  const revenueLine = useMemo(() => toMonthlyRevenueData(data), [data]);
+  const revenueLine = useMemo(() => toMonthlyRevenueData(data, locale), [data, locale]);
   const totals = useMemo(() => getTotals(data), [data]);
-  const gymBreakdown = useMemo(() => toGymBreakdown(summary, totals), [summary, totals]);
-  const targetRows = useMemo(() => toRevenueTargetRows(data, totals), [data, totals]);
-  const pipelineRows = useMemo(() => toMembershipFunnel(summary, totals), [summary, totals]);
-  const sourceRows = useMemo(() => toGymSourceRows(summary, totals), [summary, totals]);
-  const actionItems = useMemo(() => toGymActionItems(summary), [summary]);
+  const gymBreakdown = useMemo(() => toGymBreakdown(summary, totals, t), [summary, totals, t]);
+  const targetRows = useMemo(() => toRevenueTargetRows(data, totals, locale), [data, totals, locale]);
+  const pipelineRows = useMemo(() => toMembershipFunnel(summary, totals, t), [summary, totals, t]);
+  const sourceRows = useMemo(() => toGymSourceRows(summary, totals, t), [summary, totals, t]);
+  const actionItems = useMemo(() => toGymActionItems(summary, t), [summary, t]);
   const revenueGrowth = Number(summary.revenue_growth_rate ?? 0);
 
   return (
@@ -132,8 +136,8 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
       <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:shadow-xs md:grid-cols-2 xl:grid-cols-6">
         <Card>
           <CardHeader>
-            <CardTitle>Gym Visits Value</CardTitle>
-            <CardDescription>Last 90 days</CardDescription>
+            <CardTitle>{t("gymVisitsValue")}</CardTitle>
+            <CardDescription>{t("last90Days")}</CardDescription>
           </CardHeader>
           <CardContent className="size-full">
             <ChartContainer className="size-full min-h-24" config={crmMiniBarConfig}>
@@ -151,21 +155,25 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
             </ChartContainer>
           </CardContent>
           <CardFooter className="flex items-center justify-between">
-            <span className="font-semibold text-xl tabular-nums">{totals.sales.toLocaleString("en-US")}</span>
+            <span className="font-semibold text-xl tabular-nums">{totals.sales.toLocaleString(locale)}</span>
             <TrendPill value={revenueGrowth} />
           </CardFooter>
         </Card>
 
         <Card className="overflow-hidden pb-0">
           <CardHeader>
-            <CardTitle>Order Momentum</CardTitle>
-            <CardDescription>Daily transactions</CardDescription>
+            <CardTitle>{t("orderMomentum")}</CardTitle>
+            <CardDescription>{t("dailyTransactions")}</CardDescription>
           </CardHeader>
           <CardContent className="flex-1 p-0">
             <ChartContainer className="size-full min-h-24" config={crmAreaConfig}>
               <AreaChart data={data} margin={{ left: 0, right: 0, top: 5 }}>
                 <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} hide />
-                <ChartTooltip content={<ChartTooltipContent hideIndicator labelFormatter={formatTooltipDate} />} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent hideIndicator labelFormatter={(value) => formatTooltipDate(value, locale)} />
+                  }
+                />
                 <Area
                   dataKey="sales"
                   fill="var(--color-sales)"
@@ -187,8 +195,8 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
           </CardHeader>
           <CardContent className="flex size-full flex-col justify-between">
             <div className="space-y-1.5">
-              <CardTitle>Revenue</CardTitle>
-              <CardDescription>Selected range</CardDescription>
+              <CardTitle>{t("revenue")}</CardTitle>
+              <CardDescription>{t("selectedRange")}</CardDescription>
             </div>
             <p className="font-medium text-2xl tabular-nums">
               {formatCurrency(totals.revenue, { currency: "EGP", noDecimals: true })}
@@ -205,18 +213,18 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
           </CardHeader>
           <CardContent className="flex size-full flex-col justify-between">
             <div className="space-y-1.5">
-              <CardTitle>Units Sold</CardTitle>
-              <CardDescription>Products from POS</CardDescription>
+              <CardTitle>{t("unitsSold")}</CardTitle>
+              <CardDescription>{t("productsFromPos")}</CardDescription>
             </div>
-            <p className="font-medium text-2xl tabular-nums">{totals.units.toLocaleString("en-US")}</p>
-            <Badge variant="secondary">Gym POS</Badge>
+            <p className="font-medium text-2xl tabular-nums">{totals.units.toLocaleString(locale)}</p>
+            <Badge variant="secondary">{t("gymPos")}</Badge>
           </CardContent>
         </Card>
 
         <Card className="col-span-1 md:col-span-2">
           <CardHeader>
-            <CardTitle>Revenue Growth</CardTitle>
-            <CardDescription>Monthly gym sales trend</CardDescription>
+            <CardTitle>{t("revenueGrowth")}</CardTitle>
+            <CardDescription>{t("monthlyGymSalesTrend")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={crmRevenueConfig} className="h-24 w-full">
@@ -234,7 +242,7 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
             </ChartContainer>
           </CardContent>
           <CardFooter>
-            <p className="text-muted-foreground text-sm">Based on backend sales report, not template leads.</p>
+            <p className="text-muted-foreground text-sm">{t("backendSalesNote")}</p>
           </CardFooter>
         </Card>
       </div>
@@ -254,17 +262,19 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
 }
 
 function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
-  const monthly = useMemo(() => toMonthlyCashFlowData(data), [data]);
+  const t = useTranslations("Dashboard.default.charts");
+  const locale = useLocale();
+  const monthly = useMemo(() => toMonthlyCashFlowData(data, locale), [data, locale]);
   const totalIncome = monthly.reduce((sum, item) => sum + item.income, 0);
   const totalCostBasis = monthly.reduce((sum, item) => sum + Math.abs(item.costBasis), 0);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Gym Cash Flow Overview</CardTitle>
-        <CardDescription>Monthly sales revenue against estimated product/service activity volume.</CardDescription>
+        <CardTitle>{t("gymCashFlowOverview")}</CardTitle>
+        <CardDescription>{t("cashFlowDescription")}</CardDescription>
         <CardAction>
-          <Badge variant="outline">Finance V1 style</Badge>
+          <Badge variant="outline">{t("financeV1Style")}</Badge>
         </CardAction>
       </CardHeader>
       <CardContent>
@@ -275,7 +285,7 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
               <ArrowDownLeft className="size-6 stroke-background" />
             </div>
             <div>
-              <p className="text-muted-foreground text-xs uppercase">Income</p>
+              <p className="text-muted-foreground text-xs uppercase">{t("income")}</p>
               <p className="font-medium tabular-nums">
                 {formatCurrency(totalIncome, { currency: "EGP", noDecimals: true })}
               </p>
@@ -287,7 +297,7 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
               <ArrowUpRight className="size-6 stroke-background" />
             </div>
             <div>
-              <p className="text-muted-foreground text-xs uppercase">Activity basis</p>
+              <p className="text-muted-foreground text-xs uppercase">{t("activityBasis")}</p>
               <p className="font-medium tabular-nums">
                 {formatCurrency(totalCostBasis, { currency: "EGP", noDecimals: true })}
               </p>
@@ -317,12 +327,14 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
 }
 
 function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
+  const t = useTranslations("Dashboard.default.charts");
+  const locale = useLocale();
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
     <Card className="xl:col-span-2">
       <CardHeader>
-        <CardTitle>Gym Mix by Source</CardTitle>
+        <CardTitle>{t("gymMixBySource")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6 sm:flex-row">
         <ChartContainer config={gymBreakdownConfig} className="mx-auto aspect-square max-h-48 flex-1">
@@ -347,10 +359,10 @@ function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
                           y={viewBox.cy}
                           className="fill-foreground font-bold text-3xl tabular-nums"
                         >
-                          {total.toLocaleString("en-US")}
+                          {total.toLocaleString(locale)}
                         </tspan>
                         <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 24} className="fill-muted-foreground">
-                          Total
+                          {t("total")}
                         </tspan>
                       </text>
                     );
@@ -370,21 +382,20 @@ function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
                 <span className="size-2.5 rounded-full" style={{ background: item.fill }} />
                 {item.label}
               </span>
-              <span className="text-xs tabular-nums">{item.value.toLocaleString("en-US")}</span>
+              <span className="text-xs tabular-nums">{item.value.toLocaleString(locale)}</span>
             </li>
           ))}
         </ul>
       </CardContent>
       <CardFooter>
-        <p className="text-muted-foreground text-xs">
-          Subscription, member, sales, and expiring-soon signals from the gym backend.
-        </p>
+        <p className="text-muted-foreground text-xs">{t("gymMixNote")}</p>
       </CardFooter>
     </Card>
   );
 }
 
 function RevenueTargetBars({ rows }: { rows: RevenueTargetRow[] }) {
+  const t = useTranslations("Dashboard.default.charts");
   const averageProgress =
     rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.progress, 0) / rows.length) : 0;
   const aboveTarget = rows.filter((row) => row.progress >= 100).length;
@@ -392,7 +403,7 @@ function RevenueTargetBars({ rows }: { rows: RevenueTargetRow[] }) {
   return (
     <Card className="xl:col-span-3">
       <CardHeader>
-        <CardTitle>Gym Revenue vs. Target</CardTitle>
+        <CardTitle>{t("gymRevenueVsTarget")}</CardTitle>
       </CardHeader>
       <CardContent className="size-full max-h-56">
         <ChartContainer config={revenueTargetConfig} className="size-full">
@@ -422,21 +433,20 @@ function RevenueTargetBars({ rows }: { rows: RevenueTargetRow[] }) {
         </ChartContainer>
       </CardContent>
       <CardFooter>
-        <p className="text-muted-foreground text-xs">
-          Average progress: {averageProgress}% · {aboveTarget} gym areas above target
-        </p>
+        <p className="text-muted-foreground text-xs">{t("targetProgress", { averageProgress, aboveTarget })}</p>
       </CardFooter>
     </Card>
   );
 }
 
 function MembershipFunnel({ rows, summary }: { rows: FunnelRow[]; summary: DashboardSummary }) {
+  const t = useTranslations("Dashboard.default.charts");
   const memberGrowth = Number(summary.new_members_growth_rate ?? 0);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Membership Pipeline</CardTitle>
+        <CardTitle>{t("membershipPipeline")}</CardTitle>
       </CardHeader>
       <CardContent className="size-full min-h-72">
         <ChartContainer config={membershipFunnelConfig} className="size-full">
@@ -450,7 +460,7 @@ function MembershipFunnel({ rows, summary }: { rows: FunnelRow[]; summary: Dashb
       </CardContent>
       <CardFooter>
         <p className="text-muted-foreground text-xs">
-          New members changed by {formatSignedPercent(memberGrowth)} this month.
+          {t("newMembersChanged", { value: formatSignedPercent(memberGrowth) })}
         </p>
       </CardFooter>
     </Card>
@@ -458,12 +468,13 @@ function MembershipFunnel({ rows, summary }: { rows: FunnelRow[]; summary: Dashb
 }
 
 function GymSourceBreakdown({ rows }: { rows: SourceBreakdownRow[] }) {
+  const t = useTranslations("Dashboard.default.charts");
   const total = rows.reduce((sum, row) => sum + row.amount, 0);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Gym Breakdown</CardTitle>
+        <CardTitle>{t("gymBreakdown")}</CardTitle>
         <CardDescription className="font-medium tabular-nums">
           {formatCurrency(total, { currency: "EGP", noDecimals: true })}
         </CardDescription>
@@ -498,9 +509,9 @@ function GymSourceBreakdown({ rows }: { rows: SourceBreakdownRow[] }) {
       </CardContent>
       <CardFooter>
         <div className="flex justify-between gap-1 text-muted-foreground text-xs">
-          <span>{rows.length} gym signals tracked</span>
+          <span>{t("signalsTracked", { count: rows.length })}</span>
           <span>·</span>
-          <span>{rows.filter((row) => row.isPositive).length} improving</span>
+          <span>{t("improving", { count: rows.filter((row) => row.isPositive).length })}</span>
         </div>
       </CardFooter>
     </Card>
@@ -508,10 +519,12 @@ function GymSourceBreakdown({ rows }: { rows: SourceBreakdownRow[] }) {
 }
 
 function GymActionItems({ items }: { items: GymActionItem[] }) {
+  const t = useTranslations("Dashboard.default.charts");
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Action Items</CardTitle>
+        <CardTitle>{t("actionItems")}</CardTitle>
       </CardHeader>
       <CardContent>
         <ul className="space-y-2.5">
@@ -528,7 +541,7 @@ function GymActionItems({ items }: { items: GymActionItem[] }) {
                     item.priority === "Low" && "bg-green-500/20 text-green-500",
                   )}
                 >
-                  {item.priority}
+                  {item.priorityLabel}
                 </span>
               </div>
               <div className="font-medium text-muted-foreground text-xs">{item.description}</div>
@@ -662,11 +675,26 @@ type GymActionItem = {
   due: string;
   id: string;
   priority: "High" | "Medium" | "Low";
+  priorityLabel: string;
   title: string;
 };
 
+type ChartTranslator = ReturnType<typeof useTranslations>;
+
 function isChartStyle(value: string | null): value is ChartStyle {
   return value === "default" || value === "crm-v1" || value === "finance-v1";
+}
+
+function getChartStyleLabel(value: ChartStyle, t: ChartTranslator) {
+  if (value === "default") {
+    return t("defaultStyle");
+  }
+
+  if (value === "crm-v1") {
+    return t("crmStyle");
+  }
+
+  return t("financeStyle");
 }
 
 function toCompactBarData(data: SalesChartPoint[]) {
@@ -683,12 +711,12 @@ function toCompactBarData(data: SalesChartPoint[]) {
   });
 }
 
-function toMonthlyRevenueData(data: SalesChartPoint[]) {
+function toMonthlyRevenueData(data: SalesChartPoint[], locale: string) {
   const monthly = new Map<string, { month: string; revenue: number }>();
 
   for (const item of data) {
     const month = item.date.slice(0, 7);
-    const current = monthly.get(month) ?? { month: formatMonth(item.date), revenue: 0 };
+    const current = monthly.get(month) ?? { month: formatMonth(item.date, locale), revenue: 0 };
 
     current.revenue += item.revenue;
     monthly.set(month, current);
@@ -697,43 +725,47 @@ function toMonthlyRevenueData(data: SalesChartPoint[]) {
   return Array.from(monthly.values()).slice(-12);
 }
 
-function toMonthlyCashFlowData(data: SalesChartPoint[]) {
-  return toMonthlyRevenueData(data).map((item) => ({
+function toMonthlyCashFlowData(data: SalesChartPoint[], locale: string) {
+  return toMonthlyRevenueData(data, locale).map((item) => ({
     month: item.month,
     income: item.revenue,
     costBasis: -Math.round(item.revenue * 0.34),
   }));
 }
 
-function toGymBreakdown(summary: DashboardSummary, totals: ReturnType<typeof getTotals>): GymBreakdownRow[] {
+function toGymBreakdown(
+  summary: DashboardSummary,
+  totals: ReturnType<typeof getTotals>,
+  t: ChartTranslator,
+): GymBreakdownRow[] {
   const rows: GymBreakdownRow[] = [
     {
       fill: "var(--color-active)",
-      label: "Active Subs",
+      label: t("activeSubs"),
       source: "active",
       value: Math.max(0, summary.active_subscriptions),
     },
     {
       fill: "var(--color-newMembers)",
-      label: "New Members",
+      label: t("newMembers"),
       source: "newMembers",
       value: Math.max(0, summary.new_members_this_month ?? 0),
     },
     {
       fill: "var(--color-sales)",
-      label: "Sales",
+      label: t("sales"),
       source: "sales",
       value: Math.max(0, totals.sales),
     },
     {
       fill: "var(--color-units)",
-      label: "Units",
+      label: t("units"),
       source: "units",
       value: Math.max(0, totals.units),
     },
     {
       fill: "var(--color-expiring)",
-      label: "Expiring",
+      label: t("expiring"),
       source: "expiring",
       value: Math.max(0, summary.expiring_soon),
     },
@@ -742,8 +774,12 @@ function toGymBreakdown(summary: DashboardSummary, totals: ReturnType<typeof get
   return rows.filter((row) => row.value > 0);
 }
 
-function toRevenueTargetRows(data: SalesChartPoint[], totals: ReturnType<typeof getTotals>): RevenueTargetRow[] {
-  const monthly = toMonthlyRevenueData(data).slice(-6);
+function toRevenueTargetRows(
+  data: SalesChartPoint[],
+  totals: ReturnType<typeof getTotals>,
+  locale: string,
+): RevenueTargetRow[] {
+  const monthly = toMonthlyRevenueData(data, locale).slice(-6);
   const fallbackTarget = Math.max(1, Math.round(totals.revenue / Math.max(monthly.length, 1)));
 
   return monthly.map((row) => {
@@ -759,7 +795,11 @@ function toRevenueTargetRows(data: SalesChartPoint[], totals: ReturnType<typeof 
   });
 }
 
-function toMembershipFunnel(summary: DashboardSummary, totals: ReturnType<typeof getTotals>): FunnelRow[] {
+function toMembershipFunnel(
+  summary: DashboardSummary,
+  totals: ReturnType<typeof getTotals>,
+  t: ChartTranslator,
+): FunnelRow[] {
   const active = Math.max(summary.active_subscriptions, 1);
   const sales = Math.max(totals.sales, 0);
   const newMembers = Math.max(summary.new_members_this_month ?? 0, 0);
@@ -767,15 +807,19 @@ function toMembershipFunnel(summary: DashboardSummary, totals: ReturnType<typeof
   const soldUnits = Math.max(totals.units, 0);
 
   return [
-    { fill: "var(--chart-1)", stage: "Active", value: active },
-    { fill: "var(--chart-2)", stage: "Sales", value: Math.min(active, sales || active) },
-    { fill: "var(--chart-3)", stage: "Units", value: Math.min(active, soldUnits || Math.ceil(active * 0.7)) },
-    { fill: "var(--chart-4)", stage: "New", value: Math.min(active, newMembers || Math.ceil(active * 0.35)) },
-    { fill: "var(--chart-5)", stage: "Renewal Risk", value: Math.min(active, expiring || Math.ceil(active * 0.15)) },
+    { fill: "var(--chart-1)", stage: t("activeSubs"), value: active },
+    { fill: "var(--chart-2)", stage: t("sales"), value: Math.min(active, sales || active) },
+    { fill: "var(--chart-3)", stage: t("units"), value: Math.min(active, soldUnits || Math.ceil(active * 0.7)) },
+    { fill: "var(--chart-4)", stage: t("newMembers"), value: Math.min(active, newMembers || Math.ceil(active * 0.35)) },
+    { fill: "var(--chart-5)", stage: t("renewalRisk"), value: Math.min(active, expiring || Math.ceil(active * 0.15)) },
   ];
 }
 
-function toGymSourceRows(summary: DashboardSummary, totals: ReturnType<typeof getTotals>): SourceBreakdownRow[] {
+function toGymSourceRows(
+  summary: DashboardSummary,
+  totals: ReturnType<typeof getTotals>,
+  t: ChartTranslator,
+): SourceBreakdownRow[] {
   const total = Math.max(totals.revenue, Number(summary.revenue_mtd), 1);
   const revenueGrowth = Number(summary.revenue_growth_rate ?? 0);
   const memberGrowth = Number(summary.new_members_growth_rate ?? 0);
@@ -791,68 +835,71 @@ function toGymSourceRows(summary: DashboardSummary, totals: ReturnType<typeof ge
       amount: activeValue,
       growth: formatSignedPercent(revenueGrowth),
       isPositive: revenueGrowth >= 0,
-      name: "Memberships",
+      name: t("memberships"),
       percentage: percentage(activeValue, total),
     },
     {
       amount: posValue,
       growth: formatSignedPercent(revenueGrowth / 2),
       isPositive: revenueGrowth >= 0,
-      name: "POS",
+      name: t("gymPos"),
       percentage: percentage(posValue, total),
     },
     {
       amount: newMemberValue,
       growth: formatSignedPercent(memberGrowth),
       isPositive: memberGrowth >= 0,
-      name: "New Members",
+      name: t("newMembers"),
       percentage: percentage(newMemberValue, total),
     },
     {
       amount: expiringValue,
-      growth: summary.expiring_soon > 0 ? "- risk" : "+ clear",
+      growth: summary.expiring_soon > 0 ? `- ${t("risk")}` : `+ ${t("clear")}`,
       isPositive: summary.expiring_soon === 0,
-      name: "Renewals",
+      name: t("renewals"),
       percentage: percentage(expiringValue, total),
     },
     {
       amount: unitsValue,
-      growth: "+ live",
+      growth: `+ ${t("live")}`,
       isPositive: true,
-      name: "Products",
+      name: t("products"),
       percentage: percentage(unitsValue, total),
     },
   ];
 }
 
-function toGymActionItems(summary: DashboardSummary): GymActionItem[] {
+function toGymActionItems(summary: DashboardSummary, t: ChartTranslator): GymActionItem[] {
   const dueToday = summary.sales_today.count;
   const renewalPriority = getRenewalPriority(summary.expiring_soon);
 
   return [
     {
       checked: summary.expiring_soon === 0,
-      description: `${summary.expiring_soon} subscriptions are close to expiry`,
-      due: summary.expiring_soon > 0 ? "Due today" : "No urgent renewals",
+      description: t("subscriptionsCloseToExpiry", { count: summary.expiring_soon }),
+      due: summary.expiring_soon > 0 ? t("dueToday") : t("noUrgentRenewals"),
       id: "renewals",
       priority: renewalPriority,
-      title: "Renewal follow-ups",
+      priorityLabel: priorityLabel(renewalPriority, t),
+      title: t("renewalFollowUps"),
     },
     {
       checked: dueToday > 0,
-      description: `${dueToday} POS transactions recorded today`,
-      due: dueToday > 0 ? "Updated today" : "Waiting for sales",
+      description: t("posTransactionsToday", { count: dueToday }),
+      due: dueToday > 0 ? t("updatedToday") : t("waitingForSales"),
       id: "sales",
       priority: dueToday > 0 ? "Low" : "Medium",
-      title: "Review today sales",
+      priorityLabel: priorityLabel(dueToday > 0 ? "Low" : "Medium", t),
+      title: t("reviewTodaySales"),
     },
     {
       checked: Number(summary.revenue_growth_rate ?? 0) >= 0,
-      description: `Revenue growth is ${formatSignedPercent(Number(summary.revenue_growth_rate ?? 0))}`,
-      due: "This month",
+      description: t("revenueGrowthIs", { value: formatSignedPercent(Number(summary.revenue_growth_rate ?? 0)) }),
+      due: t("thisMonth"),
       id: "growth",
       priority: Number(summary.revenue_growth_rate ?? 0) < 0 ? "High" : "Low",
-      title: "Revenue trend",
+      priorityLabel: priorityLabel(Number(summary.revenue_growth_rate ?? 0) < 0 ? "High" : "Low", t),
+      title: t("revenueTrend"),
     },
   ];
 }
@@ -867,6 +914,18 @@ function getRenewalPriority(expiringSoon: number): GymActionItem["priority"] {
   }
 
   return "Low";
+}
+
+function priorityLabel(priority: GymActionItem["priority"], t: ChartTranslator) {
+  if (priority === "High") {
+    return t("priorityHigh");
+  }
+
+  if (priority === "Medium") {
+    return t("priorityMedium");
+  }
+
+  return t("priorityLow");
 }
 
 function getTotals(data: SalesChartPoint[]) {
@@ -898,17 +957,17 @@ function TrendPill({ value }: { value: number }) {
   );
 }
 
-function formatMonth(value: string) {
+function formatMonth(value: string, locale: string) {
   const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
 
   if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return format(date, "MMM");
+  return new Intl.DateTimeFormat(locale, { month: "short" }).format(date);
 }
 
-function formatTooltipDate(value: ReactNode) {
+function formatTooltipDate(value: ReactNode, locale: string) {
   if (typeof value !== "string") {
     return String(value);
   }
@@ -919,7 +978,7 @@ function formatTooltipDate(value: ReactNode) {
     return value;
   }
 
-  return format(date, "d MMMM yyyy");
+  return new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(date);
 }
 
 function formatCompactAxis(value: number) {

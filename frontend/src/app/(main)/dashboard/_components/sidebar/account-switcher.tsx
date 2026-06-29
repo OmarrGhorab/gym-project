@@ -1,6 +1,7 @@
 "use client";
 
 import { BadgeCheck, Bell, CreditCard, LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -16,6 +17,8 @@ import type { DashboardUser } from "@/lib/session";
 import { cn, getInitials } from "@/lib/utils";
 
 export function AccountSwitcher({ user }: { readonly user: DashboardUser }) {
+  const t = useTranslations("Dashboard.account");
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger nativeButton={false} render={<Avatar className="size-9 rounded-lg" />}>
@@ -40,22 +43,22 @@ export function AccountSwitcher({ user }: { readonly user: DashboardUser }) {
         <DropdownMenuGroup>
           <DropdownMenuItem>
             <BadgeCheck />
-            Account
+            {t("account")}
           </DropdownMenuItem>
           <DropdownMenuItem>
             <CreditCard />
-            Billing
+            {t("billing")}
           </DropdownMenuItem>
           <DropdownMenuItem>
             <Bell />
-            Notifications
+            {t("notifications")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <form action={logoutAction}>
           <DropdownMenuItem nativeButton render={<button type="submit" className="w-full" />}>
             <LogOut />
-            Log out
+            {t("logout")}
           </DropdownMenuItem>
         </form>
       </DropdownMenuContent>

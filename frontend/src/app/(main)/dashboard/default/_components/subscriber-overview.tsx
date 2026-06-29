@@ -1,6 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,15 +15,20 @@ type SubscriberOverviewProps = {
 };
 
 export function SubscriberOverview({ members, total }: SubscriberOverviewProps) {
+  const t = useTranslations("Dashboard.default.members");
+  const locale = useLocale();
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="leading-none">{total.toLocaleString("en-US")} Members</CardTitle>
-        <CardDescription>Recent member records with plan, payment, status, and signup activity.</CardDescription>
+        <CardTitle className="leading-none">
+          {t("title", { count: new Intl.NumberFormat(locale).format(total) })}
+        </CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
         <CardAction>
           <Button variant="outline" size="sm">
             <Download />
-            Export
+            {t("export")}
           </Button>
         </CardAction>
       </CardHeader>
