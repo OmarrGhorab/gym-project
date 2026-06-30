@@ -112,10 +112,15 @@ const emptyFinanceData: FinanceDashboardData = {
   },
 };
 
-export async function getFinanceDashboardData(): Promise<FinancePageData> {
+export async function getFinanceDashboardData(
+  from: string,
+  to: string,
+  groupBy: string,
+): Promise<FinancePageData> {
   try {
-    const [summaryResult, paymentsResult, duesResult, expensesResult] = await Promise.all([
+    const [summaryResult, chartResult, paymentsResult, duesResult, expensesResult] = await Promise.all([
       serverApiFetch<FinanceDashboardData>("/reports/finance-summary"),
+      serverApiFetch<FinanceChartPoint[]>(`/reports/financial?from=${from}&to=${to}&group_by=${groupBy}`),
       safeFetch<FinancePayment[] | PaginatedData<FinancePayment>>("/payments?page=1&per_page=15", []),
       safeFetch<FinanceDue[] | PaginatedData<FinanceDue>>("/payments/dues", []),
       safeFetch<FinanceExpense[] | PaginatedData<FinanceExpense>>("/expenses?sort=-date&page=1&per_page=15", []),
@@ -123,6 +128,7 @@ export async function getFinanceDashboardData(): Promise<FinancePageData> {
 
     return {
       ...summaryResult.data,
+      chart: chartResult.data,
       duesLedger: unwrapList(duesResult.data),
       expensesLedger: unwrapList(expensesResult.data),
       paymentsLedger: unwrapList(paymentsResult.data),

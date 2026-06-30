@@ -568,6 +568,7 @@
       "dueCount": "{count} due",
       "financeOverview": "Finance Overview",
       "monthly": "Monthly",
+      "daily": "Daily",
       "revenue": "Revenue",
       "expenses": "Expenses",
       "financeActions": "Finance Actions",

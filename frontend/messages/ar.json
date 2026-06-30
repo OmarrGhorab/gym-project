@@ -568,6 +568,7 @@
       "dueCount": "{count} مستحق",
       "financeOverview": "نظرة مالية",
       "monthly": "شهري",
+      "daily": "يومي",
       "revenue": "الإيراد",
       "expenses": "المصروفات",
       "financeActions": "إجراءات المالية",

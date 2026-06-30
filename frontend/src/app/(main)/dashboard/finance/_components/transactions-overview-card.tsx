@@ -1,11 +1,16 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { parseISO } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import type { DateRange } from "react-day-picker";
 
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangePicker } from "@/components/date-range-picker";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceChartPoint } from "./data";
@@ -13,7 +18,50 @@ import type { FinanceChartPoint } from "./data";
 export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[] }) {
   const t = useTranslations("Dashboard.finance");
   const locale = useLocale();
-  const monthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const groupBy = searchParams.get("group_by") === "day" ? "day" : "month";
+
+  const dateRange: DateRange = useMemo(() => {
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    return {
+      from: from ? parseISO(from) : undefined,
+      to: to ? parseISO(to) : undefined,
+    };
+  }, [searchParams]);
+
+  const handleDateRangeChange = useCallback(
+    (range: DateRange | undefined) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (range?.from) {
+        params.set("from", formatDate(range.from));
+      } else {
+        params.delete("from");
+      }
+      if (range?.to) {
+        params.set("to", formatDate(range.to));
+      } else {
+        params.delete("to");
+      }
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams],
+  );
+
+  const handleGroupByChange = useCallback(
+    (value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value === "day") {
+        params.set("group_by", "day");
+      } else {
+        params.delete("group_by");
+      }
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams],
+  );
+
   const chartConfig = {
     revenue: {
       color: "var(--chart-2)",
@@ -28,28 +76,42 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
       label: t("netProfit"),
     },
   } satisfies ChartConfig;
+
   const chartData = chart
-    .map((point) => ({
-      period: point.period,
-      date: Date.parse(`${point.period}-01T00:00:00Z`),
-      expenses: Number(point.expenses),
-      netProfit: Number(point.net_profit),
-      revenue: Number(point.revenue),
-    }))
+    .map((point) => {
+      const isMonthly = /^\d{4}-\d{2}$/.test(point.period);
+      const date = isMonthly
+        ? Date.parse(`${point.period}-01T00:00:00Z`)
+        : Date.parse(`${point.period}T00:00:00Z`);
+
+      return {
+        period: point.period,
+        label: isMonthly
+          ? formatMonthOnly(point.period, locale)
+          : formatDayOnly(point.period, locale),
+        date,
+        expenses: Number(point.expenses),
+        netProfit: Number(point.net_profit),
+        revenue: Number(point.revenue),
+      };
+    })
     .filter((point) => Number.isFinite(point.date));
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-normal">{t("financeOverview")}</CardTitle>
-        <CardAction>
-          <Select defaultValue="monthly">
+        <CardAction className="flex items-center gap-2">
+          <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
+
+          <Select value={groupBy} onValueChange={handleGroupByChange}>
             <SelectTrigger className="w-28" size="sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="monthly">{t("monthly")}</SelectItem>
+                <SelectItem value="month">{t("monthly")}</SelectItem>
+                <SelectItem value="day">{t("daily")}</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -58,17 +120,16 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
 
       <CardContent>
         <ChartContainer config={chartConfig} className="h-50 w-full">
-          <LineChart accessibilityLayer data={chartData} margin={{ bottom: 0, left: 0, right: 0, top: 0 }}>
+          <LineChart accessibilityLayer data={chartData} margin={{ bottom: 20, left: 0, right: 0, top: 0 }}>
             <CartesianGrid vertical={false} />
             <XAxis
               axisLine={false}
-              dataKey="date"
-              scale="time"
-              tickFormatter={(value) => formatMonthLabel(value, monthFormatter)}
+              dataKey="label"
               tickLine={false}
-              tickMargin={10}
-              tick={{ fontSize: 12 }}
-              type="number"
+              tickMargin={8}
+              tick={{ fontSize: 11, fill: "#888888" }}
+              interval={Math.max(0, Math.ceil(chartData.length / 8) - 1)}
+              height={30}
             />
             <YAxis hide axisLine={false} tickLine={false} tickMargin={10} tick={{ fontSize: 12 }} />
             <ChartTooltip
@@ -77,7 +138,6 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
                 <ChartTooltipContent
                   active={active}
                   label={label}
-                  labelFormatter={(value) => formatMonthLabel(value, monthFormatter)}
                   payload={payload?.map((item) => ({
                     ...item,
                     value:
@@ -122,16 +182,18 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
   );
 }
 
-function formatMonthLabel(value: unknown, monthFormatter: Intl.DateTimeFormat) {
-  const timestamp = typeof value === "number" ? value : Number(value);
+function formatMonthOnly(period: string, locale: string) {
+  const date = new Date(`${period}-01T00:00:00`);
+  if (Number.isNaN(date.getTime())) return period;
+  return new Intl.DateTimeFormat(locale, { month: "short" }).format(date);
+}
 
-  if (Number.isFinite(timestamp)) {
-    return monthFormatter.format(new Date(timestamp));
-  }
+function formatDayOnly(period: string, locale: string) {
+  const date = new Date(`${period}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return period;
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date);
+}
 
-  if (typeof value === "string" && /^\d{4}-\d{2}$/.test(value)) {
-    return monthFormatter.format(new Date(`${value}-01T00:00:00Z`));
-  }
-
-  return String(value ?? "");
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
 }

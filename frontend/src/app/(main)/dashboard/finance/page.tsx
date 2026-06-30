@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { subDays, format as formatDateFns } from "date-fns";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,10 +18,26 @@ import { TransactionsOverviewCard } from "./_components/transactions-overview-ca
 import { UpcomingTransactions } from "./_components/upcoming-transactions";
 import { Wallet } from "./_components/wallet";
 
-export default async function Page() {
+function defaultFrom() {
+  return formatDateFns(subDays(new Date(), 364), "yyyy-MM-dd");
+}
+
+function defaultTo() {
+  return formatDateFns(new Date(), "yyyy-MM-dd");
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string; group_by?: string }>;
+}) {
   const t = await getTranslations("Dashboard.finance");
   const locale = await getLocale();
-  const data = await getFinanceDashboardData();
+  const { from, to, group_by } = await searchParams;
+  const resolvedFrom = /^\d{4}-\d{2}-\d{2}$/.test(from ?? "") ? from! : defaultFrom();
+  const resolvedTo = /^\d{4}-\d{2}-\d{2}$/.test(to ?? "") ? to! : defaultTo();
+  const groupBy = group_by === "day" ? "day" : "month";
+  const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy);
   const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
 
   return (
@@ -57,7 +75,9 @@ export default async function Page() {
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="xl:col-span-7">
-              <TransactionsOverviewCard chart={data.chart} />
+              <Suspense fallback={null}>
+                <TransactionsOverviewCard chart={data.chart} />
+              </Suspense>
             </div>
             <div className="xl:col-span-5">
               <BalanceDistributionCard methods={data.payment_methods} />
