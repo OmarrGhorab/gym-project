@@ -58,7 +58,7 @@ export type DefaultDashboardData = {
 
 export async function getDefaultDashboardData(): Promise<DefaultDashboardData> {
   const to = new Date();
-  const from = subDays(to, 89);
+  const from = subDays(to, 364);
   const dateParams = new URLSearchParams({
     from: formatDate(from),
     to: formatDate(to),

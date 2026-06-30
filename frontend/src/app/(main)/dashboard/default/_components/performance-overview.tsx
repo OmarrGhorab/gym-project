@@ -2,7 +2,7 @@
 
 import { parseISO } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
-import { Area, CartesianGrid, ComposedChart, Line, XAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +31,7 @@ export type SalesChartPoint = {
   units: number;
 };
 
-const performancePeriodValues = ["quarter"] as const;
+const performancePeriodValues = ["quarter", "year"] as const;
 const performanceSegmentValues = ["all", "orders", "products"] as const;
 
 export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
@@ -53,7 +53,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
   } satisfies ChartConfig;
   const performancePeriodItems = performancePeriodValues.map((value) => ({
     value,
-    label: t("threeMonths"),
+    label: value === "year" ? t("twelveMonths") : t("threeMonths"),
   }));
   const performanceSegmentItems = performanceSegmentValues.map((value) => ({
     value,
@@ -69,9 +69,9 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
           <span className="@[540px]/card:hidden">{t("lastThreeMonths")}</span>
         </CardDescription>
         <CardAction className="flex items-center gap-2">
-          <Select defaultValue="quarter" items={performancePeriodItems}>
+          <Select defaultValue="year" items={performancePeriodItems}>
             <SelectTrigger size="sm" className="w-28">
-              <SelectValue placeholder={t("threeMonths")} />
+              <SelectValue placeholder={t("twelveMonths")} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -146,7 +146,30 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
             />
             <ChartLegend verticalAlign="top" content={<ChartLegendContent className="mb-5 justify-end" />} />
 
+            <YAxis
+              yAxisId="revenue"
+              orientation="left"
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value: number) => {
+                if (value >= 1000) return `${Math.round(value / 1000)}k`;
+                return String(value);
+              }}
+            />
+            <YAxis
+              yAxisId="count"
+              orientation="right"
+              axisLine={false}
+              tickLine={false}
+              tickMargin={8}
+              tick={{ fontSize: 12 }}
+              allowDecimals={false}
+            />
+
             <Area
+              yAxisId="revenue"
               dataKey="revenue"
               type="natural"
               fill="url(#fillRevenue)"
@@ -155,8 +178,8 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
               dot={false}
               fillOpacity={1}
             />
-            <Line dataKey="sales" type="natural" stroke="var(--color-sales)" strokeWidth={1.4} dot={false} />
-            <Line dataKey="units" type="natural" stroke="var(--color-units)" strokeWidth={1.2} dot={false} />
+            <Line yAxisId="count" dataKey="sales" type="natural" stroke="var(--color-sales)" strokeWidth={1.4} dot={false} />
+            <Line yAxisId="count" dataKey="units" type="natural" stroke="var(--color-units)" strokeWidth={1.2} dot={false} />
           </ComposedChart>
         </ChartContainer>
       </CardContent>

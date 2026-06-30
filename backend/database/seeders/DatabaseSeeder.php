@@ -26,5 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleUserSeeder::class);
         $this->call(PostmanScenarioSeeder::class);
         $this->call(DashboardDemoSeeder::class);
+        $this->call(FinanceOverviewSeeder::class);
+        $this->call(SalesActivitySeeder::class);
     }
 }

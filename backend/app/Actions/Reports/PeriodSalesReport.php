@@ -2,7 +2,6 @@
 
 namespace App\Actions\Reports;
 
-use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
 
 class PeriodSalesReport
@@ -12,7 +11,7 @@ class PeriodSalesReport
      *
      * @param  array<string, mixed>  $filters
      */
-    public function execute(array $filters): CursorPaginator
+    public function execute(array $filters): mixed
     {
         $from = $filters['from'];
         $to = $filters['to'];
@@ -124,7 +123,7 @@ class PeriodSalesReport
                 ->orderBy('date', 'desc');
         }
 
-        return $query->cursorPaginate(50)->through(function ($item) {
+        $formatRow = function ($item) {
             if (isset($item->revenue)) {
                 $item->revenue = number_format((float) $item->revenue, 2, '.', '');
             }
@@ -142,6 +141,12 @@ class PeriodSalesReport
             }
 
             return $item;
-        });
+        };
+
+        if ($groupBy === 'transaction') {
+            return $query->cursorPaginate(100)->through($formatRow);
+        }
+
+        return $query->get()->map($formatRow)->values();
     }
 }

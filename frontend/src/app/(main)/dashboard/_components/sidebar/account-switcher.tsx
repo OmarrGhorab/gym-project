@@ -1,6 +1,7 @@
 "use client";
 
-import { BadgeCheck, Bell, CreditCard, LogOut } from "lucide-react";
+import { Bell, Dumbbell, LogOut, Settings, ShieldCheck, UsersRound } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,17 +42,25 @@ export function AccountSwitcher({ user }: { readonly user: DashboardUser }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <BadgeCheck />
-            {t("account")}
+          <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+            <Settings />
+            {t("profileSecurity")}
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <CreditCard />
-            {t("billing")}
+          <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+            <Dumbbell />
+            {t("gymSettings")}
           </DropdownMenuItem>
-          <DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/users" />}>
+            <ShieldCheck />
+            {t("usersRoles")}
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/academy" />}>
+            <UsersRound />
+            {t("staff")}
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/mail" />}>
             <Bell />
-            {t("notifications")}
+            {t("notificationCenter")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

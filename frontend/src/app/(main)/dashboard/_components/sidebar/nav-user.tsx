@@ -1,6 +1,8 @@
 "use client";
 
-import { CircleUser, CreditCard, EllipsisVertical, LogOut, MessageSquareDot } from "lucide-react";
+import { Bell, Dumbbell, EllipsisVertical, LogOut, Settings, ShieldCheck, UsersRound } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -18,6 +20,7 @@ import { getInitials } from "@/lib/utils";
 
 export function NavUser({ user }: { readonly user: DashboardUser }) {
   const { isMobile } = useSidebar();
+  const t = useTranslations("Dashboard.account");
 
   return (
     <SidebarMenu>
@@ -59,24 +62,32 @@ export function NavUser({ user }: { readonly user: DashboardUser }) {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <CircleUser />
-                Account
+              <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+                <Settings />
+                {t("profileSecurity")}
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
+              <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+                <Dumbbell />
+                {t("gymSettings")}
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <MessageSquareDot />
-                Notifications
+              <DropdownMenuItem render={<Link href="/dashboard/users" />}>
+                <ShieldCheck />
+                {t("usersRoles")}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/dashboard/academy" />}>
+                <UsersRound />
+                {t("staff")}
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/dashboard/mail" />}>
+                <Bell />
+                {t("notificationCenter")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <form action={logoutAction}>
               <DropdownMenuItem nativeButton render={<button type="submit" className="w-full" />}>
                 <LogOut />
-                Log out
+                {t("logout")}
               </DropdownMenuItem>
             </form>
           </DropdownMenuContent>
