@@ -127,34 +127,16 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
     }
 
     const result = await serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(`/members?${params.toString()}`);
-
     const members = unwrapList(result.data);
-    const detailMembers = members.slice(0, 20);
-    const details = await Promise.all(
-      detailMembers.map(async (member) => {
-        const [historyResult, visitsResult] = await Promise.all([
-          safeFetch<MemberPaymentHistory | null>(`/members/${member.id}/payment-history`, null),
-          safeFetch<MemberVisitRow[] | PaginatedData<MemberVisitRow>>(
-            `/member-visits?member_id=${member.id}&sort=-check_in_at&per_page=5`,
-            [],
-          ),
-        ]);
-
-        return {
-          history: historyResult.data,
-          id: member.id,
-          visits: unwrapList(visitsResult.data),
-        };
-      }),
-    );
 
     return {
-      histories: Object.fromEntries(details.map((detail) => [detail.id, detail.history])),
+      histories: {},
       meta: getMeta(result),
       members,
-      visits: Object.fromEntries(details.map((detail) => [detail.id, detail.visits])),
+      visits: {},
     };
-  } catch {
+  } catch (error) {
+    console.error("[getMembersPageData] Failed to fetch members:", error);
     return { histories: {}, members: [], meta: {}, visits: {} };
   }
 }
@@ -162,7 +144,8 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
 async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
   try {
     return await serverApiFetch<T>(path);
-  } catch {
+  } catch (error) {
+    console.error(`[safeFetch] Failed to fetch ${path}:`, error);
     return { data: fallback };
   }
 }

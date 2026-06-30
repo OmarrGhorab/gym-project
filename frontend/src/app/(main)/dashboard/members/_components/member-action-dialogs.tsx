@@ -30,8 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createMember, deactivateMember, updateMember, uploadMemberPhoto } from "./actions";
-import type { MemberRow } from "./data";
+import { createMember, deactivateMember, fetchMemberDetails, updateMember, uploadMemberPhoto } from "./actions";
+import type { MemberPaymentHistory, MemberRow, MemberVisitRow } from "./data";
 import { MemberDetailsDialog } from "./member-details-dialog";
 
 type ActionResult = {
@@ -144,19 +144,24 @@ export function MemberPhotoDialog({ member }: { member: MemberRow }) {
   );
 }
 
-export function MemberActionsMenu({
-  history,
-  member,
-  visits,
-}: {
-  history: React.ComponentProps<typeof MemberDetailsDialog>["history"];
-  member: MemberRow;
-  visits: React.ComponentProps<typeof MemberDetailsDialog>["visits"];
-}) {
+export function MemberActionsMenu({ member }: { member: MemberRow }) {
   const t = useTranslations("Dashboard.membersPage");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
+  const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
+  const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
+  const detailsLoaded = React.useRef(false);
+
+  React.useEffect(() => {
+    if (detailsOpen && !detailsLoaded.current) {
+      detailsLoaded.current = true;
+      fetchMemberDetails(member.id).then((result) => {
+        setHistory(result.history);
+        setVisits(result.visits);
+      });
+    }
+  }, [detailsOpen, member.id]);
 
   return (
     <>

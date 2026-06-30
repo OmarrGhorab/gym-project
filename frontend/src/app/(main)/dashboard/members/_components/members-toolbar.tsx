@@ -228,8 +228,8 @@ function useQueryRouter() {
   const searchParams = useSearchParams();
 
   function navigate(params: URLSearchParams) {
-    router.replace(params.size ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
-    router.refresh();
+    const url = params.size ? `${pathname}?${params.toString()}` : pathname;
+    router.push(url, { scroll: false });
   }
 
   return {

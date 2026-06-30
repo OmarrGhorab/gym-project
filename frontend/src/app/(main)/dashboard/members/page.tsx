@@ -12,8 +12,6 @@ import { MemberActionsMenu } from "./_components/member-action-dialogs";
 import { MembersFilterBar, MembersHeaderActions, MembersPagination } from "./_components/members-toolbar";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-export const revalidate = 0;
 
 export default async function Page({
   searchParams,
@@ -25,7 +23,7 @@ export default async function Page({
   const numberFormatter = new Intl.NumberFormat(locale);
   const params = await searchParams;
   const query = normalizeQuery(params);
-  const { histories, members, meta, visits } = await getMembersPageData(query);
+  const { members, meta } = await getMembersPageData(query);
   const active = members.filter((member) => member.status === "active").length;
   const inactive = members.length - active;
   const withQr = members.filter((member) => member.attendance_qr).length;
@@ -111,11 +109,7 @@ export default async function Page({
                   </TableCell>
                   <TableCell className="text-muted-foreground">{member.join_date ?? "-"}</TableCell>
                   <TableCell className="text-end">
-                    <MemberActionsMenu
-                      member={member}
-                      history={histories[member.id]}
-                      visits={visits[member.id] ?? []}
-                    />
+                    <MemberActionsMenu member={member} />
                   </TableCell>
                 </TableRow>
               ))

@@ -4,6 +4,27 @@ import { revalidatePath } from "next/cache";
 
 import { serverApiFetch } from "@/lib/api/server";
 
+import { type PaginatedData, unwrapList } from "../../_lib/api";
+import type { MemberPaymentHistory, MemberVisitRow } from "./data";
+
+export async function fetchMemberDetails(
+  memberId: number,
+): Promise<{ history: MemberPaymentHistory | null; visits: MemberVisitRow[] }> {
+  const [historyResult, visitsResult] = await Promise.all([
+    serverApiFetch<MemberPaymentHistory | null>(`/members/${memberId}/payment-history`).catch(() => ({
+      data: null as MemberPaymentHistory | null,
+    })),
+    serverApiFetch<MemberVisitRow[] | PaginatedData<MemberVisitRow>>(
+      `/member-visits?member_id=${memberId}&sort=-check_in_at&per_page=5`,
+    ).catch(() => ({ data: [] as MemberVisitRow[] })),
+  ]);
+
+  return {
+    history: historyResult.data,
+    visits: unwrapList(visitsResult.data as MemberVisitRow[] | PaginatedData<MemberVisitRow>),
+  };
+}
+
 export async function createMember(input: FormData): Promise<void> {
   const payload = {
     birth_date: nullableString(input.get("birth_date")),
