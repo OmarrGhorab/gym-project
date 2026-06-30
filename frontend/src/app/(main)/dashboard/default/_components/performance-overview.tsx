@@ -1,8 +1,11 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { parseISO } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
+import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateRangePicker } from "@/components/date-range-picker";
 
 export type SalesChartPoint = {
   date: string;
@@ -31,34 +35,74 @@ export type SalesChartPoint = {
   units: number;
 };
 
-const performancePeriodValues = ["quarter", "year"] as const;
-const performanceSegmentValues = ["all", "orders", "products"] as const;
+type SegmentValue = "all" | "orders" | "products";
 
 export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
   const t = useTranslations("Dashboard.default.charts");
   const locale = useLocale();
-  const chartConfig = {
-    revenue: {
-      label: t("revenue"),
-      color: "var(--chart-1)",
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [segment, setSegment] = useState<SegmentValue>("all");
+
+  const dateRange: DateRange = useMemo(() => {
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    return {
+      from: from ? parseISO(from) : undefined,
+      to: to ? parseISO(to) : undefined,
+    };
+  }, [searchParams]);
+
+  const handleDateRangeChange = useCallback(
+    (range: DateRange | undefined) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (range?.from) {
+        params.set("from", formatDate(range.from));
+      } else {
+        params.delete("from");
+      }
+      if (range?.to) {
+        params.set("to", formatDate(range.to));
+      } else {
+        params.delete("to");
+      }
+      router.push(`?${params.toString()}`);
     },
-    sales: {
-      label: t("sales"),
-      color: "var(--chart-2)",
-    },
-    units: {
-      label: t("unitsSold"),
-      color: "var(--chart-3)",
-    },
-  } satisfies ChartConfig;
-  const performancePeriodItems = performancePeriodValues.map((value) => ({
-    value,
-    label: value === "year" ? t("twelveMonths") : t("threeMonths"),
-  }));
-  const performanceSegmentItems = performanceSegmentValues.map((value) => ({
-    value,
-    label: getPerformanceSegmentLabel(value, t),
-  }));
+    [router, searchParams],
+  );
+
+  const chartConfig = useMemo(() => {
+    const cfg: ChartConfig = {};
+    if (segment === "all" || segment === "orders") {
+      cfg.revenue = { label: t("revenue"), color: "var(--chart-1)" };
+    }
+    if (segment === "all" || segment === "orders") {
+      cfg.sales = { label: t("sales"), color: "var(--chart-2)" };
+    }
+    if (segment === "all" || segment === "products") {
+      cfg.units = { label: t("unitsSold"), color: "var(--chart-3)" };
+    }
+    return cfg satisfies ChartConfig;
+  }, [segment, t]);
+
+  const showRevenue = segment === "all" || segment === "orders";
+  const showSales = segment === "all" || segment === "orders";
+  const showUnits = segment === "all" || segment === "products";
+
+  const performanceSegmentItems = useMemo(() => {
+    const items: { value: SegmentValue; label: string }[] = [
+      { value: "all", label: getPerformanceSegmentLabel("all", t) },
+      { value: "orders", label: getPerformanceSegmentLabel("orders", t) },
+      { value: "products", label: getPerformanceSegmentLabel("products", t) },
+    ];
+    return items;
+  }, [t]);
+
+  const handleSegmentChange = (value: string | null) => {
+    if (value === "all" || value === "orders" || value === "products") {
+      setSegment(value);
+    }
+  };
 
   return (
     <Card className="@container/card">
@@ -66,28 +110,14 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
         <CardTitle className="leading-none">{t("salesActivity")}</CardTitle>
         <CardDescription>
           <span className="@[540px]/card:block hidden">{t("salesActivityWide")}</span>
-          <span className="@[540px]/card:hidden">{t("lastThreeMonths")}</span>
+          <span className="@[540px]/card:hidden">{t("salesActivityNarrow")}</span>
         </CardDescription>
         <CardAction className="flex items-center gap-2">
-          <Select defaultValue="year" items={performancePeriodItems}>
-            <SelectTrigger size="sm" className="w-28">
-              <SelectValue placeholder={t("twelveMonths")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>{t("period")}</SelectLabel>
-                {performancePeriodItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
 
-          <Select defaultValue="all" items={performanceSegmentItems}>
+          <Select value={segment} onValueChange={handleSegmentChange}>
             <SelectTrigger size="sm" className="w-32">
-              <SelectValue placeholder={t("allSales")} />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -101,7 +131,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/ecommerce")}>
             {t("viewReport")}
           </Button>
         </CardAction>
@@ -149,6 +179,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
             <YAxis
               yAxisId="revenue"
               orientation="left"
+              hide={!showRevenue}
               axisLine={false}
               tickLine={false}
               tickMargin={8}
@@ -161,6 +192,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
             <YAxis
               yAxisId="count"
               orientation="right"
+              hide={!showSales && !showUnits}
               axisLine={false}
               tickLine={false}
               tickMargin={8}
@@ -168,18 +200,24 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
               allowDecimals={false}
             />
 
-            <Area
-              yAxisId="revenue"
-              dataKey="revenue"
-              type="natural"
-              fill="url(#fillRevenue)"
-              stroke="var(--color-revenue)"
-              strokeWidth={1.25}
-              dot={false}
-              fillOpacity={1}
-            />
-            <Line yAxisId="count" dataKey="sales" type="natural" stroke="var(--color-sales)" strokeWidth={1.4} dot={false} />
-            <Line yAxisId="count" dataKey="units" type="natural" stroke="var(--color-units)" strokeWidth={1.2} dot={false} />
+            {showRevenue && (
+              <Area
+                yAxisId="revenue"
+                dataKey="revenue"
+                type="natural"
+                fill="url(#fillRevenue)"
+                stroke="var(--color-revenue)"
+                strokeWidth={1.25}
+                dot={false}
+                fillOpacity={1}
+              />
+            )}
+            {showSales && (
+              <Line yAxisId="count" dataKey="sales" type="natural" stroke="var(--color-sales)" strokeWidth={1.4} dot={false} />
+            )}
+            {showUnits && (
+              <Line yAxisId="count" dataKey="units" type="natural" stroke="var(--color-units)" strokeWidth={1.2} dot={false} />
+            )}
           </ComposedChart>
         </ChartContainer>
       </CardContent>
@@ -188,7 +226,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
 }
 
 function getPerformanceSegmentLabel(
-  value: (typeof performanceSegmentValues)[number],
+  value: SegmentValue,
   t: ReturnType<typeof useTranslations>,
 ) {
   if (value === "all") {
@@ -200,4 +238,8 @@ function getPerformanceSegmentLabel(
   }
 
   return t("products");
+}
+
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
 }

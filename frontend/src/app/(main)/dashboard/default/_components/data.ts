@@ -1,5 +1,3 @@
-import { subDays } from "date-fns";
-
 import { serverApiFetch } from "@/lib/api/server";
 
 import type { SalesChartPoint } from "./performance-overview";
@@ -56,12 +54,10 @@ export type DefaultDashboardData = {
   salesChart: SalesChartPoint[];
 };
 
-export async function getDefaultDashboardData(): Promise<DefaultDashboardData> {
-  const to = new Date();
-  const from = subDays(to, 364);
+export async function getDefaultDashboardData(from: string, to: string): Promise<DefaultDashboardData> {
   const dateParams = new URLSearchParams({
-    from: formatDate(from),
-    to: formatDate(to),
+    from,
+    to,
     group_by: "day",
   });
 
