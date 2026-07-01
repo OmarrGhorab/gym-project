@@ -696,7 +696,13 @@ class DashboardDemoSeeder extends Seeder
 
         for ($day = 0; $day < 45; $day++) {
             $date = CarbonImmutable::now()->subDays($day);
-            $visitsToday = $day === 0 ? 63 : rand(27, 83);
+            if ($day === 0) {
+                $this->seedTodayMemberVisits($date, $members, $activeSubscriptionsByMember, $admin);
+
+                continue;
+            }
+
+            $visitsToday = rand(27, 83);
 
             for ($i = 0; $i < $visitsToday; $i++) {
                 $member = $members->random();
@@ -704,7 +710,7 @@ class DashboardDemoSeeder extends Seeder
                 $isBlocked = ! $subscription && $i % 3 === 0;
                 $isFlagged = ! $isBlocked && $i % 19 === 0;
                 $checkIn = $date->startOfDay()->addHours(rand(6, 22))->addMinutes(rand(0, 59));
-                $stillInside = $day === 0 && $i < 16;
+                $stillInside = false;
 
                 MemberVisit::create([
                     'member_id' => $member->id,
@@ -727,6 +733,102 @@ class DashboardDemoSeeder extends Seeder
                     'notes' => $stillInside ? 'Demo: currently inside gym.' : null,
                     'created_by' => $admin->id,
                 ]);
+            }
+        }
+    }
+
+    /**
+     * @param  Collection<int, Member>  $members
+     * @param  Collection<int, Subscription>  $activeSubscriptionsByMember
+     */
+    private function seedTodayMemberVisits(
+        CarbonImmutable $date,
+        Collection $members,
+        Collection $activeSubscriptionsByMember,
+        User $admin,
+    ): void {
+        $now = CarbonImmutable::now();
+        $insideSeeded = 0;
+        $sequence = 0;
+        $scanMethods = ['qr', 'phone', 'name', 'member_id', 'manual'];
+        $durations = [42, 55, 68, 82, 96, 115, 132];
+
+        $hourlyProfile = [
+            0 => 4,
+            1 => 5,
+            2 => 4,
+            3 => 5,
+            4 => 6,
+            5 => 7,
+            6 => 4,
+            7 => 7,
+            8 => 6,
+            9 => 3,
+            10 => 2,
+            11 => 3,
+            12 => 4,
+            13 => 5,
+            14 => 6,
+            15 => 7,
+            16 => 8,
+            17 => 10,
+            18 => 12,
+            19 => 11,
+            20 => 8,
+            21 => 5,
+            22 => 2,
+        ];
+
+        foreach ($hourlyProfile as $hour => $visitsInHour) {
+            $hourStart = $date->startOfDay()->addHours($hour);
+            if ($hourStart->greaterThan($now)) {
+                break;
+            }
+
+            for ($slot = 0; $slot < $visitsInHour; $slot++) {
+                $checkIn = $hourStart->addMinutes((int) floor(($slot + 1) * (60 / ($visitsInHour + 1))));
+                if ($checkIn->greaterThan($now)) {
+                    continue;
+                }
+
+                $member = $members[(($sequence * 7) + $slot) % $members->count()] ?? $members->random();
+                $subscription = $activeSubscriptionsByMember->get($member->id);
+                $isBlocked = ! $subscription && $sequence % 5 === 0;
+                $isFlagged = ! $isBlocked && in_array($sequence % 29, [0, 17], true);
+                $recentEnoughToStay = $checkIn->greaterThanOrEqualTo($now->subHours(3));
+                $stillInside = $recentEnoughToStay && $insideSeeded < 18 && $sequence % 2 === 0;
+                $duration = $durations[$sequence % count($durations)];
+                $checkOut = $stillInside ? null : $checkIn->addMinutes($duration);
+
+                if ($stillInside) {
+                    $insideSeeded++;
+                } elseif ($checkOut?->greaterThan($now)) {
+                    $checkOut = $now->subMinutes(5 + ($sequence % 18));
+                }
+
+                MemberVisit::create([
+                    'member_id' => $member->id,
+                    'subscription_id' => $subscription?->id,
+                    'check_in_at' => $checkIn,
+                    'check_in_latitude' => self::GYM_LATITUDE + (rand(-10, 10) / 100000),
+                    'check_in_longitude' => self::GYM_LONGITUDE + (rand(-10, 10) / 100000),
+                    'check_in_accuracy_meters' => rand(7, 45),
+                    'check_in_distance_meters' => $isFlagged ? rand(170, 450) : rand(2, 70),
+                    'check_in_location_status' => $isFlagged ? 'outside' : 'inside',
+                    'check_out_at' => $checkOut,
+                    'check_out_latitude' => $stillInside ? null : self::GYM_LATITUDE + (rand(-10, 10) / 100000),
+                    'check_out_longitude' => $stillInside ? null : self::GYM_LONGITUDE + (rand(-10, 10) / 100000),
+                    'check_out_accuracy_meters' => $stillInside ? null : rand(7, 45),
+                    'check_out_distance_meters' => $stillInside ? null : rand(2, 90),
+                    'check_out_location_status' => $stillInside ? null : 'inside',
+                    'status' => $isBlocked ? 'blocked' : ($isFlagged ? 'flagged' : 'allowed'),
+                    'scan_method' => $scanMethods[$sequence % count($scanMethods)],
+                    'alert_reason' => $isBlocked ? 'No active subscription for demo visit.' : ($isFlagged ? 'GPS outside gym radius.' : null),
+                    'notes' => $stillInside ? 'Demo: currently inside gym.' : null,
+                    'created_by' => $admin->id,
+                ]);
+
+                $sequence++;
             }
         }
     }

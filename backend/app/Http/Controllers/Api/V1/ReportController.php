@@ -47,10 +47,15 @@ final class ReportController extends ApiController
         );
     }
 
-    public function liveAttendance(LiveAttendanceSummary $action): JsonResponse
+    public function liveAttendance(Request $request, LiveAttendanceSummary $action): JsonResponse
     {
         return $this->success(
-            data: $action->execute(),
+            data: $action->execute($request->validate([
+                'date' => ['nullable', 'date'],
+                'hours' => ['nullable', 'integer', 'min:6', 'max:24'],
+                'audience' => ['nullable', 'string', Rule::in(['all', 'members', 'staff'])],
+                'metric' => ['nullable', 'string', Rule::in(['occupancy', 'entries', 'alerts'])],
+            ])),
             message: 'Live attendance summary retrieved',
         );
     }

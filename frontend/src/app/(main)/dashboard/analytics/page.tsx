@@ -8,9 +8,19 @@ import { TopPages } from "./_components/top-pages";
 import { TopTrafficSources } from "./_components/top-traffic-sources";
 import { TrafficQuality } from "./_components/traffic-quality";
 
-export default async function Page() {
+type PageProps = {
+  searchParams: Promise<{
+    audience?: string;
+    date?: string;
+    hours?: string;
+    metric?: string;
+  }>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
+  const filters = await searchParams;
   const t = await getTranslations("Dashboard.analytics");
-  const data = await getLiveAttendanceData();
+  const data = await getLiveAttendanceData(filters);
 
   return (
     <div className="flex flex-col gap-4">
@@ -20,7 +30,7 @@ export default async function Page() {
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
 
-        <AnalyticsToolbar generatedAt={data.generated_at} />
+        <AnalyticsToolbar filters={data.filters} generatedAt={data.generated_at} />
       </div>
 
       <AnalyticsKpiStrip data={data} />

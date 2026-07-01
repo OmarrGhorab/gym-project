@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { MoreHorizontal } from "lucide-react";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,26 +18,38 @@ export function RealtimeVisitors({ data }: { data: LiveAttendanceData }) {
       color: "var(--chart-3)",
       label: t("totalInside"),
     },
+    value: {
+      color: "var(--foreground)",
+      label: t("selectedMetric"),
+    },
   } satisfies ChartConfig;
-  const recentHours = data.hourly.filter((point) => point.total > 0).slice(-12);
-  const chartData = recentHours.length > 0 ? recentHours : data.hourly.slice(0, 12);
+  const latestActiveIndex = data.hourly.findLastIndex((point) => point.total > 0);
+  const chartData =
+    latestActiveIndex >= 0
+      ? data.hourly.slice(Math.max(0, latestActiveIndex - 11), latestActiveIndex + 1)
+      : data.hourly.slice(0, 12);
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="font-normal">{t("livePresence")}</CardTitle>
-        <CardDescription>{t("livePresenceDescription")}</CardDescription>
+    <Card className="h-full overflow-hidden bg-foreground text-background dark:bg-card dark:text-card-foreground">
+      <CardHeader className="flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="font-normal">{t("livePresence")}</CardTitle>
+          <CardDescription className="text-background/55 dark:text-muted-foreground">
+            {t("livePresenceDescription")}
+          </CardDescription>
+        </div>
+        <MoreHorizontal className="size-5 text-background/65 dark:text-muted-foreground" />
       </CardHeader>
 
       <CardContent className="flex flex-col gap-5">
         <div className="flex items-end justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-4xl tabular-nums leading-none tracking-tight">
+            <div className="text-3xl tabular-nums leading-none tracking-tight">
               {numberFormatter.format(data.currently_inside.total)}
+              <span className="ml-1 text-background/65 text-base dark:text-muted-foreground">{t("peoplePerMinute")}</span>
             </div>
-            <div className="text-muted-foreground text-sm">{t("peopleInside")}</div>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <div className="flex items-center gap-2 text-background/70 text-sm dark:text-muted-foreground">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-green-500" />
@@ -50,26 +63,26 @@ export function RealtimeVisitors({ data }: { data: LiveAttendanceData }) {
             <XAxis dataKey="hour" hide />
             <YAxis hide allowDecimals={false} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            <Bar dataKey="total" fill="var(--color-total)" radius={4} />
+            <Bar dataKey="value" fill="var(--color-value)" opacity={0.75} radius={3} />
           </BarChart>
         </ChartContainer>
 
-        <div className="grid grid-cols-2 overflow-hidden rounded-lg border">
-          <div className="space-y-1 border-r p-4">
-            <div className="text-muted-foreground text-xs">{t("members")}</div>
-            <div className="text-2xl tabular-nums">{numberFormatter.format(data.currently_inside.members)}</div>
+        <div className="grid grid-cols-2 overflow-hidden border-background/10 border-t text-sm dark:border-border">
+          <div className="flex items-center justify-between gap-3 border-background/10 border-r py-3 pr-4 dark:border-border">
+            <span className="font-medium">{t("members")}</span>
+            <span className="tabular-nums">{numberFormatter.format(data.currently_inside.members)}</span>
           </div>
-          <div className="space-y-1 p-4">
-            <div className="text-muted-foreground text-xs">{t("staff")}</div>
-            <div className="text-2xl tabular-nums">{numberFormatter.format(data.currently_inside.staff)}</div>
+          <div className="flex items-center justify-between gap-3 py-3 pl-4">
+            <span className="font-medium">{t("staff")}</span>
+            <span className="tabular-nums">{numberFormatter.format(data.currently_inside.staff)}</span>
           </div>
-          <div className="space-y-1 border-t border-r p-4">
-            <div className="text-muted-foreground text-xs">{t("blocked")}</div>
-            <div className="text-2xl tabular-nums">{numberFormatter.format(data.today.blocked_visits)}</div>
+          <div className="flex items-center justify-between gap-3 border-background/10 border-t border-r py-3 pr-4 dark:border-border">
+            <span className="font-medium">{t("blocked")}</span>
+            <span className="tabular-nums">{numberFormatter.format(data.today.blocked_visits)}</span>
           </div>
-          <div className="space-y-1 border-t p-4">
-            <div className="text-muted-foreground text-xs">{t("flagged")}</div>
-            <div className="text-2xl tabular-nums">{numberFormatter.format(data.today.flagged_scans)}</div>
+          <div className="flex items-center justify-between gap-3 border-background/10 border-t py-3 pl-4 dark:border-border">
+            <span className="font-medium">{t("flagged")}</span>
+            <span className="tabular-nums">{numberFormatter.format(data.today.flagged_scans)}</span>
           </div>
         </div>
       </CardContent>

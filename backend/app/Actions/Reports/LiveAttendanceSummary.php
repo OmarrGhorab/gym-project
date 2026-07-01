@@ -12,37 +12,60 @@ final class LiveAttendanceSummary
     /**
      * @return array<string, mixed>
      */
-    public function execute(): array
+    public function execute(array $filters = []): array
     {
         $now = CarbonImmutable::now();
-        $today = $now->toDateString();
+        $date = CarbonImmutable::parse($filters['date'] ?? $now)->startOfDay();
+        $comparisonDate = $date->subDay();
+        $hours = (int) ($filters['hours'] ?? 24);
+        $audience = $filters['audience'] ?? 'all';
+        $metric = $filters['metric'] ?? 'occupancy';
+        $isToday = $date->isSameDay($now);
 
         $memberVisits = MemberVisit::query()
             ->with('member:id,name,phone,status')
-            ->whereDate('check_in_at', $today)
+            ->whereDate('check_in_at', $date->toDateString())
             ->get();
 
         $staffAttendance = Attendance::query()
             ->with('employee:id,name,role,status')
-            ->whereDate('date', $today)
+            ->whereDate('date', $date->toDateString())
             ->get();
 
-        $membersInside = $memberVisits
+        $comparisonMemberVisits = MemberVisit::query()
+            ->whereDate('check_in_at', $comparisonDate->toDateString())
+            ->get();
+
+        $comparisonStaffAttendance = Attendance::query()
+            ->whereDate('date', $comparisonDate->toDateString())
+            ->get();
+
+        $membersInside = $isToday ? $memberVisits
             ->whereNull('check_out_at')
             ->sortByDesc('check_in_at')
-            ->values();
+            ->values() : collect();
 
-        $staffInside = $staffAttendance
+        $staffInside = $isToday ? $staffAttendance
             ->whereNotNull('check_in')
             ->whereNull('check_out')
             ->sortByDesc('check_in')
-            ->values();
+            ->values() : collect();
 
-        $hourly = $this->hourlyOccupancy($memberVisits, $staffAttendance, $now);
+        $hourly = $this->hourlySeries($memberVisits, $staffAttendance, $comparisonMemberVisits, $comparisonStaffAttendance, $date, $now, [
+            'audience' => $audience,
+            'hours' => $hours,
+            'metric' => $metric,
+        ]);
         $peak = collect($hourly)->sortByDesc('total')->first();
 
         return [
             'generated_at' => $now->toIso8601String(),
+            'filters' => [
+                'date' => $date->toDateString(),
+                'hours' => $hours,
+                'audience' => $audience,
+                'metric' => $metric,
+            ],
             'currently_inside' => [
                 'total' => $membersInside->count() + $staffInside->count(),
                 'members' => $membersInside->count(),
@@ -68,52 +91,120 @@ final class LiveAttendanceSummary
     /**
      * @param  Collection<int, MemberVisit>  $memberVisits
      * @param  Collection<int, Attendance>  $staffAttendance
+     * @param  Collection<int, MemberVisit>  $comparisonMemberVisits
+     * @param  Collection<int, Attendance>  $comparisonStaffAttendance
+     * @param  array{audience: string, hours: int, metric: string}  $filters
      * @return array<int, array<string, int|string>>
      */
-    private function hourlyOccupancy(Collection $memberVisits, Collection $staffAttendance, CarbonImmutable $now): array
-    {
-        $start = $now->startOfDay();
+    private function hourlySeries(
+        Collection $memberVisits,
+        Collection $staffAttendance,
+        Collection $comparisonMemberVisits,
+        Collection $comparisonStaffAttendance,
+        CarbonImmutable $date,
+        CarbonImmutable $now,
+        array $filters,
+    ): array {
+        $start = $date->startOfDay();
+        $isToday = $date->isSameDay($now);
+        $visibleHours = max(6, min(24, $filters['hours']));
+        $lastHour = $isToday ? min(23, (int) $now->format('G')) : 23;
+        $firstHour = max(0, $lastHour - $visibleHours + 1);
 
-        return collect(range(0, 23))->map(function (int $hour) use ($memberVisits, $staffAttendance, $start, $now): array {
+        return collect(range($firstHour, $lastHour))->map(function (int $hour) use ($memberVisits, $staffAttendance, $comparisonMemberVisits, $comparisonStaffAttendance, $start, $now, $isToday, $filters): array {
             $slotStart = $start->addHours($hour);
             $slotEnd = $slotStart->endOfHour();
 
-            if ($slotStart->greaterThan($now)) {
+            if ($isToday && $slotStart->greaterThan($now)) {
                 return [
                     'hour' => $slotStart->format('H:00'),
                     'members' => 0,
                     'staff' => 0,
                     'total' => 0,
+                    'value' => 0,
+                    'comparison' => 0,
                 ];
             }
 
-            $members = $memberVisits->filter(function (MemberVisit $visit) use ($slotStart, $slotEnd): bool {
-                $checkIn = $visit->check_in_at;
-                $checkOut = $visit->check_out_at;
-
-                return $checkIn && $checkIn->lessThanOrEqualTo($slotEnd)
-                    && (! $checkOut || $checkOut->greaterThanOrEqualTo($slotStart));
-            })->count();
-
-            $staff = $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
-                if (! $attendance->check_in) {
-                    return false;
-                }
-
-                $checkIn = $slotStart->setTimeFrom($attendance->check_in);
-                $checkOut = $attendance->check_out ? $slotStart->setTimeFrom($attendance->check_out) : null;
-
-                return $checkIn->lessThanOrEqualTo($slotEnd)
-                    && (! $checkOut || $checkOut->greaterThanOrEqualTo($slotStart));
-            })->count();
+            $members = $this->memberPointValue($memberVisits, $slotStart, $slotEnd, $filters['metric']);
+            $staff = $this->staffPointValue($staffAttendance, $slotStart, $slotEnd, $filters['metric']);
+            $comparisonSlotStart = $slotStart->subDay();
+            $comparisonSlotEnd = $comparisonSlotStart->endOfHour();
+            $comparisonMembers = $this->memberPointValue($comparisonMemberVisits, $comparisonSlotStart, $comparisonSlotEnd, $filters['metric']);
+            $comparisonStaff = $this->staffPointValue($comparisonStaffAttendance, $comparisonSlotStart, $comparisonSlotEnd, $filters['metric']);
+            $total = $members + $staff;
 
             return [
                 'hour' => $slotStart->format('H:00'),
                 'members' => $members,
                 'staff' => $staff,
-                'total' => $members + $staff,
+                'total' => $total,
+                'value' => match ($filters['audience']) {
+                    'members' => $members,
+                    'staff' => $staff,
+                    default => $total,
+                },
+                'comparison' => match ($filters['audience']) {
+                    'members' => $comparisonMembers,
+                    'staff' => $comparisonStaff,
+                    default => $comparisonMembers + $comparisonStaff,
+                },
             ];
         })->all();
+    }
+
+    private function memberPointValue(Collection $memberVisits, CarbonImmutable $slotStart, CarbonImmutable $slotEnd, string $metric): int
+    {
+        return match ($metric) {
+            'entries' => $memberVisits->filter(fn (MemberVisit $visit): bool => $visit->check_in_at
+                && $visit->check_in_at->betweenIncluded($slotStart, $slotEnd))->count(),
+            'alerts' => $memberVisits->filter(fn (MemberVisit $visit): bool => $visit->check_in_at
+                && $visit->check_in_at->betweenIncluded($slotStart, $slotEnd)
+                && in_array($visit->status, ['blocked', 'flagged'], true))->count(),
+            default => $memberVisits->filter(function (MemberVisit $visit) use ($slotStart, $slotEnd): bool {
+                $checkIn = $visit->check_in_at;
+                $checkOut = $visit->check_out_at;
+
+                return $checkIn && $checkIn->lessThanOrEqualTo($slotEnd)
+                    && (! $checkOut || $checkOut->greaterThanOrEqualTo($slotStart));
+            })->count(),
+        };
+    }
+
+    private function staffPointValue(Collection $staffAttendance, CarbonImmutable $slotStart, CarbonImmutable $slotEnd, string $metric): int
+    {
+        return match ($metric) {
+            'entries' => $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
+                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+
+                return $checkIn && $checkIn->betweenIncluded($slotStart, $slotEnd);
+            })->count(),
+            'alerts' => $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
+                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+
+                return $checkIn && $checkIn->betweenIncluded($slotStart, $slotEnd)
+                    && (((int) $attendance->late_minutes) > 0
+                        || $attendance->approval_status === 'pending'
+                        || in_array($attendance->schedule_status, ['off_shift', 'late'], true));
+            })->count(),
+            default => $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
+                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+                $checkOut = $this->attendanceDateTime($attendance, 'check_out');
+
+                return $checkIn && $checkIn->lessThanOrEqualTo($slotEnd)
+                    && (! $checkOut || $checkOut->greaterThanOrEqualTo($slotStart));
+            })->count(),
+        };
+    }
+
+    private function attendanceDateTime(Attendance $attendance, string $field): ?CarbonImmutable
+    {
+        $value = $attendance->{$field};
+        if (! $value) {
+            return null;
+        }
+
+        return CarbonImmutable::parse($attendance->date->toDateString().' '.$value->format('H:i:s'));
     }
 
     /**
@@ -172,7 +263,7 @@ final class LiveAttendanceSummary
             ];
         });
 
-        return $memberRows
+        return collect($memberRows->values())
             ->merge($staffRows)
             ->sortByDesc('check_in_at')
             ->values()

@@ -98,3 +98,47 @@ test('users without reports permission cannot view live attendance summary', fun
     $this->getJson('/api/v1/reports/live-attendance')
         ->assertForbidden();
 });
+
+test('live attendance summary supports chart filters', function (): void {
+    Carbon::setTestNow('2026-06-29 10:30:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $member = Member::factory()->create();
+    $employee = Employee::factory()->create();
+
+    MemberVisit::factory()->create([
+        'member_id' => $member->id,
+        'check_in_at' => Carbon::parse('2026-06-29 09:10:00'),
+        'check_out_at' => Carbon::parse('2026-06-29 10:05:00'),
+        'status' => 'allowed',
+    ]);
+
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-06-29',
+        'check_in' => '09:20',
+        'check_out' => null,
+        'status' => 'present',
+    ]);
+
+    $this->getJson('/api/v1/reports/live-attendance?date=2026-06-29&hours=6&audience=members&metric=entries')
+        ->assertOk()
+        ->assertJsonPath('data.filters.date', '2026-06-29')
+        ->assertJsonPath('data.filters.hours', 6)
+        ->assertJsonPath('data.filters.audience', 'members')
+        ->assertJsonPath('data.filters.metric', 'entries')
+        ->assertJsonCount(6, 'data.hourly')
+        ->assertJsonFragment([
+            'hour' => '09:00',
+            'members' => 1,
+            'staff' => 1,
+            'total' => 2,
+            'value' => 1,
+        ]);
+
+    $this->getJson('/api/v1/reports/live-attendance?hours=99')
+        ->assertUnprocessable();
+});
