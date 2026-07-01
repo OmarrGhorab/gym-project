@@ -164,11 +164,11 @@ function getSearchGroupLabel(
   tNav: ReturnType<typeof useTranslations>,
   tShell: ReturnType<typeof useTranslations>,
 ) {
-  if (group === "Dashboards") {
+  if (group === "Dashboards" || group === "Gym Workspace") {
     return tNav("groups.dashboards");
   }
 
-  if (group === "Pages") {
+  if (group === "Pages" || group === "Management") {
     return tNav("groups.pages");
   }
 

@@ -355,5 +355,13 @@ function NavItemBadge({ badge, t }: { badge?: NavBadge; t: ReturnType<typeof use
 }
 
 function getGroupTranslationKey(label: string) {
+  if (label === "Gym Workspace") {
+    return "dashboards";
+  }
+
+  if (label === "Management") {
+    return "pages";
+  }
+
   return label.toLowerCase().replace(/\s+/g, "");
 }

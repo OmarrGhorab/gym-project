@@ -62,17 +62,17 @@ export interface NavGroup {
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "Dashboards",
+    label: "Gym Workspace",
     items: [
       {
         id: "default",
-        title: "Default",
+        title: "Overview",
         url: "/dashboard/default",
         icon: LayoutDashboard,
       },
       {
         id: "crm",
-        title: "Membership",
+        title: "Memberships",
         url: "/dashboard/crm",
         icon: ChartBar,
       },
@@ -84,13 +84,13 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "analytics",
-        title: "Analytics",
+        title: "Live Analytics",
         url: "/dashboard/analytics",
         icon: Gauge,
       },
       {
         id: "productivity",
-        title: "Gym Ops",
+        title: "Operations",
         url: "/dashboard/productivity",
         icon: ListTodo,
       },
@@ -102,19 +102,19 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "academy",
-        title: "Academy",
+        title: "Staff",
         url: "/dashboard/academy",
         icon: GraduationCap,
       },
       {
         id: "logistics",
-        title: "Logistics",
+        title: "Inventory",
         url: "/dashboard/logistics",
         icon: Forklift,
       },
       {
         id: "infrastructure",
-        title: "System Health",
+        title: "System",
         url: "/dashboard/infrastructure",
         icon: Server,
       },
@@ -122,7 +122,7 @@ export const sidebarItems: NavGroup[] = [
   },
   {
     id: 2,
-    label: "Pages",
+    label: "Management",
     items: [
       {
         id: "email",
@@ -132,7 +132,7 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "calendar",
-        title: "Schedule",
+        title: "Calendar",
         url: "/dashboard/calendar",
         icon: Calendar,
       },
@@ -150,19 +150,19 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "kanban",
-        title: "Kanban",
+        title: "Task Board",
         url: "/dashboard/kanban",
         icon: Kanban,
       },
       {
         id: "tasks",
-        title: "Action Queue",
+        title: "Tasks",
         url: "/dashboard/tasks",
         icon: CheckSquare,
       },
       {
         id: "invoice",
-        title: "Documents",
+        title: "Invoices",
         url: "/dashboard/invoice",
         icon: ReceiptText,
       },
@@ -174,7 +174,7 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "plans",
-        title: "Plans",
+        title: "Membership Plans",
         url: "/dashboard/plans",
         icon: PackageCheck,
       },
