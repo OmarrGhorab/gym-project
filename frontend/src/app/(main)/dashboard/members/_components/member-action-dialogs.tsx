@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { MoreHorizontal, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -66,14 +66,35 @@ function useActionSubmit({ label, run, success }: ActionResult, close?: () => vo
 
 export function AddMemberDialog() {
   const t = useTranslations("Dashboard.membersPage");
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = React.useState(false);
   const { pending, submit } = useActionSubmit(
     { label: t("createMember"), run: createMember, success: t("memberCreated") },
     () => setOpen(false),
   );
+  const shouldOpenFromQuery = searchParams.get("create") === "member";
+
+  React.useEffect(() => {
+    if (shouldOpenFromQuery) {
+      setOpen(true);
+    }
+  }, [shouldOpenFromQuery]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (!nextOpen && shouldOpenFromQuery) {
+      const params = new URLSearchParams(searchParams);
+      params.delete("create");
+      const nextUrl = params.size ? `${pathname}?${params.toString()}` : pathname;
+      router.replace(nextUrl, { scroll: false });
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size="sm" />}>
         <UserPlus data-icon="inline-start" />
         {t("addMember")}

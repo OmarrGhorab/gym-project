@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
-import { Search } from "lucide-react";
+import { ClipboardCheck, Dumbbell, PackageSearch, Search, UserRound, UsersRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -27,8 +27,20 @@ type SearchItem = {
   label: string;
   url: string;
   icon?: NavMainItem["icon"];
+  subtitle?: string;
   disabled?: boolean;
   newTab?: boolean;
+  source?: "nav" | "backend";
+  type?: string;
+};
+
+type BackendSearchResult = {
+  id: string;
+  group: string;
+  subtitle?: string | null;
+  title: string;
+  type: "employee" | "member" | "product" | "subscription" | "task";
+  url: string;
 };
 
 const sidebarGroupLabels = new Set(sidebarItems.flatMap((group) => (group.label ? [group.label] : [])));
@@ -69,6 +81,13 @@ function getAvailableItems(items: SearchItem[]) {
 }
 
 const recommendations = getAvailableItems(searchItems);
+const backendIcons = {
+  employee: Dumbbell,
+  member: UserRound,
+  product: PackageSearch,
+  subscription: UsersRound,
+  task: ClipboardCheck,
+} satisfies Record<BackendSearchResult["type"], NavMainItem["icon"]>;
 
 function groupBy(items: SearchItem[]) {
   const groups = [...new Set(items.map((item) => item.group))];
@@ -83,6 +102,8 @@ export function SearchDialog() {
   const tNav = useTranslations("Dashboard.nav");
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const [backendResults, setBackendResults] = React.useState<SearchItem[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
   const router = useRouter();
 
   React.useEffect(() => {
@@ -98,8 +119,61 @@ export function SearchDialog() {
 
   const handleOpenChange = (value: boolean) => {
     setOpen(value);
-    if (!value) setQuery("");
+    if (!value) {
+      setQuery("");
+      setBackendResults([]);
+    }
   };
+
+  React.useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (!open || normalizedQuery.length < 2) {
+      setBackendResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsSearching(true);
+
+      try {
+        const params = new URLSearchParams({ limit: "5", q: normalizedQuery });
+        const response = await fetch(`/api/dashboard/search?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as { data?: BackendSearchResult[] };
+
+        if (!controller.signal.aborted) {
+          setBackendResults(
+            (payload.data ?? []).map((item) => ({
+              id: item.id,
+              group: item.group,
+              label: item.title,
+              subtitle: item.subtitle ?? undefined,
+              url: item.url,
+              icon: backendIcons[item.type],
+              source: "backend",
+              type: item.type,
+            })),
+          );
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setBackendResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
+      }
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [open, query]);
 
   const handleSelect = (item: SearchItem) => {
     if (item.disabled) return;
@@ -120,12 +194,15 @@ export function SearchDialog() {
             <CommandItem
               disabled={item.disabled}
               key={`${group}-${item.id}`}
-              value={`${getSearchGroupLabel(item.group, tNav, tShell)} ${tNav(`items.${item.id}`)}`}
+              value={`${getSearchGroupLabel(item.group, tNav, tShell)} ${getItemLabel(item, tNav)} ${item.subtitle ?? ""}`}
               onSelect={() => handleSelect(item)}
             >
               <span className="flex min-w-0 items-center gap-2">
                 {item.icon && <item.icon />}
-                <span className="truncate">{tNav(`items.${item.id}`)}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">{getItemLabel(item, tNav)}</span>
+                  {item.subtitle ? <span className="truncate text-muted-foreground text-xs">{item.subtitle}</span> : null}
+                </span>
               </span>
             </CommandItem>
           ))}
@@ -151,12 +228,19 @@ export function SearchDialog() {
           <CommandInput placeholder={tShell("searchPlaceholder")} value={query} onValueChange={setQuery} />
           <CommandList>
             <CommandEmpty>{tShell("noResults")}</CommandEmpty>
-            {query ? renderGroups(searchItems) : renderGroups(recommendations)}
+            {query.trim().length >= 2 && backendResults.length > 0 ? renderGroups(backendResults) : null}
+            {query.trim().length >= 2 && backendResults.length > 0 ? <CommandSeparator /> : null}
+            {query.trim().length >= 2 ? renderGroups(searchItems) : renderGroups(recommendations)}
+            {isSearching ? <div className="px-2 py-3 text-muted-foreground text-sm">{tShell("searching")}</div> : null}
           </CommandList>
         </Command>
       </CommandDialog>
     </>
   );
+}
+
+function getItemLabel(item: SearchItem, tNav: ReturnType<typeof useTranslations>) {
+  return item.source === "backend" ? item.label : tNav(`items.${item.id}`);
 }
 
 function getSearchGroupLabel(

@@ -1,8 +1,8 @@
 {
   "Dashboard": {
     "nav": {
-      "quickCreate": "إنشاء سريع",
-      "inbox": "البريد",
+      "quickCreate": "عضو جديد",
+      "inbox": "الإشعارات",
       "selectLanguage": "اختيار اللغة",
       "groups": {
         "dashboards": "مساحة الجيم",
@@ -50,6 +50,7 @@
     "shell": {
       "search": "بحث",
       "searchPlaceholder": "ابحث في لوحات التحكم والمستخدمين والمزيد...",
+      "searching": "جار البحث في سجلات الجيم...",
       "noResults": "لا توجد نتائج.",
       "other": "أخرى",
       "notifications": "الإشعارات",

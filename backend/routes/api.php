@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Foundation\ProtectedSampleController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\SearchController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -90,6 +91,8 @@ Route::prefix('v1')->group(function (): void {
     // All areas require authentication; public health/auth above opt out.
     // ------------------------------------------------------------------
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function (): void {
+        Route::get('search', SearchController::class);
+
         require __DIR__.'/api/members.php';
         require __DIR__.'/api/plans.php';
         require __DIR__.'/api/subscriptions.php';

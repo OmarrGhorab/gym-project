@@ -112,15 +112,19 @@ export function NavMain({ items }: NavMainProps) {
             <SidebarMenuItem className="flex items-center gap-2">
               <SidebarMenuButton
                 tooltip={t("quickCreate")}
+                render={<Link prefetch={false} href="/dashboard/members?create=member" />}
                 className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
               >
                 <PlusCircleIcon />
                 <span>{t("quickCreate")}</span>
               </SidebarMenuButton>
               <Button
+                render={<Link prefetch={false} href="/dashboard/mail" />}
+                nativeButton={false}
                 size="icon"
                 className="h-9 w-9 shrink-0 group-data-[collapsible=icon]:opacity-0"
                 variant="outline"
+                aria-label={t("inbox")}
               >
                 <MailIcon />
                 <span className="sr-only">{t("inbox")}</span>

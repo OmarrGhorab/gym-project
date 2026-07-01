@@ -1,8 +1,8 @@
 {
   "Dashboard": {
     "nav": {
-      "quickCreate": "Quick Create",
-      "inbox": "Inbox",
+      "quickCreate": "New Member",
+      "inbox": "Notifications",
       "selectLanguage": "Select language",
       "groups": {
         "dashboards": "Gym Workspace",
@@ -50,6 +50,7 @@
     "shell": {
       "search": "Search",
       "searchPlaceholder": "Search dashboards, users, and more...",
+      "searching": "Searching gym records...",
       "noResults": "No results found.",
       "other": "Other",
       "notifications": "Notifications",
