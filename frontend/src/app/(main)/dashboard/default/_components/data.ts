@@ -51,31 +51,118 @@ export type DefaultDashboardData = {
   summary: DashboardSummary;
   members: RecentCustomerRow[];
   membersTotal: number;
+  membersMeta: MembersMeta;
   salesChart: SalesChartPoint[];
 };
 
-export async function getDefaultDashboardData(from: string, to: string): Promise<DefaultDashboardData> {
+export type MemberSort = "newest" | "oldest" | "name-asc" | "name-desc";
+
+export type MemberBillingFilter = "Paid" | "Pending" | "Overdue" | "Trial";
+
+export type MembersQuery = {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  status?: string;
+  billing?: MemberBillingFilter;
+  joinedWindow?: "30" | "90";
+  sort?: MemberSort;
+};
+
+export type MembersMeta = {
+  currentPage: number;
+  perPage: number;
+  total: number;
+  lastPage: number;
+};
+
+export async function getDefaultDashboardData(
+  from: string,
+  to: string,
+  membersQuery: MembersQuery = {},
+): Promise<DefaultDashboardData> {
   const dateParams = new URLSearchParams({
     from,
     to,
     group_by: "day",
   });
+  const memberParams = buildMemberParams(membersQuery);
 
   const [summaryResult, membersResult, salesReportResult] = await Promise.all([
     serverApiFetch<DashboardSummary>("/dashboard/summary"),
-    serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>("/members?sort=-created_at&page=1"),
+    serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(`/members?${memberParams.toString()}`),
     serverApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${dateParams.toString()}`),
   ]);
 
   const members = unwrapList(membersResult.data);
   const salesReport = unwrapList(salesReportResult.data);
+  const membersMeta = getPaginationMeta(membersResult.meta, members.length);
 
   return {
     summary: summaryResult.data,
     members: members.map(mapMemberToRow),
-    membersTotal: getMetaTotal(membersResult.meta) ?? getPaginatedTotal(membersResult.data) ?? members.length,
+    membersTotal: membersMeta.total,
+    membersMeta,
     salesChart: salesReport.map(mapSalesDay).reverse(),
   };
+}
+
+function buildMemberParams(options: MembersQuery) {
+  const params = new URLSearchParams();
+  params.set("page", String(options.page ?? 1));
+  params.set("per_page", String(options.perPage ?? 10));
+  params.set("sort", getMemberSortParam(options.sort ?? "newest"));
+
+  if (options.search) {
+    params.set("filter[search]", options.search);
+  }
+
+  if (options.status) {
+    params.set("filter[subscription_status]", options.status.toLowerCase());
+  }
+
+  if (options.billing) {
+    params.set("filter[billing]", options.billing.toLowerCase());
+  }
+
+  const joinedFrom = getJoinedFromDate(options.joinedWindow);
+
+  if (joinedFrom) {
+    params.set("filter[joined_from]", joinedFrom);
+    params.set("filter[joined_to]", formatDate(new Date()));
+  }
+
+  return params;
+}
+
+function getMemberSortParam(sort: MemberSort) {
+  switch (sort) {
+    case "oldest":
+      return "join_date";
+    case "name-asc":
+      return "name";
+    case "name-desc":
+      return "-name";
+    default:
+      return "-join_date";
+  }
+}
+
+function getJoinedFromDate(window: MembersQuery["joinedWindow"]) {
+  if (!window) {
+    return undefined;
+  }
+
+  const days = Number(window);
+
+  if (!Number.isFinite(days)) {
+    return undefined;
+  }
+
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+
+  return formatDate(date);
 }
 
 function unwrapList<T>(value: T[] | PaginatedData<T>): T[] {
@@ -114,9 +201,22 @@ function mapSalesDay(day: SalesReportDay): SalesChartPoint {
 function getMetaTotal(meta: Record<string, unknown> | undefined) {
   return typeof meta?.total === "number" ? meta.total : undefined;
 }
+function getPaginationMeta(meta: Record<string, unknown> | undefined, fallbackTotal: number): MembersMeta {
+  const total = getMetaTotal(meta) ?? fallbackTotal;
+  const perPage = getMetaNumber(meta, "per_page", fallbackTotal || 10);
 
-function getPaginatedTotal<T>(value: T[] | PaginatedData<T>) {
-  return !Array.isArray(value) && typeof value.total === "number" ? value.total : undefined;
+  return {
+    currentPage: getMetaNumber(meta, "current_page", 1),
+    perPage,
+    total,
+    lastPage: getMetaNumber(meta, "last_page", Math.max(1, Math.ceil(total / perPage))),
+  };
+}
+
+function getMetaNumber(meta: Record<string, unknown> | undefined, key: string, fallback: number) {
+  const value = Number(meta?.[key]);
+
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function formatDate(date: Date) {

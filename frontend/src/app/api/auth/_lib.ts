@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 
 import { AUTH_COOKIE_MAX_AGE, AUTH_TOKEN_COOKIE } from "@/lib/auth-cookie";
 
-export const API_BASE_URL =
-  process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+export const API_BASE_URL = getRequiredEnv("API_BASE_URL");
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? process.env.NEXT_PUBLIC_FRONTEND_URL;
+const FRONTEND_URL = getOptionalEnv("FRONTEND_URL");
 const AUTH_PROXY_TIMEOUT_MS = 15_000;
 
 type AuthApiPayload = {
@@ -20,7 +19,7 @@ export function getCookieOptions(remember?: boolean) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     path: "/",
     ...(remember ? { maxAge: AUTH_COOKIE_MAX_AGE } : {}),
   };
@@ -151,4 +150,20 @@ function buildRedirectUrl(destination: string, request: Request) {
 
 export function buildApiUrl(path: string, search = "") {
   return `${API_BASE_URL}${path}${search}`;
+}
+
+function getRequiredEnv(key: string) {
+  const value = process.env[key]?.trim();
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+
+  return value.replace(/\/$/, "");
+}
+
+function getOptionalEnv(key: string) {
+  const value = process.env[key]?.trim();
+
+  return value ? value.replace(/\/$/, "") : undefined;
 }

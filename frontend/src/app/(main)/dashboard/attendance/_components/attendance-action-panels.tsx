@@ -2,14 +2,17 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 
-import { CheckCircle2, LocateFixed, LogIn, UserCheck } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, UserCheck } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import {
@@ -88,14 +91,20 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
         <form action={action} className="grid gap-3 md:grid-cols-2">
           <ScanDirectionSelect />
           <Input name="qr_token" placeholder={t("employeeQrPlaceholder")} />
-          <NativeSelect name="employee_id" defaultValue="" className="w-full">
-            <option value="">{t("selectEmployee")}</option>
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name} - {employee.role}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select name="employee_id" defaultValue="">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("selectEmployee")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={String(employee.id)}>
+                    {employee.name} - {employee.role}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <GpsFields location={location} />
           <Textarea name="notes" placeholder={t("notesPlaceholder")} className="md:col-span-2" />
           <PanelFooter state={state} pending={pending} label={t("submitStaffScan")} />
@@ -118,44 +127,75 @@ function ManualAttendanceCard({ employees, shifts }: { employees: EmployeeOption
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-3">
-          <NativeSelect name="employee_id" required defaultValue="" className="w-full">
-            <option value="">{t("selectEmployee")}</option>
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.name}
-              </option>
-            ))}
-          </NativeSelect>
-          <NativeSelect name="shift_id" defaultValue="" className="w-full">
-            <option value="">{t("noShift")}</option>
-            {shifts.map((shift) => (
-              <option key={shift.id} value={shift.id}>
-                {shift.name}
-              </option>
-            ))}
-          </NativeSelect>
-          <Input type="date" name="date" defaultValue={today} required />
-          <Input type="time" name="check_in" />
-          <Input type="time" name="check_out" />
-          <NativeSelect name="status" defaultValue="present" className="w-full">
-            <option value="present">{t("statuses.present")}</option>
-            <option value="late">{t("statuses.late")}</option>
-            <option value="absent">{t("statuses.absent")}</option>
-            <option value="excused">{t("statuses.excused")}</option>
-          </NativeSelect>
-          <NativeSelect name="schedule_status" defaultValue="" className="w-full">
-            <option value="">{t("scheduleStatus")}</option>
-            <option value="on_shift">{t("scheduleStatuses.on_shift")}</option>
-            <option value="late">{t("scheduleStatuses.late")}</option>
-            <option value="off_shift">{t("scheduleStatuses.off_shift")}</option>
-            <option value="unassigned">{t("scheduleStatuses.unassigned")}</option>
-          </NativeSelect>
-          <NativeSelect name="approval_status" defaultValue="" className="w-full">
-            <option value="">{t("approvalStatus")}</option>
-            <option value="approved">{t("approvalStatuses.approved")}</option>
-            <option value="pending">{t("approvalStatuses.pending")}</option>
-            <option value="dismissed">{t("approvalStatuses.dismissed")}</option>
-          </NativeSelect>
+          <Select name="employee_id" required defaultValue="">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("selectEmployee")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={String(employee.id)}>
+                    {employee.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select name="shift_id" defaultValue="">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("noShift")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {shifts.map((shift) => (
+                  <SelectItem key={shift.id} value={String(shift.id)}>
+                    {shift.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <DatePickerField name="date" defaultValue={today} required />
+          <TimePickerField name="check_in" />
+          <TimePickerField name="check_out" />
+          <Select name="status" defaultValue="present">
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="present">{t("statuses.present")}</SelectItem>
+                <SelectItem value="late">{t("statuses.late")}</SelectItem>
+                <SelectItem value="absent">{t("statuses.absent")}</SelectItem>
+                <SelectItem value="excused">{t("statuses.excused")}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select name="schedule_status" defaultValue="">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("scheduleStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="on_shift">{t("scheduleStatuses.on_shift")}</SelectItem>
+                <SelectItem value="late">{t("scheduleStatuses.late")}</SelectItem>
+                <SelectItem value="off_shift">{t("scheduleStatuses.off_shift")}</SelectItem>
+                <SelectItem value="unassigned">{t("scheduleStatuses.unassigned")}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          <Select name="approval_status" defaultValue="">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("approvalStatus")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
+                <SelectItem value="pending">{t("approvalStatuses.pending")}</SelectItem>
+                <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <Textarea name="notes" placeholder={t("notesPlaceholder")} className="md:col-span-3" />
           <PanelFooter state={state} pending={pending} label={t("createAttendance")} />
         </form>
@@ -177,24 +217,32 @@ function ViolationReviewCard({ violations }: { violations: AttendanceViolation[]
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3">
-          <NativeSelect
-            name="id"
-            required
-            defaultValue={firstViolation?.id ? String(firstViolation.id) : ""}
-            className="w-full"
-          >
-            <option value="">{t("selectWarning")}</option>
-            {violations.map((violation) => (
-              <option key={violation.id} value={violation.id}>
-                {violation.employee?.name ?? t("staff")} - {violation.type} - {violation.violation_date}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select name="id" required defaultValue={firstViolation?.id ? String(firstViolation.id) : ""}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t("selectWarning")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {violations.map((violation) => (
+                  <SelectItem key={violation.id} value={String(violation.id)}>
+                    {violation.employee?.name ?? t("staff")} - {violation.type} - {violation.violation_date}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <div className="grid grid-cols-2 gap-3">
-            <NativeSelect name="status" defaultValue="approved" className="w-full">
-              <option value="approved">{t("approvalStatuses.approved")}</option>
-              <option value="dismissed">{t("approvalStatuses.dismissed")}</option>
-            </NativeSelect>
+            <Select name="status" defaultValue="approved">
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
+                  <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <Input name="deduction_amount" inputMode="decimal" placeholder={t("deductionAmount")} />
           </div>
           <Input name="deduction_days" inputMode="decimal" placeholder={t("deductionDays")} />
@@ -210,10 +258,139 @@ function ScanDirectionSelect() {
   const t = useTranslations("Dashboard.attendance");
 
   return (
-    <NativeSelect name="direction" defaultValue="check-in" className="w-full">
-      <option value="check-in">{t("checkIn")}</option>
-      <option value="check-out">{t("checkOut")}</option>
-    </NativeSelect>
+    <Select name="direction" defaultValue="check-in">
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="check-in">{t("checkIn")}</SelectItem>
+          <SelectItem value="check-out">{t("checkOut")}</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function DatePickerField({
+  defaultValue,
+  name,
+  required = false,
+}: {
+  defaultValue: string;
+  name: string;
+  required?: boolean;
+}) {
+  const t = useTranslations("Dashboard.attendance");
+  const locale = useLocale();
+  const [value, setValue] = useState(defaultValue);
+  const selectedDate = value ? parseISO(value) : undefined;
+
+  return (
+    <div className="flex flex-col justify-center">
+      <input type="hidden" name={name} value={value} required={required} />
+      <Popover>
+        <PopoverTrigger
+          render={<Button type="button" variant="outline" className="w-full justify-between font-normal" />}
+        >
+          {selectedDate
+            ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(selectedDate)
+            : t("selectDate")}
+          <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto overflow-hidden p-0">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            defaultMonth={selectedDate}
+            captionLayout="dropdown"
+            onSelect={(date) => {
+              if (date) {
+                setValue(format(date, "yyyy-MM-dd"));
+              }
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+const TIME_HOURS = Array.from({ length: 12 }, (_, index) => index + 1);
+const TIME_MINUTES = Array.from({ length: 60 }, (_, index) => index);
+
+function formatTime24(hour: number, minute: number, period: "AM" | "PM"): string {
+  const normalizedHour = period === "PM" ? (hour % 12) + 12 : hour % 12;
+
+  return `${String(normalizedHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function parseTime24(value: string) {
+  const match = /^(\d{2}):(\d{2})/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const hour24 = Number(match[1]);
+  const minute = Number(match[2]);
+  const period: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM";
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  return { hour, minute, period };
+}
+
+function TimePickerField({ defaultValue = "", name }: { defaultValue?: string; name: string }) {
+  const initial = parseTime24(defaultValue);
+  const [hour, setHour] = useState<number | null>(initial ? initial.hour : null);
+  const [minute, setMinute] = useState<number | null>(initial ? initial.minute : null);
+  const [period, setPeriod] = useState<"AM" | "PM">(initial ? initial.period : "AM");
+
+  const value = hour !== null && minute !== null ? formatTime24(hour, minute, period) : "";
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input type="hidden" name={name} value={value} />
+      <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="--" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {TIME_HOURS.map((h) => (
+              <SelectItem key={h} value={String(h)}>
+                {String(h).padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <span className="text-muted-foreground text-sm">:</span>
+      <Select value={minute !== null ? String(minute) : ""} onValueChange={(next) => setMinute(Number(next))}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="--" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {TIME_MINUTES.map((m) => (
+              <SelectItem key={m} value={String(m)}>
+                {String(m).padStart(2, "0")}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <Select value={period} onValueChange={(next) => setPeriod(next as "AM" | "PM")}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="AM">AM</SelectItem>
+            <SelectItem value="PM">PM</SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

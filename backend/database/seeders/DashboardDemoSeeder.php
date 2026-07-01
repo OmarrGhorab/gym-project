@@ -211,7 +211,7 @@ class DashboardDemoSeeder extends Seeder
     {
         $members = collect();
 
-        for ($i = 1; $i <= 240; $i++) {
+        for ($i = 1; $i <= 360; $i++) {
             $joinDate = now()
                 ->subMonthsNoOverflow(11 - (($i - 1) % 12))
                 ->startOfMonth()
@@ -414,7 +414,7 @@ class DashboardDemoSeeder extends Seeder
     {
         $sales = collect();
 
-        for ($i = 0; $i < 1200; $i++) {
+        for ($i = 0; $i < 1800; $i++) {
             $dayOffset = $i < 40 ? rand(0, 2) : (($i * 7) % 365);
             $soldAt = now()->subDays($dayOffset)->startOfDay()->addHours(rand(7, 22))->addMinutes(rand(0, 59));
 
@@ -503,7 +503,7 @@ class DashboardDemoSeeder extends Seeder
     {
         $suppliers = ['Cairo Fit Supply', 'Delta Nutrition', 'Active Gear Egypt', 'Peak Performance Wholesale'];
 
-        for ($i = 1; $i <= 18; $i++) {
+        for ($i = 1; $i <= 27; $i++) {
             $status = ['draft', 'ordered', 'delayed', 'cancelled', 'received', 'partial'][$i % 6];
             $orderedAt = now()->subDays(rand(1, 70))->toDateString();
             $expectedAt = now()->addDays(rand(-8, 14))->toDateString();
@@ -696,7 +696,7 @@ class DashboardDemoSeeder extends Seeder
 
         for ($day = 0; $day < 45; $day++) {
             $date = CarbonImmutable::now()->subDays($day);
-            $visitsToday = $day === 0 ? 42 : rand(18, 55);
+            $visitsToday = $day === 0 ? 63 : rand(27, 83);
 
             for ($i = 0; $i < $visitsToday; $i++) {
                 $member = $members->random();

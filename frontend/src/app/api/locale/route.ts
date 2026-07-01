@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   response.cookies.set(localeCookieName, locale, {
     httpOnly: false,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });

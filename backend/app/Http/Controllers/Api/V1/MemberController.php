@@ -15,6 +15,7 @@ use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -59,6 +60,47 @@ final class MemberController extends ApiController
                     $query->whereHas('subscriptions', function ($q) use ($value): void {
                         $q->where('status', $value);
                     });
+                }),
+                AllowedFilter::callback('billing', function ($query, string $value): void {
+                    $value = strtolower($value);
+
+                    if ($value === 'paid') {
+                        $query->whereHas('subscriptions.payments', function ($q): void {
+                            $q->whereIn('status', ['paid', 'partial']);
+                        });
+
+                        return;
+                    }
+
+                    if ($value === 'overdue') {
+                        $query->whereHas('subscriptions.payments', function ($q): void {
+                            $q->whereNotIn('status', ['paid', 'partial'])
+                                ->whereDate('due_date', '<', Carbon::today());
+                        });
+
+                        return;
+                    }
+
+                    if ($value === 'trial') {
+                        $query->whereDoesntHave('subscriptions');
+
+                        return;
+                    }
+
+                    if ($value === 'pending') {
+                        $query->whereDoesntHave('subscriptions.payments', function ($q): void {
+                            $q->whereIn('status', ['paid', 'partial']);
+                        })->whereDoesntHave('subscriptions.payments', function ($q): void {
+                            $q->whereNotIn('status', ['paid', 'partial'])
+                                ->whereDate('due_date', '<', Carbon::today());
+                        });
+                    }
+                }),
+                AllowedFilter::callback('joined_from', function ($query, string $value): void {
+                    $query->whereDate('join_date', '>=', $value);
+                }),
+                AllowedFilter::callback('joined_to', function ($query, string $value): void {
+                    $query->whereDate('join_date', '<=', $value);
                 }),
                 AllowedFilter::callback('qr', function ($query, string $value): void {
                     if ($value === 'ready') {

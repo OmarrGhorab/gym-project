@@ -6,15 +6,18 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+import type { MembersMeta, MembersQuery } from "./data";
 import type { RecentCustomerRow } from "./recent-customers-table/schema";
 import { RecentCustomersTable } from "./recent-customers-table/table";
 
 type SubscriberOverviewProps = {
   members: RecentCustomerRow[];
   total: number;
+  meta: MembersMeta;
+  query: MembersQuery;
 };
 
-export function SubscriberOverview({ members, total }: SubscriberOverviewProps) {
+export function SubscriberOverview({ members, total, meta, query }: SubscriberOverviewProps) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
 
@@ -34,7 +37,7 @@ export function SubscriberOverview({ members, total }: SubscriberOverviewProps) 
       </CardHeader>
 
       <CardContent className="pt-0">
-        <RecentCustomersTable data={members} />
+        <RecentCustomersTable data={members} meta={meta} query={query} />
       </CardContent>
     </Card>
   );

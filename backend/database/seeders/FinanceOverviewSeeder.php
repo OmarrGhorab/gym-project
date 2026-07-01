@@ -40,17 +40,17 @@ class FinanceOverviewSeeder extends Seeder
     /**
      * Month index → sales count per month.
      */
-    private const SALES_PER_MONTH = [90, 105, 126, 150, 174, 195, 216, 234, 255, 276, 288, 300];
+    private const SALES_PER_MONTH = [135, 158, 189, 225, 261, 293, 324, 351, 383, 414, 432, 450];
 
     /**
      * Month index → subscription count per month.
      */
-    private const SUBSCRIPTIONS_PER_MONTH = [30, 35, 42, 50, 58, 65, 72, 78, 85, 92, 96, 100];
+    private const SUBSCRIPTIONS_PER_MONTH = [45, 53, 63, 75, 87, 98, 108, 117, 128, 138, 144, 150];
 
     /**
      * Month index → expense count per month (each category once + extras).
      */
-    private const EXPENSES_PER_MONTH = [6, 6, 7, 7, 8, 8, 8, 9, 9, 9, 9, 9];
+    private const EXPENSES_PER_MONTH = [9, 9, 11, 11, 12, 12, 12, 14, 14, 14, 14, 14];
 
     public function run(): void
     {

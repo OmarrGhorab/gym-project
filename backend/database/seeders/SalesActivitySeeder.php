@@ -30,7 +30,7 @@ class SalesActivitySeeder extends Seeder
     /**
      * Total sales per month (growing curve to simulate business growth).
      */
-    private const SALES_PER_MONTH = [120, 145, 170, 200, 230, 260, 290, 320, 350, 380, 410, 450];
+    private const SALES_PER_MONTH = [180, 218, 255, 300, 345, 390, 435, 480, 525, 570, 615, 675];
 
     private const MONTHS = 12;
 
@@ -138,7 +138,7 @@ class SalesActivitySeeder extends Seeder
     private function seedSalesActivityMembers(User $admin): Collection
     {
         $members = collect();
-        $totalMembers = 200;
+        $totalMembers = 300;
 
         for ($i = 1; $i <= $totalMembers; $i++) {
             $joinDate = now()->subDays(rand(60, 400));

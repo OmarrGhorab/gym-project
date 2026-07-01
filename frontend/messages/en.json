@@ -453,6 +453,7 @@
       "checkOut": "Check out",
       "memberQrPlaceholder": "Member QR token or code",
       "employeeQrPlaceholder": "Employee QR token or code",
+      "selectDate": "Select date",
       "memberIdPlaceholder": "Member ID",
       "phonePlaceholder": "Phone number",
       "namePlaceholder": "Member name",

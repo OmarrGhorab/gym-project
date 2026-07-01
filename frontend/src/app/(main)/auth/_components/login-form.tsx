@@ -59,7 +59,7 @@ export function LoginForm() {
   };
 
   return (
-    <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+    <form noValidate method="POST" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <FieldGroup className="gap-4">
         <Controller
           control={form.control}

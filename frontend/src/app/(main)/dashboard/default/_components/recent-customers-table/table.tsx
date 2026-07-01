@@ -4,14 +4,8 @@
 import * as React from "react";
 
 import {
-  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  type PaginationState,
-  type SortingState,
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
@@ -27,6 +21,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +37,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { createRecentCustomersColumns } from "./columns";
+import type { MembersMeta, MembersQuery } from "../data";
 import type { RecentCustomerRow } from "./schema";
 
 const statusValues = ["all", "Active", "Expired", "Frozen", "Stopped", "Inactive", "Unknown"] as const;
@@ -49,32 +45,72 @@ const billingValues = ["all", "Paid", "Pending", "Overdue", "Trial"] as const;
 const joinedDateValues = ["all", "30", "90"] as const;
 const sortValues = ["newest", "oldest", "name-asc", "name-desc"] as const;
 
-const sortOptionState = {
-  newest: [{ id: "joined", desc: true }],
-  oldest: [{ id: "joined", desc: false }],
-  "name-asc": [{ id: "name", desc: false }],
-  "name-desc": [{ id: "name", desc: true }],
-} satisfies Record<(typeof sortValues)[number], SortingState>;
-
 const pageSizeItems = [10, 20, 30, 40, 50].map((pageSize) => ({
   value: `${pageSize}`,
   label: `${pageSize}`,
 }));
 
-export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
+export function RecentCustomersTable({
+  data,
+  meta,
+  query,
+}: {
+  data: RecentCustomerRow[];
+  meta: MembersMeta;
+  query: MembersQuery;
+}) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [rowSelection, setRowSelection] = React.useState({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: "joined", desc: true }]);
+  const [searchQuery, setSearchQuery] = React.useState(query.search ?? "");
   const [columnVisibility] = React.useState<VisibilityState>({
     search: false,
     joinedWindow: false,
   });
-  const [pagination, setPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  const statusFilter = query.status ?? "all";
+  const billingFilter = query.billing ?? "all";
+  const joinedDateFilter = query.joinedWindow ?? "all";
+  const sortValue = query.sort ?? "newest";
+
+  React.useEffect(() => {
+    setSearchQuery(query.search ?? "");
+  }, [query.search]);
+
+  const updateMembersQuery = React.useCallback(
+    (updates: Record<string, string | number | undefined>, resetPage = true) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (resetPage) {
+        params.set("members_page", "1");
+      }
+
+      for (const [key, value] of Object.entries(updates)) {
+        const param = `members_${key}`;
+
+        if (value === undefined || value === "" || value === "all") {
+          params.delete(param);
+        } else {
+          params.set(param, String(value));
+        }
+      }
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchQuery !== (query.search ?? "")) {
+        updateMembersQuery({ search: searchQuery });
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [query.search, searchQuery, updateMembersQuery]);
   const statusOptions = React.useMemo(
     () =>
       statusValues.map((value) => ({
@@ -136,38 +172,17 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
     columns,
     state: {
       rowSelection,
-      columnFilters,
-      sorting,
       columnVisibility,
-      pagination,
     },
     getRowId: (row) => row.id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
-    onSortingChange: setSorting,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
+    manualFiltering: true,
+    manualSorting: true,
+    pageCount: meta.lastPage,
   });
-
-  const searchQuery = (table.getColumn("search")?.getFilterValue() as string) ?? "";
-  const statusFilter = (table.getColumn("status")?.getFilterValue() as string) ?? "all";
-  const billingFilter = (table.getColumn("billing")?.getFilterValue() as string) ?? "all";
-  const joinedDateFilter = (table.getColumn("joinedWindow")?.getFilterValue() as string) ?? "all";
-  const sortValue = React.useMemo(() => {
-    const currentSort = sorting[0];
-
-    if (!currentSort) return "newest";
-    if (currentSort.id === "joined" && currentSort.desc) return "newest";
-    if (currentSort.id === "joined" && !currentSort.desc) return "oldest";
-    if (currentSort.id === "name" && !currentSort.desc) return "name-asc";
-    if (currentSort.id === "name" && currentSort.desc) return "name-desc";
-
-    return "newest";
-  }, [sorting]);
 
   return (
     <div className="space-y-4">
@@ -180,8 +195,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               placeholder={t("search")}
               value={searchQuery}
               onChange={(event) => {
-                table.getColumn("search")?.setFilterValue(event.target.value || undefined);
-                table.setPageIndex(0);
+                setSearchQuery(event.target.value);
               }}
             />
           </div>
@@ -194,8 +208,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               <DropdownMenuRadioGroup
                 value={statusFilter}
                 onValueChange={(value) => {
-                  table.getColumn("status")?.setFilterValue(value === "all" ? undefined : value);
-                  table.setPageIndex(0);
+                  updateMembersQuery({ status: value });
                 }}
               >
                 {statusOptions.map((status) => (
@@ -215,8 +228,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               <DropdownMenuRadioGroup
                 value={joinedDateFilter}
                 onValueChange={(value) => {
-                  table.getColumn("joinedWindow")?.setFilterValue(value === "all" ? undefined : value);
-                  table.setPageIndex(0);
+                  updateMembersQuery({ joined: value });
                 }}
               >
                 {joinedDateOptions.map((option) => (
@@ -238,8 +250,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               <DropdownMenuRadioGroup
                 value={billingFilter}
                 onValueChange={(value) => {
-                  table.getColumn("billing")?.setFilterValue(value === "all" ? undefined : value);
-                  table.setPageIndex(0);
+                  updateMembersQuery({ billing: value });
                 }}
               >
                 {billingOptions.map((billing) => (
@@ -259,8 +270,7 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               <DropdownMenuRadioGroup
                 value={sortValue}
                 onValueChange={(value) => {
-                  table.setSorting(sortOptionState[value as keyof typeof sortOptionState] ?? sortOptionState.newest);
-                  table.setPageIndex(0);
+                  updateMembersQuery({ sort: value });
                 }}
               >
                 {sortOptions.map((option) => (
@@ -312,8 +322,8 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
       <div className="flex items-center justify-between px-1">
         <div className="hidden flex-1 text-muted-foreground text-sm lg:flex">
           {t("selected", {
-            selected: table.getFilteredSelectedRowModel().rows.length,
-            total: table.getFilteredRowModel().rows.length,
+            selected: table.getSelectedRowModel().rows.length,
+            total: meta.total,
           })}
         </div>
         <div className="flex w-full items-center gap-8 lg:w-fit">
@@ -322,14 +332,14 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               {t("rowsPerPage")}
             </Label>
             <Select
-              value={`${table.getState().pagination.pageSize}`}
+              value={`${meta.perPage}`}
               onValueChange={(value) => {
-                table.setPageSize(Number(value));
+                updateMembersQuery({ per_page: value });
               }}
               items={pageSizeItems}
             >
               <SelectTrigger size="sm" className="w-20" id="recent-customers-rows-per-page">
-                <SelectValue placeholder={table.getState().pagination.pageSize} />
+                <SelectValue placeholder={meta.perPage} />
               </SelectTrigger>
               <SelectContent side="top">
                 <SelectGroup>
@@ -343,15 +353,15 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
             </Select>
           </div>
           <div className="flex w-fit items-center justify-center font-medium text-sm">
-            {t("pageOf", { page: table.getState().pagination.pageIndex + 1, total: table.getPageCount() })}
+            {t("pageOf", { page: meta.currentPage, total: meta.lastPage })}
           </div>
           <div className="ms-auto flex items-center gap-2 lg:ms-0">
             <Button
               variant="outline"
               className="hidden size-8 lg:flex"
               size="icon"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => updateMembersQuery({ page: 1 }, false)}
+              disabled={meta.currentPage <= 1}
             >
               <span className="sr-only">{t("goFirst")}</span>
               <ChevronsLeft className="size-4" />
@@ -360,8 +370,8 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               variant="outline"
               className="size-8"
               size="icon"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => updateMembersQuery({ page: meta.currentPage - 1 }, false)}
+              disabled={meta.currentPage <= 1}
             >
               <span className="sr-only">{t("goPrevious")}</span>
               <ChevronLeft className="size-4" />
@@ -370,8 +380,8 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               variant="outline"
               className="size-8"
               size="icon"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => updateMembersQuery({ page: meta.currentPage + 1 }, false)}
+              disabled={meta.currentPage >= meta.lastPage}
             >
               <span className="sr-only">{t("goNext")}</span>
               <ChevronRight className="size-4" />
@@ -380,8 +390,8 @@ export function RecentCustomersTable({ data }: { data: RecentCustomerRow[] }) {
               variant="outline"
               className="hidden size-8 lg:flex"
               size="icon"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
+              onClick={() => updateMembersQuery({ page: meta.lastPage }, false)}
+              disabled={meta.currentPage >= meta.lastPage}
             >
               <span className="sr-only">{t("goLast")}</span>
               <ChevronsRight className="size-4" />
