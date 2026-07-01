@@ -2,6 +2,7 @@ import { ShoppingCart } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/ui/form-controls";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createSale } from "./actions";
@@ -33,26 +33,28 @@ export async function PosCheckoutDialog({ products }: { products: PosProductOpti
           <DialogDescription>{t("checkoutDescription")}</DialogDescription>
         </DialogHeader>
         <form action={createSale} className="grid gap-4">
-          <NativeSelect
+          <FormSelect
             name="product_id"
             required
             className="w-full"
             defaultValue={products[0]?.id ? String(products[0].id) : ""}
-          >
-            {products.map((product) => (
-              <option key={product.id} value={product.id}>
-                {product.name} - {product.price} EGP - {t("left", { count: product.stock_quantity })}
-              </option>
-            ))}
-          </NativeSelect>
+            options={products.map((product) => ({
+              value: String(product.id),
+              label: `${product.name} - ${product.price} EGP - ${t("left", { count: product.stock_quantity })}`,
+            }))}
+          />
           <div className="grid gap-3 sm:grid-cols-3">
             <Input name="quantity" type="number" min="1" defaultValue="1" />
             <Input name="discount" type="number" min="0" step="0.01" defaultValue="0" />
-            <NativeSelect name="payment_method" defaultValue="cash" className="w-full">
-              <option value="cash">{t("paymentMethodsShort.cash")}</option>
-              <option value="card">{t("paymentMethodsShort.card")}</option>
-              <option value="bank_transfer">{t("paymentMethodsShort.bank_transfer")}</option>
-            </NativeSelect>
+            <FormSelect
+              name="payment_method"
+              defaultValue="cash"
+              options={[
+                { value: "cash", label: t("paymentMethodsShort.cash") },
+                { value: "card", label: t("paymentMethodsShort.card") },
+                { value: "bank_transfer", label: t("paymentMethodsShort.bank_transfer") },
+              ]}
+            />
           </div>
           <Input name="member_id" type="number" min="1" placeholder={t("memberId")} />
           <Textarea name="notes" placeholder={t("notes")} />

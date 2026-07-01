@@ -90,14 +90,41 @@ function PaymentNameLabel({ data, height, index, y }: SourceLabelProps & { data:
   }
 
   return (
-    <text dominantBaseline="middle" textAnchor="start" x={2} y={yValue + heightValue / 2}>
-      <tspan className="fill-foreground font-medium" fontSize={13} x={2} y={yValue + heightValue / 2 - 7}>
-        {source.label}
-      </tspan>
-      <tspan className="fill-muted-foreground" fontSize={12} x={2} y={yValue + heightValue / 2 + 11}>
+    <foreignObject height={heightValue} width={126} x={0} y={yValue}>
+      <div className="flex h-full min-w-0 items-center overflow-hidden leading-none">
+        <div className="truncate font-medium text-[13px] text-foreground">{source.label}</div>
+      </div>
+    </foreignObject>
+  );
+}
+
+function PaymentDetailLabel({ data, height, index, width, x, y }: IconLabelProps & { data: PosPaymentMethod[] }) {
+  if (typeof index !== "number") {
+    return null;
+  }
+
+  const source = data[index];
+  const xValue = getNumber(x);
+  const yValue = getNumber(y);
+  const widthValue = getNumber(width);
+  const heightValue = getNumber(height);
+
+  if (
+    !source ||
+    Number.isNaN(xValue) ||
+    Number.isNaN(yValue) ||
+    Number.isNaN(widthValue) ||
+    Number.isNaN(heightValue)
+  ) {
+    return null;
+  }
+
+  return (
+    <foreignObject height={18} width={Math.max(widthValue, 220)} x={xValue} y={yValue + heightValue + 3}>
+      <div className="whitespace-nowrap text-muted-foreground text-xs leading-none">
         {formatEgp(source.amount)} · {source.count} orders
-      </tspan>
-    </text>
+      </div>
+    </foreignObject>
   );
 }
 
@@ -145,13 +172,13 @@ export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
       </CardHeader>
 
       <CardContent>
-        <ChartContainer config={trafficSourcesConfig} className="h-54 w-full">
+        <ChartContainer config={trafficSourcesConfig} className="h-60 w-full">
           <BarChart
             accessibilityLayer
-            barCategoryGap={12}
+            barCategoryGap={24}
             data={chartData}
             layout="vertical"
-            margin={{ bottom: 0, left: 118, right: 50, top: 0 }}
+            margin={{ bottom: 16, left: 136, right: 50, top: 0 }}
           >
             <XAxis dataKey="percentage" domain={[0, 100]} hide type="number" />
             <YAxis dataKey="label" hide type="category" />
@@ -166,6 +193,7 @@ export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
             >
               <LabelList content={(props) => <PaymentNameLabel {...props} data={methods} />} dataKey="label" />
               <LabelList content={(props) => <PaymentIconLabel {...props} data={methods} />} dataKey="percentage" />
+              <LabelList content={(props) => <PaymentDetailLabel {...props} data={methods} />} dataKey="percentage" />
               <LabelList content={<PaymentShareLabel />} dataKey="percentage" />
             </Bar>
           </BarChart>

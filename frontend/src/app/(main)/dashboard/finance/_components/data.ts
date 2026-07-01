@@ -58,7 +58,7 @@ export type FinancePayment = {
 };
 
 export type FinanceDue = {
-  id: number;
+  id?: number;
   member_id?: number;
   member_name?: string;
   plan_name?: string;
@@ -67,6 +67,19 @@ export type FinanceDue = {
   outstanding_balance?: string;
   due_date?: string | null;
   status?: string;
+  subscription?: {
+    id?: number | null;
+    status?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+  };
+  member?: {
+    id?: number | null;
+    name?: string | null;
+  };
+  balance?: string;
+  paid_total?: string;
+  price_paid?: string;
 };
 
 export type FinanceExpense = {
@@ -129,7 +142,7 @@ export async function getFinanceDashboardData(
     return {
       ...summaryResult.data,
       chart: chartResult.data,
-      duesLedger: unwrapList(duesResult.data),
+      duesLedger: unwrapList(duesResult.data).map(normalizeDue),
       expensesLedger: unwrapList(expensesResult.data),
       paymentsLedger: unwrapList(paymentsResult.data),
     };
@@ -141,6 +154,20 @@ export async function getFinanceDashboardData(
       paymentsLedger: [],
     };
   }
+}
+
+function normalizeDue(due: FinanceDue): FinanceDue {
+  return {
+    ...due,
+    id: due.id ?? due.subscription?.id ?? undefined,
+    member_id: due.member_id ?? due.member?.id ?? undefined,
+    member_name: due.member_name ?? due.member?.name ?? undefined,
+    subscription_id: due.subscription_id ?? due.subscription?.id ?? undefined,
+    outstanding_balance: due.outstanding_balance ?? due.balance,
+    amount_due: due.amount_due ?? due.price_paid,
+    due_date: due.due_date ?? due.subscription?.end_date ?? undefined,
+    status: due.status ?? due.subscription?.status ?? undefined,
+  };
 }
 
 async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {

@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { FormDatePicker } from "@/components/ui/form-controls";
 import {
   Dialog,
   DialogContent,
@@ -154,14 +155,32 @@ export function MemberActionsMenu({ member }: { member: MemberRow }) {
   const detailsLoaded = React.useRef(false);
 
   React.useEffect(() => {
+    let cancelled = false;
+
     if (detailsOpen && !detailsLoaded.current) {
       detailsLoaded.current = true;
-      fetchMemberDetails(member.id).then((result) => {
-        setHistory(result.history);
-        setVisits(result.visits);
-      });
+      void fetchMemberDetails(member.id)
+        .then((result) => {
+          if (cancelled) {
+            return;
+          }
+
+          setHistory(result.history);
+          setVisits(result.visits);
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            toast.error(t("pleaseTryAgain"), {
+              description: error instanceof Error ? error.message : undefined,
+            });
+          }
+        });
     }
-  }, [detailsOpen, member.id]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detailsOpen, member.id, t]);
 
   return (
     <>
@@ -338,8 +357,8 @@ function MemberFormContent({
               </SelectContent>
             </Select>
           </div>
-          <Field label={t("joinDate")} name="join_date" type="date" defaultValue={member?.join_date ?? ""} />
-          <Field label={t("birthDate")} name="birth_date" type="date" defaultValue={member?.birth_date ?? ""} />
+          <DateField label={t("joinDate")} name="join_date" defaultValue={member?.join_date ?? ""} />
+          <DateField label={t("birthDate")} name="birth_date" defaultValue={member?.birth_date ?? ""} />
           <Field label={t("nationalId")} name="national_id" defaultValue="" />
           <div className="grid gap-2">
             <span className="font-medium text-sm">{t("status")}</span>
@@ -387,6 +406,15 @@ function Field({
     <div className="grid gap-2">
       <span className="font-medium text-sm">{label}</span>
       <Input name={name} type={type} defaultValue={defaultValue ?? ""} required={required} />
+    </div>
+  );
+}
+
+function DateField({ defaultValue, label, name }: { defaultValue?: string | null; label: string; name: string }) {
+  return (
+    <div className="grid gap-2">
+      <span className="font-medium text-sm">{label}</span>
+      <FormDatePicker name={name} defaultValue={defaultValue ?? ""} placeholder={label} />
     </div>
   );
 }

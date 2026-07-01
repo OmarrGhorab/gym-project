@@ -4,8 +4,8 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 
 import { backfillCommissions, deleteEmployee, saveEmployee } from "./actions";
 import type { AcademyEmployee } from "./data";
@@ -50,8 +50,8 @@ export async function StaffManagement({ employees, shifts }: { employees: Academ
         </CardHeader>
         <CardContent>
           <form action={backfillCommissions} className="grid gap-3">
-            <Input type="date" name="from" defaultValue={from} />
-            <Input type="date" name="to" defaultValue={today} />
+            <FormDatePicker name="from" defaultValue={from} />
+            <FormDatePicker name="to" defaultValue={today} />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="dry_run" />
               {t("dryRun")}
@@ -73,11 +73,15 @@ async function EmployeeForm({ employee, shifts }: { employee?: AcademyEmployee; 
       <input type="hidden" name="id" value={employee?.id ?? 0} />
       <Input name="name" defaultValue={employee?.name ?? ""} placeholder={t("name")} required />
       <Input name="phone" defaultValue={employee?.phone ?? ""} placeholder={t("phone")} />
-      <NativeSelect name="role" defaultValue={employee?.role ?? "employee"} className="w-full">
-        <option value="employee">{t("roles.employee")}</option>
-        <option value="captain">{t("roles.captain")}</option>
-        <option value="manager">{t("roles.manager")}</option>
-      </NativeSelect>
+      <FormSelect
+        name="role"
+        defaultValue={employee?.role ?? "employee"}
+        options={[
+          { value: "employee", label: t("roles.employee") },
+          { value: "captain", label: t("roles.captain") },
+          { value: "manager", label: t("roles.manager") },
+        ]}
+      />
       <Input name="base_salary" type="number" min="0" step="0.01" defaultValue={employee?.base_salary ?? "0"} />
       <Input
         name="commission_rate"
@@ -87,23 +91,21 @@ async function EmployeeForm({ employee, shifts }: { employee?: AcademyEmployee; 
         step="0.0001"
         defaultValue={employee?.commission_rate ?? "0"}
       />
-      <NativeSelect
+      <FormSelect
         name="shift_id"
         defaultValue={employee?.shift?.id ? String(employee.shift.id) : ""}
-        className="w-full"
-      >
-        <option value="">{t("noShift")}</option>
-        {shifts.map((shift) => (
-          <option key={shift.id} value={shift.id}>
-            {shift.name}
-          </option>
-        ))}
-      </NativeSelect>
-      <Input name="hire_date" type="date" defaultValue="" />
-      <NativeSelect name="status" defaultValue={employee?.status ?? "active"} className="w-full">
-        <option value="active">{t("active")}</option>
-        <option value="inactive">{t("inactive")}</option>
-      </NativeSelect>
+        placeholder={t("noShift")}
+        options={shifts.map((shift) => ({ value: String(shift.id), label: shift.name }))}
+      />
+      <FormDatePicker name="hire_date" defaultValue={employee?.hire_date ?? ""} />
+      <FormSelect
+        name="status"
+        defaultValue={employee?.status ?? "active"}
+        options={[
+          { value: "active", label: t("active") },
+          { value: "inactive", label: t("inactive") },
+        ]}
+      />
       <Input name="user_id" type="number" min="1" placeholder={t("userId")} />
       <div className="flex gap-2 md:col-span-3">
         <Button type="submit" size="sm">

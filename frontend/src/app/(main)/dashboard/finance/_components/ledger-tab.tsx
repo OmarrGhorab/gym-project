@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
@@ -118,8 +118,8 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
       </TableHeader>
       <TableBody>
         {dues.length > 0 ? (
-          dues.map((due) => (
-            <TableRow key={getDueKey(due)}>
+          dues.map((due, index) => (
+            <TableRow key={getDueKey(due, index)}>
               <TableCell>
                 <div className="font-medium">{due.member_name ?? `Member #${due.member_id ?? due.id}`}</div>
                 <div className="text-muted-foreground text-xs">{due.plan_name ?? t("subscriptionBalance")}</div>
@@ -144,11 +144,17 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
                       defaultValue={due.outstanding_balance ?? due.amount_due ?? ""}
                       aria-label={t("amount")}
                     />
-                    <NativeSelect name="method" defaultValue="cash" className="w-24">
-                      <option value="cash">{t("paymentMethods.cash")}</option>
-                      <option value="card">{t("paymentMethods.card")}</option>
-                      <option value="bank_transfer">{t("paymentMethods.bank_transfer")}</option>
-                    </NativeSelect>
+                    <FormSelect
+                      className="w-28"
+                      name="method"
+                      defaultValue="cash"
+                      size="sm"
+                      options={[
+                        { value: "cash", label: t("paymentMethods.cash") },
+                        { value: "card", label: t("paymentMethods.card") },
+                        { value: "bank_transfer", label: t("paymentMethods.bank_transfer") },
+                      ]}
+                    />
                     <Button type="submit" size="sm">
                       {t("collect")}
                     </Button>
@@ -297,7 +303,7 @@ function formatDate(value: string | null, locale: string) {
   });
 }
 
-function getDueKey(due: FinanceDue) {
+function getDueKey(due: FinanceDue, index: number) {
   return [
     due.subscription_id ?? "subscription",
     due.id,
@@ -305,5 +311,6 @@ function getDueKey(due: FinanceDue) {
     due.plan_name ?? "plan",
     due.due_date ?? "date",
     due.outstanding_balance ?? due.amount_due ?? "balance",
+    index,
   ].join("-");
 }

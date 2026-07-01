@@ -71,6 +71,7 @@ export type AcademyEmployee = {
   role: string;
   base_salary: string;
   commission_rate: string;
+  hire_date?: string | null;
   shift?: {
     id: number;
     name: string;

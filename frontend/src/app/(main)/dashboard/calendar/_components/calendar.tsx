@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
+import { FormTimePicker } from "@/components/ui/form-controls";
 import {
   Dialog,
   DialogContent,
@@ -455,12 +456,12 @@ function EventFormFields({
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-start">{t("startTime")}</Label>
-          <Input id="calendar-start" name="start_time" type="time" defaultValue={timeValue(event?.start)} />
+          <FormTimePicker name="start_time" defaultValue={timeValue(event?.start)} />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-end">{t("endTime")}</Label>
-          <Input id="calendar-end" name="end_time" type="time" defaultValue={timeValue(event?.end)} />
+          <FormTimePicker name="end_time" defaultValue={timeValue(event?.end)} />
         </div>
 
         <div className="grid gap-2">

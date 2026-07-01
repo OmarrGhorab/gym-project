@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -148,8 +149,8 @@ export default async function Page() {
               <form action={saveShift} className="grid gap-3 md:grid-cols-5">
                 <input type="hidden" name="id" value="0" />
                 <Input name="name" placeholder={t("shiftName")} required />
-                <Input name="starts_at" type="time" required />
-                <Input name="ends_at" type="time" required />
+                <FormTimePicker name="starts_at" required />
+                <FormTimePicker name="ends_at" required />
                 <Input name="grace_minutes" type="number" min={0} defaultValue={settings.attendance.default_grace_minutes} />
                 <label className="flex items-center gap-2 text-sm">
                   <input name="is_active" type="checkbox" defaultChecked />
@@ -163,8 +164,8 @@ export default async function Page() {
                 <form key={`edit-${shift.id}`} action={saveShift} className="grid gap-3 border-t pt-3 md:grid-cols-6">
                   <input type="hidden" name="id" value={shift.id} />
                   <Input name="name" defaultValue={shift.name} aria-label={t("shiftName")} />
-                  <Input name="starts_at" type="time" defaultValue={shift.starts_at.slice(0, 5)} aria-label={t("startsAt")} />
-                  <Input name="ends_at" type="time" defaultValue={shift.ends_at.slice(0, 5)} aria-label={t("endsAt")} />
+                  <FormTimePicker name="starts_at" defaultValue={shift.starts_at.slice(0, 5)} />
+                  <FormTimePicker name="ends_at" defaultValue={shift.ends_at.slice(0, 5)} />
                   <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} aria-label={t("grace")} />
                   <label className="flex items-center gap-2 text-sm">
                     <input name="is_active" type="checkbox" defaultChecked={shift.is_active} />
