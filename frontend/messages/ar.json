@@ -29,6 +29,7 @@
         "plans": "خطط العضوية",
         "users": "المستخدمون",
         "roles": "الأدوار",
+        "audit": "التدقيق",
         "settings": "الإعدادات"
       },
       "badges": {
@@ -720,6 +721,8 @@
       "paid": "مدفوع",
       "amount": "المبلغ",
       "noSubscriptionPayments": "لا توجد مدفوعات اشتراك.",
+      "directPayments": "مدفوعات مباشرة",
+      "noDirectPayments": "لا توجد مدفوعات مباشرة.",
       "memberVisits": "زيارات العضو",
       "checkIn": "الدخول",
       "checkOut": "الخروج",
@@ -745,6 +748,7 @@
       "uploadPhoto": "رفع صورة",
       "memberPhotoUpdated": "تم تحديث صورة العضو.",
       "uploadPhotoDescription": "إرفاق صورة ملف شخصي لـ {name}.",
+      "photoHelp": "JPG أو PNG أو WebP حتى 5 ميجابايت.",
       "uploading": "جاري الرفع...",
       "cancel": "إلغاء",
       "actionsFor": "إجراءات {name}",

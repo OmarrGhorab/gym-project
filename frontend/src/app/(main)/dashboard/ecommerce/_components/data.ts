@@ -93,6 +93,10 @@ export type PosDashboardData = {
   stock_alerts: PosStockAlert[];
   recent_orders: PosRecentOrder[];
   products: PosProductOption[];
+  daily_sales: {
+    total_revenue: string;
+    sales: unknown[];
+  };
 };
 
 const emptyPosData: PosDashboardData = {
@@ -127,6 +131,10 @@ const emptyPosData: PosDashboardData = {
   stock_alerts: [],
   recent_orders: [],
   products: [],
+  daily_sales: {
+    total_revenue: "0.00",
+    sales: [],
+  },
 };
 
 export function normalizePosPeriodFilter(value: string | string[] | undefined): PosPeriodFilter {
@@ -158,13 +166,21 @@ export async function getPosDashboardData(
     params.set("period", filters.period ?? "this-month");
     params.set("payment_method", filters.paymentMethod ?? "pos");
 
-    const [result, productsResult] = await Promise.all([
+    const [result, productsResult, dailySalesResult] = await Promise.all([
       serverApiFetch<PosDashboardData>(`/reports/pos-summary?${params.toString()}`),
-      safeFetch<PosProductOption[] | { data: PosProductOption[] }>("/products?filter[is_active]=1&sort=name&per_page=100", []),
+      safeFetch<PosProductOption[] | { data: PosProductOption[] }>(
+        "/products?filter[is_active]=1&sort=name&per_page=100",
+        [],
+      ),
+      safeFetch<{ total_revenue: string; sales: unknown[] }>(
+        `/sales/daily?date=${new Date().toISOString().slice(0, 10)}`,
+        { total_revenue: "0.00", sales: [] },
+      ),
     ]);
 
     return {
       ...result.data,
+      daily_sales: dailySalesResult.data,
       products: Array.isArray(productsResult.data) ? productsResult.data : productsResult.data.data,
     };
   } catch {

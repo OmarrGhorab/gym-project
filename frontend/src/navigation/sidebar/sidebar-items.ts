@@ -3,6 +3,7 @@ import {
   Calendar,
   ChartBar,
   CheckSquare,
+  ClipboardList,
   Forklift,
   Gauge,
   GraduationCap,
@@ -189,6 +190,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Roles",
         url: "/dashboard/roles",
         icon: Lock,
+      },
+      {
+        id: "audit",
+        title: "Audit",
+        url: "/dashboard/audit",
+        icon: ClipboardList,
       },
       {
         id: "settings",

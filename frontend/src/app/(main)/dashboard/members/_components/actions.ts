@@ -5,15 +5,18 @@ import { revalidatePath } from "next/cache";
 import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
-import type { MemberPaymentHistory, MemberVisitRow } from "./data";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
 
 export async function fetchMemberDetails(
   memberId: number,
-): Promise<{ history: MemberPaymentHistory | null; visits: MemberVisitRow[] }> {
-  const [historyResult, visitsResult] = await Promise.all([
+): Promise<{ history: MemberPaymentHistory | null; payments: MemberPaymentRow[]; visits: MemberVisitRow[] }> {
+  const [historyResult, paymentsResult, visitsResult] = await Promise.all([
     serverApiFetch<MemberPaymentHistory | null>(`/members/${memberId}/payment-history`).catch(() => ({
       data: null as MemberPaymentHistory | null,
     })),
+    serverApiFetch<MemberPaymentRow[] | PaginatedData<MemberPaymentRow>>(
+      `/members/${memberId}/payments?per_page=10`,
+    ).catch(() => ({ data: [] as MemberPaymentRow[] })),
     serverApiFetch<MemberVisitRow[] | PaginatedData<MemberVisitRow>>(
       `/member-visits?member_id=${memberId}&sort=-check_in_at&per_page=5`,
     ).catch(() => ({ data: [] as MemberVisitRow[] })),
@@ -21,6 +24,7 @@ export async function fetchMemberDetails(
 
   return {
     history: historyResult.data,
+    payments: unwrapList(paymentsResult.data as MemberPaymentRow[] | PaginatedData<MemberPaymentRow>),
     visits: unwrapList(visitsResult.data as MemberVisitRow[] | PaginatedData<MemberVisitRow>),
   };
 }
@@ -90,14 +94,24 @@ export async function uploadMemberPhoto(input: FormData): Promise<void> {
   const payload = new FormData();
   const photo = input.get("photo");
 
-  if (photo instanceof File && photo.size > 0) {
-    payload.set("photo", photo);
+  if (!Number.isInteger(memberId) || memberId <= 0) {
+    throw new Error("Invalid member id.");
   }
 
-  await serverApiFetch(`/members/${memberId}/photo`, {
+  if (!(photo instanceof File) || photo.size <= 0) {
+    throw new Error("Choose a member photo before uploading.");
+  }
+
+  payload.set("photo", photo);
+
+  const result = await serverApiFetch<MemberRow>(`/members/${memberId}/photo`, {
     body: payload,
     method: "POST",
   });
+
+  if (!result.data.has_photo) {
+    throw new Error("The backend saved the request, but no member photo was attached.");
+  }
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");

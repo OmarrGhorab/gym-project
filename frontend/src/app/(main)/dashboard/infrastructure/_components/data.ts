@@ -54,6 +54,14 @@ export type SystemHealthData = {
   groups: SystemHealthGroup[];
   setup_warnings: SystemHealthWarning[];
   audit_activity: SystemHealthAudit[];
+  api_health: {
+    ok: boolean;
+    data: unknown;
+  };
+  protected_sample: {
+    ok: boolean;
+    data: unknown;
+  };
 };
 
 const emptySystemHealthData: SystemHealthData = {
@@ -69,14 +77,43 @@ const emptySystemHealthData: SystemHealthData = {
   groups: [],
   setup_warnings: [],
   audit_activity: [],
+  api_health: {
+    ok: false,
+    data: null,
+  },
+  protected_sample: {
+    ok: false,
+    data: null,
+  },
 };
 
 export async function getSystemHealthData(): Promise<SystemHealthData> {
   try {
-    const result = await serverApiFetch<SystemHealthData>("/reports/system-health");
+    const [result, apiHealth, protectedSample] = await Promise.all([
+      serverApiFetch<SystemHealthData>("/reports/system-health"),
+      safeProbe("/health"),
+      safeProbe("/foundation/protected-sample"),
+    ]);
 
-    return result.data;
+    return {
+      ...result.data,
+      api_health: apiHealth,
+      protected_sample: protectedSample,
+    };
   } catch {
     return emptySystemHealthData;
+  }
+}
+
+async function safeProbe(path: string): Promise<{ ok: boolean; data: unknown }> {
+  try {
+    const result = await serverApiFetch<unknown>(path);
+
+    return { ok: true, data: result.data };
+  } catch (error) {
+    return {
+      ok: false,
+      data: error instanceof Error ? error.message : null,
+    };
   }
 }

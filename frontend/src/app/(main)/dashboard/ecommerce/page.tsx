@@ -4,8 +4,8 @@ import { CustomerReviews } from "./_components/customer-reviews";
 import { getPosDashboardData, normalizePosPaymentMethodFilter, normalizePosPeriodFilter } from "./_components/data";
 import { Inventory } from "./_components/inventory";
 import { KpiStrip } from "./_components/kpi-strip";
-import { PosFilterToolbar } from "./_components/pos-filter-toolbar";
 import { PosCheckoutDialog } from "./_components/pos-checkout-dialog";
+import { PosFilterToolbar } from "./_components/pos-filter-toolbar";
 import { RecentOrders } from "./_components/recent-orders";
 import { StoreTraffic } from "./_components/store-traffic";
 import { TopProducts } from "./_components/top-products";
@@ -37,7 +37,7 @@ export default async function Page({
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <KpiStrip chart={data.sales_chart} totals={data.totals} />
+        <KpiStrip chart={data.sales_chart} dailySales={data.daily_sales} totals={data.totals} />
         <div className="xl:col-span-5">
           <StoreTraffic data={data.hourly_activity} />
         </div>

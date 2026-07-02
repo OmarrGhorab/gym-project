@@ -2,7 +2,7 @@ import { ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { DashboardUser } from "@/lib/session";
-import { sidebarItems, type NavGroup, type NavMainItem } from "@/navigation/sidebar/sidebar-items";
+import { type NavGroup, type NavMainItem, sidebarItems } from "@/navigation/sidebar/sidebar-items";
 
 type PermissionRequirement = string | string[];
 
@@ -27,6 +27,7 @@ export const routePermissions: Record<string, PermissionRequirement> = {
   "/dashboard/plans": "plans.view",
   "/dashboard/users": "roles.manage",
   "/dashboard/roles": "roles.manage",
+  "/dashboard/audit": "audit.view",
   "/dashboard/settings": "settings.manage",
 };
 
@@ -50,13 +51,14 @@ export function canAccessRoute(user: Pick<DashboardUser, "permissions">, pathnam
   return canAccess(user, routePermissions[normalizeDashboardPath(pathname)]);
 }
 
-export function filterSidebarItems(user: Pick<DashboardUser, "permissions">, groups: readonly NavGroup[] = sidebarItems) {
+export function filterSidebarItems(
+  user: Pick<DashboardUser, "permissions">,
+  groups: readonly NavGroup[] = sidebarItems,
+) {
   return groups
     .map((group) => ({
       ...group,
-      items: group.items
-        .map((item) => filterNavItem(user, item))
-        .filter((item): item is NavMainItem => Boolean(item)),
+      items: group.items.map((item) => filterNavItem(user, item)).filter((item): item is NavMainItem => Boolean(item)),
     }))
     .filter((group) => group.items.length > 0);
 }

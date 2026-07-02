@@ -78,8 +78,14 @@ export function InfrastructureHeader({ data }: { data: SystemHealthData }) {
           {t("auditConnected")}
         </Badge>
         <Badge variant="outline" className="h-auto gap-1 rounded-sm px-1.5 py-0.5">
-          <span className="size-2 rounded-full bg-emerald-500" />
-          {t("liveData")}
+          <span
+            className={data.api_health.ok ? "size-2 rounded-full bg-emerald-500" : "size-2 rounded-full bg-destructive"}
+          />
+          API health {data.api_health.ok ? "online" : "offline"}
+        </Badge>
+        <Badge variant="outline" className="h-auto gap-1 rounded-sm px-1.5 py-0.5">
+          <ShieldCheck />
+          Protected sample {data.protected_sample.ok ? "allowed" : "blocked"}
         </Badge>
       </div>
     </div>

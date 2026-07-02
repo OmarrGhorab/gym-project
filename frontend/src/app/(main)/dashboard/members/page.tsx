@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -80,6 +80,7 @@ export default async function Page({
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
+                        {member.has_photo ? <AvatarImage src={getMemberPhotoUrl(member)} alt={member.name} /> : null}
                         <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
                       </Avatar>
                       <div>
@@ -150,4 +151,10 @@ function normalizeQuery(params: Record<string, string | string[] | undefined>) {
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getMemberPhotoUrl(member: { id: number; updated_at?: string | null }) {
+  const version = member.updated_at ? `?v=${encodeURIComponent(member.updated_at)}` : "";
+
+  return `/api/media/members/${member.id}/photo${version}`;
 }

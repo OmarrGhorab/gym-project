@@ -17,6 +17,10 @@ export type DashboardSummary = {
   };
   top_products: unknown[];
   captain_leaderboard: unknown[];
+  active_subscriptions_detail?: unknown;
+  expiring_soon_detail?: unknown;
+  sales_today_detail?: unknown;
+  top_products_detail?: unknown[];
 };
 
 type MemberResource = {
@@ -88,10 +92,22 @@ export async function getDefaultDashboardData(
   });
   const memberParams = buildMemberParams(membersQuery);
 
-  const [summaryResult, membersResult, salesReportResult] = await Promise.all([
+  const [
+    summaryResult,
+    membersResult,
+    salesReportResult,
+    activeSubscriptionsResult,
+    expiringSoonResult,
+    salesTodayResult,
+    topProductsResult,
+  ] = await Promise.all([
     serverApiFetch<DashboardSummary>("/dashboard/summary"),
     serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(`/members?${memberParams.toString()}`),
     serverApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${dateParams.toString()}`),
+    safeFetch<unknown>("/dashboard/active-subscriptions", null),
+    safeFetch<unknown>("/dashboard/expiring-soon?per_page=5", null),
+    safeFetch<{ count: number; revenue: string }>("/dashboard/sales-today", { count: 0, revenue: "0.00" }),
+    safeFetch<unknown[]>("/dashboard/top-products?period=month&limit=5", []),
   ]);
 
   const members = unwrapList(membersResult.data);
@@ -99,12 +115,26 @@ export async function getDefaultDashboardData(
   const membersMeta = getPaginationMeta(membersResult.meta, members.length);
 
   return {
-    summary: summaryResult.data,
+    summary: {
+      ...summaryResult.data,
+      active_subscriptions_detail: activeSubscriptionsResult.data,
+      expiring_soon_detail: expiringSoonResult.data,
+      sales_today_detail: salesTodayResult.data,
+      top_products_detail: topProductsResult.data,
+    },
     members: members.map(mapMemberToRow),
     membersTotal: membersMeta.total,
     membersMeta,
     salesChart: salesReport.map(mapSalesDay).reverse(),
   };
+}
+
+async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
+  try {
+    return await serverApiFetch<T>(path);
+  } catch {
+    return { data: fallback };
+  }
 }
 
 function buildMemberParams(options: MembersQuery) {

@@ -46,7 +46,15 @@ function metricClass(value: string) {
   return Number(value) < 0 ? "text-destructive" : "text-green-700 dark:text-green-300";
 }
 
-export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: PosDashboardData["totals"] }) {
+export function KpiStrip({
+  chart,
+  dailySales,
+  totals,
+}: {
+  chart: PosChartPoint[];
+  dailySales: PosDashboardData["daily_sales"];
+  totals: PosDashboardData["totals"];
+}) {
   const t = useTranslations("Dashboard.ecommerce");
   const locale = useLocale();
   const chartData = chart.map((point) => ({
@@ -55,9 +63,9 @@ export function KpiStrip({ chart, totals }: { chart: PosChartPoint[]; totals: Po
   }));
   const metrics = [
     {
-      title: t("posSales"),
-      value: formatEgp(totals.sales),
-      detail: t("vsLastMonth", { value: formatSignedPercent(totals.sales_growth_rate) }),
+      title: "Today sales",
+      value: formatEgp(dailySales.total_revenue),
+      detail: `${dailySales.sales.length.toLocaleString()} orders today`,
       trend: totals.sales_growth_rate,
       icon: DollarSign,
     },

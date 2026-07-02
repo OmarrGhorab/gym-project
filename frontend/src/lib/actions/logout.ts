@@ -12,7 +12,7 @@ export async function logoutAction() {
 
   if (token) {
     try {
-      await fetch(`${API_BASE_URL}/logout`, {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         headers: {
           Accept: "application/json",

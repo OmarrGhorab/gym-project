@@ -29,6 +29,7 @@
         "plans": "Membership Plans",
         "users": "Users",
         "roles": "Roles",
+        "audit": "Audit",
         "settings": "Settings"
       },
       "badges": {
@@ -720,6 +721,8 @@
       "paid": "Paid",
       "amount": "Amount",
       "noSubscriptionPayments": "No subscription payments.",
+      "directPayments": "Direct payments",
+      "noDirectPayments": "No direct payments.",
       "memberVisits": "Member visits",
       "checkIn": "Check in",
       "checkOut": "Check out",
@@ -745,6 +748,7 @@
       "uploadPhoto": "Upload photo",
       "memberPhotoUpdated": "Member photo updated.",
       "uploadPhotoDescription": "Attach a profile photo for {name}.",
+      "photoHelp": "JPG, PNG, or WebP up to 5 MB.",
       "uploading": "Uploading...",
       "cancel": "Cancel",
       "actionsFor": "Actions for {name}",

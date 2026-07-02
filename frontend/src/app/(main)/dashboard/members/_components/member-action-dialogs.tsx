@@ -2,14 +2,14 @@
 
 import * as React from "react";
 
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { MoreHorizontal, UserPlus } from "lucide-react";
+import { ImageUp, MoreHorizontal, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { FormDatePicker } from "@/components/ui/form-controls";
 import {
   Dialog,
   DialogContent,
@@ -27,12 +27,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FormDatePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createMember, deactivateMember, fetchMemberDetails, updateMember, uploadMemberPhoto } from "./actions";
-import type { MemberPaymentHistory, MemberRow, MemberVisitRow } from "./data";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
 import { MemberDetailsDialog } from "./member-details-dialog";
 
 type ActionResult = {
@@ -136,32 +137,34 @@ export function EditMemberDialog({ member }: { member: MemberRow }) {
 export function MemberPhotoDialog({ member }: { member: MemberRow }) {
   const t = useTranslations("Dashboard.membersPage");
   const [open, setOpen] = React.useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const { pending, submit } = useActionSubmit(
     { label: t("uploadPhoto"), run: uploadMemberPhoto, success: t("memberPhotoUpdated") },
-    () => setOpen(false),
+    () => {
+      setOpen(false);
+      setPreviewUrl(null);
+    },
   );
 
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (!nextOpen) {
+      setPreviewUrl(null);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button type="button" className="sr-only" />}>{t("uploadPhoto")}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("uploadPhoto")}</DialogTitle>
-          <DialogDescription>{t("uploadPhotoDescription", { name: member.name })}</DialogDescription>
-        </DialogHeader>
-        <form action={submit} className="grid gap-4">
-          <input type="hidden" name="member_id" value={member.id} />
-          <Input name="photo" type="file" accept="image/*" required />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? t("uploading") : t("uploadPhoto")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+      <PhotoDialogContent
+        member={member}
+        onCancel={() => setOpen(false)}
+        pending={pending}
+        previewUrl={previewUrl}
+        setPreviewUrl={setPreviewUrl}
+        submit={submit}
+      />
     </Dialog>
   );
 }
@@ -172,6 +175,7 @@ export function MemberActionsMenu({ member }: { member: MemberRow }) {
   const [editOpen, setEditOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
+  const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
   const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
   const detailsLoaded = React.useRef(false);
 
@@ -187,6 +191,7 @@ export function MemberActionsMenu({ member }: { member: MemberRow }) {
           }
 
           setHistory(result.history);
+          setPayments(result.payments);
           setVisits(result.visits);
         })
         .catch((error) => {
@@ -228,6 +233,7 @@ export function MemberActionsMenu({ member }: { member: MemberRow }) {
         member={member}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+        payments={payments}
         visits={visits}
       />
       <EditMemberControlledDialog member={member} open={editOpen} onOpenChange={setEditOpen} />
@@ -275,32 +281,111 @@ function MemberPhotoControlledDialog({
   open: boolean;
 }) {
   const t = useTranslations("Dashboard.membersPage");
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const { pending, submit } = useActionSubmit(
     { label: t("uploadPhoto"), run: uploadMemberPhoto, success: t("memberPhotoUpdated") },
-    () => onOpenChange(false),
+    () => {
+      onOpenChange(false);
+      setPreviewUrl(null);
+    },
   );
 
+  function handleOpenChange(nextOpen: boolean) {
+    onOpenChange(nextOpen);
+
+    if (!nextOpen) {
+      setPreviewUrl(null);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("uploadPhoto")}</DialogTitle>
-          <DialogDescription>{t("uploadPhotoDescription", { name: member.name })}</DialogDescription>
-        </DialogHeader>
-        <form action={submit} className="grid gap-4">
-          <input type="hidden" name="member_id" value={member.id} />
-          <Input name="photo" type="file" accept="image/*" required />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? t("uploading") : t("uploadPhoto")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <PhotoDialogContent
+        member={member}
+        onCancel={() => onOpenChange(false)}
+        pending={pending}
+        previewUrl={previewUrl}
+        setPreviewUrl={setPreviewUrl}
+        submit={submit}
+      />
     </Dialog>
+  );
+}
+
+function PhotoDialogContent({
+  member,
+  onCancel,
+  pending,
+  previewUrl,
+  setPreviewUrl,
+  submit,
+}: {
+  member: MemberRow;
+  onCancel: () => void;
+  pending: boolean;
+  previewUrl: string | null;
+  setPreviewUrl: React.Dispatch<React.SetStateAction<string | null>>;
+  submit: (formData: FormData) => void;
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    setPreviewUrl((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+
+      return file ? URL.createObjectURL(file) : null;
+    });
+  }
+
+  return (
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{t("uploadPhoto")}</DialogTitle>
+        <DialogDescription>{t("uploadPhotoDescription", { name: member.name })}</DialogDescription>
+      </DialogHeader>
+      <form action={submit} className="grid gap-4">
+        <input type="hidden" name="member_id" value={member.id} />
+        <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-3">
+          <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-background">
+            {previewUrl ? (
+              <Image src={previewUrl} alt="" width={96} height={96} unoptimized className="size-full object-cover" />
+            ) : (
+              <ImageUp className="size-8 text-muted-foreground" />
+            )}
+          </div>
+          <div className="grid min-w-0 flex-1 gap-2">
+            <Input
+              name="photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              required
+              onChange={handleFileChange}
+            />
+            <p className="text-muted-foreground text-xs">{t("photoHelp")}</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            {t("cancel")}
+          </Button>
+          <Button type="submit" disabled={pending}>
+            {pending ? t("uploading") : t("uploadPhoto")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }
 

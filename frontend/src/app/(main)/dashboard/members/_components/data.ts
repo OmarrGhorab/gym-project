@@ -17,6 +17,7 @@ export type MemberRow = {
   notes: string | null;
   has_photo: boolean;
   total_paid: string;
+  updated_at?: string | null;
   latest_subscription: {
     id: number;
     plan_name: string | null;
@@ -66,6 +67,16 @@ export type MemberPaymentHistory = {
   }[];
 };
 
+export type MemberPaymentRow = {
+  id: number;
+  amount: string;
+  method: string;
+  status: string;
+  paid_at: string | null;
+  due_date: string | null;
+  created_by: number | null;
+};
+
 export type MemberVisitRow = {
   id: number;
   member_id: number;
@@ -90,6 +101,7 @@ export type MembersPageData = {
     per_page?: number;
     total?: number;
   };
+  payments: Record<number, MemberPaymentRow[]>;
   visits: Record<number, MemberVisitRow[]>;
 };
 
@@ -133,20 +145,12 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
       histories: {},
       meta: getMeta(result),
       members,
+      payments: {},
       visits: {},
     };
   } catch (error) {
     console.error("[getMembersPageData] Failed to fetch members:", error);
-    return { histories: {}, members: [], meta: {}, visits: {} };
-  }
-}
-
-async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
-  try {
-    return await serverApiFetch<T>(path);
-  } catch (error) {
-    console.error(`[safeFetch] Failed to fetch ${path}:`, error);
-    return { data: fallback };
+    return { histories: {}, members: [], meta: {}, payments: {}, visits: {} };
   }
 }
 
