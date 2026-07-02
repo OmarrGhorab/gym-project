@@ -118,6 +118,11 @@
       "notFound": {
         "title": "Page not found.",
         "description": "This section will be added in future updates."
+      },
+      "accessDenied": {
+        "title": "Access restricted",
+        "description": "Your assigned role does not include permission to view this dashboard area.",
+        "action": "Go to allowed dashboard"
       }
     },
     "default": {

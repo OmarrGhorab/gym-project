@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
+import { filterSidebarItems } from "@/lib/authorization";
 import type { DashboardUser } from "@/lib/session";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
@@ -77,6 +78,7 @@ export function AppSidebar({
 
   const variant = isSynced ? sidebarVariant : props.variant;
   const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
+  const authorizedItems = filterSidebarItems(user, sidebarItems);
 
   return (
     <Sidebar {...props} variant={variant} collapsible={collapsible}>
@@ -91,7 +93,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={sidebarItems} />
+        <NavMain items={authorizedItems} user={user} />
         {/* <NavDocuments items={data.documents} /> */}
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>

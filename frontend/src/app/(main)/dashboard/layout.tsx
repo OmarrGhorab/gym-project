@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 import { AppSidebar } from "@/app/(main)/dashboard/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { defaultLocale, getLocaleDirection, isAppLocale, localeCookieName } from "@/i18n/config";
+import { AccessDenied, canAccessRoute, firstAccessibleDashboardPath } from "@/lib/authorization";
 import { SIDEBAR_COLLAPSIBLE_VALUES, SIDEBAR_VARIANT_VALUES } from "@/lib/preferences/layout";
 import { getCurrentUser, requireAuth } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,11 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
   }
 
   const cookieStore = await cookies();
+  const headerStore = await headers();
+  const pathname = headerStore.get("x-dashboard-pathname") ?? "/dashboard/default";
+  const canViewCurrentRoute = canAccessRoute(user, pathname);
+  const fallbackPath = firstAccessibleDashboardPath(user);
+  const t = await getTranslations("Dashboard.shell.accessDenied");
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const cookieLocale = cookieStore.get(localeCookieName)?.value;
   const locale = isAppLocale(cookieLocale) ? cookieLocale : defaultLocale;
@@ -37,6 +44,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
 
   return (
     <SidebarProvider
+      className="h-svh min-h-0 overflow-hidden"
       defaultOpen={defaultOpen}
       style={
         {
@@ -52,8 +60,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
           "[html[data-content-layout=centered]_&>*]:max-w-screen-2xl",
           "peer-data-[variant=inset]:border",
           "[--dashboard-header-height:--spacing(12)]",
-          "min-w-0 overflow-x-hidden",
-          "[html[data-navbar-style=sticky]_&]:max-h-svh [html[data-navbar-style=sticky]_&]:overflow-hidden",
+          "min-h-0 min-w-0 overflow-hidden",
         )}
       >
         <header
@@ -69,7 +76,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
                 orientation="vertical"
                 className="mx-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center"
               />
-              <SearchDialog />
+              <SearchDialog user={user} />
             </div>
             <div className="flex items-center gap-2">
               <LayoutControls />
@@ -80,8 +87,17 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
           </div>
         </header>
         {/* Pages can set data-content-padding="false" to render full-bleed app layouts. */}
-        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 has-data-[content-padding=false]:p-0 md:p-6 md:has-data-[content-padding=false]:p-0 [html[data-navbar-style=sticky]_&]:overflow-y-auto">
-          {children}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 has-data-[content-padding=false]:p-0 md:p-6 md:has-data-[content-padding=false]:p-0">
+          {canViewCurrentRoute ? (
+            children
+          ) : (
+            <AccessDenied
+              action={t("action")}
+              description={t("description")}
+              homeHref={fallbackPath}
+              title={t("title")}
+            />
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>

@@ -334,6 +334,10 @@ export function RecentCustomersTable({
             <Select
               value={`${meta.perPage}`}
               onValueChange={(value) => {
+                if (value === null) {
+                  return;
+                }
+
                 updateMembersQuery({ per_page: value });
               }}
               items={pageSizeItems}

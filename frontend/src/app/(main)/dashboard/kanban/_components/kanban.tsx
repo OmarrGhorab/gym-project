@@ -690,7 +690,7 @@ function TaskDetailDialog({
             <div className="rounded-lg border p-4">
               <div className="font-medium text-sm">{t("backendSource")}</div>
               <p className="mt-1 text-muted-foreground text-sm">{t("generatedSourceDescription")}</p>
-              <Button render={<a href={task.href} />} className="mt-3" size="sm" variant="outline">
+              <Button render={<a href={task.href} />} nativeButton={false} className="mt-3" size="sm" variant="outline">
                 {t("openSourcePage")}
                 <ExternalLink />
               </Button>

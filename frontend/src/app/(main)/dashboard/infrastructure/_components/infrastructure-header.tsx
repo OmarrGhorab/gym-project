@@ -29,6 +29,7 @@ export function InfrastructureHeader({ data }: { data: SystemHealthData }) {
           </span>
           <Button
             render={<a href="/dashboard/infrastructure" aria-label={t("refresh")} />}
+            nativeButton={false}
             variant="outline"
             size="icon-sm"
           >

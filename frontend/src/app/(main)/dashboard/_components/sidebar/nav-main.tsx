@@ -28,6 +28,8 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { actionPermissions, canAccess } from "@/lib/authorization";
+import type { DashboardUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import type {
   NavBadge,
@@ -39,6 +41,7 @@ import type {
 
 interface NavMainProps {
   readonly items: readonly NavGroup[];
+  readonly user: DashboardUser;
 }
 
 interface NavItemProps {
@@ -84,9 +87,11 @@ function hasSubItems(item: NavMainItem): item is NavMainParentItem {
   return Boolean(item.subItems?.length);
 }
 
-export function NavMain({ items }: NavMainProps) {
+export function NavMain({ items, user }: NavMainProps) {
   const path = usePathname();
   const t = useTranslations("Dashboard.nav");
+  const canCreateMember = canAccess(user, actionPermissions.createMember);
+  const canViewNotifications = canAccess(user, actionPermissions.viewNotifications);
 
   const isItemActive = (item: NavMainItem) => {
     if (hasSubItems(item)) {
@@ -106,33 +111,39 @@ export function NavMain({ items }: NavMainProps) {
 
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupContent className="flex flex-col gap-2">
-          <SidebarMenu>
-            <SidebarMenuItem className="flex items-center gap-2">
-              <SidebarMenuButton
-                tooltip={t("quickCreate")}
-                render={<Link prefetch={false} href="/dashboard/members?create=member" />}
-                className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-              >
-                <PlusCircleIcon />
-                <span>{t("quickCreate")}</span>
-              </SidebarMenuButton>
-              <Button
-                render={<Link prefetch={false} href="/dashboard/mail" />}
-                nativeButton={false}
-                size="icon"
-                className="h-9 w-9 shrink-0 group-data-[collapsible=icon]:opacity-0"
-                variant="outline"
-                aria-label={t("inbox")}
-              >
-                <MailIcon />
-                <span className="sr-only">{t("inbox")}</span>
-              </Button>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {canCreateMember || canViewNotifications ? (
+        <SidebarGroup>
+          <SidebarGroupContent className="flex flex-col gap-2">
+            <SidebarMenu>
+              <SidebarMenuItem className="flex items-center gap-2">
+                {canCreateMember ? (
+                  <SidebarMenuButton
+                    tooltip={t("quickCreate")}
+                    render={<Link prefetch={false} href="/dashboard/members?create=member" />}
+                    className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
+                  >
+                    <PlusCircleIcon />
+                    <span>{t("quickCreate")}</span>
+                  </SidebarMenuButton>
+                ) : null}
+                {canViewNotifications ? (
+                  <Button
+                    render={<Link prefetch={false} href="/dashboard/mail" />}
+                    nativeButton={false}
+                    size="icon"
+                    className="h-9 w-9 shrink-0 group-data-[collapsible=icon]:opacity-0"
+                    variant="outline"
+                    aria-label={t("inbox")}
+                  >
+                    <MailIcon />
+                    <span className="sr-only">{t("inbox")}</span>
+                  </Button>
+                ) : null}
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ) : null}
       {items.map((group) => (
         <SidebarGroup key={group.id}>
           {group.label && (

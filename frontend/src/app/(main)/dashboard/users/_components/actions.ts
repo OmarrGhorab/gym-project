@@ -18,4 +18,5 @@ export async function syncUserRoles(input: FormData): Promise<void> {
 
   revalidatePath("/dashboard/users");
   revalidatePath("/dashboard/roles");
+  revalidatePath("/dashboard", "layout");
 }

@@ -18,6 +18,8 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { filterSidebarItems } from "@/lib/authorization";
+import type { DashboardUser } from "@/lib/session";
 import type { NavMainItem } from "@/navigation/sidebar/sidebar-items";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 
@@ -43,14 +45,14 @@ type BackendSearchResult = {
   url: string;
 };
 
-const sidebarGroupLabels = new Set(sidebarItems.flatMap((group) => (group.label ? [group.label] : [])));
+function buildSearchItems(user: DashboardUser): SearchItem[] {
+  const authorizedItems = filterSidebarItems(user, sidebarItems);
+  const sidebarGroupLabels = new Set(authorizedItems.flatMap((group) => (group.label ? [group.label] : [])));
+  const getSubItemGroup = (groupLabel: string | undefined, itemTitle: string) =>
+    sidebarGroupLabels.has(itemTitle) ? (groupLabel ?? "Other") : itemTitle;
 
-function getSubItemGroup(groupLabel: string | undefined, itemTitle: string) {
-  return sidebarGroupLabels.has(itemTitle) ? (groupLabel ?? "Other") : itemTitle;
-}
-
-const searchItems: SearchItem[] = sidebarItems.flatMap((group) =>
-  group.items.flatMap((item) => {
+  return authorizedItems.flatMap((group) =>
+    group.items.flatMap((item) => {
     if (item.subItems) {
       return item.subItems.map((sub) => ({
         id: sub.id,
@@ -73,14 +75,14 @@ const searchItems: SearchItem[] = sidebarItems.flatMap((group) =>
         newTab: item.newTab,
       },
     ];
-  }),
-);
+    }),
+  );
+}
 
 function getAvailableItems(items: SearchItem[]) {
   return items.filter((item) => !item.disabled && !item.url.includes("coming-soon"));
 }
 
-const recommendations = getAvailableItems(searchItems);
 const backendIcons = {
   employee: Dumbbell,
   member: UserRound,
@@ -97,9 +99,11 @@ function groupBy(items: SearchItem[]) {
   }));
 }
 
-export function SearchDialog() {
+export function SearchDialog({ user }: { user: DashboardUser }) {
   const tShell = useTranslations("Dashboard.shell");
   const tNav = useTranslations("Dashboard.nav");
+  const searchItems = React.useMemo(() => buildSearchItems(user), [user]);
+  const recommendations = React.useMemo(() => getAvailableItems(searchItems), [searchItems]);
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [backendResults, setBackendResults] = React.useState<SearchItem[]>([]);
