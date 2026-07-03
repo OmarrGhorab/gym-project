@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
-import { randomUUID } from "node:crypto";
-
 import type { PosMemberOption } from "./data";
+import { randomUUID } from "node:crypto";
 
 export type PosActionResult =
   | {
@@ -18,19 +19,66 @@ export type PosActionResult =
       message: string;
     };
 
+const optionalNumberInput = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim();
+
+  return normalized.length > 0 ? normalized : null;
+}, z.coerce.number().int().min(1).nullable());
+
+const optionalStringInput = (max: number) =>
+  z.preprocess((value) => {
+    const normalized = String(value ?? "").trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }, z.string().max(max).nullable());
+
+const posSaleInputSchema = z.object({
+  discount: z.coerce.number().min(0, "Discount cannot be negative."),
+  member_id: optionalNumberInput,
+  notes: optionalStringInput(500),
+  payment_method: z.enum(["cash", "card", "bank_transfer"], {
+    error: "Payment method must be cash, card, or bank transfer.",
+  }),
+  product_id: z.coerce.number().int().min(1, "Product is required."),
+  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1."),
+});
+
+const voidSaleInputSchema = z.object({
+  id: z.preprocess(
+    (value) =>
+      String(value ?? "")
+        .replace(/^#/, "")
+        .trim(),
+    z.coerce.number().int().min(1, "Sale is required."),
+  ),
+  reason: optionalStringInput(255),
+});
+
 export async function createSale(input: FormData): Promise<PosActionResult> {
-  const productId = Number(input.get("product_id"));
-  const quantity = Number(input.get("quantity") || 1);
+  const parsed = posSaleInputSchema.safeParse({
+    discount: input.get("discount") ?? "0",
+    member_id: input.get("member_id"),
+    notes: input.get("notes"),
+    payment_method: input.get("payment_method") ?? "cash",
+    product_id: input.get("product_id"),
+    quantity: input.get("quantity") ?? "1",
+  });
+
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
+
+  const data = parsed.data;
 
   try {
     await serverApiFetch("/sales", {
       body: JSON.stringify({
-        discount: String(input.get("discount") || "0"),
+        discount: String(data.discount),
         idempotency_key: randomUUID(),
-        items: [{ product_id: productId, quantity }],
-        member_id: nullableNumber(input.get("member_id")),
-        notes: nullableString(input.get("notes")),
-        payment_method: String(input.get("payment_method") || "cash"),
+        items: [{ product_id: data.product_id, quantity: data.quantity }],
+        member_id: data.member_id,
+        notes: data.notes,
+        payment_method: data.payment_method,
       }),
       headers: {
         "Content-Type": "application/json",
@@ -53,10 +101,19 @@ export async function createSale(input: FormData): Promise<PosActionResult> {
 }
 
 export async function voidSale(input: FormData): Promise<PosActionResult> {
+  const parsed = voidSaleInputSchema.safeParse({
+    id: input.get("id"),
+    reason: input.get("reason"),
+  });
+
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
+
   try {
-    await serverApiFetch(`/sales/${String(input.get("id")).replace(/^#/, "")}/void`, {
+    await serverApiFetch(`/sales/${parsed.data.id}/void`, {
       body: JSON.stringify({
-        reason: nullableString(input.get("reason")) ?? "Voided from dashboard",
+        reason: parsed.data.reason ?? "Voided from dashboard",
       }),
       headers: {
         "Content-Type": "application/json",
@@ -102,16 +159,9 @@ function revalidatePos() {
   revalidatePath("/dashboard/logistics");
 }
 
-function nullableNumber(value: FormDataEntryValue | null) {
-  if (value === null || String(value).trim() === "") {
-    return null;
-  }
-
-  return Number(value);
-}
-
-function nullableString(value: FormDataEntryValue | null) {
-  const normalized = String(value ?? "").trim();
-
-  return normalized.length > 0 ? normalized : null;
+function invalidActionResult(error: z.ZodError): PosActionResult {
+  return {
+    ok: false,
+    message: error.issues[0]?.message ?? "Please check the form fields.",
+  };
 }

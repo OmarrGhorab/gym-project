@@ -24,6 +24,8 @@ class Subscription extends Model
         'status',
         'price_paid',
         'discount',
+        'sessions_total',
+        'sessions_remaining',
         'sold_by_user_id',
         'created_by',
         'last_reminded_on',
@@ -37,6 +39,8 @@ class Subscription extends Model
             'last_reminded_on' => 'date',
             'price_paid' => 'decimal:2',
             'discount' => 'decimal:2',
+            'sessions_total' => 'integer',
+            'sessions_remaining' => 'integer',
         ];
     }
 

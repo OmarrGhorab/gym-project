@@ -287,20 +287,24 @@ export function ProductQuickActions({ compact = false, product }: { compact?: bo
 
   return (
     <div className={compact ? "grid gap-2" : "grid gap-3"}>
-      <form action={(formData) => run(adjustProductStock, formData)} className="grid grid-cols-[80px_1fr_auto] gap-2">
+      <form action={(formData) => run(adjustProductStock, formData)} className="grid grid-cols-[96px_1fr_auto] gap-2">
         <input type="hidden" name="id" value={product.id} />
-        <Select name="type" defaultValue="in">
-          <SelectTrigger className="h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="in">{t("stockIn")}</SelectItem>
-            <SelectItem value="out">{t("stockOut")}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input name="quantity" type="number" min="1" defaultValue="1" className="h-8" aria-label={t("quantity")} />
+        <Field label={t("type")}>
+          <Select name="type" defaultValue="in">
+            <SelectTrigger className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="in">{t("stockIn")}</SelectItem>
+              <SelectItem value="out">{t("stockOut")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t("quantity")}>
+          <Input name="quantity" type="number" min="1" defaultValue="1" className="h-8" />
+        </Field>
         <input type="hidden" name="reason" value={t("manualAdjustment")} />
-        <Button type="submit" size="sm" disabled={pending}>
+        <Button type="submit" size="sm" disabled={pending} className="self-end">
           {t("adjust")}
         </Button>
       </form>
@@ -310,25 +314,24 @@ export function ProductQuickActions({ compact = false, product }: { compact?: bo
         <form action={(formData) => run(updateProduct, formData)} className="mt-3 grid gap-2">
           <input type="hidden" name="id" value={product.id} />
           <div className="grid gap-2 sm:grid-cols-2">
-            <Input name="name" defaultValue={product.name} aria-label={t("name")} />
-            <Input name="category" defaultValue={product.category} aria-label={t("category")} />
-            <Input name="sku" defaultValue={product.sku} aria-label={t("sku")} />
-            <Input
-              name="price"
-              type="number"
-              min="0.01"
-              step="0.01"
-              defaultValue={product.price}
-              aria-label={t("salePrice")}
-            />
-            <Input name="cost" type="number" min="0" step="0.01" defaultValue={product.cost} aria-label={t("cost")} />
-            <Input
-              name="low_stock_threshold"
-              type="number"
-              min="0"
-              defaultValue={product.low_stock_threshold}
-              aria-label={t("lowStockThreshold")}
-            />
+            <Field label={t("name")}>
+              <Input name="name" defaultValue={product.name} />
+            </Field>
+            <Field label={t("category")}>
+              <Input name="category" defaultValue={product.category} />
+            </Field>
+            <Field label={t("sku")}>
+              <Input name="sku" defaultValue={product.sku} />
+            </Field>
+            <Field label={t("salePrice")}>
+              <Input name="price" type="number" min="0.01" step="0.01" defaultValue={product.price} />
+            </Field>
+            <Field label={t("cost")}>
+              <Input name="cost" type="number" min="0" step="0.01" defaultValue={product.cost} />
+            </Field>
+            <Field label={t("lowStockThreshold")}>
+              <Input name="low_stock_threshold" type="number" min="0" defaultValue={product.low_stock_threshold} />
+            </Field>
           </div>
           <Input name="stock_quantity" type="hidden" value={product.stock_quantity} readOnly />
           <div className="flex gap-2">
@@ -391,7 +394,9 @@ export function ReceivePurchaseOrderForm({ order }: { order: PurchaseOrder }) {
               </Field>
             ))}
           </div>
-          <Textarea name="notes" placeholder={t("notesPlaceholder")} />
+          <Field label={t("notes")}>
+            <Textarea name="notes" placeholder={t("notesPlaceholder")} />
+          </Field>
           <Button type="submit" disabled={pending}>
             {pending ? t("saving") : t("receiveStock")}
           </Button>

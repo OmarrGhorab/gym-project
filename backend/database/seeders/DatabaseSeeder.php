@@ -7,8 +7,9 @@ use Illuminate\Database\Seeder;
 /**
  * Root database seeder.
  *
- * Only calls shared infrastructure seeders. Business-module seed data is
- * added by later phases in their own seeders, called from here.
+ * Seeds only the access matrix and stable login users. Business data such as
+ * members, products, sales, shifts, finance, and demo scenarios is intentionally
+ * excluded so local flow testing starts from an empty operational database.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -23,15 +24,5 @@ class DatabaseSeeder extends Seeder
         $this->call(HrFinanceAccessSeeder::class);
         $this->call(RoleMatrixSeeder::class);
         $this->call(RoleUserSeeder::class);
-
-        if (! (bool) env('SEED_DEMO_DATA', false)) {
-            return;
-        }
-
-        $this->call(AttendanceRulesSeeder::class);
-        $this->call(PostmanScenarioSeeder::class);
-        $this->call(DashboardDemoSeeder::class);
-        $this->call(FinanceOverviewSeeder::class);
-        $this->call(SalesActivitySeeder::class);
     }
 }

@@ -2,10 +2,60 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
 import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
+
+const optionalTextInput = (max?: number) =>
+  z.preprocess((value) => {
+    const normalized = String(value ?? "").trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }, (max ? z.string().max(max) : z.string()).nullable());
+
+const optionalDateInput = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim();
+
+  return normalized.length > 0 ? normalized : null;
+}, z.string().date().nullable());
+
+const memberInputSchema = z.object({
+  birth_date: optionalDateInput,
+  email: z.preprocess((value) => {
+    const normalized = String(value ?? "").trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }, z.email("Enter a valid email address.").max(150).nullable()),
+  gender: z.preprocess((value) => {
+    const normalized = String(value ?? "").trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }, z.enum(["male", "female"], { error: "Gender must be male or female." }).nullable()),
+  join_date: optionalDateInput,
+  name: z.string().trim().min(1, "Member name is required.").max(150, "Member name is too long."),
+  national_id: z.preprocess(
+    (value) => {
+      const normalized = String(value ?? "").trim();
+
+      return normalized.length > 0 ? normalized : null;
+    },
+    z
+      .string()
+      .regex(/^[23][0-9]{13}$/, "National ID must be a valid Egyptian national ID.")
+      .nullable(),
+  ),
+  notes: optionalTextInput(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^(?:\+20|0020|0)?1[0125][0-9]{8}$/, "Phone must be a valid Egyptian mobile number."),
+  status: z.enum(["active", "inactive"], { error: "Status must be active or inactive." }),
+});
+
+const memberIdSchema = z.coerce.number().int().min(1, "Member is required.");
 
 export async function fetchMemberDetails(
   memberId: number,
@@ -30,17 +80,7 @@ export async function fetchMemberDetails(
 }
 
 export async function createMember(input: FormData): Promise<void> {
-  const payload = {
-    birth_date: nullableString(input.get("birth_date")),
-    email: nullableString(input.get("email")),
-    gender: nullableString(input.get("gender")),
-    join_date: nullableString(input.get("join_date")),
-    name: String(input.get("name") || ""),
-    national_id: nullableString(input.get("national_id")),
-    notes: nullableString(input.get("notes")),
-    phone: String(input.get("phone") || ""),
-    status: String(input.get("status") || "active"),
-  };
+  const payload = parseMemberInput(input);
 
   await serverApiFetch("/members", {
     body: JSON.stringify(payload),
@@ -55,18 +95,8 @@ export async function createMember(input: FormData): Promise<void> {
 }
 
 export async function updateMember(input: FormData): Promise<void> {
-  const memberId = Number(input.get("id"));
-  const payload = {
-    birth_date: nullableString(input.get("birth_date")),
-    email: nullableString(input.get("email")),
-    gender: nullableString(input.get("gender")),
-    join_date: nullableString(input.get("join_date")),
-    name: String(input.get("name") || ""),
-    national_id: nullableString(input.get("national_id")),
-    notes: nullableString(input.get("notes")),
-    phone: String(input.get("phone") || ""),
-    status: String(input.get("status") || "active"),
-  };
+  const memberId = memberIdSchema.parse(input.get("id"));
+  const payload = parseMemberInput(input);
 
   await serverApiFetch(`/members/${memberId}`, {
     body: JSON.stringify(payload),
@@ -81,7 +111,9 @@ export async function updateMember(input: FormData): Promise<void> {
 }
 
 export async function deactivateMember(input: FormData): Promise<void> {
-  await serverApiFetch(`/members/${Number(input.get("id"))}`, {
+  const memberId = memberIdSchema.parse(input.get("id"));
+
+  await serverApiFetch(`/members/${memberId}`, {
     method: "DELETE",
   });
 
@@ -90,16 +122,20 @@ export async function deactivateMember(input: FormData): Promise<void> {
 }
 
 export async function uploadMemberPhoto(input: FormData): Promise<void> {
-  const memberId = Number(input.get("member_id"));
+  const memberId = memberIdSchema.parse(input.get("member_id"));
   const payload = new FormData();
   const photo = input.get("photo");
 
-  if (!Number.isInteger(memberId) || memberId <= 0) {
-    throw new Error("Invalid member id.");
-  }
-
   if (!(photo instanceof File) || photo.size <= 0) {
     throw new Error("Choose a member photo before uploading.");
+  }
+
+  if (!["image/jpeg", "image/png", "image/webp"].includes(photo.type)) {
+    throw new Error("Photo must be a JPG, PNG, or WebP image.");
+  }
+
+  if (photo.size > 5 * 1024 * 1024) {
+    throw new Error("Photo must be 5 MB or smaller.");
   }
 
   payload.set("photo", photo);
@@ -117,8 +153,16 @@ export async function uploadMemberPhoto(input: FormData): Promise<void> {
   revalidatePath("/dashboard/crm");
 }
 
-function nullableString(value: FormDataEntryValue | null) {
-  const normalized = String(value ?? "").trim();
-
-  return normalized.length > 0 ? normalized : null;
+function parseMemberInput(input: FormData) {
+  return memberInputSchema.parse({
+    birth_date: input.get("birth_date"),
+    email: input.get("email"),
+    gender: input.get("gender"),
+    join_date: input.get("join_date"),
+    name: input.get("name"),
+    national_id: input.get("national_id"),
+    notes: input.get("notes"),
+    phone: input.get("phone"),
+    status: input.get("status") || "active",
+  });
 }

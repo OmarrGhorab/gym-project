@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
 export type LogisticsActionResult =
@@ -14,11 +16,81 @@ export type LogisticsActionResult =
       message: string;
     };
 
+const optionalTextInput = (max: number) =>
+  z.preprocess((value) => {
+    const normalized = String(value ?? "").trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }, z.string().max(max).nullable());
+
+const productInputSchema = z.object({
+  category: z.string().trim().min(1, "Category is required.").max(100, "Category is too long."),
+  cost: z.coerce.number().min(0, "Cost cannot be negative."),
+  low_stock_threshold: z.coerce.number().int().min(0, "Low stock threshold cannot be negative."),
+  name: z.string().trim().min(1, "Product name is required.").max(191, "Product name is too long."),
+  price: z.coerce.number().gt(0, "Price must be greater than 0."),
+  sku: z.string().trim().min(1, "SKU is required.").max(100, "SKU is too long."),
+  stock_quantity: z.coerce.number().int().min(0, "Stock quantity cannot be negative."),
+});
+
+const productIdSchema = z.coerce.number().int().min(1, "Product is required.");
+
+const purchaseOrderInputSchema = z.object({
+  expected_at: optionalTextInput(40),
+  product_id: productIdSchema,
+  quantity_ordered: z.coerce.number().int().min(1, "Quantity ordered must be at least 1."),
+  notes: optionalTextInput(2000),
+  supplier_name: z.string().trim().min(1, "Supplier name is required.").max(191, "Supplier name is too long."),
+  supplier_phone: optionalTextInput(40),
+  unit_cost: z.coerce.number().min(0, "Unit cost cannot be negative."),
+});
+
+const stockAdjustmentInputSchema = z.object({
+  id: productIdSchema,
+  quantity: z.coerce.number().int().gt(0, "Quantity must be greater than 0."),
+  reason: z.string().trim().min(1, "Reason is required.").max(255, "Reason is too long."),
+  type: z.enum(["in", "out"], {
+    error: "Stock type must be stock in or stock out.",
+  }),
+});
+
+const receivePurchaseOrderInputSchema = z
+  .object({
+    id: z.coerce.number().int().min(1, "Purchase order is required."),
+    items: z.string().trim(),
+    notes: optionalTextInput(2000),
+  })
+  .superRefine((value, context) => {
+    const itemPairs = parseReceiveItems(value.items);
+
+    if (itemPairs.some((item) => !Number.isInteger(item.id) || item.id < 1)) {
+      context.addIssue({
+        code: "custom",
+        message: "Received item is invalid.",
+        path: ["items"],
+      });
+    }
+  });
+
 export async function createProduct(input: FormData): Promise<LogisticsActionResult> {
+  const parsed = productInputSchema.safeParse({
+    category: input.get("category"),
+    cost: input.get("cost") ?? "0",
+    low_stock_threshold: input.get("low_stock_threshold") ?? "0",
+    name: input.get("name"),
+    price: input.get("price") ?? "0",
+    sku: input.get("sku"),
+    stock_quantity: input.get("stock_quantity") ?? "0",
+  });
+
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
+
   const payload = new FormData();
 
-  for (const key of ["name", "category", "sku", "price", "cost", "stock_quantity", "low_stock_threshold"]) {
-    payload.set(key, String(input.get(key) ?? ""));
+  for (const [key, value] of Object.entries(parsed.data)) {
+    payload.set(key, String(value));
   }
 
   const image = input.get("image");
@@ -48,18 +120,33 @@ export async function createProduct(input: FormData): Promise<LogisticsActionRes
 }
 
 export async function createPurchaseOrder(input: FormData): Promise<LogisticsActionResult> {
+  const parsed = purchaseOrderInputSchema.safeParse({
+    expected_at: input.get("expected_at"),
+    notes: input.get("notes"),
+    product_id: input.get("product_id"),
+    quantity_ordered: input.get("quantity_ordered"),
+    supplier_name: input.get("supplier_name"),
+    supplier_phone: input.get("supplier_phone"),
+    unit_cost: input.get("unit_cost") ?? "0",
+  });
+
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
+
+  const data = parsed.data;
   const payload = {
-    expected_at: String(input.get("expected_at") ?? ""),
+    expected_at: data.expected_at,
     items: [
       {
-        product_id: Number(input.get("product_id")),
-        quantity_ordered: Number(input.get("quantity_ordered")),
-        unit_cost: String(input.get("unit_cost") ?? "0"),
+        product_id: data.product_id,
+        quantity_ordered: data.quantity_ordered,
+        unit_cost: String(data.unit_cost),
       },
     ],
-    notes: String(input.get("notes") ?? ""),
-    supplier_name: String(input.get("supplier_name") ?? ""),
-    supplier_phone: String(input.get("supplier_phone") ?? ""),
+    notes: data.notes,
+    supplier_name: data.supplier_name,
+    supplier_phone: data.supplier_phone,
   };
 
   try {
@@ -87,20 +174,32 @@ export async function createPurchaseOrder(input: FormData): Promise<LogisticsAct
 }
 
 export async function updateProduct(input: FormData): Promise<LogisticsActionResult> {
-  const productId = Number(input.get("id"));
-  const payload = {
-    category: String(input.get("category") ?? ""),
-    cost: String(input.get("cost") ?? "0"),
-    low_stock_threshold: Number(input.get("low_stock_threshold") ?? 0),
-    name: String(input.get("name") ?? ""),
-    price: String(input.get("price") ?? "0"),
-    sku: String(input.get("sku") ?? ""),
-    stock_quantity: Number(input.get("stock_quantity") ?? 0),
-  };
+  const id = productIdSchema.safeParse(input.get("id"));
+  const parsed = productInputSchema.safeParse({
+    category: input.get("category"),
+    cost: input.get("cost") ?? "0",
+    low_stock_threshold: input.get("low_stock_threshold") ?? "0",
+    name: input.get("name"),
+    price: input.get("price") ?? "0",
+    sku: input.get("sku"),
+    stock_quantity: input.get("stock_quantity") ?? "0",
+  });
+
+  if (!id.success) {
+    return invalidActionResult(id.error);
+  }
+
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
 
   try {
-    await serverApiFetch(`/products/${productId}`, {
-      body: JSON.stringify(payload),
+    await serverApiFetch(`/products/${id.data}`, {
+      body: JSON.stringify({
+        ...parsed.data,
+        cost: String(parsed.data.cost),
+        price: String(parsed.data.price),
+      }),
       headers: {
         "Content-Type": "application/json",
       },
@@ -119,42 +218,69 @@ export async function updateProduct(input: FormData): Promise<LogisticsActionRes
 }
 
 export async function toggleProduct(input: FormData): Promise<LogisticsActionResult> {
-  return mutateSimple(`/products/${Number(input.get("id"))}/toggle`, "PATCH", "Product status updated.");
+  const id = productIdSchema.safeParse(input.get("id"));
+
+  if (!id.success) {
+    return invalidActionResult(id.error);
+  }
+
+  return mutateSimple(`/products/${id.data}/toggle`, "PATCH", "Product status updated.");
 }
 
 export async function deleteProduct(input: FormData): Promise<LogisticsActionResult> {
-  return mutateSimple(`/products/${Number(input.get("id"))}`, "DELETE", "Product deleted.");
+  const id = productIdSchema.safeParse(input.get("id"));
+
+  if (!id.success) {
+    return invalidActionResult(id.error);
+  }
+
+  return mutateSimple(`/products/${id.data}`, "DELETE", "Product deleted.");
 }
 
 export async function adjustProductStock(input: FormData): Promise<LogisticsActionResult> {
-  const payload = {
-    quantity: Number(input.get("quantity") || 0),
-    reason: String(input.get("reason") || ""),
-    type: String(input.get("type") || "in"),
-  };
+  const parsed = stockAdjustmentInputSchema.safeParse({
+    id: input.get("id"),
+    quantity: input.get("quantity") ?? "0",
+    reason: input.get("reason"),
+    type: input.get("type") ?? "in",
+  });
 
-  return mutateJson(`/products/${Number(input.get("id"))}/stock`, "POST", payload, "Stock adjusted.");
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
+
+  const { id, ...payload } = parsed.data;
+
+  return mutateJson(`/products/${id}/stock`, "POST", payload, "Stock adjusted.");
 }
 
 export async function receivePurchaseOrder(input: FormData): Promise<LogisticsActionResult> {
-  const items = String(input.get("items") || "")
-    .split("|")
-    .filter(Boolean)
-    .map((pair) => {
-      const [id, quantity] = pair.split(":");
+  const parsed = receivePurchaseOrderInputSchema.safeParse({
+    id: input.get("id"),
+    items: input.get("items") ?? "",
+    notes: input.get("notes"),
+  });
 
-      return {
-        id: Number(id),
-        quantity_received: Number(input.get(`received_${id}`) || quantity || 0),
-      };
-    });
+  if (!parsed.success) {
+    return invalidActionResult(parsed.error);
+  }
+
+  const items = parseReceiveItems(parsed.data.items).map((item) => ({
+    id: item.id,
+    quantity_received: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .catch(item.defaultQuantity)
+      .parse(input.get(`received_${item.id}`) ?? item.defaultQuantity),
+  }));
 
   return mutateJson(
-    `/purchase-orders/${Number(input.get("id"))}/receive`,
+    `/purchase-orders/${parsed.data.id}/receive`,
     "POST",
     {
       items,
-      notes: String(input.get("notes") || ""),
+      notes: parsed.data.notes,
     },
     "Purchase order received.",
   );
@@ -197,4 +323,25 @@ function revalidateInventory() {
   revalidatePath("/dashboard/logistics");
   revalidatePath("/dashboard/ecommerce");
   revalidatePath("/dashboard/finance");
+}
+
+function invalidActionResult(error: z.ZodError): LogisticsActionResult {
+  return {
+    ok: false,
+    message: error.issues[0]?.message ?? "Please check the form fields.",
+  };
+}
+
+function parseReceiveItems(value: string) {
+  return value
+    .split("|")
+    .filter(Boolean)
+    .map((pair) => {
+      const [id, quantity] = pair.split(":");
+
+      return {
+        defaultQuantity: Number(quantity || 0),
+        id: Number(id),
+      };
+    });
 }

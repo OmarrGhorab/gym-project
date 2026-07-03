@@ -20,19 +20,27 @@ final class Plan extends Model
         'price',
         'duration_days',
         'sessions_count',
+        'is_unlimited_sessions',
         'type',
+        'category',
         'is_active',
         'valid_from',
         'valid_to',
+        'access_starts_at',
+        'access_ends_at',
         'max_freeze_days',
+        'min_freeze_days',
+        'freeze_requires_approval',
         'commission_rate',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'is_unlimited_sessions' => 'boolean',
         'is_active' => 'boolean',
         'valid_from' => 'date',
         'valid_to' => 'date',
+        'freeze_requires_approval' => 'boolean',
         'commission_rate' => 'decimal:4',
     ];
 
@@ -70,5 +78,24 @@ final class Plan extends Model
         }
 
         return true;
+    }
+
+    public function allowsAccessAt(Carbon $time): bool
+    {
+        if ($this->access_starts_at === null || $this->access_ends_at === null) {
+            return true;
+        }
+
+        $startsAt = Carbon::createFromFormat('H:i:s', (string) $this->access_starts_at)
+            ?: Carbon::createFromFormat('H:i', (string) $this->access_starts_at);
+        $endsAt = Carbon::createFromFormat('H:i:s', (string) $this->access_ends_at)
+            ?: Carbon::createFromFormat('H:i', (string) $this->access_ends_at);
+        $visitTime = Carbon::createFromTime($time->hour, $time->minute, $time->second);
+
+        if ($startsAt->lte($endsAt)) {
+            return $visitTime->betweenIncluded($startsAt, $endsAt);
+        }
+
+        return $visitTime->gte($startsAt) || $visitTime->lte($endsAt);
     }
 }

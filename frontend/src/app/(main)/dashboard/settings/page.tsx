@@ -1,4 +1,5 @@
 import { Clock3, MapPinned, Palette, ShieldAlert } from "lucide-react";
+import type * as React from "react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -149,10 +150,18 @@ export default async function Page() {
               <p className="text-muted-foreground text-xs">{t("shiftFormHint")}</p>
               <form action={saveShift} className="grid gap-3 md:grid-cols-5">
                 <input type="hidden" name="id" value="0" />
-                <Input name="name" placeholder={t("shiftName")} required />
-                <FormTimePicker name="starts_at" required />
-                <FormTimePicker name="ends_at" required />
-                <Input name="grace_minutes" type="number" min={0} defaultValue={settings.attendance.default_grace_minutes} />
+                <CompactField label={t("shiftName")}>
+                  <Input name="name" placeholder={t("shiftName")} required />
+                </CompactField>
+                <CompactField label={t("startsAt")}>
+                  <FormTimePicker name="starts_at" required />
+                </CompactField>
+                <CompactField label={t("endsAt")}>
+                  <FormTimePicker name="ends_at" required />
+                </CompactField>
+                <CompactField label={t("graceMinutes")}>
+                  <Input name="grace_minutes" type="number" min={0} defaultValue={settings.attendance.default_grace_minutes} />
+                </CompactField>
                 <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
                   <Checkbox name="is_active" defaultChecked />
                   {t("active")}
@@ -164,10 +173,18 @@ export default async function Page() {
               {shifts.map((shift) => (
                 <form key={`edit-${shift.id}`} action={saveShift} className="grid gap-3 border-t pt-3 md:grid-cols-6">
                   <input type="hidden" name="id" value={shift.id} />
-                  <Input name="name" defaultValue={shift.name} aria-label={t("shiftName")} />
-                  <FormTimePicker name="starts_at" defaultValue={shift.starts_at.slice(0, 5)} />
-                  <FormTimePicker name="ends_at" defaultValue={shift.ends_at.slice(0, 5)} />
-                  <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} aria-label={t("grace")} />
+                  <CompactField label={t("shiftName")}>
+                    <Input name="name" defaultValue={shift.name} />
+                  </CompactField>
+                  <CompactField label={t("startsAt")}>
+                    <FormTimePicker name="starts_at" defaultValue={shift.starts_at.slice(0, 5)} />
+                  </CompactField>
+                  <CompactField label={t("endsAt")}>
+                    <FormTimePicker name="ends_at" defaultValue={shift.ends_at.slice(0, 5)} />
+                  </CompactField>
+                  <CompactField label={t("graceMinutes")}>
+                    <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
+                  </CompactField>
                   <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
                     <Checkbox name="is_active" defaultChecked={shift.is_active} />
                     {t("active")}
@@ -265,6 +282,15 @@ export default async function Page() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function CompactField({ children, label }: { children: React.ReactNode; label: string }) {
+  return (
+    <div className="grid min-w-0 gap-1">
+      <div className="text-muted-foreground text-xs font-medium">{label}</div>
+      {children}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -44,7 +45,17 @@ export default async function Page() {
           <CardContent>
             <form action={createPlan} className="grid gap-4">
               <Field label={t("name")} name="name" />
-              <Field label={t("type")} name="type" defaultValue="monthly" />
+              <div className="space-y-2">
+                <Label>{t("type")}</Label>
+                <FormSelect
+                  name="type"
+                  defaultValue="membership"
+                  options={[
+                    { value: "membership", label: t("planTypes.membership") },
+                    { value: "offer", label: t("planTypes.offer") },
+                  ]}
+                />
+              </div>
               <Field label={t("price")} name="price" type="number" step="0.01" />
               <Field label={t("durationDays")} name="duration_days" type="number" defaultValue="30" />
               <Field label={t("sessionsCount")} name="sessions_count" type="number" />
