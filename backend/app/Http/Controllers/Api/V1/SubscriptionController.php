@@ -7,9 +7,11 @@ use App\Actions\Subscriptions\FreezeSubscription;
 use App\Actions\Subscriptions\RenewSubscription;
 use App\Actions\Subscriptions\StopSubscription;
 use App\Actions\Subscriptions\UnfreezeSubscription;
+use App\Actions\Subscriptions\UpgradeSubscription;
 use App\Http\Requests\Subscriptions\FreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\RenewSubscriptionRequest;
 use App\Http\Requests\Subscriptions\StoreSubscriptionRequest;
+use App\Http\Requests\Subscriptions\UpgradeSubscriptionRequest;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
@@ -112,6 +114,19 @@ class SubscriptionController extends ApiController
 
         return (new SubscriptionResource($renewed))
             ->withMessage('Subscription renewed')
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function upgrade(
+        UpgradeSubscriptionRequest $request,
+        Subscription $subscription,
+        UpgradeSubscription $action,
+    ): JsonResponse {
+        $upgraded = $action->handle($subscription, $request->validated(), $request->user());
+
+        return (new SubscriptionResource($upgraded))
+            ->withMessage('Subscription upgraded')
             ->response()
             ->setStatusCode(201);
     }

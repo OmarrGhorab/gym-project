@@ -20,11 +20,17 @@ final class PlanFactory extends Factory
             'price' => $this->faker->randomFloat(2, 50, 1000),
             'duration_days' => $this->faker->numberBetween(7, 365),
             'sessions_count' => $this->faker->optional()->numberBetween(4, 50),
+            'is_unlimited_sessions' => false,
             'type' => $this->faker->randomElement(['membership', 'offer']),
+            'category' => $this->faker->randomElement(['gym_access', 'personal_training', 'classes']),
             'is_active' => true,
             'valid_from' => null,
             'valid_to' => null,
+            'access_starts_at' => null,
+            'access_ends_at' => null,
             'max_freeze_days' => 0,
+            'min_freeze_days' => 0,
+            'freeze_requires_approval' => false,
         ];
     }
 

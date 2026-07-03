@@ -15,6 +15,23 @@ final class StorePlan
      */
     public function handle(array $data): Plan
     {
+        $data = $this->normalize($data);
+
         return Plan::create($data);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalize(array $data): array
+    {
+        $data['is_unlimited_sessions'] = (bool) ($data['is_unlimited_sessions'] ?? false);
+
+        if ($data['is_unlimited_sessions']) {
+            $data['sessions_count'] = null;
+        }
+
+        return $data;
     }
 }

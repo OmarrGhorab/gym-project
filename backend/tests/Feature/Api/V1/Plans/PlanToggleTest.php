@@ -41,6 +41,7 @@ test('admin can update a plan and receives 200 with updated resource', function 
         'price' => '350.00',
         'duration_days' => 30,
         'type' => 'membership',
+        'category' => 'gym_access',
     ])
         ->assertStatus(200)
         ->assertJson(fn (AssertableJson $json) => $json
@@ -64,6 +65,7 @@ test('plan update returns 404 for non-existent plan', function (): void {
         'price' => '350.00',
         'duration_days' => 30,
         'type' => 'membership',
+        'category' => 'gym_access',
     ])->assertStatus(404);
 });
 
@@ -75,6 +77,7 @@ test('unauthenticated plan update returns 401', function (): void {
         'price' => '350.00',
         'duration_days' => 30,
         'type' => 'membership',
+        'category' => 'gym_access',
     ])->assertStatus(401);
 });
 
@@ -90,6 +93,7 @@ test('cashier without plans.update permission gets 403 on update', function (): 
         'price' => '350.00',
         'duration_days' => 30,
         'type' => 'membership',
+        'category' => 'gym_access',
     ])->assertStatus(403);
 });
 
@@ -105,6 +109,7 @@ test('plan update returns 422 when valid_to is before valid_from', function (): 
         'price' => '300.00',
         'duration_days' => 30,
         'type' => 'membership',
+        'category' => 'gym_access',
         'valid_from' => '2026-12-31',
         'valid_to' => '2026-06-01',
     ])
@@ -125,6 +130,7 @@ test('plan update returns 422 when max_freeze_days exceeds duration_days', funct
         'price' => '300.00',
         'duration_days' => 10,
         'type' => 'membership',
+        'category' => 'gym_access',
         'max_freeze_days' => 15,
     ])
         ->assertStatus(422)
@@ -144,6 +150,7 @@ test('plan update returns 422 when price is negative', function (): void {
         'price' => '-5.00',
         'duration_days' => 30,
         'type' => 'membership',
+        'category' => 'gym_access',
     ])
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed');

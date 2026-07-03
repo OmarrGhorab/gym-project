@@ -9,10 +9,18 @@ export type PlanRow = {
   price: string;
   duration_days: number;
   sessions_count: number | null;
+  is_unlimited_sessions: boolean;
   type: string;
+  category: string;
   is_active: boolean;
   is_sellable: boolean;
+  valid_from: string | null;
+  valid_to: string | null;
+  access_starts_at: string | null;
+  access_ends_at: string | null;
   max_freeze_days: number;
+  min_freeze_days: number;
+  freeze_requires_approval: boolean;
   created_at: string | null;
 };
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Plans;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 final class UpdatePlanRequest extends FormRequest
 {
@@ -21,12 +22,18 @@ final class UpdatePlanRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
             'duration_days' => ['required', 'integer', 'min:1'],
-            'sessions_count' => ['nullable', 'integer', 'min:1'],
+            'sessions_count' => ['nullable', 'required_if:is_unlimited_sessions,false', 'integer', 'min:1'],
+            'is_unlimited_sessions' => ['sometimes', 'boolean'],
             'type' => ['required', 'string', 'in:membership,offer'],
+            'category' => ['required', 'string', Rule::in(['gym_access', 'personal_training', 'classes', 'nutrition', 'recovery'])],
             'is_active' => ['sometimes', 'boolean'],
             'valid_from' => ['nullable', 'date'],
             'valid_to' => ['nullable', 'date', 'after_or_equal:valid_from'],
+            'access_starts_at' => ['nullable', 'date_format:H:i'],
+            'access_ends_at' => ['nullable', 'required_with:access_starts_at', 'date_format:H:i'],
             'max_freeze_days' => ['sometimes', 'integer', 'min:0', 'lte:duration_days'],
+            'min_freeze_days' => ['sometimes', 'integer', 'min:0', 'lte:max_freeze_days'],
+            'freeze_requires_approval' => ['sometimes', 'boolean'],
         ];
     }
 }

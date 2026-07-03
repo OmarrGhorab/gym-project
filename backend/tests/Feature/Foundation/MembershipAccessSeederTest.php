@@ -109,6 +109,7 @@ test('cashier role has correct membership permissions', function (): void {
         MembershipPermissions::PERM_SUBSCRIPTIONS_VIEW,
         MembershipPermissions::PERM_SUBSCRIPTIONS_CREATE,
         MembershipPermissions::PERM_SUBSCRIPTIONS_RENEW,
+        MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE,
         MembershipPermissions::PERM_PAYMENTS_VIEW,
         MembershipPermissions::PERM_PAYMENTS_CREATE,
     ];

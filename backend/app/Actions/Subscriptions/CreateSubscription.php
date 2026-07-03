@@ -46,6 +46,9 @@ class CreateSubscription
             $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
             $subtotal = bcmul((string) $plan->price, (string) $cycles, 2);
             $pricePaid = bcsub($subtotal, $discount, 2);
+            $sessionAllowance = $plan->is_unlimited_sessions || $plan->sessions_count === null
+                ? null
+                : (int) $plan->sessions_count * $cycles;
 
             if (bccomp($pricePaid, '0.00', 2) === -1) {
                 throw ValidationException::withMessages([
@@ -61,11 +64,15 @@ class CreateSubscription
                 'status' => 'active',
                 'price_paid' => $pricePaid,
                 'discount' => $discount,
+                'sessions_total' => $sessionAllowance,
+                'sessions_remaining' => $sessionAllowance,
                 'sold_by_user_id' => $seller->id,
                 'created_by' => $seller->id,
             ]);
 
-            $this->recordPayment->handle($subscription, $data['payment'], $seller);
+            if (bccomp($pricePaid, '0.00', 2) === 1) {
+                $this->recordPayment->handle($subscription, $data['payment'], $seller);
+            }
 
             return $subscription->load(['member', 'plan', 'soldBy', 'payments']);
         });

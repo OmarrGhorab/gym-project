@@ -52,6 +52,8 @@ final class MembershipPermissions
 
     public const PERM_SUBSCRIPTIONS_RENEW = 'subscriptions.renew';
 
+    public const PERM_SUBSCRIPTIONS_UPGRADE = 'subscriptions.upgrade';
+
     public const PERM_SUBSCRIPTIONS_FREEZE = 'subscriptions.freeze';
 
     public const PERM_SUBSCRIPTIONS_STOP = 'subscriptions.stop';
@@ -96,6 +98,7 @@ final class MembershipPermissions
         self::PERM_SUBSCRIPTIONS_VIEW,
         self::PERM_SUBSCRIPTIONS_CREATE,
         self::PERM_SUBSCRIPTIONS_RENEW,
+        self::PERM_SUBSCRIPTIONS_UPGRADE,
         self::PERM_SUBSCRIPTIONS_FREEZE,
         self::PERM_SUBSCRIPTIONS_STOP,
         // Payments

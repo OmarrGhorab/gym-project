@@ -15,8 +15,25 @@ final class UpdatePlan
      */
     public function handle(Plan $plan, array $data): Plan
     {
+        $data = $this->normalize($data);
+
         $plan->update($data);
 
         return $plan->fresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalize(array $data): array
+    {
+        $data['is_unlimited_sessions'] = (bool) ($data['is_unlimited_sessions'] ?? false);
+
+        if ($data['is_unlimited_sessions']) {
+            $data['sessions_count'] = null;
+        }
+
+        return $data;
     }
 }

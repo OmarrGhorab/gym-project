@@ -34,10 +34,23 @@ class FreezeSubscription
 
             $usedDays = (int) $lockedSubscription->freezes->sum('days');
             $maxFreezeDays = (int) $plan->max_freeze_days;
+            $minFreezeDays = (int) $plan->min_freeze_days;
+
+            if ($minFreezeDays > 0 && $days < $minFreezeDays) {
+                throw ValidationException::withMessages([
+                    'freeze_end' => 'Freeze duration is shorter than the plan minimum.',
+                ]);
+            }
 
             if ($maxFreezeDays < 1 || ($usedDays + $days) > $maxFreezeDays) {
                 throw ValidationException::withMessages([
                     'freeze_end' => 'Freeze duration exceeds the plan allowance.',
+                ]);
+            }
+
+            if ($plan->freeze_requires_approval) {
+                throw ValidationException::withMessages([
+                    'subscription' => 'This plan requires admin approval before freezing.',
                 ]);
             }
 

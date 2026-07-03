@@ -20,6 +20,9 @@ Route::prefix('subscriptions')->group(function (): void {
     Route::post('/{subscription}/renew', [SubscriptionController::class, 'renew'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_RENEW]);
 
+    Route::post('/{subscription}/upgrade', [SubscriptionController::class, 'upgrade'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE]);
+
     Route::post('/{subscription}/freeze', [SubscriptionController::class, 'freeze'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE]);
 

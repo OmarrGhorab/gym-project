@@ -56,10 +56,37 @@ export default async function Page() {
                   ]}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>{t("category")}</Label>
+                <FormSelect
+                  name="category"
+                  defaultValue="gym_access"
+                  options={[
+                    { value: "gym_access", label: t("categories.gym_access") },
+                    { value: "personal_training", label: t("categories.personal_training") },
+                    { value: "classes", label: t("categories.classes") },
+                    { value: "nutrition", label: t("categories.nutrition") },
+                    { value: "recovery", label: t("categories.recovery") },
+                  ]}
+                />
+              </div>
               <Field label={t("price")} name="price" type="number" step="0.01" />
               <Field label={t("durationDays")} name="duration_days" type="number" defaultValue="30" />
+              <div className="flex items-center gap-2">
+                <input id="is_unlimited_sessions" name="is_unlimited_sessions" type="checkbox" />
+                <Label htmlFor="is_unlimited_sessions">{t("unlimitedSessions")}</Label>
+              </div>
               <Field label={t("sessionsCount")} name="sessions_count" type="number" />
               <Field label={t("maxFreezeDays")} name="max_freeze_days" type="number" defaultValue="0" />
+              <Field label={t("minFreezeDays")} name="min_freeze_days" type="number" defaultValue="0" />
+              <div className="flex items-center gap-2">
+                <input id="freeze_requires_approval" name="freeze_requires_approval" type="checkbox" />
+                <Label htmlFor="freeze_requires_approval">{t("freezeRequiresApproval")}</Label>
+              </div>
+              <Field label={t("validFrom")} name="valid_from" type="date" />
+              <Field label={t("validTo")} name="valid_to" type="date" />
+              <Field label={t("accessStartsAt")} name="access_starts_at" type="time" />
+              <Field label={t("accessEndsAt")} name="access_ends_at" type="time" />
               <div className="space-y-2">
                 <Label htmlFor="description">{t("descriptionField")}</Label>
                 <Textarea id="description" name="description" />
@@ -83,6 +110,7 @@ export default async function Page() {
                 <TableRow>
                   <TableHead>{t("name")}</TableHead>
                   <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("category")}</TableHead>
                   <TableHead>{t("price")}</TableHead>
                   <TableHead>{t("duration")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
@@ -97,6 +125,7 @@ export default async function Page() {
                       <div className="line-clamp-1 text-muted-foreground text-xs">{plan.description}</div>
                     </TableCell>
                     <TableCell>{plan.type}</TableCell>
+                    <TableCell>{t(`categories.${plan.category}`)}</TableCell>
                     <TableCell>{formatCurrency(Number(plan.price), { currency: "EGP", noDecimals: true })}</TableCell>
                     <TableCell>{t("days", { count: plan.duration_days })}</TableCell>
                     <TableCell>
@@ -124,7 +153,7 @@ export default async function Page() {
                 ))}
                 {plans.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                       {t("noPlans")}
                     </TableCell>
                   </TableRow>

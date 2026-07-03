@@ -109,6 +109,7 @@ test('admin can create a plan and receives 201 with plan resource', function ():
         'duration_days' => 30,
         'sessions_count' => null,
         'type' => 'membership',
+        'category' => 'gym_access',
         'is_active' => true,
         'valid_from' => '2026-06-01',
         'valid_to' => '2026-12-31',
@@ -262,6 +263,7 @@ test('plan store accepts zero price (free plan)', function (): void {
         'price' => '0.00',
         'duration_days' => 7,
         'type' => 'offer',
+        'category' => 'gym_access',
     ])->assertStatus(201);
 });
 

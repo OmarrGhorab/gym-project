@@ -28,6 +28,11 @@ class SubscriptionPolicy
         return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_RENEW);
     }
 
+    public function upgrade(User $user, Subscription $subscription): bool
+    {
+        return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE);
+    }
+
     public function freeze(User $user, Subscription $subscription): bool
     {
         return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE);

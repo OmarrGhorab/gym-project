@@ -19,6 +19,7 @@ class Subscription extends Model
     protected $fillable = [
         'member_id',
         'plan_id',
+        'upgraded_from_subscription_id',
         'start_date',
         'end_date',
         'status',
@@ -60,6 +61,11 @@ class Subscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function upgradedFrom(): BelongsTo
+    {
+        return $this->belongsTo(Subscription::class, 'upgraded_from_subscription_id');
     }
 
     public function soldBy(): BelongsTo
