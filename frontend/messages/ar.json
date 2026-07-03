@@ -823,7 +823,20 @@
         "document": "إضافة مستند"
       },
       "selectDate": "اختر التاريخ",
-      "time": "الوقت"
+      "time": "الوقت",
+      "addSubscription": "إضافة اشتراك",
+      "addSubscriptionDescription": "اختر الخطة وتاريخ البداية والنهاية والدفع لـ {name}.",
+      "subscriptionAdded": "تمت إضافة الاشتراك.",
+      "selectPlan": "اختر الخطة",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية",
+      "paymentAmount": "مبلغ الدفع",
+      "paymentMethod": "طريقة الدفع",
+      "cash": "نقدي",
+      "card": "بطاقة",
+      "bankTransfer": "تحويل بنكي",
+      "discount": "الخصم",
+      "coach": "المدرب"
     },
     "plans": {
       "title": "خطط الاشتراك",
@@ -869,7 +882,11 @@
       "disable": "تعطيل",
       "enable": "تفعيل",
       "delete": "حذف",
-      "noPlans": "لا توجد خطط."
+      "noPlans": "لا توجد خطط.",
+      "selectDate": "اختر التاريخ",
+      "freezeRequiresApprovalHelp": "عند تفعيلها، طلبات التجميد تحتاج موافقة الموظف أو المدير قبل إيقاف الاشتراك مؤقتًا.",
+      "planCreated": "تم إنشاء الخطة.",
+      "saving": "جار الحفظ..."
     },
     "payroll": {
       "title": "الرواتب",

@@ -1,18 +1,15 @@
-import { PackageCheck, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 
-import { createPlan, deletePlan, togglePlan } from "./_components/actions";
+import { deletePlan, togglePlan } from "./_components/actions";
 import { getPlansPageData } from "./_components/data";
+import { PlanCreateForm } from "./_components/plan-create-form";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.plans");
@@ -43,59 +40,7 @@ export default async function Page() {
             <CardDescription>{t("createDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createPlan} className="grid gap-4">
-              <Field label={t("name")} name="name" />
-              <div className="space-y-2">
-                <Label>{t("type")}</Label>
-                <FormSelect
-                  name="type"
-                  defaultValue="membership"
-                  options={[
-                    { value: "membership", label: t("planTypes.membership") },
-                    { value: "offer", label: t("planTypes.offer") },
-                  ]}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("category")}</Label>
-                <FormSelect
-                  name="category"
-                  defaultValue="gym_access"
-                  options={[
-                    { value: "gym_access", label: t("categories.gym_access") },
-                    { value: "personal_training", label: t("categories.personal_training") },
-                    { value: "classes", label: t("categories.classes") },
-                    { value: "nutrition", label: t("categories.nutrition") },
-                    { value: "recovery", label: t("categories.recovery") },
-                  ]}
-                />
-              </div>
-              <Field label={t("price")} name="price" type="number" step="0.01" />
-              <Field label={t("durationDays")} name="duration_days" type="number" defaultValue="30" />
-              <div className="flex items-center gap-2">
-                <input id="is_unlimited_sessions" name="is_unlimited_sessions" type="checkbox" />
-                <Label htmlFor="is_unlimited_sessions">{t("unlimitedSessions")}</Label>
-              </div>
-              <Field label={t("sessionsCount")} name="sessions_count" type="number" />
-              <Field label={t("maxFreezeDays")} name="max_freeze_days" type="number" defaultValue="0" />
-              <Field label={t("minFreezeDays")} name="min_freeze_days" type="number" defaultValue="0" />
-              <div className="flex items-center gap-2">
-                <input id="freeze_requires_approval" name="freeze_requires_approval" type="checkbox" />
-                <Label htmlFor="freeze_requires_approval">{t("freezeRequiresApproval")}</Label>
-              </div>
-              <DateField label={t("validFrom")} name="valid_from" placeholder={t("selectDate")} />
-              <DateField label={t("validTo")} name="valid_to" placeholder={t("selectDate")} />
-              <TimeField label={t("accessStartsAt")} name="access_starts_at" />
-              <TimeField label={t("accessEndsAt")} name="access_ends_at" />
-              <div className="space-y-2">
-                <Label htmlFor="description">{t("descriptionField")}</Label>
-                <Textarea id="description" name="description" />
-              </div>
-              <Button type="submit">
-                <PackageCheck />
-                {t("createPlan")}
-              </Button>
-            </form>
+            <PlanCreateForm />
           </CardContent>
         </Card>
 
@@ -167,45 +112,6 @@ export default async function Page() {
   );
 }
 
-function Field({
-  defaultValue = "",
-  label,
-  name,
-  step,
-  type = "text",
-}: {
-  defaultValue?: string;
-  label: string;
-  name: string;
-  step?: string;
-  type?: string;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} step={step} defaultValue={defaultValue} />
-    </div>
-  );
-}
-
-
-function DateField({ label, name, placeholder }: { label: string; name: string; placeholder?: string }) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <FormDatePicker name={name} placeholder={placeholder} />
-    </div>
-  );
-}
-
-function TimeField({ label, name }: { label: string; name: string }) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <FormTimePicker name={name} />
-    </div>
-  );
-}
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <Card>
@@ -216,5 +122,3 @@ function Summary({ label, value }: { label: string; value: string }) {
     </Card>
   );
 }
-
-

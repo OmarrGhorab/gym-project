@@ -27,13 +27,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FormDatePicker } from "@/components/ui/form-controls";
+import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createMember, deactivateMember, fetchMemberDetails, updateMember, uploadMemberPhoto } from "./actions";
-import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
+import { createMember, createMemberSubscription, deactivateMember, fetchMemberDetails, updateMember, uploadMemberPhoto } from "./actions";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
+import type { PlanRow } from "../../plans/_components/data";
 import { MemberDetailsDialog } from "./member-details-dialog";
 
 type ActionResult = {
@@ -169,11 +170,12 @@ export function MemberPhotoDialog({ member }: { member: MemberRow }) {
   );
 }
 
-export function MemberActionsMenu({ member }: { member: MemberRow }) {
+export function MemberActionsMenu({ member, plans, staff }: { member: MemberRow; plans: PlanRow[]; staff: StaffOption[] }) {
   const t = useTranslations("Dashboard.membersPage");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
+  const [subscriptionOpen, setSubscriptionOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
   const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
   const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
@@ -221,6 +223,7 @@ export function MemberActionsMenu({ member }: { member: MemberRow }) {
             <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{t("viewDetails")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setEditOpen(true)}>{t("editMember")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{t("uploadPhoto")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>{t("addSubscription")}</DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -235,9 +238,11 @@ export function MemberActionsMenu({ member }: { member: MemberRow }) {
         onOpenChange={setDetailsOpen}
         payments={payments}
         visits={visits}
+        staff={staff}
       />
       <EditMemberControlledDialog member={member} open={editOpen} onOpenChange={setEditOpen} />
       <MemberPhotoControlledDialog member={member} open={photoOpen} onOpenChange={setPhotoOpen} />
+      <MemberSubscriptionDialog member={member} plans={plans} open={subscriptionOpen} onOpenChange={setSubscriptionOpen} />
     </>
   );
 }
@@ -312,6 +317,82 @@ function MemberPhotoControlledDialog({
   );
 }
 
+
+function MemberSubscriptionDialog({
+  member,
+  onOpenChange,
+  open,
+  plans,
+}: {
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  plans: PlanRow[];
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+  const { pending, submit } = useActionSubmit(
+    { label: t("addSubscription"), run: createMemberSubscription, success: t("subscriptionAdded") },
+    () => onOpenChange(false),
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("addSubscription")}</DialogTitle>
+          <DialogDescription>{t("addSubscriptionDescription", { name: member.name })}</DialogDescription>
+        </DialogHeader>
+        <form action={submit} className="grid gap-4">
+          <input type="hidden" name="member_id" value={member.id} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
+              <span className="font-medium text-sm">{t("plan")}</span>
+              <FormSelect
+                name="plan_id"
+                required
+                placeholder={t("selectPlan")}
+                options={plans.map((plan) => ({
+                  value: String(plan.id),
+                  label: `${plan.name} - ${plan.price} EGP`,
+                }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <span className="font-medium text-sm">{t("startDate")}</span>
+              <FormDatePicker name="start_date" placeholder={t("selectDate")} required />
+            </div>
+            <div className="grid gap-2">
+              <span className="font-medium text-sm">{t("endDate")}</span>
+              <FormDatePicker name="end_date" placeholder={t("selectDate")} required />
+            </div>
+            <Field label={t("paymentAmount")} name="payment_amount" required type="number" />
+            <div className="grid gap-2">
+              <span className="font-medium text-sm">{t("paymentMethod")}</span>
+              <FormSelect
+                name="payment_method"
+                defaultValue="cash"
+                options={[
+                  { value: "cash", label: t("cash") },
+                  { value: "card", label: t("card") },
+                  { value: "bank_transfer", label: t("bankTransfer") },
+                ]}
+              />
+            </div>
+            <Field label={t("discount")} name="discount" type="number" defaultValue="0" />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("cancel")}
+            </Button>
+            <Button type="submit" disabled={pending || plans.length === 0}>
+              {pending ? t("saving") : t("addSubscription")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 function PhotoDialogContent({
   member,
   onCancel,
@@ -524,3 +605,6 @@ function DateField({ defaultValue, label, name }: { defaultValue?: string | null
     </div>
   );
 }
+
+
+

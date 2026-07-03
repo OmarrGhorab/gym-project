@@ -823,7 +823,20 @@
         "document": "Add document"
       },
       "selectDate": "Select date",
-      "time": "Time"
+      "time": "Time",
+      "addSubscription": "Add subscription",
+      "addSubscriptionDescription": "Choose plan, start date, finish date, and payment for {name}.",
+      "subscriptionAdded": "Subscription added.",
+      "selectPlan": "Select plan",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "paymentAmount": "Payment amount",
+      "paymentMethod": "Payment method",
+      "cash": "Cash",
+      "card": "Card",
+      "bankTransfer": "Bank transfer",
+      "discount": "Discount",
+      "coach": "Coach"
     },
     "plans": {
       "title": "Membership Plans",
@@ -869,7 +882,11 @@
       "disable": "Disable",
       "enable": "Enable",
       "delete": "Delete",
-      "noPlans": "No plans found."
+      "noPlans": "No plans found.",
+      "selectDate": "Select date",
+      "freezeRequiresApprovalHelp": "When enabled, freeze requests wait for staff/admin approval before pausing the membership.",
+      "planCreated": "Plan created.",
+      "saving": "Saving..."
     },
     "payroll": {
       "title": "Payroll",

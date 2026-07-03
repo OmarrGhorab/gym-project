@@ -1,6 +1,13 @@
 import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
+import type { PlanRow } from "../../plans/_components/data";
+
+export type StaffOption = {
+  id: number;
+  name: string;
+  role: string | null;
+};
 
 export type MemberRow = {
   id: number;
@@ -103,6 +110,8 @@ export type MembersPageData = {
   };
   payments: Record<number, MemberPaymentRow[]>;
   visits: Record<number, MemberVisitRow[]>;
+  plans: PlanRow[];
+  staff: StaffOption[];
 };
 
 export type MembersQuery = {
@@ -138,8 +147,14 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
       params.set("filter[qr]", query.qr);
     }
 
-    const result = await serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(`/members?${params.toString()}`);
+    const [result, plansResult, staffResult] = await Promise.all([
+      serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(`/members?${params.toString()}`),
+      serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100").catch(() => ({ data: [] as PlanRow[] })),
+      serverApiFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100").catch(() => ({ data: [] as StaffOption[] })),
+    ]);
     const members = unwrapList(result.data);
+    const plans = unwrapList(plansResult.data as PlanRow[] | PaginatedData<PlanRow>);
+    const staff = unwrapList(staffResult.data as StaffOption[] | PaginatedData<StaffOption>);
 
     return {
       histories: {},
@@ -147,10 +162,12 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
       members,
       payments: {},
       visits: {},
+      plans,
+      staff,
     };
   } catch (error) {
     console.error("[getMembersPageData] Failed to fetch members:", error);
-    return { histories: {}, members: [], meta: {}, payments: {}, visits: {} };
+    return { histories: {}, members: [], meta: {}, payments: {}, visits: {}, plans: [], staff: [] };
   }
 }
 
@@ -165,3 +182,5 @@ function getMeta(result: Awaited<ReturnType<typeof serverApiFetch<MemberRow[] | 
 
   return {};
 }
+
+

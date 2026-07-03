@@ -82,7 +82,14 @@ const planInputSchema = z
     },
   );
 
-export async function createPlan(input: FormData): Promise<void> {
+export type PlanFormState = {
+  ok: boolean;
+  message?: string;
+  errors: Record<string, string[]>;
+  values: Record<string, string>;
+};
+
+export async function createPlan(_state: PlanFormState, input: FormData): Promise<PlanFormState> {
   const parsed = planInputSchema.safeParse({
     access_ends_at: input.get("access_ends_at"),
     access_starts_at: input.get("access_starts_at"),
@@ -101,17 +108,46 @@ export async function createPlan(input: FormData): Promise<void> {
     valid_to: input.get("valid_to"),
   });
 
+  const values = getFormValues(input);
+
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid plan input.");
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Invalid plan input.",
+      errors: parsed.error.flatten().fieldErrors,
+      values,
+    };
   }
 
-  await mutate("/plans", "POST", {
+  try {
+    await mutate("/plans", "POST", {
     ...parsed.data,
     description: parsed.data.description ?? "",
     price: String(parsed.data.price),
-  });
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not create plan.",
+      errors: {},
+      values,
+    };
+  }
+
+  return {
+    ok: true,
+    message: "Plan created.",
+    errors: {},
+    values: {},
+  };
 }
 
+
+function getFormValues(input: FormData): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(input.entries()).map(([key, value]) => [key, typeof value === "string" ? value : ""]),
+  );
+}
 export async function togglePlan(input: FormData): Promise<void> {
   await mutate(`/plans/${Number(input.get("id"))}/toggle`, "PATCH");
 }
@@ -134,3 +170,5 @@ async function mutate(path: string, method: string, body?: Record<string, unknow
   revalidatePath("/dashboard/plans");
   revalidatePath("/dashboard/crm");
 }
+
+

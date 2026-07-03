@@ -110,6 +110,32 @@ export async function updateMember(input: FormData): Promise<void> {
   revalidatePath("/dashboard/crm");
 }
 
+
+export async function createMemberSubscription(input: FormData): Promise<void> {
+  const memberId = memberIdSchema.parse(input.get("member_id"));
+  const payload = {
+    member_id: memberId,
+    plan_id: z.coerce.number().int().min(1).parse(input.get("plan_id")),
+    start_date: z.string().date().parse(input.get("start_date")),
+    end_date: optionalDateInput.parse(input.get("end_date")),
+    discount: optionalTextInput().parse(input.get("discount")) ?? "0",
+    payment: {
+      amount: z.string().trim().min(1, "Payment amount is required.").parse(input.get("payment_amount")),
+      method: z.enum(["cash", "card", "bank_transfer"]).parse(input.get("payment_method") || "cash"),
+    },
+  };
+
+  await serverApiFetch("/subscriptions", {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/crm");
+}
 export async function deactivateMember(input: FormData): Promise<void> {
   const memberId = memberIdSchema.parse(input.get("id"));
 
@@ -166,3 +192,4 @@ function parseMemberInput(input: FormData) {
     status: input.get("status") || "active",
   });
 }
+

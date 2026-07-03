@@ -7,12 +7,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { FormDatePicker, FormTimePicker } from "@/components/ui/form-controls";
+import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createMemberReportItem, type MemberReportKind } from "./member-report-actions";
+import type { StaffOption } from "./data";
 
 const actions: { kind: MemberReportKind; icon: React.ComponentType<{ className?: string }> }[] = [
   { kind: "progress", icon: Ruler },
@@ -22,7 +23,7 @@ const actions: { kind: MemberReportKind; icon: React.ComponentType<{ className?:
   { kind: "document", icon: FileText },
 ];
 
-export function MemberReportControls({ memberId }: { memberId: number }) {
+export function MemberReportControls({ memberId, staff }: { memberId: number; staff: StaffOption[] }) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [openKind, setOpenKind] = React.useState<MemberReportKind | null>(null);
@@ -68,9 +69,9 @@ export function MemberReportControls({ memberId }: { memberId: number }) {
           </DialogHeader>
           <form action={submit} className="grid gap-4">
             {openKind === "progress" ? <ProgressFields t={t} /> : null}
-            {openKind === "workout" ? <WorkoutFields t={t} /> : null}
-            {openKind === "nutrition" ? <NutritionFields t={t} /> : null}
-            {openKind === "booking" ? <BookingFields t={t} /> : null}
+            {openKind === "workout" ? <WorkoutFields staff={staff} t={t} /> : null}
+            {openKind === "nutrition" ? <NutritionFields staff={staff} t={t} /> : null}
+            {openKind === "booking" ? <BookingFields staff={staff} t={t} /> : null}
             {openKind === "document" ? <DocumentFields t={t} /> : null}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpenKind(null)}>
@@ -103,11 +104,11 @@ function ProgressFields({ t }: FieldsProps) {
   );
 }
 
-function WorkoutFields({ t }: FieldsProps) {
+function WorkoutFields({ staff, t }: FieldsProps & { staff: StaffOption[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label={t("title")} name="title" required />
-      <Field label={t("coachId")} name="coach_id" type="number" />
+      <CoachSelect label={t("coach")} name="coach_id" staff={staff} />
       <DateField label={t("startsOn")} name="starts_on" placeholder={t("selectDate")} />
       <DateField label={t("endsOn")} name="ends_on" placeholder={t("selectDate")} />
       <TextField className="sm:col-span-2" label={t("sessions")} name="sessions" />
@@ -116,11 +117,11 @@ function WorkoutFields({ t }: FieldsProps) {
   );
 }
 
-function NutritionFields({ t }: FieldsProps) {
+function NutritionFields({ staff, t }: FieldsProps & { staff: StaffOption[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label={t("title")} name="title" required />
-      <Field label={t("coachId")} name="coach_id" type="number" />
+      <CoachSelect label={t("coach")} name="coach_id" staff={staff} />
       <Field label={t("dailyCalories")} name="daily_calories" type="number" />
       <Field label={t("proteinGrams")} name="protein_grams" type="number" />
       <Field label={t("carbsGrams")} name="carbs_grams" type="number" />
@@ -131,11 +132,11 @@ function NutritionFields({ t }: FieldsProps) {
   );
 }
 
-function BookingFields({ t }: FieldsProps) {
+function BookingFields({ staff, t }: FieldsProps & { staff: StaffOption[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label={t("title")} name="title" required />
-      <Field label={t("coachId")} name="coach_id" type="number" />
+      <CoachSelect label={t("coach")} name="coach_id" staff={staff} />
       <Field label={t("type")} name="type" placeholder="session" />
       <DateTimeField className="sm:col-span-2" dateLabel={t("startsAt")} name="starts_at" placeholder={t("selectDate")} required timeLabel={t("time")} />
       <DateTimeField className="sm:col-span-2" dateLabel={t("endsAt")} name="ends_at" placeholder={t("selectDate")} timeLabel={t("time")} />
@@ -159,6 +160,22 @@ function DocumentFields({ t }: FieldsProps) {
 type FieldsProps = { t: (key: string) => string };
 
 
+
+function CoachSelect({ label, name, staff }: { label: string; name: string; staff: StaffOption[] }) {
+  return (
+    <div className="grid gap-2 text-sm">
+      <span className="font-medium">{label}</span>
+      <FormSelect
+        name={name}
+        placeholder={label}
+        options={staff.map((employee) => ({
+          value: String(employee.id),
+          label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+        }))}
+      />
+    </div>
+  );
+}
 function DateField({ label, name, placeholder, required = false }: { label: string; name: string; placeholder?: string; required?: boolean }) {
   return (
     <div className="grid gap-2 text-sm">
@@ -214,6 +231,7 @@ function TextField({ className, label, name }: { className?: string; label: stri
     </div>
   );
 }
+
 
 
 

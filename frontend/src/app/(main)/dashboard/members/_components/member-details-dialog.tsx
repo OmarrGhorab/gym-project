@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
 
-import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
 import { MemberReportControls } from "./member-report-controls";
 
 export function MemberDetailsDialog({
@@ -23,6 +23,7 @@ export function MemberDetailsDialog({
   open,
   payments,
   visits,
+  staff,
 }: {
   history: MemberPaymentHistory | null | undefined;
   member: MemberRow;
@@ -30,6 +31,7 @@ export function MemberDetailsDialog({
   open?: boolean;
   payments: MemberPaymentRow[];
   visits: MemberVisitRow[];
+  staff: StaffOption[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const locale = useLocale();
@@ -62,7 +64,7 @@ export function MemberDetailsDialog({
             <h3 className="font-medium text-sm">{t("memberReport")}</h3>
             <p className="text-muted-foreground text-xs">{t("memberReportDescription")}</p>
           </div>
-          <MemberReportControls memberId={member.id} />
+          <MemberReportControls memberId={member.id} staff={staff} />
         </div>
 
         <QrPanel payload={qrPayload} />
@@ -285,4 +287,5 @@ function formatDate(value: string | null, locale: string) {
 function formatMethod(value: string | null | undefined) {
   return (value ?? "-").replaceAll("_", " ");
 }
+
 
