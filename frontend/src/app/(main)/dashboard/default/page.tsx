@@ -1,12 +1,18 @@
 import { Suspense } from "react";
-import { subDays, format as formatDateFns } from "date-fns";
+
+import { redirect } from "next/navigation";
+
+import { format as formatDateFns, subDays } from "date-fns";
+
+import { canAccessRoute, firstAccessibleDashboardPath } from "@/lib/authorization";
+import { getCurrentUser, requireAuth } from "@/lib/session";
 
 import { DashboardChartStyleSwitcher } from "./_components/dashboard-chart-style-switcher";
 import { DashboardShortcuts } from "./_components/dashboard-shortcuts";
+import type { MemberBillingFilter, MemberSort, MembersQuery } from "./_components/data";
 import { getDefaultDashboardData } from "./_components/data";
 import { MetricCards } from "./_components/metric-cards";
 import { SubscriberOverview } from "./_components/subscriber-overview";
-import type { MemberBillingFilter, MemberSort, MembersQuery } from "./_components/data";
 
 function defaultFrom() {
   return formatDateFns(subDays(new Date(), 364), "yyyy-MM-dd");
@@ -31,6 +37,21 @@ export default async function Page({
     members_sort?: string;
   }>;
 }) {
+  await requireAuth();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/auth/v2/login");
+  }
+
+  if (!canAccessRoute(user, "/dashboard/default")) {
+    redirect(
+      firstAccessibleDashboardPath(user) === "/dashboard/[...not-found]"
+        ? "/unauthorized"
+        : firstAccessibleDashboardPath(user),
+    );
+  }
+
   const { from, to, ...memberParams } = await searchParams;
   const resolvedFrom = getDateParam(from, defaultFrom);
   const resolvedTo = getDateParam(to, defaultTo);

@@ -5,6 +5,7 @@ import { Clock3, Loader2, LocateFixed, LockKeyhole, Pencil, Plus, Power } from "
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -215,12 +216,15 @@ function ShiftManagement({
             </SettingsField>
           </div>
 
-          <label className={cn("flex items-center gap-2 text-sm font-semibold", isArabic && "flex-row-reverse justify-end")}>
-            <input
-              type="checkbox"
+          <label
+            className={cn(
+              "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors hover:bg-muted",
+              isArabic && "flex-row-reverse justify-end"
+            )}
+          >
+            <Checkbox
               checked={form.is_active}
-              onChange={(event) => updateField("is_active", event.target.checked)}
-              className="size-4 accent-primary"
+              onCheckedChange={(value) => updateField("is_active", Boolean(value))}
             />
             {t("shiftActiveLabel")}
           </label>

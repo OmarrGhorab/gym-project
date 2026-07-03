@@ -1,10 +1,21 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, UserCheck } from "lucide-react";
+import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { toast } from "sonner";
+
+declare global {
+  interface Window {
+    BarcodeDetector?: new (options: {
+      formats: string[];
+    }) => {
+      detect(image: HTMLImageElement | HTMLVideoElement): Promise<Array<{ rawValue?: string }>>;
+    };
+  }
+}
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +58,7 @@ function MemberScanCard() {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
   const location = useGpsLocation();
+  const [scanValue, setScanValue] = useState("");
 
   return (
     <Card className="xl:col-span-6">
@@ -60,7 +72,20 @@ function MemberScanCard() {
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
           <ScanDirectionSelect />
-          <Input name="qr_token" placeholder={t("memberQrPlaceholder")} />
+          <QrImageScanner
+            label={t("scanQrImage")}
+            placeholder={t("scanQrImageHelp")}
+            onDecoded={(value) => {
+              setScanValue(value);
+              toast.success(t("qrDecoded"));
+            }}
+          />
+          <Input
+            name="qr_token"
+            placeholder={t("memberQrPlaceholder")}
+            value={scanValue}
+            onChange={(event) => setScanValue(event.target.value)}
+          />
           <Input name="member_id" inputMode="numeric" placeholder={t("memberIdPlaceholder")} />
           <Input name="phone" placeholder={t("phonePlaceholder")} />
           <Input name="name" placeholder={t("namePlaceholder")} />
@@ -77,6 +102,7 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(scanStaffAttendance, initialState);
   const location = useGpsLocation();
+  const [scanValue, setScanValue] = useState("");
 
   return (
     <Card className="xl:col-span-6">
@@ -90,7 +116,20 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
           <ScanDirectionSelect />
-          <Input name="qr_token" placeholder={t("employeeQrPlaceholder")} />
+          <QrImageScanner
+            label={t("scanQrImage")}
+            placeholder={t("scanQrImageHelp")}
+            onDecoded={(value) => {
+              setScanValue(value);
+              toast.success(t("qrDecoded"));
+            }}
+          />
+          <Input
+            name="qr_token"
+            placeholder={t("employeeQrPlaceholder")}
+            value={scanValue}
+            onChange={(event) => setScanValue(event.target.value)}
+          />
           <Select name="employee_id" defaultValue="">
             <SelectTrigger className="w-full">
               <SelectValue placeholder={t("selectEmployee")} />
@@ -409,6 +448,224 @@ function GpsFields({ location }: { location: GpsState }) {
       {location.error ? <span className="text-muted-foreground text-xs">{location.error}</span> : null}
     </div>
   );
+}
+
+function QrImageScanner({
+  label,
+  onDecoded,
+  placeholder,
+}: {
+  label: string;
+  onDecoded: (value: string) => void;
+  placeholder: string;
+}) {
+  const t = useTranslations("Dashboard.attendance");
+  const [scanning, setScanning] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraSupported, setCameraSupported] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const frameRef = useRef<number | null>(null);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setScanning(true);
+
+    try {
+      const decoded = await decodeQrFromImage(file);
+
+      if (!decoded) {
+        toast.error(t("qrNotFound"));
+        return;
+      }
+
+      onDecoded(decoded);
+    } catch {
+      toast.error(t("qrDecodeFailed"));
+    } finally {
+      setScanning(false);
+      event.target.value = "";
+    }
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraSupported(false);
+      setCameraError(t("cameraNotSupported"));
+      return;
+    }
+
+    setCameraError(null);
+    setCameraOpen(true);
+    setCameraSupported(true);
+  }
+
+  const stopCamera = useCallback(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+
+    for (const track of streamRef.current?.getTracks() ?? []) {
+      track.stop();
+    }
+    streamRef.current = null;
+    setCameraActive(false);
+    setCameraOpen(false);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function attachCamera() {
+      if (!cameraOpen) {
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+        });
+
+        if (cancelled) {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
+          return;
+        }
+
+        streamRef.current = stream;
+        setCameraActive(true);
+
+        const video = videoRef.current;
+        if (video) {
+          video.srcObject = stream;
+          await video.play();
+          void scanCameraFrame();
+        }
+      } catch {
+        setCameraError(t("cameraDenied"));
+        setCameraOpen(false);
+        setCameraActive(false);
+      }
+    }
+
+    async function scanCameraFrame() {
+      const Detector = window.BarcodeDetector;
+      const video = videoRef.current;
+
+      if (!Detector || !video || !streamRef.current) {
+        return;
+      }
+
+      try {
+        const detector = new Detector({ formats: ["qr_code"] });
+        const codes = await detector.detect(video);
+        const value = codes[0]?.rawValue;
+
+        if (value) {
+          onDecoded(value);
+          toast.success(t("qrDecoded"));
+          stopCamera();
+          return;
+        }
+      } catch {
+        // keep trying while the camera is open
+      }
+
+      if (cameraOpen && !cancelled) {
+        frameRef.current = requestAnimationFrame(() => {
+          void scanCameraFrame();
+        });
+      }
+    }
+
+    void attachCamera();
+
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
+  }, [cameraOpen, onDecoded, stopCamera, t]);
+
+  return (
+    <div className="grid gap-2 md:col-span-2">
+      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+        <div className="grid gap-1">
+          <p className="font-medium text-sm">{label}</p>
+          <p className="text-muted-foreground text-xs">{placeholder}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
+            <Upload className="size-4" />
+            <span>{scanning ? t("decoding") : t("uploadQrImage")}</span>
+            <input accept="image/*" className="hidden" type="file" onChange={handleFileChange} />
+          </label>
+          {cameraOpen ? (
+            <Button type="button" size="sm" variant="outline" onClick={stopCamera}>
+              {t("stopCamera")}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={startCamera}
+              disabled={!cameraSupported && cameraError !== null}
+            >
+              {t("startCamera")}
+            </Button>
+          )}
+        </div>
+      </div>
+      {cameraOpen ? (
+        <div className="grid gap-2 rounded-lg border p-3">
+          <video ref={videoRef} className="aspect-video w-full rounded-md bg-black object-cover" muted playsInline />
+          <p className="text-muted-foreground text-xs">{t("cameraHelp")}</p>
+        </div>
+      ) : null}
+      {cameraError ? <p className="text-destructive text-xs">{cameraError}</p> : null}
+      {cameraOpen && !cameraActive ? <p className="text-muted-foreground text-xs">{t("cameraStarting")}</p> : null}
+    </div>
+  );
+}
+
+async function decodeQrFromImage(file: File): Promise<string | null> {
+  const Detector = window.BarcodeDetector;
+
+  if (!Detector) {
+    return null;
+  }
+
+  const detector = new Detector({ formats: ["qr_code"] });
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadImage(imageUrl);
+    const codes = await detector.detect(image);
+
+    return codes[0]?.rawValue ?? null;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to load QR image."));
+    image.src = src;
+  });
 }
 
 function PanelFooter({

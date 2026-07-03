@@ -2,7 +2,11 @@
 
 import type * as React from "react";
 
+import Image from "next/image";
+
+import { Copy, QrCode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +32,7 @@ export function MemberDetailsDialog({
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const locale = useLocale();
+  const qrPayload = member.attendance_qr ?? member.attendance_code ?? null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,6 +55,8 @@ export function MemberDetailsDialog({
           <Metric label={t("totalPaid")} value={history?.totals.total_paid ?? member.total_paid} />
           <Metric label={t("outstanding")} value={history?.totals.outstanding_balance ?? "0"} />
         </div>
+
+        <QrPanel payload={qrPayload} />
 
         <div className="grid min-w-0 gap-4 xl:grid-cols-3">
           <Section
@@ -135,6 +142,64 @@ export function MemberDetailsDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function QrPanel({ payload }: { payload: string | null }) {
+  const t = useTranslations("Dashboard.membersPage");
+  const qrUrl = payload
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payload)}`
+    : null;
+
+  async function handleCopy() {
+    if (!payload) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      toast.success(t("qrCopied"));
+    } catch {
+      toast.error(t("copyQrFailed"));
+    }
+  }
+
+  return (
+    <div className="rounded-lg border">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+        <div className="min-w-0">
+          <h3 className="font-medium text-sm">{t("memberQr")}</h3>
+          <p className="text-muted-foreground text-xs">{t("memberQrDescription")}</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={handleCopy} disabled={!payload}>
+          <Copy data-icon="inline-start" />
+          {t("copyQr")}
+        </Button>
+      </div>
+      <div className="grid gap-4 p-3 lg:grid-cols-[240px_1fr] lg:items-center">
+        <div className="flex aspect-square w-full max-w-60 items-center justify-center rounded-lg border bg-background">
+          {qrUrl ? (
+            <Image
+              src={qrUrl}
+              alt={t("memberQr")}
+              width={220}
+              height={220}
+              unoptimized
+              className="size-full rounded-lg object-contain p-2"
+            />
+          ) : (
+            <div className="grid place-items-center gap-2 text-center text-muted-foreground">
+              <QrCode className="size-9" />
+              <span className="text-xs">{t("missing")}</span>
+            </div>
+          )}
+        </div>
+        <div className="grid gap-2">
+          <p className="text-muted-foreground text-xs">{t("qrText")}</p>
+          <div className="break-all rounded-lg border bg-muted/30 p-3 font-mono text-sm">{payload ?? t("missing")}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 

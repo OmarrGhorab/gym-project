@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 
@@ -52,8 +53,8 @@ export async function StaffManagement({ employees, shifts }: { employees: Academ
           <form action={backfillCommissions} className="grid gap-3">
             <FormDatePicker name="from" defaultValue={from} />
             <FormDatePicker name="to" defaultValue={today} />
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="dry_run" />
+            <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+              <Checkbox name="dry_run" />
               {t("dryRun")}
             </label>
             <Button type="submit">{t("backfillCommissions")}</Button>

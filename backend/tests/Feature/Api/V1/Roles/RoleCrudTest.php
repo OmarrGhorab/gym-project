@@ -109,7 +109,23 @@ test('admin can update a custom role', function (): void {
         ->assertJsonPath('data.permissions.0', 'members.view');
 });
 
-test('admin cannot update a preset role', function (): void {
+test('admin can update preset role permissions without renaming it', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $role = Role::findByName(FoundationPermissions::ROLE_CASHIER, 'web');
+
+    $this->putJson("/api/v1/roles/{$role->id}", [
+        'name' => FoundationPermissions::ROLE_CASHIER,
+        'permissions' => ['members.view'],
+    ])
+        ->assertStatus(200)
+        ->assertJsonPath('data.name', FoundationPermissions::ROLE_CASHIER)
+        ->assertJsonPath('data.permissions.0', 'members.view');
+});
+
+test('admin cannot rename a preset role', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);

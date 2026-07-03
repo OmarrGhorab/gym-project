@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -152,8 +153,8 @@ export default async function Page() {
                 <FormTimePicker name="starts_at" required />
                 <FormTimePicker name="ends_at" required />
                 <Input name="grace_minutes" type="number" min={0} defaultValue={settings.attendance.default_grace_minutes} />
-                <label className="flex items-center gap-2 text-sm">
-                  <input name="is_active" type="checkbox" defaultChecked />
+                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+                  <Checkbox name="is_active" defaultChecked />
                   {t("active")}
                 </label>
                 <Button type="submit" className="md:col-span-5">
@@ -167,8 +168,8 @@ export default async function Page() {
                   <FormTimePicker name="starts_at" defaultValue={shift.starts_at.slice(0, 5)} />
                   <FormTimePicker name="ends_at" defaultValue={shift.ends_at.slice(0, 5)} />
                   <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} aria-label={t("grace")} />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input name="is_active" type="checkbox" defaultChecked={shift.is_active} />
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+                    <Checkbox name="is_active" defaultChecked={shift.is_active} />
                     {t("active")}
                   </label>
                   <div className="flex gap-2">
@@ -240,16 +241,16 @@ export default async function Page() {
                     />
                     <Field label={t("deductionDays")} name="deduction_days" type="number" step="0.01" defaultValue={rule.deduction_days} />
                     <div className="flex flex-wrap items-center gap-4 pt-7 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input name="requires_admin_approval" type="checkbox" defaultChecked={rule.requires_admin_approval} />
+                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                        <Checkbox name="requires_admin_approval" defaultChecked={rule.requires_admin_approval} />
                         {t("requiresApproval")}
                       </label>
-                      <label className="flex items-center gap-2">
-                        <input name="auto_apply_if_unreviewed" type="checkbox" defaultChecked={rule.auto_apply_if_unreviewed} />
+                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                        <Checkbox name="auto_apply_if_unreviewed" defaultChecked={rule.auto_apply_if_unreviewed} />
                         {t("autoApply")}
                       </label>
-                      <label className="flex items-center gap-2">
-                        <input name="is_active" type="checkbox" defaultChecked={rule.is_active} />
+                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                        <Checkbox name="is_active" defaultChecked={rule.is_active} />
                         {t("active")}
                       </label>
                     </div>

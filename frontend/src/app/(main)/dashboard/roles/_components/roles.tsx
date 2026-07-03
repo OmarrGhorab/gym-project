@@ -2,8 +2,11 @@
 
 import * as React from "react";
 
+import { useRouter } from "next/navigation";
+
 import { EllipsisVertical, Plus, Search, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import { createRole, deleteRole, updateRole } from "./actions";
+import { createRole, deleteRole, type RoleActionResult, updateRole } from "./actions";
 import type { PermissionGroup, RoleRow } from "./data-live";
 
 const PRESET_ORDER = ["Admin", "Manager", "Cashier", "Captain", "Accountant"];
@@ -169,10 +172,37 @@ export function Roles({ permissionGroups, roles }: { permissionGroups: Permissio
 
 function RoleTableRow({ permissionGroups, role }: { permissionGroups: PermissionGroup[]; role: RoleRow }) {
   const t = useTranslations("Dashboard.roles");
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
+  const [pending, startTransition] = React.useTransition();
   const chips = role.permissions.slice(0, 3);
   const extra = Math.max(role.permissions.length - chips.length, 0);
   const accessLevel = role.permissions.some((permission) => permission === "roles.manage") ? t("full") : t("scoped");
+  const handleActionResult = useRoleActionToast();
+
+  function submitUpdate(formData: FormData) {
+    startTransition(async () => {
+      const result = await updateRole(formData);
+
+      handleActionResult(result);
+
+      if (result.ok) {
+        router.refresh();
+      }
+    });
+  }
+
+  function submitDelete(formData: FormData) {
+    startTransition(async () => {
+      const result = await deleteRole(formData);
+
+      handleActionResult(result);
+
+      if (result.ok) {
+        router.refresh();
+      }
+    });
+  }
 
   return (
     <>
@@ -207,10 +237,15 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setOpen((value) => !value)}>
+                <DropdownMenuItem className="whitespace-nowrap" onClick={() => setOpen((value) => !value)}>
                   <ShieldCheck />
                   {open ? t("hidePermissions") : t("editPermissions")}
                 </DropdownMenuItem>
+                {role.is_preset ? (
+                  <DropdownMenuItem disabled>
+                    <span className="text-muted-foreground">{t("needsReview")}</span>
+                  </DropdownMenuItem>
+                ) : null}
                 {!role.is_preset ? (
                   <DropdownMenuItem render={<button form={`delete-role-${role.id}`} type="submit" />}>
                     {t("deleteRole")}
@@ -224,26 +259,27 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
       {open ? (
         <TableRow>
           <TableCell colSpan={7} className="bg-muted/20 p-4">
-            <form action={updateRole} className="rounded-lg border bg-card p-4">
+            <form action={submitUpdate} className="rounded-lg border bg-card p-4">
               <input type="hidden" name="id" value={role.id} />
               <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-sm space-y-2">
                   <Label htmlFor={`role-name-${role.id}`}>{t("roleName")}</Label>
-                  <Input id={`role-name-${role.id}`} name="name" defaultValue={role.name} disabled={role.is_preset} />
+                  <Input
+                    id={`role-name-${role.id}`}
+                    name="name"
+                    defaultValue={role.name}
+                    readOnly={role.is_preset}
+                    aria-readonly={role.is_preset}
+                  />
                 </div>
-                <Button type="submit" size="sm" disabled={role.is_preset}>
+                <Button type="submit" size="sm" disabled={pending}>
                   {t("savePermissions")}
                 </Button>
               </div>
-              <PermissionPicker
-                permissionGroups={permissionGroups}
-                selected={role.permissions}
-                disabled={role.is_preset}
-                compact
-              />
+              <PermissionPicker permissionGroups={permissionGroups} selected={role.permissions} compact />
             </form>
             {!role.is_preset ? (
-              <form action={deleteRole} id={`delete-role-${role.id}`}>
+              <form action={submitDelete} id={`delete-role-${role.id}`}>
                 <input type="hidden" name="id" value={role.id} />
               </form>
             ) : null}
@@ -264,6 +300,22 @@ function CreateRolePanel({
   permissionGroups: PermissionGroup[];
 }) {
   const t = useTranslations("Dashboard.roles");
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const handleActionResult = useRoleActionToast();
+
+  function submitCreate(formData: FormData) {
+    startTransition(async () => {
+      const result = await createRole(formData);
+
+      handleActionResult(result);
+
+      if (result.ok) {
+        onOpenChange(false);
+        router.refresh();
+      }
+    });
+  }
 
   return (
     <Collapsible id="create-role" open={open} onOpenChange={onOpenChange} className="rounded-xl border bg-card">
@@ -277,13 +329,13 @@ function CreateRolePanel({
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent className="border-t p-4">
-        <form action={createRole} className="grid gap-4">
+        <form action={submitCreate} className="grid gap-4">
           <div className="max-w-sm space-y-2">
             <Label htmlFor="role-name">{t("roleName")}</Label>
             <Input id="role-name" name="name" placeholder={t("rolePlaceholder")} />
           </div>
           <PermissionPicker permissionGroups={permissionGroups} selected={[]} compact />
-          <Button type="submit" className="w-fit">
+          <Button type="submit" className="w-fit" disabled={pending}>
             {t("createRole")}
           </Button>
         </form>
@@ -337,6 +389,25 @@ function PermissionPicker({
   selected: string[];
 }) {
   const t = useTranslations("Dashboard.roles");
+  const [checkedPermissions, setCheckedPermissions] = React.useState(() => new Set(selected));
+
+  React.useEffect(() => {
+    setCheckedPermissions(new Set(selected));
+  }, [selected]);
+
+  function togglePermission(permission: string, checked: boolean) {
+    setCheckedPermissions((current) => {
+      const next = new Set(current);
+
+      if (checked) {
+        next.add(permission);
+      } else {
+        next.delete(permission);
+      }
+
+      return next;
+    });
+  }
 
   return (
     <div className={cn("grid gap-3", compact ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2 xl:grid-cols-3")}>
@@ -345,16 +416,23 @@ function PermissionPicker({
           <div className="mb-2 font-medium text-sm">{groupLabel(group.group)}</div>
           <div className="grid gap-2">
             {group.permissions.map((permission) => (
-              <div key={permission.name} className="flex items-center gap-2 text-sm">
+              <label
+                key={permission.name}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
+                  disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+                )}
+              >
                 <Checkbox
                   name="permissions"
                   value={permission.name}
-                  defaultChecked={selected.includes(permission.name)}
+                  checked={checkedPermissions.has(permission.name)}
+                  onCheckedChange={(checked) => togglePermission(permission.name, Boolean(checked))}
                   disabled={disabled}
                   aria-label={t("togglePermission", { permission: permission.name })}
                 />
                 <span className="min-w-0 truncate">{permissionActionLabel(permission.name)}</span>
-              </div>
+              </label>
             ))}
           </div>
         </div>
@@ -371,6 +449,17 @@ function GroupHeader({ count, label }: { count: number; label: string }) {
       </TableCell>
     </TableRow>
   );
+}
+
+function useRoleActionToast() {
+  return React.useCallback((result: RoleActionResult) => {
+    if (result.ok) {
+      toast.success(result.message);
+      return;
+    }
+
+    toast.error("Role action failed", { description: result.message });
+  }, []);
 }
 
 function permissionLabel(permission: string) {

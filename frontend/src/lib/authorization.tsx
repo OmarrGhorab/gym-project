@@ -7,7 +7,7 @@ import { type NavGroup, type NavMainItem, sidebarItems } from "@/navigation/side
 type PermissionRequirement = string | string[];
 
 export const routePermissions: Record<string, PermissionRequirement> = {
-  "/dashboard/default": ["dashboard.view", "reports.view"],
+  "/dashboard/default": ["dashboard.view", "reports.view", "members.view", "sales.view"],
   "/dashboard/crm": "subscriptions.view",
   "/dashboard/finance": ["payments.view", "expenses.view", "payroll.view", "reports.view"],
   "/dashboard/analytics": "reports.view",
@@ -31,6 +31,13 @@ export const routePermissions: Record<string, PermissionRequirement> = {
   "/dashboard/settings": "settings.manage",
 };
 
+const allRequiredRoutes = new Set<string>([
+  "/dashboard/default",
+  "/dashboard/finance",
+  "/dashboard/invoice",
+  "/dashboard/crm",
+]);
+
 export const actionPermissions = {
   createMember: "members.create",
   viewNotifications: "notifications.view",
@@ -48,7 +55,20 @@ export function canAccess(user: Pick<DashboardUser, "permissions">, requirement?
 }
 
 export function canAccessRoute(user: Pick<DashboardUser, "permissions">, pathname: string) {
-  return canAccess(user, routePermissions[normalizeDashboardPath(pathname)]);
+  const normalizedPath = normalizeDashboardPath(pathname);
+  const requirement = routePermissions[normalizedPath];
+
+  if (!requirement) {
+    return true;
+  }
+
+  if (Array.isArray(requirement) && allRequiredRoutes.has(normalizedPath)) {
+    const permissions = new Set(user.permissions);
+
+    return requirement.every((permission) => permissions.has(permission));
+  }
+
+  return canAccess(user, requirement);
 }
 
 export function filterSidebarItems(

@@ -33,8 +33,10 @@ class UpdateRoleRequest extends FormRequest
         $roleModel = is_object($role) ? $role : Role::find($role);
 
         if ($roleModel && in_array($roleModel->name, FoundationPermissions::ALL_ROLES, true)) {
-            $validator->after(function ($validator): void {
-                $validator->errors()->add('name', 'Preset roles cannot be updated.');
+            $validator->after(function ($validator) use ($roleModel): void {
+                if ($this->string('name')->toString() !== $roleModel->name) {
+                    $validator->errors()->add('name', 'Preset role names cannot be changed.');
+                }
             });
         }
     }

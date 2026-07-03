@@ -17,28 +17,37 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { canAccess } from "@/lib/authorization";
+import type { DashboardUser } from "@/lib/session";
+import { getCurrentUser } from "@/lib/session";
 
 const shortcuts = [
-  { href: "/dashboard/members", labelKey: "addMember", icon: UserPlus },
-  { href: "/dashboard/attendance", labelKey: "attendance", icon: ClipboardCheck },
-  { href: "/dashboard/ecommerce", labelKey: "posCheckout", icon: ShoppingCart },
-  { href: "/dashboard/logistics", labelKey: "products", icon: PackageCheck },
-  { href: "/dashboard/finance", labelKey: "recordExpense", icon: ReceiptText },
-  { href: "/dashboard/finance", labelKey: "collectDue", icon: HandCoins },
-  { href: "/dashboard/ecommerce", labelKey: "salesReport", icon: FileText },
-  { href: "/dashboard/payroll", labelKey: "payroll", icon: UsersRound },
-  { href: "/dashboard/finance", labelKey: "payments", icon: Banknote },
-  { href: "/api/finance/export", labelKey: "export", icon: Download },
-  { href: "/dashboard/calendar", labelKey: "schedule", icon: CalendarDays },
-  { href: "/dashboard/tasks", labelKey: "tasks", icon: ClipboardCheck },
-  { href: "/dashboard/academy", labelKey: "staff", icon: UsersRound },
-  { href: "/dashboard/plans", labelKey: "plans", icon: PackageCheck },
-  { href: "/dashboard/users", labelKey: "users", icon: ShieldCheck },
-  { href: "/dashboard/settings", labelKey: "settings", icon: Settings },
+  { href: "/dashboard/members", labelKey: "addMember", icon: UserPlus, permission: "members.create" },
+  { href: "/dashboard/attendance", labelKey: "attendance", icon: ClipboardCheck, permission: "attendance.view" },
+  { href: "/dashboard/ecommerce", labelKey: "posCheckout", icon: ShoppingCart, permission: "sales.view" },
+  { href: "/dashboard/logistics", labelKey: "products", icon: PackageCheck, permission: "products.view" },
+  { href: "/dashboard/finance", labelKey: "recordExpense", icon: ReceiptText, permission: "expenses.view" },
+  { href: "/dashboard/finance", labelKey: "collectDue", icon: HandCoins, permission: "payments.view" },
+  { href: "/dashboard/ecommerce", labelKey: "salesReport", icon: FileText, permission: "sales.view" },
+  { href: "/dashboard/payroll", labelKey: "payroll", icon: UsersRound, permission: "payroll.view" },
+  { href: "/dashboard/finance", labelKey: "payments", icon: Banknote, permission: "payments.view" },
+  { href: "/api/finance/export", labelKey: "export", icon: Download, permission: "export.reports" },
+  { href: "/dashboard/calendar", labelKey: "schedule", icon: CalendarDays, permission: "reports.view" },
+  { href: "/dashboard/tasks", labelKey: "tasks", icon: ClipboardCheck, permission: "reports.view" },
+  { href: "/dashboard/academy", labelKey: "staff", icon: UsersRound, permission: "employees.view" },
+  { href: "/dashboard/plans", labelKey: "plans", icon: PackageCheck, permission: "plans.view" },
+  { href: "/dashboard/users", labelKey: "users", icon: ShieldCheck, permission: "roles.manage" },
+  { href: "/dashboard/settings", labelKey: "settings", icon: Settings, permission: "settings.manage" },
 ] as const;
 
 export async function DashboardShortcuts() {
   const t = await getTranslations("Dashboard.default");
+  const user = await getCurrentUser();
+  const visibleShortcuts = user ? shortcuts.filter((shortcut) => canShowShortcut(user, shortcut.permission)) : [];
+
+  if (visibleShortcuts.length === 0) {
+    return null;
+  }
 
   return (
     <Card>
@@ -47,7 +56,7 @@ export async function DashboardShortcuts() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4 lg:grid-cols-8">
-          {shortcuts.map((shortcut) => {
+          {visibleShortcuts.map((shortcut) => {
             const Icon = shortcut.icon;
 
             return (
@@ -68,4 +77,8 @@ export async function DashboardShortcuts() {
       </CardContent>
     </Card>
   );
+}
+
+function canShowShortcut(user: Pick<DashboardUser, "permissions">, permission?: string) {
+  return permission ? canAccess(user, permission) : true;
 }

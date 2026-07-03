@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import type { AppLocale } from "@/i18n/routing";
 import { updateAttendanceViolationRule } from "@/lib/actions/attendance";
@@ -176,12 +177,10 @@ function BooleanInput({
   disabled?: boolean;
 }) {
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       checked={checked}
-      onChange={(event) => onChange(event.target.checked)}
+      onCheckedChange={(value) => onChange(Boolean(value))}
       disabled={disabled}
-      className="size-4 rounded border-border accent-primary"
     />
   );
 }
