@@ -3,6 +3,8 @@
 
 import * as React from "react";
 
+import { useRouter } from "next/navigation";
+
 import {
   type ColumnFiltersState,
   flexRender,
@@ -16,9 +18,17 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUpDown, ArrowUpRight, Download, MoreHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Pagination,
   PaginationContent,
@@ -32,21 +42,45 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import type { PosRecentOrder } from "./data";
+import { voidSale } from "./actions";
 import { getRecentOrdersColumns } from "./recent-orders-table/columns";
 import { preventPaginationNavigation } from "./recent-orders-table/formatters";
 import { type OrderFilter, type OrderRow, orderFilters } from "./recent-orders-table/schema";
 
 export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   const t = useTranslations("Dashboard.ecommerce");
+  const router = useRouter();
+  const [selectedOrder, setSelectedOrder] = React.useState<OrderRow | null>(null);
+  const [voidPending, startVoidTransition] = React.useTransition();
   const [rowSelection, setRowSelection] = React.useState({});
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "date", desc: true }]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([{ id: "statusSummary", value: "All" }]);
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
   const recentOrders = orders as OrderRow[];
-  const columns = React.useMemo(() => getRecentOrdersColumns(t), [t]);
+  const handleVoidSale = React.useCallback(
+    (order: OrderRow) => {
+      startVoidTransition(async () => {
+        const input = new FormData();
+        input.set("id", order.id);
+        input.set("reason", "Voided from POS table");
+
+        const result = await voidSale(input);
+
+        if (result.ok) {
+          toast.success(result.message);
+          router.refresh();
+          return;
+        }
+
+        toast.error(t("saleNotVoided"), { description: result.message });
+      });
+    },
+    [router, t],
+  );
+  const columns = React.useMemo(() => getRecentOrdersColumns(t, setSelectedOrder, handleVoidSale), [handleVoidSale, t]);
 
   const table = useReactTable({
     data: recentOrders,
@@ -75,6 +109,8 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   const visibleOrderCount = table.getRowModel().rows.length;
   const currentPage = table.getState().pagination.pageIndex + 1;
   const pageCount = table.getPageCount();
+  const dateSort = table.getColumn("date")?.getIsSorted();
+  const sortLabel = dateSort === "asc" ? t("oldestFirst") : t("newestFirst");
   let orderCountDescription = t("orderCount", { count: orderCount });
 
   if (selectedOrderCount > 0) {
@@ -138,11 +174,14 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
           </ToggleGroup>
 
           <Button
-            size="icon-sm"
+            aria-label={t("sortByDate", { direction: sortLabel })}
+            disabled={voidPending}
+            size="sm"
             variant="outline"
             onClick={() => table.getColumn("date")?.toggleSorting(table.getColumn("date")?.getIsSorted() === "asc")}
           >
             <ArrowUpDown />
+            {sortLabel}
           </Button>
         </div>
 
@@ -236,6 +275,51 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
           ) : null}
         </div>
       </CardContent>
+      <SaleDetailsDialog order={selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)} />
     </Card>
+  );
+}
+
+function SaleDetailsDialog({
+  onOpenChange,
+  order,
+}: {
+  onOpenChange: (open: boolean) => void;
+  order: OrderRow | null;
+}) {
+  const t = useTranslations("Dashboard.ecommerce");
+
+  return (
+    <Dialog open={Boolean(order)} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{order ? t("saleDetailsTitle", { id: order.id }) : t("viewSale")}</DialogTitle>
+          <DialogDescription>{t("saleDetailsDescription")}</DialogDescription>
+        </DialogHeader>
+        {order ? (
+          <div className="grid gap-3 text-sm">
+            <DetailRow label={t("member")} value={order.customer} />
+            <DetailRow label={t("seller")} value={order.seller} />
+            <DetailRow label={t("status")} value={`${order.payment} / ${order.status}`} />
+            <DetailRow label={t("method")} value={order.payment_method.replaceAll("_", " ")} />
+            <DetailRow label={t("total")} value={order.total} />
+            <DetailRow label={t("date")} value={order.date ? new Date(order.date).toLocaleString() : t("noDate")} />
+            <div className="rounded-lg border p-3">
+              <div className="text-muted-foreground text-xs">{t("products")}</div>
+              <div className="mt-1 font-medium">{order.items}</div>
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium capitalize">{value}</span>
+    </div>
   );
 }

@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { voidSale } from "../actions";
 import { formatEgp } from "../format";
 import type { OrderRow } from "./schema";
 
@@ -80,7 +79,11 @@ function getPaymentMethodLabel(method: string, t: EcommerceT) {
   return method ? method.replaceAll("_", " ") : t("paymentMethodsShort.unknown");
 }
 
-export function getRecentOrdersColumns(t: EcommerceT): ColumnDef<OrderRow>[] {
+export function getRecentOrdersColumns(
+  t: EcommerceT,
+  onViewSale: (order: OrderRow) => void,
+  onVoidSale: (order: OrderRow) => void,
+): ColumnDef<OrderRow>[] {
   return [
     {
       id: "select",
@@ -129,28 +132,34 @@ export function getRecentOrdersColumns(t: EcommerceT): ColumnDef<OrderRow>[] {
       header: t("status"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <PaymentBadge status={row.original.payment} t={t} />
+          {row.original.status.toLowerCase() === "voided" ? null : <PaymentBadge status={row.original.payment} t={t} />}
           <SaleStatusBadge status={row.original.status} t={t} />
         </div>
       ),
       filterFn: (row, _columnId, value) => {
+        const saleStatus = row.original.status.toLowerCase();
+
+        if (value === "All") {
+          return saleStatus !== "voided";
+        }
+
         if (value === "Paid") {
-          return row.original.payment === "Paid";
+          return saleStatus !== "voided" && row.original.payment === "Paid";
         }
 
         if (value === "Pending") {
-          return row.original.payment === "Pending";
+          return saleStatus !== "voided" && row.original.payment === "Pending";
         }
 
         if (value === "Completed") {
-          return row.original.status.toLowerCase() === "completed";
+          return saleStatus === "completed";
         }
 
         if (value === "Voided") {
-          return row.original.status.toLowerCase() === "voided";
+          return saleStatus === "voided";
         }
 
-        return true;
+        return saleStatus !== "voided";
       },
     },
     {
@@ -180,26 +189,15 @@ export function getRecentOrdersColumns(t: EcommerceT): ColumnDef<OrderRow>[] {
               <MoreHorizontal />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuLabel>{t("saleActions")}</DropdownMenuLabel>
               <DropdownMenuGroup>
-                <DropdownMenuItem>{t("viewSale")}</DropdownMenuItem>
+                <DropdownMenuLabel>{t("saleActions")}</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onViewSale(row.original)}>{t("viewSale")}</DropdownMenuItem>
                 <DropdownMenuItem render={<a href={`/api/sales/${row.original.id.replace(/^#/, "")}/receipt`} />}>
                   {t("downloadReceipt")}
                 </DropdownMenuItem>
                 <DropdownMenuItem>{t("copySaleId")}</DropdownMenuItem>
                 {row.original.status.toLowerCase() !== "voided" ? (
-                  <DropdownMenuItem
-                    render={
-                      <form action={voidSale}>
-                        <input type="hidden" name="id" value={row.original.id} />
-                        <input type="hidden" name="reason" value="Voided from POS table" />
-                        <button type="submit" className="w-full text-left">
-                          {t("voidSale")}
-                        </button>
-                      </form>
-                    }
-                    nativeButton={false}
-                  />
+                  <DropdownMenuItem onClick={() => onVoidSale(row.original)}>{t("voidSale")}</DropdownMenuItem>
                 ) : null}
               </DropdownMenuGroup>
             </DropdownMenuContent>

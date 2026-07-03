@@ -21,9 +21,14 @@ class DatabaseSeeder extends Seeder
         $this->call(MembershipAccessSeeder::class);
         $this->call(PosAccessSeeder::class);
         $this->call(HrFinanceAccessSeeder::class);
-        $this->call(AttendanceRulesSeeder::class);
         $this->call(RoleMatrixSeeder::class);
         $this->call(RoleUserSeeder::class);
+
+        if (! (bool) env('SEED_DEMO_DATA', false)) {
+            return;
+        }
+
+        $this->call(AttendanceRulesSeeder::class);
         $this->call(PostmanScenarioSeeder::class);
         $this->call(DashboardDemoSeeder::class);
         $this->call(FinanceOverviewSeeder::class);

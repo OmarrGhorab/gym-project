@@ -33,7 +33,7 @@ export default async function Page({
         </div>
 
         <PosFilterToolbar paymentMethod={paymentMethod} period={period} />
-        <PosCheckoutDialog products={data.products} />
+        <PosCheckoutDialog members={data.members} products={data.products} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">

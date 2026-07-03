@@ -14,6 +14,7 @@ use App\Http\Requests\Sales\VoidSaleRequest;
 use App\Http\Resources\SaleResource;
 use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -27,9 +28,11 @@ class SaleController extends ApiController
     /**
      * GET /api/v1/sales
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Sale::class);
+
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $sales = QueryBuilder::for(Sale::class)
             ->with(['items.product', 'payment', 'member', 'soldBy'])
@@ -37,10 +40,18 @@ class SaleController extends ApiController
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('sold_by_user_id'),
-                AllowedFilter::exact('payment_method')
+                AllowedFilter::exact('payment_method'),
+                AllowedFilter::callback('created_from', function ($query, string $value): void {
+                    $query->whereDate('created_at', '>=', $value);
+                }),
+                AllowedFilter::callback('created_to', function ($query, string $value): void {
+                    $query->whereDate('created_at', '<=', $value);
+                })
             )
             ->allowedSorts('created_at', 'total', 'subtotal')
-            ->paginate(15);
+            ->defaultSort('-created_at')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return SaleResource::collection($sales)
             ->additional([
