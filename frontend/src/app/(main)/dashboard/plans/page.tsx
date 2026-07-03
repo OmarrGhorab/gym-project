@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormSelect } from "@/components/ui/form-controls";
+import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -83,10 +83,10 @@ export default async function Page() {
                 <input id="freeze_requires_approval" name="freeze_requires_approval" type="checkbox" />
                 <Label htmlFor="freeze_requires_approval">{t("freezeRequiresApproval")}</Label>
               </div>
-              <Field label={t("validFrom")} name="valid_from" type="date" />
-              <Field label={t("validTo")} name="valid_to" type="date" />
-              <Field label={t("accessStartsAt")} name="access_starts_at" type="time" />
-              <Field label={t("accessEndsAt")} name="access_ends_at" type="time" />
+              <DateField label={t("validFrom")} name="valid_from" placeholder={t("selectDate")} />
+              <DateField label={t("validTo")} name="valid_to" placeholder={t("selectDate")} />
+              <TimeField label={t("accessStartsAt")} name="access_starts_at" />
+              <TimeField label={t("accessEndsAt")} name="access_ends_at" />
               <div className="space-y-2">
                 <Label htmlFor="description">{t("descriptionField")}</Label>
                 <Textarea id="description" name="description" />
@@ -188,6 +188,24 @@ function Field({
   );
 }
 
+
+function DateField({ label, name, placeholder }: { label: string; name: string; placeholder?: string }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <FormDatePicker name={name} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function TimeField({ label, name }: { label: string; name: string }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <FormTimePicker name={name} />
+    </div>
+  );
+}
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <Card>
@@ -198,3 +216,5 @@ function Summary({ label, value }: { label: string; value: string }) {
     </Card>
   );
 }
+
+

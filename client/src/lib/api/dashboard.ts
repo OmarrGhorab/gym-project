@@ -68,6 +68,14 @@ export type Member = {
   status: string;
   gender?: string;
   national_id?: string;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  goals?: string | null;
+  injuries?: string | null;
+  medical_notes?: string | null;
+  tags?: string[];
+  coach_id?: number | null;
+  coach?: { id?: number | null; name?: string | null; role?: string | null } | null;
   attendance_code?: string | null;
   attendance_qr?: string | null;
   join_date?: string;
@@ -411,6 +419,88 @@ export type SalesPeriodReport = {
   };
 };
 
+
+export type MemberReport = {
+  member: Member;
+  summary: {
+    days_at_gym?: number | null;
+    total_visits: number;
+    blocked_visits: number;
+    subscriptions_count: number;
+    total_paid: string;
+    weight_change_kg?: string | null;
+    latest_weight_kg?: string | null;
+    latest_body_fat_percent?: string | null;
+  };
+  subscriptions: {
+    id: number;
+    plan_name?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    status: string;
+    price_paid: string;
+    freezes_count: number;
+  }[];
+  progress: {
+    id: number;
+    recorded_on?: string | null;
+    weight_kg?: string | null;
+    body_fat_percent?: string | null;
+    chest_cm?: string | null;
+    waist_cm?: string | null;
+    hips_cm?: string | null;
+    arms_cm?: string | null;
+    thighs_cm?: string | null;
+    notes?: string | null;
+  }[];
+  workout_plans: {
+    id: number;
+    title: string;
+    status: string;
+    starts_on?: string | null;
+    ends_on?: string | null;
+    coach?: { id: number; name: string } | null;
+    sessions?: unknown[];
+    notes?: string | null;
+  }[];
+  nutrition_plans: {
+    id: number;
+    title: string;
+    status: string;
+    daily_calories?: number | null;
+    protein_grams?: number | null;
+    carbs_grams?: number | null;
+    fat_grams?: number | null;
+    supplements?: string | null;
+    notes?: string | null;
+    coach?: { id: number; name: string } | null;
+  }[];
+  documents: {
+    id: number;
+    type: string;
+    title: string;
+    expires_on?: string | null;
+    notes?: string | null;
+    created_at?: string | null;
+  }[];
+  bookings: {
+    id: number;
+    title: string;
+    type: string;
+    starts_at?: string | null;
+    ends_at?: string | null;
+    status: string;
+    coach?: { id: number; name: string } | null;
+    notes?: string | null;
+  }[];
+  recent_visits: {
+    id: number;
+    check_in_at?: string | null;
+    check_out_at?: string | null;
+    status: string;
+    alert_reason?: string | null;
+  }[];
+};
 export type MemberPaymentHistory = {
   member: {
     id: number;
@@ -967,6 +1057,16 @@ export async function getSalesPeriodReport(options: {
   };
 }
 
+
+export async function getMemberReport(
+  memberId: number
+): Promise<MemberReport | null> {
+  try {
+    return api<MemberReport>(`/members/${memberId}/report`);
+  } catch {
+    return null;
+  }
+}
 export async function getMemberPaymentHistory(
   memberId: number
 ): Promise<MemberPaymentHistory | null> {
@@ -1327,3 +1427,4 @@ export async function getMember(id: number): Promise<Member | null> {
     return null;
   }
 }
+

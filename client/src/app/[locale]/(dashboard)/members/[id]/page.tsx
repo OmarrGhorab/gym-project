@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ArrowLeft, Mail, Phone, Calendar, CreditCard, User, WalletCards, ShoppingBag, DoorOpen, QrCode } from "lucide-react";
-import { getMember, getMemberPaymentHistory, getMemberVisits } from "@/lib/api/dashboard";
-import type { MemberPaymentHistory, MemberVisit } from "@/lib/api/dashboard";
+import { ArrowLeft, Mail, Phone, Calendar, CreditCard, User, WalletCards, ShoppingBag, DoorOpen, QrCode, Target, HeartPulse, Dumbbell, Utensils, FileText, CalendarCheck, TrendingUp } from "lucide-react";
+import { getMember, getMemberPaymentHistory, getMemberVisits, getMemberReport } from "@/lib/api/dashboard";
+import type { MemberPaymentHistory, MemberVisit, MemberReport } from "@/lib/api/dashboard";
 import { MemberProfileQrAction } from "@/components/members/member-profile-qr-action";
+import { MemberReportControls } from "@/components/members/member-report-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,10 +24,11 @@ export default async function MemberDetailPage({
   const dateLocale = isArabic ? "ar-EG" : "en-US";
 
   const memberId = Number(id);
-  const [member, paymentHistory, visitsResult] = await Promise.all([
+  const [member, paymentHistory, visitsResult, report] = await Promise.all([
     getMember(memberId),
     getMemberPaymentHistory(memberId),
     getMemberVisits({ memberId: String(memberId), sort: "-check_in_at" }).catch(() => null),
+    getMemberReport(memberId),
   ]);
 
   if (!member) {
@@ -45,7 +47,9 @@ export default async function MemberDetailPage({
             {t("backToMembers")}
           </Link>
         </Button>
-        <MemberProfileQrAction member={member} />
+        <div className={cn("flex flex-col gap-2 sm:items-end", isArabic && "sm:items-start")}>
+            <MemberProfileQrAction member={member} />
+        </div>
       </header>
 
       <Card>
@@ -173,6 +177,17 @@ export default async function MemberDetailPage({
         </Card>
       </div>
 
+      <section className="space-y-4">
+        <div className={cn(isArabic && "text-right")}>
+          <h2 className="text-xl font-black tracking-tight">{t("memberReportTitle")}</h2>
+          <p className="text-sm font-semibold text-muted-foreground">{t("memberReportDescription")}</p>
+        </div>
+      </section>
+
+      {report && (
+        <MemberReportSection report={report} locale={locale} isArabic={isArabic} t={t} />
+      )}
+
       {paymentHistory && (
         <PaymentHistorySection
           history={paymentHistory}
@@ -192,6 +207,115 @@ export default async function MemberDetailPage({
   );
 }
 
+
+function MemberReportSection({
+  report,
+  locale,
+  isArabic,
+  t,
+}: {
+  report: MemberReport;
+  locale: string;
+  isArabic: boolean;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  const member = report.member;
+  const metrics = [
+    { label: t("reportDaysAtGym"), value: report.summary.days_at_gym ?? "-", icon: CalendarCheck },
+    { label: t("reportTotalVisits"), value: report.summary.total_visits, icon: DoorOpen },
+    { label: t("reportWeightChange"), value: report.summary.weight_change_kg ? `${report.summary.weight_change_kg} kg` : "-", icon: TrendingUp },
+    { label: t("reportTotalPaid"), value: formatCurrency(report.summary.total_paid, locale), icon: WalletCards },
+  ];
+
+  return (
+    <section className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => (
+          <Card key={metric.label} className="rounded-lg shadow-sm">
+            <CardContent className="flex items-center justify-between gap-3 p-4">
+              <div className={cn(isArabic && "text-right")}>
+                <p className="text-xs font-bold text-muted-foreground">{metric.label}</p>
+                <p className="mt-1 text-xl font-black tabular-nums">{metric.value}</p>
+              </div>
+              <span className="grid size-8 place-items-center rounded-lg bg-primary/15 text-primary">
+                <metric.icon className="size-4" />
+              </span>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <InfoCard title={t("reportCaseProfile")} icon={Target} rows={[
+          [t("reportGoals"), member.goals || "-"],
+          [t("reportTags"), member.tags?.join(", ") || "-"],
+          [t("reportCoach"), member.coach?.name || "-"],
+          [t("reportEmergency"), [member.emergency_contact_name, member.emergency_contact_phone].filter(Boolean).join(" - ") || "-"],
+        ]} isArabic={isArabic} />
+        <InfoCard title={t("reportMedical")} icon={HeartPulse} rows={[
+          [t("reportInjuries"), member.injuries || "-"],
+          [t("reportMedicalNotes"), member.medical_notes || "-"],
+        ]} isArabic={isArabic} />
+        <InfoCard title={t("reportProgressLatest")} icon={TrendingUp} rows={[
+          [t("reportLatestWeight"), report.summary.latest_weight_kg ? `${report.summary.latest_weight_kg} kg` : "-"],
+          [t("reportLatestBodyFat"), report.summary.latest_body_fat_percent ? `${report.summary.latest_body_fat_percent}%` : "-"],
+          [t("reportProgressRecords"), String(report.progress.length)],
+        ]} isArabic={isArabic} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <PlanListCard title={t("reportWorkoutPlans")} icon={Dumbbell} empty={t("emptyWorkoutPlans")} items={report.workout_plans.map((plan) => ({ id: plan.id, title: plan.title, meta: [plan.status, plan.coach?.name, formatDate(plan.starts_on, locale)].filter(Boolean).join(" - "), note: plan.notes }))} />
+        <PlanListCard title={t("reportNutritionPlans")} icon={Utensils} empty={t("emptyNutritionPlans")} items={report.nutrition_plans.map((plan) => ({ id: plan.id, title: plan.title, meta: [plan.status, plan.daily_calories ? `${plan.daily_calories} kcal` : null, plan.coach?.name].filter(Boolean).join(" - "), note: plan.notes || plan.supplements }))} />
+        <PlanListCard title={t("reportBookings")} icon={CalendarCheck} empty={t("emptyBookings")} items={report.bookings.map((booking) => ({ id: booking.id, title: booking.title, meta: [booking.status, booking.coach?.name, formatDateTime(booking.starts_at, locale)].filter(Boolean).join(" - "), note: booking.notes }))} />
+        <PlanListCard title={t("reportDocuments")} icon={FileText} empty={t("emptyDocuments")} items={report.documents.map((document) => ({ id: document.id, title: document.title, meta: [document.type, document.expires_on ? `${t("reportExpires")} ${formatDate(document.expires_on, locale)}` : null].filter(Boolean).join(" - "), note: document.notes }))} />
+      </div>
+    </section>
+  );
+}
+
+function InfoCard({ title, icon: Icon, rows, isArabic }: { title: string; icon: React.ComponentType<{ className?: string }>; rows: [string, string][]; isArabic: boolean }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className={cn("flex items-center gap-2 text-base font-bold", isArabic && "justify-end text-right")}>
+          <Icon className="size-4 text-primary" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {rows.map(([label, value]) => (
+          <div key={label} className={cn(isArabic && "text-right")}>
+            <p className="text-xs font-bold text-muted-foreground">{label}</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm font-medium">{value}</p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PlanListCard({ title, icon: Icon, empty, items }: { title: string; icon: React.ComponentType<{ className?: string }>; empty: string; items: { id: number; title: string; meta: string; note?: string | null }[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base font-bold">
+          <Icon className="size-4 text-primary" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-md border bg-muted/20 p-3">
+            <p className="text-sm font-bold">{item.title}</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">{item.meta || "-"}</p>
+            {item.note && <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.note}</p>}
+          </div>
+        ))}
+        {items.length === 0 && <p className="text-sm font-semibold text-muted-foreground">{empty}</p>}
+      </CardContent>
+    </Card>
+  );
+}
 function PaymentHistorySection({
   history,
   locale,
@@ -505,3 +629,7 @@ function formatDateTime(value: string | null | undefined, locale: string) {
     minute: "2-digit",
   });
 }
+
+
+
+

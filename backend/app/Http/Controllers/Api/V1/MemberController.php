@@ -12,6 +12,11 @@ use App\Http\Requests\Members\UploadMemberPhotoRequest;
 use App\Http\Resources\MemberResource;
 use App\Http\Resources\PaymentResource;
 use App\Models\Member;
+use App\Models\MemberBooking;
+use App\Models\MemberDocument;
+use App\Models\MemberNutritionPlan;
+use App\Models\MemberProgressEntry;
+use App\Models\MemberWorkoutPlan;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
@@ -32,7 +37,7 @@ final class MemberController extends ApiController
 
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
-        $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan']))
+        $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan', 'coach']))
             ->allowedFilters(
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('gender'),
@@ -151,7 +156,7 @@ final class MemberController extends ApiController
         $this->authorize('view', $member);
 
         $member = Member::withTotalPaid()
-            ->with(['latestSubscription.plan'])
+            ->with(['latestSubscription.plan', 'coach'])
             ->whereKey($member->id)
             ->firstOrFail();
 
@@ -325,4 +330,140 @@ final class MemberController extends ApiController
             message: 'Member payment history retrieved'
         );
     }
+    public function report(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('view', $member);
+
+        $member = Member::withTotalPaid()
+            ->with(['latestSubscription.plan', 'coach'])
+            ->whereKey($member->id)
+            ->firstOrFail();
+
+        $subscriptions = Subscription::query()
+            ->with(['plan', 'freezes'])
+            ->where('member_id', $member->id)
+            ->orderBy('start_date')
+            ->get();
+
+        $progress = MemberProgressEntry::query()
+            ->where('member_id', $member->id)
+            ->orderBy('recorded_on')
+            ->get();
+
+        $visits = $member->visits()
+            ->latest('check_in_at')
+            ->limit(50)
+            ->get();
+
+        $firstProgress = $progress->first();
+        $latestProgress = $progress->last();
+        $totalVisits = $member->visits()->count();
+        $blockedVisits = $member->visits()->where('status', 'blocked')->count();
+        $paidTotal = Payment::query()
+            ->whereHasMorph('payable', [Subscription::class], fn ($q) => $q->where('member_id', $member->id))
+            ->whereIn('status', ['paid', 'partial'])
+            ->sum('amount');
+
+        return $this->success(
+            data: [
+                'member' => (new MemberResource($member))->resolve($request),
+                'summary' => [
+                    'days_at_gym' => $member->join_date ? $member->join_date->diffInDays(now()) + 1 : null,
+                    'total_visits' => $totalVisits,
+                    'blocked_visits' => $blockedVisits,
+                    'subscriptions_count' => $subscriptions->count(),
+                    'total_paid' => number_format((float) $paidTotal, 2, '.', ''),
+                    'weight_change_kg' => $firstProgress?->weight_kg !== null && $latestProgress?->weight_kg !== null
+                        ? number_format((float) $latestProgress->weight_kg - (float) $firstProgress->weight_kg, 2, '.', '')
+                        : null,
+                    'latest_weight_kg' => $latestProgress?->weight_kg,
+                    'latest_body_fat_percent' => $latestProgress?->body_fat_percent,
+                ],
+                'subscriptions' => $subscriptions->map(fn (Subscription $subscription) => [
+                    'id' => $subscription->id,
+                    'plan_name' => $subscription->plan?->name,
+                    'start_date' => $subscription->start_date?->toDateString(),
+                    'end_date' => $subscription->end_date?->toDateString(),
+                    'status' => $subscription->status,
+                    'price_paid' => number_format((float) $subscription->price_paid, 2, '.', ''),
+                    'freezes_count' => $subscription->freezes->count(),
+                ])->values(),
+                'progress' => $progress->map(fn (MemberProgressEntry $entry) => [
+                    'id' => $entry->id,
+                    'recorded_on' => $entry->recorded_on?->toDateString(),
+                    'weight_kg' => $entry->weight_kg,
+                    'body_fat_percent' => $entry->body_fat_percent,
+                    'chest_cm' => $entry->chest_cm,
+                    'waist_cm' => $entry->waist_cm,
+                    'hips_cm' => $entry->hips_cm,
+                    'arms_cm' => $entry->arms_cm,
+                    'thighs_cm' => $entry->thighs_cm,
+                    'notes' => $entry->notes,
+                ])->values(),
+                'workout_plans' => MemberWorkoutPlan::query()
+                    ->with('coach')
+                    ->where('member_id', $member->id)
+                    ->latest()
+                    ->get()
+                    ->map(fn (MemberWorkoutPlan $plan) => [
+                        'id' => $plan->id,
+                        'title' => $plan->title,
+                        'status' => $plan->status,
+                        'starts_on' => $plan->starts_on?->toDateString(),
+                        'ends_on' => $plan->ends_on?->toDateString(),
+                        'coach' => $plan->coach ? ['id' => $plan->coach->id, 'name' => $plan->coach->name] : null,
+                        'sessions' => $plan->sessions ?? [],
+                        'notes' => $plan->notes,
+                    ])->values(),
+                'nutrition_plans' => MemberNutritionPlan::query()
+                    ->with('coach')
+                    ->where('member_id', $member->id)
+                    ->latest()
+                    ->get()
+                    ->map(fn (MemberNutritionPlan $plan) => [
+                        'id' => $plan->id,
+                        'title' => $plan->title,
+                        'status' => $plan->status,
+                        'daily_calories' => $plan->daily_calories,
+                        'protein_grams' => $plan->protein_grams,
+                        'carbs_grams' => $plan->carbs_grams,
+                        'fat_grams' => $plan->fat_grams,
+                        'supplements' => $plan->supplements,
+                        'notes' => $plan->notes,
+                        'coach' => $plan->coach ? ['id' => $plan->coach->id, 'name' => $plan->coach->name] : null,
+                    ])->values(),
+                'documents' => MemberDocument::query()
+                    ->where('member_id', $member->id)
+                    ->latest()
+                    ->get(['id', 'type', 'title', 'expires_on', 'notes', 'created_at']),
+                'bookings' => MemberBooking::query()
+                    ->with('coach')
+                    ->where('member_id', $member->id)
+                    ->latest('starts_at')
+                    ->limit(20)
+                    ->get()
+                    ->map(fn (MemberBooking $booking) => [
+                        'id' => $booking->id,
+                        'title' => $booking->title,
+                        'type' => $booking->type,
+                        'starts_at' => $booking->starts_at?->toIso8601String(),
+                        'ends_at' => $booking->ends_at?->toIso8601String(),
+                        'status' => $booking->status,
+                        'coach' => $booking->coach ? ['id' => $booking->coach->id, 'name' => $booking->coach->name] : null,
+                        'notes' => $booking->notes,
+                    ])->values(),
+                'recent_visits' => $visits->map(fn ($visit) => [
+                    'id' => $visit->id,
+                    'check_in_at' => $visit->check_in_at?->toIso8601String(),
+                    'check_out_at' => $visit->check_out_at?->toIso8601String(),
+                    'status' => $visit->status,
+                    'alert_reason' => $visit->alert_reason,
+                ])->values(),
+            ],
+            message: 'Member report retrieved'
+        );
+    }
 }
+
+
+

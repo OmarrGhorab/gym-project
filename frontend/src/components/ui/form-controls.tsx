@@ -160,12 +160,13 @@ const timeHours = Array.from({ length: 12 }, (_, index) => index + 1);
 const timeMinutes = Array.from({ length: 60 }, (_, index) => index);
 
 type FormTimePickerProps = {
+  className?: string;
   defaultValue?: string | null;
   name: string;
   required?: boolean;
 };
 
-export function FormTimePicker({ defaultValue = "", name, required = false }: FormTimePickerProps) {
+export function FormTimePicker({ className, defaultValue = "", name, required = false }: FormTimePickerProps) {
   const initial = parseTime24(defaultValue ?? "");
   const [hour, setHour] = React.useState<number | null>(initial?.hour ?? null);
   const [minute, setMinute] = React.useState<number | null>(initial?.minute ?? null);
@@ -173,7 +174,7 @@ export function FormTimePicker({ defaultValue = "", name, required = false }: Fo
   const value = hour !== null && minute !== null ? formatTime24(hour, minute, period) : "";
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={cn("grid grid-cols-[minmax(4rem,1fr)_auto_minmax(4rem,1fr)_minmax(4.75rem,1fr)] items-center gap-1.5", className)}>
       <input type="hidden" name={name} value={value} required={required} />
       <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
         <SelectTrigger className="w-full">
@@ -248,3 +249,4 @@ function parseTime24(value: string) {
 
   return { hour, minute, period };
 }
+

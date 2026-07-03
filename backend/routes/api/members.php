@@ -22,6 +22,9 @@ Route::prefix('members')->group(function (): void {
     Route::post('/', [MemberController::class, 'store'])
         ->middleware(['permission:members.create', 'throttle:api']);
 
+    Route::get('/{member}/report', [MemberController::class, 'report'])
+        ->middleware('permission:members.view');
+
     Route::get('/{member}', [MemberController::class, 'show'])
         ->middleware('permission:members.view');
 
@@ -34,6 +37,21 @@ Route::prefix('members')->group(function (): void {
     Route::delete('/{member}', [MemberController::class, 'destroy'])
         ->middleware(['permission:members.delete', 'throttle:api']);
 
+
+    Route::post('/{member}/progress', [MemberController::class, 'storeProgress'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
+    Route::post('/{member}/workout-plans', [MemberController::class, 'storeWorkoutPlan'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
+    Route::post('/{member}/nutrition-plans', [MemberController::class, 'storeNutritionPlan'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
+    Route::post('/{member}/documents', [MemberController::class, 'storeDocument'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
+    Route::post('/{member}/bookings', [MemberController::class, 'storeBooking'])
+        ->middleware(['permission:members.update', 'throttle:api']);
     Route::post('/{member}/photo', [MemberController::class, 'uploadPhoto'])
         ->middleware(['permission:members.update', 'throttle:api']);
 
@@ -43,3 +61,6 @@ Route::prefix('members')->group(function (): void {
     Route::get('/{member}/payments', [MemberController::class, 'payments'])
         ->middleware('permission:payments.view');
 });
+
+
+

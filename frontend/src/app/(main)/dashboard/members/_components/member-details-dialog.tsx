@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { formatCurrency } from "@/lib/utils";
 
 import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
+import { MemberReportControls } from "./member-report-controls";
 
 export function MemberDetailsDialog({
   history,
@@ -54,6 +55,14 @@ export function MemberDetailsDialog({
           <Metric label={t("productPurchases")} value={history?.totals.product_paid ?? "0"} />
           <Metric label={t("totalPaid")} value={history?.totals.total_paid ?? member.total_paid} />
           <Metric label={t("outstanding")} value={history?.totals.outstanding_balance ?? "0"} />
+        </div>
+
+        <div className="rounded-lg border p-3">
+          <div className="mb-3">
+            <h3 className="font-medium text-sm">{t("memberReport")}</h3>
+            <p className="text-muted-foreground text-xs">{t("memberReportDescription")}</p>
+          </div>
+          <MemberReportControls memberId={member.id} />
         </div>
 
         <QrPanel payload={qrPayload} />
@@ -276,3 +285,4 @@ function formatDate(value: string | null, locale: string) {
 function formatMethod(value: string | null | undefined) {
   return (value ?? "-").replaceAll("_", " ");
 }
+

@@ -25,10 +25,17 @@ final class StoreMember
                 'email' => $data['email'] ?? null,
                 'gender' => $data['gender'] ?? null,
                 'national_id' => $data['national_id'] ?? null,
+                'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
+                'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
                 'birth_date' => $data['birth_date'] ?? null,
                 'join_date' => $data['join_date'] ?? now()->toDateString(),
                 'status' => 'active',
                 'notes' => $data['notes'] ?? null,
+                'goals' => $data['goals'] ?? null,
+                'injuries' => $data['injuries'] ?? null,
+                'medical_notes' => $data['medical_notes'] ?? null,
+                'tags' => $data['tags'] ?? null,
+                'coach_id' => $data['coach_id'] ?? null,
                 'created_by' => $creator->id,
             ]);
 
@@ -39,7 +46,7 @@ final class StoreMember
                 $this->createSubscription->handle($subscriptionData, $creator);
             }
 
-            return $member->fresh(['latestSubscription.plan']) ?? $member;
+            return $member->fresh(['latestSubscription.plan', 'coach']) ?? $member;
         });
     }
 }

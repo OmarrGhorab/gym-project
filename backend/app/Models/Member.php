@@ -29,10 +29,17 @@ class Member extends Model
         'birth_date',
         'photo_path',
         'national_id',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'attendance_code',
         'join_date',
         'status',
         'notes',
+        'goals',
+        'injuries',
+        'medical_notes',
+        'tags',
+        'coach_id',
         'created_by',
     ];
 
@@ -44,6 +51,7 @@ class Member extends Model
         return [
             'birth_date' => 'date',
             'join_date' => 'date',
+            'tags' => 'array',
         ];
     }
 
@@ -89,6 +97,36 @@ class Member extends Model
     /**
      * @return HasMany<Subscription, $this>
      */
+
+    public function coach(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'coach_id');
+    }
+
+    public function progressEntries(): HasMany
+    {
+        return $this->hasMany(MemberProgressEntry::class);
+    }
+
+    public function workoutPlans(): HasMany
+    {
+        return $this->hasMany(MemberWorkoutPlan::class);
+    }
+
+    public function nutritionPlans(): HasMany
+    {
+        return $this->hasMany(MemberNutritionPlan::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(MemberDocument::class);
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(MemberBooking::class);
+    }
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
@@ -136,3 +174,4 @@ class Member extends Model
             );
     }
 }
+

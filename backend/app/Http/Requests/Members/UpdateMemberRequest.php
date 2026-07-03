@@ -32,9 +32,17 @@ class UpdateMemberRequest extends FormRequest
                 'regex:/^[23][0-9]{13}$/',
                 Rule::unique('members', 'national_id')->ignore($memberId),
             ],
+            'emergency_contact_name' => ['nullable', 'string', 'max:150'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
             'birth_date' => ['nullable', 'date', 'before:today'],
             'join_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
+            'goals' => ['nullable', 'string', 'max:2000'],
+            'injuries' => ['nullable', 'string', 'max:2000'],
+            'medical_notes' => ['nullable', 'string', 'max:2000'],
+            'tags' => ['nullable', 'array', 'max:10'],
+            'tags.*' => ['string', 'max:40'],
+            'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
             'status' => ['nullable', 'in:active,inactive'],
         ];
     }
