@@ -79,3 +79,39 @@ test('cashier cannot create purchase orders', function (): void {
         ],
     ])->assertForbidden();
 });
+
+test('manager can create a purchase order with an image and stream it', function (): void {
+    \Illuminate\Support\Facades\Storage::fake('local');
+
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $product = Product::factory()->create();
+    $file = \Illuminate\Http\UploadedFile::fake()->image('invoice.png');
+
+    $createResponse = $this->postJson('/api/v1/purchase-orders', [
+        'supplier_name' => 'Gym Supplier',
+        'items' => [
+            [
+                'product_id' => $product->id,
+                'quantity_ordered' => 5,
+                'unit_cost' => '10.00',
+            ],
+        ],
+        'image' => $file,
+    ])->assertCreated();
+
+    $purchaseOrderId = $createResponse->json('data.id');
+    $imageUrl = $createResponse->json('data.image_url');
+    $imagePath = $createResponse->json('data.image');
+
+    expect($imagePath)->not->toBeNull();
+    expect($imageUrl)->toContain("/api/v1/purchase-orders/{$purchaseOrderId}/image");
+
+    \Illuminate\Support\Facades\Storage::disk('local')->assertExists($imagePath);
+
+    // Assert we can stream the image
+    $this->get("/api/v1/purchase-orders/{$purchaseOrderId}/image")
+        ->assertOk();
+});

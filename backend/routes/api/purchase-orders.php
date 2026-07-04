@@ -13,6 +13,9 @@ Route::prefix('purchase-orders')->group(function (): void {
     Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show'])
         ->middleware('permission:products.view');
 
+    Route::get('/{purchaseOrder}/image', [PurchaseOrderController::class, 'streamImage'])
+        ->middleware('permission:products.view');
+
     Route::post('/{purchaseOrder}/receive', [PurchaseOrderController::class, 'receive'])
         ->middleware(['permission:inventory.adjust', 'throttle:api']);
 });

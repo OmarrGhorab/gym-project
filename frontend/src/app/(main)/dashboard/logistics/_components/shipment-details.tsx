@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { AlertTriangleIcon, Boxes, Copy } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -15,7 +17,7 @@ import { ReceivePurchaseOrderForm } from "./logistics-actions";
 import { ProductImage } from "./product-image";
 import { ProductsGrid } from "./products-grid";
 import { ProductsTab } from "./products-tab";
-import type { InventoryLogisticsData, PurchaseOrder } from "./shipment-data";
+import { getPurchaseOrderImageSrc, type InventoryLogisticsData, type PurchaseOrder } from "./shipment-data";
 
 type ShipmentDetailsProps = {
   data: InventoryLogisticsData;
@@ -198,6 +200,21 @@ function OrderOverview({ order }: { order: PurchaseOrder }) {
           <CardContent className="p-4 text-sm">{order.notes}</CardContent>
         </Card>
       )}
+
+      {(() => {
+        const imageSrc = getPurchaseOrderImageSrc(order);
+        if (!imageSrc) return null;
+        return (
+          <Card className="overflow-hidden">
+            <CardContent className="flex flex-col gap-2 p-4">
+              <div className="font-medium text-muted-foreground text-xs">{t("receiptOrInvoice")}</div>
+              <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
+                <Image src={imageSrc} alt={t("receiptOrInvoice")} fill unoptimized className="object-contain" />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

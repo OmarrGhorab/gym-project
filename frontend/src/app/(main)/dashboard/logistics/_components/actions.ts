@@ -137,26 +137,24 @@ export async function createPurchaseOrder(input: FormData): Promise<LogisticsAct
   }
 
   const data = parsed.data;
-  const payload = {
-    expected_at: data.expected_at,
-    items: [
-      {
-        product_id: data.product_id,
-        quantity_ordered: data.quantity_ordered,
-        unit_cost: String(data.unit_cost),
-      },
-    ],
-    notes: data.notes,
-    supplier_name: data.supplier_name,
-    supplier_phone: data.supplier_phone,
-  };
+  const payload = new FormData();
+  payload.set("supplier_name", data.supplier_name);
+  if (data.supplier_phone) payload.set("supplier_phone", data.supplier_phone);
+  if (data.expected_at) payload.set("expected_at", data.expected_at);
+  if (data.notes) payload.set("notes", data.notes);
+
+  payload.set("items[0][product_id]", String(data.product_id));
+  payload.set("items[0][quantity_ordered]", String(data.quantity_ordered));
+  payload.set("items[0][unit_cost]", String(data.unit_cost));
+
+  const image = input.get("image");
+  if (image instanceof File && image.size > 0) {
+    payload.set("image", image);
+  }
 
   try {
     await serverApiFetch("/purchase-orders", {
-      body: JSON.stringify(payload),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      body: payload,
       method: "POST",
     });
   } catch (error) {
@@ -195,17 +193,21 @@ export async function updateProduct(input: FormData): Promise<LogisticsActionRes
     return invalidActionResult(parsed.error);
   }
 
+  const payload = new FormData();
+  payload.set("_method", "PUT");
+  for (const [key, value] of Object.entries(parsed.data)) {
+    payload.set(key, String(value));
+  }
+
+  const image = input.get("image");
+  if (image instanceof File && image.size > 0) {
+    payload.set("image", image);
+  }
+
   try {
     await serverApiFetch(`/products/${id.data}`, {
-      body: JSON.stringify({
-        ...parsed.data,
-        cost: String(parsed.data.cost),
-        price: String(parsed.data.price),
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "PUT",
+      body: payload,
+      method: "POST",
     });
   } catch (error) {
     return {

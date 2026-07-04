@@ -54,6 +54,46 @@ export function ProductsTab({ data }: ProductsTabProps) {
     return count;
   }, [filters]);
 
+  const lastGeneratedRef = React.useRef(data.generated_at);
+
+  React.useEffect(() => {
+    if (data.generated_at === lastGeneratedRef.current) {
+      return;
+    }
+    lastGeneratedRef.current = data.generated_at;
+
+    const hasFilters = activeFiltersCount > 0 || page > 1;
+
+    if (!hasFilters) {
+      setProducts(data.products);
+      setMeta(data.products_meta);
+      setPage(data.products_meta.current_page);
+    } else {
+      let cancelled = false;
+      async function refetch() {
+        setIsPending(true);
+        try {
+          const result = await getProductsPage(page, meta.per_page, filters);
+          if (!cancelled) {
+            setProducts(result.products);
+            setMeta(result.meta);
+            setPage(result.meta.current_page);
+          }
+        } catch {
+          // Keep current state
+        } finally {
+          if (!cancelled) {
+            setIsPending(false);
+          }
+        }
+      }
+      void refetch();
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [data, page, meta.per_page, filters, activeFiltersCount]);
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setFilters((previous) => (previous.search === searchInput ? previous : { ...previous, search: searchInput }));
@@ -148,40 +188,36 @@ export function ProductsTab({ data }: ProductsTabProps) {
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
-        <SelectFilter
-          label={t("statusFilter")}
-          value={filters.status ?? "all"}
-          onValueChange={(value) =>
-            updateFilter("status", (value as ProductFilters["status"] | null) ?? "all")
-          }
-          options={[
-            { label: t("filterAll"), value: "all" },
-            { label: t("filterActive"), value: "active" },
-            { label: t("filterInactive"), value: "inactive" },
-          ]}
-        />
-        <SelectFilter
-          label={t("stockFilter")}
-          value={filters.stock ?? "all"}
-          onValueChange={(value) =>
-            updateFilter("stock", (value as ProductFilters["stock"] | null) ?? "all")
-          }
-          options={[
-            { label: t("filterAll"), value: "all" },
-            { label: t("filterLowStock"), value: "low" },
-          ]}
-        />
-        {categories.length > 0 && (
           <SelectFilter
-            label={t("categoryFilter")}
-            value={filters.category ?? "all"}
-            onValueChange={(value) => updateFilter("category", value ?? "all")}
+            label={t("statusFilter")}
+            value={filters.status ?? "all"}
+            onValueChange={(value) => updateFilter("status", (value as ProductFilters["status"] | null) ?? "all")}
             options={[
               { label: t("filterAll"), value: "all" },
-              ...categories.map((category) => ({ label: category, value: category })),
+              { label: t("filterActive"), value: "active" },
+              { label: t("filterInactive"), value: "inactive" },
             ]}
           />
-        )}
+          <SelectFilter
+            label={t("stockFilter")}
+            value={filters.stock ?? "all"}
+            onValueChange={(value) => updateFilter("stock", (value as ProductFilters["stock"] | null) ?? "all")}
+            options={[
+              { label: t("filterAll"), value: "all" },
+              { label: t("filterLowStock"), value: "low" },
+            ]}
+          />
+          {categories.length > 0 && (
+            <SelectFilter
+              label={t("categoryFilter")}
+              value={filters.category ?? "all"}
+              onValueChange={(value) => updateFilter("category", value ?? "all")}
+              options={[
+                { label: t("filterAll"), value: "all" },
+                ...categories.map((category) => ({ label: category, value: category })),
+              ]}
+            />
+          )}
           {activeFiltersCount > 0 && (
             <Button className="h-8 gap-1.5" size="sm" type="button" variant="ghost" onClick={clearFilters}>
               <X className="size-3.5" />

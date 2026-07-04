@@ -26,6 +26,7 @@ class PurchaseOrder extends Model
         'notes',
         'created_by',
         'received_by',
+        'image',
     ];
 
     protected $casts = [

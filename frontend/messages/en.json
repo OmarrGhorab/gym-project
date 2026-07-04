@@ -1572,6 +1572,7 @@
       "unitCost": "Unit cost",
       "notes": "Notes",
       "notesPlaceholder": "Delivery notes",
+      "receiptOrInvoice": "Receipt/Invoice",
       "createOrder": "Create order",
       "statuses": {
         "cancelled": "Cancelled",

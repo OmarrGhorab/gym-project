@@ -1572,6 +1572,7 @@
       "unitCost": "تكلفة الوحدة",
       "notes": "ملاحظات",
       "notesPlaceholder": "ملاحظات التسليم",
+      "receiptOrInvoice": "الإيصال/الفاتورة",
       "createOrder": "إنشاء أمر",
       "statuses": {
         "cancelled": "ملغي",

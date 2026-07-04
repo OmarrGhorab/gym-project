@@ -218,6 +218,12 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
           <Field label={t("supplierPhone")}>
             <Input name="supplier_phone" placeholder="+20..." />
           </Field>
+          <Field label={t("image")}>
+            <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
+              <ImagePlus className="size-4 text-muted-foreground" />
+              <Input name="image" type="file" accept="image/*" className="border-0 px-0 focus-visible:ring-0" />
+            </div>
+          </Field>
           <Field label={t("product")}>
             <Select name="product_id" defaultValue={defaultProduct ? String(defaultProduct.id) : undefined}>
               <SelectTrigger className="w-full">
@@ -332,6 +338,12 @@ export function ProductQuickActions({ compact = false, product }: { compact?: bo
             </Field>
             <Field label={t("lowStockThreshold")}>
               <Input name="low_stock_threshold" type="number" min="0" defaultValue={product.low_stock_threshold} />
+            </Field>
+            <Field label={t("image")}>
+              <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
+                <ImagePlus className="size-4 text-muted-foreground" />
+                <Input name="image" type="file" accept="image/*" className="border-0 px-0 focus-visible:ring-0" />
+              </div>
             </Field>
           </div>
           <Input name="stock_quantity" type="hidden" value={product.stock_quantity} readOnly />

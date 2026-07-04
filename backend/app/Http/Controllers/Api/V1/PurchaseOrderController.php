@@ -85,4 +85,15 @@ class PurchaseOrderController extends ApiController
             ->response()
             ->setStatusCode(200);
     }
+
+    public function streamImage(Request $request, PurchaseOrder $purchaseOrder): \Symfony\Component\HttpFoundation\Response
+    {
+        $request->user()->can('products.view') || abort(403);
+
+        if (! $purchaseOrder->image || ! \Illuminate\Support\Facades\Storage::disk('local')->exists($purchaseOrder->image)) {
+            abort(404, 'Purchase order image not found');
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($purchaseOrder->image);
+    }
 }

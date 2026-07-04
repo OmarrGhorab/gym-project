@@ -16,6 +16,12 @@ final class CreatePurchaseOrder
             $items = collect($data['items']);
             $subtotal = $items->sum(fn (array $item): float => (float) $item['unit_cost'] * (int) $item['quantity_ordered']);
 
+            $imagePath = null;
+            if (isset($data['image']) && $data['image'] instanceof \Illuminate\Http\UploadedFile) {
+                $service = app(\App\Services\ImageUploadService::class);
+                $imagePath = $service->store($data['image'], 'purchase_orders');
+            }
+
             $purchaseOrder = PurchaseOrder::query()->create([
                 'reference' => $this->nextReference(),
                 'supplier_name' => $data['supplier_name'],
@@ -26,6 +32,7 @@ final class CreatePurchaseOrder
                 'subtotal' => number_format($subtotal, 2, '.', ''),
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $data['created_by'] ?? null,
+                'image' => $imagePath,
             ]);
 
             foreach ($items as $item) {

@@ -32,6 +32,8 @@ export type PurchaseOrder = {
   status: "cancelled" | "delayed" | "draft" | "ordered" | "partial" | "received";
   subtotal: string;
   notes: string | null;
+  image: string | null;
+  image_url: string | null;
   items_count: number;
   ordered_units: number;
   received_units: number;
@@ -107,4 +109,10 @@ export function getProductImageSrc(product: InventoryProduct | null | undefined)
   if (!product?.image_url) return null;
 
   return `/api/media/products/${product.id}/image?v=${encodeURIComponent(product.image_url)}`;
+}
+
+export function getPurchaseOrderImageSrc(order: PurchaseOrder | null | undefined) {
+  if (!order?.image_url) return null;
+
+  return `/api/media/purchase-orders/${order.id}/image?v=${encodeURIComponent(order.image_url)}`;
 }

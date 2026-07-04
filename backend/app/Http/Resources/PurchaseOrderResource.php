@@ -26,6 +26,8 @@ class PurchaseOrderResource extends JsonResource
             'status' => $this->status,
             'subtotal' => $this->subtotal,
             'notes' => $this->notes,
+            'image' => $this->image,
+            'image_url' => $this->image ? url("/api/v1/purchase-orders/{$this->id}/image") : null,
             'created_by' => $this->created_by,
             'received_by' => $this->received_by,
             'items' => PurchaseOrderItemResource::collection($this->whenLoaded('items')),
