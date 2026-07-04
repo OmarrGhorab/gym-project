@@ -37,8 +37,8 @@ export default async function Page() {
         </Badge>
       </div>
 
-      <form action={updateSettings} className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-7">
+      <form action={updateSettings} className="grid grid-cols-1 gap-4">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <Palette className="size-4" />
@@ -64,7 +64,7 @@ export default async function Page() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-5">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <MapPinned className="size-4" />
@@ -106,7 +106,7 @@ export default async function Page() {
         </Card>
       </form>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
@@ -149,7 +149,10 @@ export default async function Page() {
             </Table>
             <div className="mt-4 grid gap-3 rounded-lg border p-3">
               <p className="text-muted-foreground text-xs">{t("shiftFormHint")}</p>
-              <form action={saveShift} className="grid gap-3 md:grid-cols-5">
+              <form
+                action={saveShift}
+                className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(15rem,1.4fr)_minmax(15rem,1.4fr)_minmax(9rem,1fr)_minmax(6rem,auto)]"
+              >
                 <input type="hidden" name="id" value="0" />
                 <CompactField label={t("shiftName")}>
                   <Input name="name" placeholder={t("shiftName")} required />
@@ -168,16 +171,20 @@ export default async function Page() {
                     defaultValue={settings.attendance.default_grace_minutes}
                   />
                 </CompactField>
-                <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+                <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
                   <Checkbox id="new-shift-active" name="is_active" defaultChecked />
                   <Label htmlFor="new-shift-active">{t("active")}</Label>
                 </div>
-                <Button type="submit" className="md:col-span-5">
+                <Button type="submit" className="lg:col-span-2 2xl:col-span-5">
                   {t("createShift")}
                 </Button>
               </form>
               {shifts.map((shift) => (
-                <form key={`edit-${shift.id}`} action={saveShift} className="grid gap-3 border-t pt-3 md:grid-cols-6">
+                <form
+                  key={`edit-${shift.id}`}
+                  action={saveShift}
+                  className="grid gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(15rem,1.4fr)_minmax(15rem,1.4fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(6rem,auto)]"
+                >
                   <input type="hidden" name="id" value={shift.id} />
                   <CompactField label={t("shiftName")}>
                     <Input name="name" defaultValue={shift.name} />
@@ -191,15 +198,15 @@ export default async function Page() {
                   <CompactField label={t("graceMinutes")}>
                     <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
                   </CompactField>
-                  <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+                  <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
                     <Checkbox id={`shift-${shift.id}-active`} name="is_active" defaultChecked={shift.is_active} />
                     <Label htmlFor={`shift-${shift.id}-active`}>{t("active")}</Label>
                   </div>
-                  <div className="flex gap-2">
-                    <Button type="submit" size="sm">
+                  <div className="flex items-end justify-end gap-2 lg:self-end 2xl:justify-start">
+                    <Button type="submit" size="sm" className="min-w-16">
                       {t("save")}
                     </Button>
-                    <Button formAction={deactivateShift} type="submit" size="sm" variant="outline">
+                    <Button formAction={deactivateShift} type="submit" size="sm" variant="outline" className="min-w-24">
                       {t("deactivate")}
                     </Button>
                   </div>

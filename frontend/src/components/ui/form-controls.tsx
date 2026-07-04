@@ -174,7 +174,12 @@ export function FormTimePicker({ className, defaultValue = "", name, required = 
   const value = hour !== null && minute !== null ? formatTime24(hour, minute, period) : "";
 
   return (
-    <div className={cn("grid grid-cols-[minmax(4rem,1fr)_auto_minmax(4rem,1fr)_minmax(4.75rem,1fr)] items-center gap-1.5", className)}>
+    <div
+      className={cn(
+        "grid min-w-[15rem] grid-cols-[minmax(3.75rem,1fr)_auto_minmax(3.75rem,1fr)_minmax(4.25rem,1fr)] items-center gap-1.5",
+        className,
+      )}
+    >
       <input type="hidden" name={name} value={value} required={required} />
       <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
         <SelectTrigger className="w-full">
