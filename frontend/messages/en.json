@@ -1642,8 +1642,13 @@
       "filterAll": "All",
       "filterActive": "Active",
       "filterInactive": "Inactive",
-      "filterLowStock": "Low stock",
-      "clearFilters": "Clear"
+      "filterLowStock": "Low Stock",
+      "clearFilters": "Clear",
+      "searchActivity": "Search activity...",
+      "allTypes": "All Types",
+      "inflow": "Inflow (In)",
+      "outflow": "Outflow (Out)",
+      "adjustments": "Adjustments"
     },
     "academy": {
       "title": "Staff Academy",

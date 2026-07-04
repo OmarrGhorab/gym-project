@@ -1643,7 +1643,12 @@
       "filterActive": "نشط",
       "filterInactive": "غير نشط",
       "filterLowStock": "مخزون منخفض",
-      "clearFilters": "مسح"
+      "clearFilters": "مسح",
+      "searchActivity": "البحث في النشاط...",
+      "allTypes": "كل الأنواع",
+      "inflow": "إضافة (وارد)",
+      "outflow": "خصم (صادر)",
+      "adjustments": "تعديلات"
     },
     "academy": {
       "title": "أكاديمية الموظفين",

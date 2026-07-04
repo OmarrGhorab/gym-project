@@ -60,12 +60,25 @@ final class ReceivePurchaseOrder
                 fn ($item): bool => (int) $item->quantity_received > 0
             );
 
+            $receivedAt = now();
+
             $purchaseOrder->update([
                 'status' => $allReceived ? 'received' : ($anyReceived ? 'partial' : $purchaseOrder->status),
-                'received_at' => $allReceived ? now() : $purchaseOrder->received_at,
+                'received_at' => $allReceived ? $receivedAt : $purchaseOrder->received_at,
                 'received_by' => $allReceived ? $receivedById : $purchaseOrder->received_by,
                 'notes' => $data['notes'] ?? $purchaseOrder->notes,
             ]);
+
+            if ($allReceived && $purchaseOrder->expected_at && $receivedAt->lt($purchaseOrder->expected_at->startOfDay())) {
+                \App\Models\GymTask::query()->create([
+                    'title' => 'Purchase Order '.$purchaseOrder->reference.' received early',
+                    'description' => 'Purchase order '.$purchaseOrder->reference.' from '.$purchaseOrder->supplier_name.' was received on '.$receivedAt->toDateString().' but was expected on '.$purchaseOrder->expected_at->toDateString().'.',
+                    'status' => 'planned',
+                    'priority' => 'medium',
+                    'category' => 'inventory',
+                    'created_by' => $receivedById,
+                ]);
+            }
 
             return $purchaseOrder->fresh(['items.product']);
         });

@@ -115,3 +115,47 @@ test('manager can create a purchase order with an image and stream it', function
     $this->get("/api/v1/purchase-orders/{$purchaseOrderId}/image")
         ->assertOk();
 });
+
+test('receiving a purchase order before the expected date creates a gym task', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $product = Product::factory()->create([
+        'cost' => '10.00',
+    ]);
+
+    $expectedDate = now()->addDays(5)->toDateString();
+
+    $createResponse = $this->postJson('/api/v1/purchase-orders', [
+        'supplier_name' => 'Gym Supplier',
+        'expected_at' => $expectedDate,
+        'items' => [
+            [
+                'product_id' => $product->id,
+                'quantity_ordered' => 5,
+                'unit_cost' => '10.00',
+            ],
+        ],
+    ])->assertCreated();
+
+    $purchaseOrderId = $createResponse->json('data.id');
+    $itemId = $createResponse->json('data.items.0.id');
+
+    expect(\App\Models\GymTask::query()->where('category', 'inventory')->count())->toBe(0);
+
+    $this->postJson("/api/v1/purchase-orders/{$purchaseOrderId}/receive", [
+        'items' => [
+            [
+                'id' => $itemId,
+                'quantity_received' => 5,
+            ],
+        ],
+    ])->assertOk();
+
+    // Verify task was created
+    expect(\App\Models\GymTask::query()->where('category', 'inventory')->count())->toBe(1);
+    $task = \App\Models\GymTask::query()->where('category', 'inventory')->first();
+    expect($task->title)->toContain('received early');
+    expect($task->status)->toBe('planned');
+});

@@ -47,7 +47,7 @@ final class InventoryLogisticsSummary
     private function purchaseOrders(): array
     {
         return PurchaseOrder::query()
-            ->with(['items.product'])
+            ->with(['items.product', 'creator', 'receiver'])
             ->latest()
             ->limit(20)
             ->get()
@@ -69,6 +69,9 @@ final class InventoryLogisticsSummary
                     'status' => $this->computedStatus($order),
                     'subtotal' => $order->subtotal,
                     'notes' => $order->notes,
+                    'image' => $order->image,
+                    'creator_name' => $order->creator?->name,
+                    'receiver_name' => $order->receiver?->name,
                     'items_count' => $itemsCount,
                     'ordered_units' => $orderedUnits,
                     'received_units' => $receivedUnits,

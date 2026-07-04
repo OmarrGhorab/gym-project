@@ -50,7 +50,7 @@ function ProductThumb({ order }: { order: PurchaseOrder }) {
   return (
     <div className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg border bg-muted">
       {src ? (
-        <Image src={src} alt={product?.name || "Product"} fill className="object-cover" sizes="48px" />
+        <Image src={src} alt={product?.name || "Product"} fill unoptimized className="object-cover" sizes="48px" />
       ) : (
         <PackageSearch className="size-5 text-muted-foreground" />
       )}
@@ -64,7 +64,7 @@ function ProductThumbBox({ product }: { product: InventoryLogisticsData["low_sto
   return (
     <div className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg border bg-muted">
       {src ? (
-        <Image src={src} alt={product.name} fill className="object-cover" sizes="48px" />
+        <Image src={src} alt={product.name} fill unoptimized className="object-cover" sizes="48px" />
       ) : (
         <PackageSearch className="size-5 text-muted-foreground" />
       )}
@@ -83,6 +83,15 @@ function OrderCard({
 }) {
   const t = useTranslations("Dashboard.logistics");
   const angle = (order.progress / 100) * 360;
+
+  let displayDate = t("notSet");
+  if (order.status === "received") {
+    if (order.received_at) {
+      displayDate = order.received_at.substring(0, 10);
+    }
+  } else if (order.expected_at) {
+    displayDate = order.expected_at;
+  }
 
   return (
     <button
@@ -143,8 +152,10 @@ function OrderCard({
           </div>
         </div>
         <div className="text-end">
-          <div className="text-muted-foreground text-xs leading-none">{t("expected")}</div>
-          <div className="text-sm tabular-nums tracking-tight">{order.expected_at ?? t("notSet")}</div>
+          <div className="text-muted-foreground text-xs leading-none">
+            {order.status === "received" ? t("received") : t("expected")}
+          </div>
+          <div className="text-sm tabular-nums tracking-tight">{displayDate}</div>
         </div>
       </div>
     </button>

@@ -40,6 +40,8 @@ export type PurchaseOrder = {
   progress: number;
   primary_product: InventoryProduct | null;
   items: PurchaseOrderItem[];
+  creator_name?: string | null;
+  receiver_name?: string | null;
 };
 
 export type InventoryMovement = {
