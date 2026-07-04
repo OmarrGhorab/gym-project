@@ -5,6 +5,19 @@ const withNextIntl = createNextIntlPlugin();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
+  images: {
+    localPatterns: [
+      {
+        pathname: "/api/media/products/**",
+      },
+      {
+        pathname: "/authentication-img.jpeg",
+      },
+      {
+        pathname: "/logo-noBG.png",
+      },
+    ],
+  },
   async redirects() {
     return [
       {

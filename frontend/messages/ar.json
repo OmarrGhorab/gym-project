@@ -1533,6 +1533,7 @@
       "noLowStock": "لا توجد منتجات منخفضة المخزون الآن.",
       "threshold": "الحد {value}",
       "left": "{count} متبقي",
+      "leftLabel": "متبقي",
       "recentActivity": "آخر نشاط",
       "product": "منتج",
       "close": "إغلاق",
@@ -1626,7 +1627,8 @@
       "receiveFailed": "فشل الاستلام",
       "receivePurchaseOrder": "استلام أمر الشراء",
       "receivePurchaseOrderDescription": "أكد الكميات المستلمة وأضفها لمخزون المنتجات.",
-      "receiveStock": "استلام المخزون"
+      "receiveStock": "استلام المخزون",
+      "type": "النوع"
     },
     "academy": {
       "title": "أكاديمية الموظفين",

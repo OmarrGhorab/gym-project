@@ -74,12 +74,12 @@ function EmptyOrderOverview({ data }: { data: InventoryLogisticsData }) {
       <div className="min-h-0 overflow-auto p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="font-medium text-sm">{t("lowStockProducts")}</h3>
+            <h3 className="font-medium text-sm">{t("products")}</h3>
             <p className="text-muted-foreground text-xs">{t("summaryDescription")}</p>
           </div>
-          <Badge variant="outline">{t("itemCount", { count: data.low_stock_products.length })}</Badge>
+          <Badge variant="outline">{t("itemCount", { count: data.products.length })}</Badge>
         </div>
-        <LowStockProducts products={data.low_stock_products} />
+        <ProductsGrid products={data.products} />
       </div>
     </div>
   );
@@ -92,7 +92,7 @@ function InventoryHero({ data, order }: { data: InventoryLogisticsData; order: P
     order?.items
       .map((item) => item.product)
       .filter(Boolean)
-      .slice(0, 4) ?? data.low_stock_products.slice(0, 4);
+      .slice(0, 4) ?? data.products.slice(0, 4);
 
   return (
     <div className="relative overflow-hidden border-b bg-muted/30">
@@ -237,7 +237,7 @@ function OrderOverview({ order }: { order: PurchaseOrder }) {
   );
 }
 
-function LowStockProducts({ products }: { products: InventoryProduct[] }) {
+function ProductsGrid({ products }: { products: InventoryProduct[] }) {
   const t = useTranslations("Dashboard.logistics");
 
   return (
@@ -331,10 +331,24 @@ export function ShipmentDetails({ data, shipment }: ShipmentDetailsProps) {
               <OrderOverview order={shipment} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-auto p-4" value="products">
-              <OrderOverview order={shipment} />
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-sm">{t("products")}</h3>
+                  <p className="text-muted-foreground text-xs">{t("summaryDescription")}</p>
+                </div>
+                <Badge variant="outline">{t("itemCount", { count: data.products.length })}</Badge>
+              </div>
+              <ProductsGrid products={data.products} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-auto p-4" value="alerts">
-              <LowStockProducts products={data.low_stock_products} />
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-sm">{t("lowStockProducts")}</h3>
+                  <p className="text-muted-foreground text-xs">{t("summaryDescription")}</p>
+                </div>
+                <Badge variant="outline">{t("itemCount", { count: data.low_stock_products.length })}</Badge>
+              </div>
+              <ProductsGrid products={data.low_stock_products} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-auto p-4" value="activity">
               <Activity data={data} />

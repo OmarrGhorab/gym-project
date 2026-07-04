@@ -12,7 +12,6 @@ import { defaultLocale, getLocaleDirection, isAppLocale, localeCookieName } from
 import { getMessages } from "@/i18n/messages";
 import { fontVars } from "@/lib/fonts/registry";
 import { PREFERENCE_DEFAULTS } from "@/lib/preferences/preferences-config";
-import { ThemeBootScript } from "@/scripts/theme-boot";
 import { PreferencesStoreProvider } from "@/stores/preferences/preferences-provider";
 
 import "./globals.css";
@@ -22,40 +21,52 @@ export const metadata: Metadata = {
   description: APP_CONFIG.meta.description,
 };
 
+function readPreferenceCookie(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  key: keyof typeof PREFERENCE_DEFAULTS,
+): string {
+  return cookieStore.get(key)?.value ?? PREFERENCE_DEFAULTS[key];
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const { theme_mode, theme_preset, content_layout, navbar_style, sidebar_variant, sidebar_collapsible, font } =
-    PREFERENCE_DEFAULTS;
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get(localeCookieName)?.value;
   const locale = isAppLocale(cookieLocale) ? cookieLocale : defaultLocale;
   const messages = await getMessages(locale);
 
+  const themeMode = readPreferenceCookie(cookieStore, "theme_mode");
+  const themePreset = readPreferenceCookie(cookieStore, "theme_preset");
+  const font = readPreferenceCookie(cookieStore, "font");
+  const contentLayout = readPreferenceCookie(cookieStore, "content_layout");
+  const navbarStyle = readPreferenceCookie(cookieStore, "navbar_style");
+  const sidebarVariant = readPreferenceCookie(cookieStore, "sidebar_variant");
+  const sidebarCollapsible = readPreferenceCookie(cookieStore, "sidebar_collapsible");
+
+  const resolvedDarkClass = themeMode === "dark" ? "dark" : undefined;
+
   return (
     <html
       lang={locale}
       dir={getLocaleDirection(locale)}
-      data-theme-mode={theme_mode}
-      data-theme-preset={theme_preset}
-      data-content-layout={content_layout}
-      data-navbar-style={navbar_style}
-      data-sidebar-variant={sidebar_variant}
-      data-sidebar-collapsible={sidebar_collapsible}
+      data-theme-mode={themeMode}
+      data-theme-preset={themePreset}
+      data-content-layout={contentLayout}
+      data-navbar-style={navbarStyle}
+      data-sidebar-variant={sidebarVariant}
+      data-sidebar-collapsible={sidebarCollapsible}
       data-font={font}
+      className={resolvedDarkClass}
       suppressHydrationWarning
     >
-      <head>
-        {/* Applies theme and layout preferences on load to avoid flicker and unnecessary server rerenders. */}
-        <ThemeBootScript />
-      </head>
       <body className={`${fontVars} min-h-screen antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <TooltipProvider>
             <PreferencesStoreProvider
-              themeMode={theme_mode}
-              themePreset={theme_preset}
-              contentLayout={content_layout}
-              navbarStyle={navbar_style}
-              font={font}
+              themeMode={themeMode as typeof PREFERENCE_DEFAULTS.theme_mode}
+              themePreset={themePreset as typeof PREFERENCE_DEFAULTS.theme_preset}
+              contentLayout={contentLayout as typeof PREFERENCE_DEFAULTS.content_layout}
+              navbarStyle={navbarStyle as typeof PREFERENCE_DEFAULTS.navbar_style}
+              font={font as typeof PREFERENCE_DEFAULTS.font}
             >
               {children}
               <Toaster />

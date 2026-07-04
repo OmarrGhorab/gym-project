@@ -1533,6 +1533,7 @@
       "noLowStock": "No low-stock products right now.",
       "threshold": "threshold {value}",
       "left": "{count} left",
+      "leftLabel": "left",
       "recentActivity": "Recent activity",
       "product": "Product",
       "close": "Close",
@@ -1626,7 +1627,8 @@
       "receiveFailed": "Receive failed",
       "receivePurchaseOrder": "Receive purchase order",
       "receivePurchaseOrderDescription": "Confirm received quantities and add them to product stock.",
-      "receiveStock": "Receive stock"
+      "receiveStock": "Receive stock",
+      "type": "Type"
     },
     "academy": {
       "title": "Staff Academy",

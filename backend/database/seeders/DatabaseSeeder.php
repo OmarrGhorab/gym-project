@@ -7,9 +7,9 @@ use Illuminate\Database\Seeder;
 /**
  * Root database seeder.
  *
- * Seeds only the access matrix and stable login users. Business data such as
- * members, products, sales, shifts, finance, and demo scenarios is intentionally
- * excluded so local flow testing starts from an empty operational database.
+ * Seeds the access matrix, stable login users, and the default gym catalog
+ * (membership plans and retail products). Business data such as members,
+ * sales, shifts, finance, and demo scenarios remains in dedicated seeders.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -24,5 +24,7 @@ class DatabaseSeeder extends Seeder
         $this->call(HrFinanceAccessSeeder::class);
         $this->call(RoleMatrixSeeder::class);
         $this->call(RoleUserSeeder::class);
+        $this->call(PlanSeeder::class);
+        $this->call(ProductSeeder::class);
     }
 }
