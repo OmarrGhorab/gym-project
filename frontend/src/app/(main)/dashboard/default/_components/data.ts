@@ -65,7 +65,7 @@ export type MemberSort = "newest" | "oldest" | "name-asc" | "name-desc";
 
 export type MemberBillingFilter = "paid" | "pending" | "overdue" | "trial";
 
-export type MemberStatusFilter = "active" | "expired" | "frozen" | "stopped" | "inactive" | "none" | "unknown";
+export type MemberStatusFilter = "active" | "expired" | "frozen" | "stopped" | "inactive" | "none";
 
 export type MembersQuery = {
   page?: number;

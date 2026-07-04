@@ -37,7 +37,12 @@ import {
 } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { getOpportunitiesColumns, translateHealth, translateStatus } from "./opportunities-table/columns";
+import {
+  getOpportunitiesColumns,
+  translateBillingStatus,
+  translateHealth,
+  translateStatus,
+} from "./opportunities-table/columns";
 import type { MembershipPipelineRow } from "./opportunities-table/schema";
 
 function preventPaginationNavigation(event: React.MouseEvent<HTMLAnchorElement>) {
@@ -82,12 +87,14 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
   const searchQuery = table.getState().globalFilter ?? "";
   const statusFilter = (table.getColumn("status")?.getFilterValue() as string) ?? "all";
   const healthFilter = (table.getColumn("health")?.getFilterValue() as string) ?? "all";
+  const billingFilter = (table.getColumn("billingStatus")?.getFilterValue() as string) ?? "all";
   const currentPage = table.getState().pagination.pageIndex + 1;
   const pageCount = table.getPageCount();
   const filteredOpportunityCount = table.getFilteredRowModel().rows.length;
   const visibleOpportunityCount = table.getRowModel().rows.length;
   const statusOptions = React.useMemo(() => buildOptions(rows.map((row) => row.status)), [rows]);
   const healthOptions = React.useMemo(() => buildOptions(rows.map((row) => row.health)), [rows]);
+  const billingOptions = React.useMemo(() => buildOptions(rows.map((row) => row.billingStatus)), [rows]);
   const pageNumbers = React.useMemo(() => {
     if (pageCount <= 3) {
       return Array.from({ length: pageCount }, (_, index) => index + 1);
@@ -141,10 +148,32 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
                   <ListFilter data-icon="inline-start" />
-                  {t("health")}
+                  {t("payment")}
                   <ChevronDownIcon data-icon="inline-end" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuRadioGroup
+                    value={billingFilter}
+                    onValueChange={(value) => {
+                      table.getColumn("billingStatus")?.setFilterValue(value === "all" ? undefined : value);
+                      table.setPageIndex(0);
+                    }}
+                  >
+                    {billingOptions.map((option) => (
+                      <DropdownMenuRadioItem key={option} value={option} className="whitespace-nowrap">
+                        {option === "all" ? t("allPayments") : translateBillingStatus(option, t)}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+                  <ListFilter data-icon="inline-start" />
+                  {t("renewalHealth")}
+                  <ChevronDownIcon data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuRadioGroup
                     value={healthFilter}
                     onValueChange={(value) => {
@@ -153,7 +182,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
                     }}
                   >
                     {healthOptions.map((option) => (
-                      <DropdownMenuRadioItem key={option} value={option}>
+                      <DropdownMenuRadioItem key={option} value={option} className="whitespace-nowrap">
                         {option === "all" ? t("allHealth") : translateHealth(option, t)}
                       </DropdownMenuRadioItem>
                     ))}

@@ -37,7 +37,7 @@ final class MemberController extends ApiController
 
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
-        $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan', 'coach']))
+        $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan', 'latestSubscription.payments', 'coach']))
             ->allowedFilters(
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('gender'),
@@ -156,7 +156,7 @@ final class MemberController extends ApiController
         $this->authorize('view', $member);
 
         $member = Member::withTotalPaid()
-            ->with(['latestSubscription.plan', 'coach'])
+            ->with(['latestSubscription.plan', 'latestSubscription.payments', 'coach'])
             ->whereKey($member->id)
             ->firstOrFail();
 
@@ -330,12 +330,13 @@ final class MemberController extends ApiController
             message: 'Member payment history retrieved'
         );
     }
+
     public function report(Request $request, Member $member): JsonResponse
     {
         $this->authorize('view', $member);
 
         $member = Member::withTotalPaid()
-            ->with(['latestSubscription.plan', 'coach'])
+            ->with(['latestSubscription.plan', 'latestSubscription.payments', 'coach'])
             ->whereKey($member->id)
             ->firstOrFail();
 
@@ -464,6 +465,3 @@ final class MemberController extends ApiController
         );
     }
 }
-
-
-

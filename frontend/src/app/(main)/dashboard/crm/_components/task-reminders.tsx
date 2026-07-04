@@ -39,9 +39,14 @@ export function TaskReminders({
                     <CalendarRange className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium text-sm">{followUp.memberName}</div>
+                    <div className="truncate font-medium text-sm">{followUp.memberName || t("notLinked")}</div>
                     <div className="truncate text-muted-foreground text-xs">
-                      {t("planEndsIn", { plan: followUp.planName, days: numberFormatter.format(followUp.daysLeft) })}
+                      {followUp.daysLeft === null
+                        ? t("planEndDateMissing", { plan: followUp.planName || t("noPlan") })
+                        : t("planEndsIn", {
+                            plan: followUp.planName || t("noPlan"),
+                            days: numberFormatter.format(followUp.daysLeft),
+                          })}
                     </div>
                   </div>
                   <div className="text-end text-sm tabular-nums">

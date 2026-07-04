@@ -108,7 +108,7 @@ function parsePageSize(value: string | undefined) {
 }
 
 function parseMemberStatus(value: string | undefined): MemberStatusFilter | undefined {
-  const statuses: MemberStatusFilter[] = ["active", "expired", "frozen", "stopped", "inactive", "none", "unknown"];
+  const statuses: MemberStatusFilter[] = ["active", "expired", "frozen", "stopped", "inactive", "none"];
 
   return statuses.find((status) => status === value);
 }

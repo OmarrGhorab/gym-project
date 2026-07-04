@@ -249,6 +249,7 @@
           "frozen": "مجمد",
           "stopped": "متوقف",
           "inactive": "غير نشط",
+          "none": "بدون اشتراك",
           "noPlan": "بدون خطة",
           "unknown": "غير معروف",
           "paid": "مدفوع",
@@ -264,13 +265,13 @@
           "nameDesc": "الاسم ي-أ"
         },
         "statuses": {
-          "active": "عضوية نشطة",
-          "expired": "عضوية منتهية",
-          "frozen": "عضوية مجمدة",
-          "stopped": "عضوية متوقفة",
-          "inactive": "عضوية غير نشطة",
+          "active": "نشط",
+          "expired": "منتهي",
+          "frozen": "مجمد",
+          "stopped": "متوقف",
+          "inactive": "غير نشط",
           "none": "بدون اشتراك",
-          "unknown": "عضوية غير معروفة"
+          "unknown": "غير محدد"
         },
         "billingStatuses": {
           "paid": "مدفوع",
@@ -329,6 +330,7 @@
       "dueRatio": "نسبة المستحقات {value}%",
       "salesCount": "{count} مبيعات",
       "planEndsIn": "{plan} ينتهي خلال {days} يوم",
+      "planEndDateMissing": "{plan} لا يحتوي على تاريخ نهاية",
       "noRenewals": "لا توجد اشتراكات تحتاج تجديد الآن.",
       "renewalAttention": "اهتمام التجديدات",
       "active": "{count} نشط",
@@ -336,19 +338,28 @@
       "renewalPipeline": "مسار التجديدات",
       "renewalPipelineDescription": "تابع الاشتراكات حسب العضو والخطة وحالة التجديد والأرصدة.",
       "searchMembers": "ابحث عن أعضاء...",
-      "status": "الحالة",
+      "status": "حالة الاشتراك",
       "health": "الصحة",
+      "renewalHealth": "صحة التجديد",
+      "payment": "الدفع",
       "allStatuses": "كل الحالات",
       "allHealth": "كل مؤشرات الصحة",
+      "allPayments": "كل المدفوعات",
       "noSubscriptions": "لا توجد اشتراكات.",
       "viewingSubscriptions": "عرض {visible} من أصل {total} اشتراك",
       "selectAllSubscriptions": "تحديد كل الاشتراكات",
       "selectSubscription": "تحديد {member}",
       "id": "المعرف",
       "member": "العضو",
+      "memberNumber": "عضو #{id}",
       "plan": "الخطة",
+      "period": "الفترة",
       "value": "القيمة",
+      "planPrice": "سعر الخطة",
       "balance": "الرصيد",
+      "balanceDue": "الرصيد المستحق",
+      "paidTotal": "إجمالي المدفوع",
+      "paidOfValue": "{paid} مدفوع من {value}",
       "actions": "الإجراءات",
       "openSubscriptionActions": "فتح إجراءات الاشتراك",
       "viewDetails": "عرض التفاصيل",
@@ -359,8 +370,10 @@
       "ends": "ينتهي",
       "daysLeft": "الأيام المتبقية",
       "daysValue": "{count} يوم",
+      "expiredDaysAgo": "انتهى منذ {count} يوم",
       "noStartDate": "لا يوجد تاريخ بداية",
       "noEndDate": "لا يوجد تاريخ نهاية",
+      "noPeriod": "لا توجد فترة",
       "renewSubscription": "تجديد الاشتراك",
       "renewDescription": "ينشئ فترة الاشتراك التالية ويسجل الدفع.",
       "paymentAmount": "مبلغ الدفع",
@@ -397,11 +410,11 @@
       "unknownMember": "عضو غير معروف",
       "noPlan": "لا توجد خطة",
       "healthLabels": {
-        "Active": "نشط",
-        "Renewed": "مجدد",
-        "Renew Soon": "يجدد قريبًا",
-        "Needs Action": "يحتاج إجراء",
-        "Paused": "متوقف مؤقتًا"
+        "active": "سليم",
+        "renewed": "مجدد",
+        "renew_soon": "يجدد قريبًا",
+        "needs_action": "يحتاج إجراء",
+        "paused": "متوقف مؤقتًا"
       },
       "healthReasons": {
         "nextPeriodStarts": "تبدأ الفترة التالية في {date}",
@@ -417,12 +430,17 @@
         "card": "بطاقة",
         "bank_transfer": "تحويل بنكي"
       },
+      "billingStatuses": {
+        "paid": "مدفوع",
+        "pending": "معلق",
+        "overdue": "متأخر"
+      },
       "statuses": {
-        "Active": "نشط",
-        "Frozen": "مجمد",
-        "Expired": "منتهي",
-        "Stopped": "متوقف",
-        "Pending": "معلق"
+        "active": "نشط",
+        "frozen": "مجمد",
+        "expired": "منتهي",
+        "stopped": "متوقف",
+        "pending": "معلق"
       }
     },
     "attendance": {

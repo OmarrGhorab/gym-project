@@ -66,18 +66,61 @@ type CrmT = ReturnType<typeof useTranslations<"Dashboard.crm">>;
 
 function getHealthScore(health: MembershipPipelineRow["health"]) {
   switch (health) {
-    case "Active":
+    case "active":
       return 18;
-    case "Renewed":
+    case "renewed":
       return 15;
-    case "Renew Soon":
+    case "renew_soon":
       return 11;
-    case "Needs Action":
+    case "needs_action":
       return 7;
-    case "Paused":
+    case "paused":
       return 4;
     default:
       return 0;
+  }
+}
+
+function getHealthColorClassName(health: MembershipPipelineRow["health"]) {
+  switch (health) {
+    case "active":
+    case "renewed":
+      return "bg-green-500/85";
+    case "renew_soon":
+      return "bg-amber-500/85";
+    case "needs_action":
+      return "bg-red-500/85";
+    case "paused":
+      return "bg-slate-500/85";
+    default:
+      return "bg-muted-foreground/60";
+  }
+}
+
+function getStatusBadgeClassName(status: string) {
+  switch (status) {
+    case "active":
+      return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
+    case "expired":
+    case "stopped":
+      return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
+    case "frozen":
+      return "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    default:
+      return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
+  }
+}
+
+function getBillingBadgeClassName(status: string) {
+  switch (status) {
+    case "paid":
+      return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
+    case "overdue":
+      return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
+    case "pending":
+      return "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    default:
+      return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
   }
 }
 
@@ -96,7 +139,7 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label={t("selectSubscription", { member: row.original.member })}
+          aria-label={t("selectSubscription", { member: row.original.member ?? t("notLinked") })}
         />
       ),
       enableHiding: false,
@@ -110,13 +153,20 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
     {
       accessorKey: "member",
       header: t("member"),
-      cell: ({ row }) => <div className="font-medium text-sm">{row.original.member}</div>,
+      cell: ({ row }) => (
+        <div className="grid gap-0.5">
+          <span className="font-medium text-sm">{row.original.member ?? t("notLinked")}</span>
+          <span className="text-muted-foreground text-xs">
+            {row.original.memberId ? t("memberNumber", { id: row.original.memberId }) : t("notLinked")}
+          </span>
+        </div>
+      ),
     },
     {
       accessorKey: "status",
       header: t("status"),
       cell: ({ row }) => (
-        <Badge variant="outline" className="rounded-full px-2.5">
+        <Badge variant="outline" className={cn("rounded-full px-2.5", getStatusBadgeClassName(row.original.status))}>
           {translateStatus(row.original.status, t)}
         </Badge>
       ),
@@ -125,13 +175,23 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
     {
       accessorKey: "plan",
       header: t("plan"),
-      cell: ({ row }) => <div className="text-sm">{row.original.plan}</div>,
+      cell: ({ row }) => <div className="text-sm">{row.original.plan ?? t("noPlan")}</div>,
+    },
+    {
+      id: "period",
+      header: t("period"),
+      cell: ({ row }) => (
+        <div className="grid gap-0.5 text-sm">
+          <span>{formatSubscriptionPeriod(row.original.startDate, row.original.endDate, t)}</span>
+          <span className="text-muted-foreground text-xs">{formatDaysLeft(row.original.daysLeft, t)}</span>
+        </div>
+      ),
     },
     {
       accessorKey: "health",
-      header: t("health"),
+      header: t("renewalHealth"),
       cell: ({ row }) => (
-        <div className="grid gap-1" title={row.original.healthReason}>
+        <div className="grid gap-1" title={translateHealthReason(row.original, t)}>
           <div className="flex items-end gap-0.5">
             <span className="sr-only">{translateHealth(row.original.health, t)}</span>
             {healthStripSlots.map((slot) => (
@@ -139,7 +199,9 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
                 key={`${row.original.id}-${slot.id}`}
                 className={cn(
                   "h-5 w-1 rounded-full",
-                  slot.threshold <= getHealthScore(row.original.health) ? "bg-green-500/85" : "bg-green-500/15",
+                  slot.threshold <= getHealthScore(row.original.health)
+                    ? getHealthColorClassName(row.original.health)
+                    : "bg-muted-foreground/15",
                 )}
               />
             ))}
@@ -150,8 +212,29 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
       filterFn: "equalsString",
     },
     {
+      accessorKey: "billingStatus",
+      header: t("payment"),
+      cell: ({ row }) => (
+        <div className="grid gap-1">
+          <Badge
+            variant="outline"
+            className={cn("w-fit rounded-full px-2.5", getBillingBadgeClassName(row.original.billingStatus))}
+          >
+            {translateBillingStatus(row.original.billingStatus, t)}
+          </Badge>
+          <span className="text-muted-foreground text-xs">
+            {t("paidOfValue", {
+              paid: formatCurrency(row.original.paidTotal, { currency: "EGP", noDecimals: true }),
+              value: formatCurrency(row.original.value, { currency: "EGP", noDecimals: true }),
+            })}
+          </span>
+        </div>
+      ),
+      filterFn: "equalsString",
+    },
+    {
       accessorKey: "value",
-      header: t("value"),
+      header: t("planPrice"),
       cell: ({ row }) => (
         <div className="font-medium text-sm tabular-nums">
           {formatCurrency(row.original.value, { currency: "EGP", noDecimals: true })}
@@ -160,7 +243,7 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
     },
     {
       accessorKey: "balance",
-      header: t("balance"),
+      header: t("balanceDue"),
       cell: ({ row }) => (
         <div className="font-medium text-sm tabular-nums">
           {formatCurrency(row.original.balance, { currency: "EGP", noDecimals: true })}
@@ -351,20 +434,25 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
 
           {dialogMode === "details" ? (
             <div className="grid gap-3">
-              <DetailRow label={t("member")} value={subscription.member} />
+              <DetailRow label={t("member")} value={subscription.member ?? t("notLinked")} />
               <DetailRow
                 label={t("memberId")}
-                value={subscription.memberId ? `#${subscription.memberId}` : t("notLinked")}
+                value={subscription.memberId ? t("memberNumber", { id: subscription.memberId }) : t("notLinked")}
               />
-              <DetailRow label={t("plan")} value={subscription.plan} />
+              <DetailRow label={t("plan")} value={subscription.plan ?? t("noPlan")} />
               <DetailRow label={t("status")} value={translateStatus(subscription.status, t)} />
+              <DetailRow label={t("payment")} value={translateBillingStatus(subscription.billingStatus, t)} />
               <DetailRow
-                label={t("health")}
-                value={`${translateHealth(subscription.health, t)} - ${translateHealthReason(subscription.healthReason, t)}`}
+                label={t("renewalHealth")}
+                value={`${translateHealth(subscription.health, t)} - ${translateHealthReason(subscription, t)}`}
               />
-              <DetailRow label={t("starts")} value={subscription.startDate || t("noStartDate")} />
-              <DetailRow label={t("ends")} value={subscription.endDate || t("noEndDate")} />
-              <DetailRow label={t("daysLeft")} value={t("daysValue", { count: subscription.daysLeft })} />
+              <DetailRow label={t("starts")} value={subscription.startDate ?? t("noStartDate")} />
+              <DetailRow label={t("ends")} value={subscription.endDate ?? t("noEndDate")} />
+              <DetailRow label={t("daysLeft")} value={formatDaysLeft(subscription.daysLeft, t)} />
+              <DetailRow
+                label={t("paidTotal")}
+                value={formatCurrency(subscription.paidTotal, { currency: "EGP", noDecimals: true })}
+              />
               <DetailRow
                 label={t("value")}
                 value={formatCurrency(subscription.value, { currency: "EGP", noDecimals: true })}
@@ -491,7 +579,7 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
                 ? t("confirmActionDescription", {
                     action: labelAction(confirmAction, t).toLowerCase(),
                     id: subscription.subscriptionId,
-                    member: subscription.member,
+                    member: subscription.member ?? t("notLinked"),
                   })
                 : null}
             </AlertDialogDescription>
@@ -609,11 +697,11 @@ function getDialogDescription(mode: "details" | "renew" | "freeze", t: CrmT) {
   }
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 px-3 py-2">
       <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="text-right font-medium text-sm">{value}</span>
+      <span className="text-right font-medium text-sm">{value ?? "—"}</span>
     </div>
   );
 }
@@ -646,11 +734,11 @@ function formatDateLabel(value: string, t: CrmT) {
 
 export function translateHealth(value: string, t: CrmT) {
   if (
-    value === "Active" ||
-    value === "Renewed" ||
-    value === "Renew Soon" ||
-    value === "Needs Action" ||
-    value === "Paused"
+    value === "active" ||
+    value === "renewed" ||
+    value === "renew_soon" ||
+    value === "needs_action" ||
+    value === "paused"
   ) {
     return t(`healthLabels.${value}`);
   }
@@ -659,58 +747,83 @@ export function translateHealth(value: string, t: CrmT) {
 }
 
 export function translateStatus(value: string, t: CrmT) {
-  if (value === "Active" || value === "Frozen" || value === "Expired" || value === "Stopped" || value === "Pending") {
+  if (value === "active" || value === "frozen" || value === "expired" || value === "stopped" || value === "pending") {
     return t(`statuses.${value}`);
   }
 
   return value;
 }
 
-function translateHealthReason(value: string, t: CrmT) {
-  if (value.startsWith("Next period starts on ")) {
-    return t("healthReasons.nextPeriodStarts", { date: value.replace("Next period starts on ", "") });
-  }
-
-  if (value === "Has outstanding balance") {
-    return t("healthReasons.hasBalance");
-  }
-
-  if (value === "Subscription is expired") {
-    return t("healthReasons.expired");
-  }
-
-  if (value === "Subscription is frozen") {
-    return t("healthReasons.frozen");
-  }
-
-  if (value === "Subscription was stopped") {
-    return t("healthReasons.stopped");
-  }
-
-  const endsInMatch = value.match(/^Ends in (\d+) day\(s\)$/);
-
-  if (endsInMatch) {
-    return t("healthReasons.endsIn", { count: Number(endsInMatch[1]) });
-  }
-
-  if (value === "Active with no balance due") {
-    return t("healthReasons.activeNoBalance");
+export function translateBillingStatus(value: string, t: CrmT) {
+  if (value === "paid" || value === "pending" || value === "overdue") {
+    return t(`billingStatuses.${value}`);
   }
 
   return value;
 }
 
+function translateHealthReason(subscription: MembershipPipelineRow, t: CrmT) {
+  if (subscription.healthReason === "next_period_starts") {
+    return t("healthReasons.nextPeriodStarts", { date: subscription.startDate ?? t("noStartDate") });
+  }
+
+  if (subscription.healthReason === "has_balance") {
+    return t("healthReasons.hasBalance");
+  }
+
+  if (subscription.healthReason === "expired") {
+    return t("healthReasons.expired");
+  }
+
+  if (subscription.healthReason === "frozen") {
+    return t("healthReasons.frozen");
+  }
+
+  if (subscription.healthReason === "stopped") {
+    return t("healthReasons.stopped");
+  }
+
+  if (subscription.healthReason === "ends_in") {
+    return t("healthReasons.endsIn", { count: subscription.daysLeft ?? 0 });
+  }
+
+  if (subscription.healthReason === "active_no_balance") {
+    return t("healthReasons.activeNoBalance");
+  }
+
+  return subscription.healthReason;
+}
+
 function getBackendActions(status: string): SubscriptionAction[] {
   switch (status) {
-    case "Active":
+    case "active":
       return ["renew", "freeze", "stop"];
-    case "Frozen":
+    case "frozen":
       return ["unfreeze", "stop"];
-    case "Expired":
-      return ["renew"];
-    case "Stopped":
+    case "expired":
+    case "stopped":
       return ["renew"];
     default:
       return [];
   }
+}
+
+function formatSubscriptionPeriod(startDate: string | null, endDate: string | null, t: CrmT) {
+  if (!startDate && !endDate) {
+    return t("noPeriod");
+  }
+
+  return `${startDate ?? t("noStartDate")} - ${endDate ?? t("noEndDate")}`;
+}
+
+function formatDaysLeft(daysLeft: number | null, t: CrmT) {
+  if (daysLeft === null) {
+    return t("noEndDate");
+  }
+
+  if (daysLeft < 0) {
+    return t("expiredDaysAgo", { count: Math.abs(daysLeft) });
+  }
+
+  return t("daysValue", { count: daysLeft });
 }

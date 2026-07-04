@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Concerns\WrapsApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
 
 final class MemberResource extends JsonResource
 {
@@ -13,6 +14,7 @@ final class MemberResource extends JsonResource
     public function toArray(Request $request): array
     {
         $latestSubscription = $this->latestSubscription;
+        $latestSubscription?->loadMissing('payments');
 
         return [
             'id' => $this->id,
@@ -33,7 +35,7 @@ final class MemberResource extends JsonResource
             'expiry_date' => $latestSubscription?->end_date?->toDateString(),
             'status' => $this->status,
             'membership_status' => $latestSubscription?->status,
-            'billing_status' => bccomp((string) ($this->total_paid ?? '0.00'), '0.00', 2) === 1 ? 'paid' : 'pending',
+            'billing_status' => $this->billingStatus(),
             'notes' => $this->notes,
             'goals' => $this->goals,
             'injuries' => $this->injuries,
@@ -58,5 +60,28 @@ final class MemberResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function billingStatus(): string
+    {
+        $latestSubscription = $this->latestSubscription;
+
+        if (! $latestSubscription) {
+            return 'trial';
+        }
+
+        $payments = $latestSubscription->payments;
+
+        if ($payments->contains(fn ($payment): bool => in_array($payment->status, ['paid', 'partial'], true))) {
+            return 'paid';
+        }
+
+        if ($payments->contains(fn ($payment): bool => ! in_array($payment->status, ['paid', 'partial'], true)
+            && $payment->due_date !== null
+            && $payment->due_date->lt(Carbon::today()))) {
+            return 'overdue';
+        }
+
+        return 'pending';
     }
 }

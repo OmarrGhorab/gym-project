@@ -24,7 +24,7 @@ export type RenewalFollowUp = {
   memberName: string;
   planName: string;
   endDate: string;
-  daysLeft: number;
+  daysLeft: number | null;
   amount: number;
 };
 
@@ -64,9 +64,15 @@ type SubscriptionSummaryResponse = {
 type SubscriptionResource = {
   id: number;
   status: string;
+  billing_status?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  days_left?: number | null;
   price_paid?: string | number | null;
+  paid_total?: string | number | null;
+  balance?: string | number | null;
+  renewal_health?: string | null;
+  renewal_health_reason?: string | null;
   member?: {
     id?: number;
     name?: string | null;
@@ -212,32 +218,35 @@ function mapSalesToMonthlyChart(rows: SalesReportDay[]): MembershipChartPoint[] 
 function mapRenewalFollowUp(subscription: SubscriptionResource): RenewalFollowUp {
   return {
     id: String(subscription.id),
-    memberName: subscription.member?.name ?? "Unknown member",
-    planName: subscription.plan?.name ?? "No plan",
-    endDate: subscription.end_date ?? formatDate(new Date()),
-    daysLeft: getDaysUntil(subscription.end_date),
+    memberName: subscription.member?.name ?? "",
+    planName: subscription.plan?.name ?? "",
+    endDate: subscription.end_date ?? "",
+    daysLeft: subscription.days_left ?? getDaysUntil(subscription.end_date),
     amount: Number(subscription.price_paid ?? 0),
   };
 }
 
 function mapSubscriptionToPipeline(subscription: SubscriptionResource, dues: DueResource[]): MembershipPipelineRow {
   const matchingDue = dues.find((due) => due.subscription?.id === subscription.id);
-  const balance = Number(matchingDue?.balance ?? 0);
-  const daysLeft = getDaysUntil(subscription.end_date);
+  const balance = Number(subscription.balance ?? matchingDue?.balance ?? 0);
+  const daysLeft = subscription.days_left ?? getDaysUntil(subscription.end_date);
 
   return {
     id: String(subscription.id),
     subscriptionId: subscription.id,
     memberId: subscription.member?.id ?? null,
-    member: subscription.member?.name ?? "Unknown member",
-    plan: subscription.plan?.name ?? "No plan",
-    status: toTitleCase(subscription.status),
+    member: subscription.member?.name ?? null,
+    plan: subscription.plan?.name ?? null,
+    status: subscription.status,
+    billingStatus: subscription.billing_status ?? "pending",
     daysLeft,
-    ...getMembershipHealth(subscription, daysLeft, balance),
+    health: subscription.renewal_health ?? "active",
+    healthReason: subscription.renewal_health_reason ?? "active_no_balance",
+    paidTotal: Number(subscription.paid_total ?? 0),
     value: Number(subscription.price_paid ?? 0),
     balance,
-    startDate: subscription.start_date ?? "",
-    endDate: subscription.end_date ?? "",
+    startDate: subscription.start_date ?? null,
+    endDate: subscription.end_date ?? null,
     maxFreezeDays: Number(subscription.plan?.max_freeze_days ?? 0),
   };
 }
@@ -270,47 +279,9 @@ function compareSubscriptionFreshness(left: SubscriptionResource, right: Subscri
   return left.id - right.id;
 }
 
-function getMembershipHealth(subscription: SubscriptionResource, daysLeft: number, balance: number) {
-  const status = subscription.status;
-  const startsInFuture = getDaysUntil(subscription.start_date) > 0;
-
-  if (status === "active" && startsInFuture) {
-    return {
-      health: "Renewed",
-      healthReason: `Next period starts on ${subscription.start_date}`,
-    };
-  }
-
-  if (status === "expired" || balance > 0) {
-    return {
-      health: "Needs Action",
-      healthReason: balance > 0 ? "Has outstanding balance" : "Subscription is expired",
-    };
-  }
-
-  if (status === "frozen" || status === "stopped") {
-    return {
-      health: "Paused",
-      healthReason: status === "frozen" ? "Subscription is frozen" : "Subscription was stopped",
-    };
-  }
-
-  if (daysLeft <= 7) {
-    return {
-      health: "Renew Soon",
-      healthReason: `Ends in ${Math.max(daysLeft, 0)} day(s)`,
-    };
-  }
-
-  return {
-    health: "Active",
-    healthReason: "Active with no balance due",
-  };
-}
-
 function getDaysUntil(date: string | null | undefined) {
   if (!date) {
-    return 0;
+    return null;
   }
 
   const today = new Date();
@@ -327,12 +298,4 @@ function getMetaTotal(meta: Record<string, unknown> | undefined) {
 
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-function toTitleCase(value: string) {
-  return value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
-    .join(" ");
 }

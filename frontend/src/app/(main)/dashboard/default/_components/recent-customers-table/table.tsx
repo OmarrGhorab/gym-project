@@ -36,7 +36,7 @@ import type { MembersMeta, MembersQuery } from "../data";
 import { createRecentCustomersColumns } from "./columns";
 import type { RecentCustomerRow } from "./schema";
 
-const statusValues = ["all", "active", "expired", "frozen", "stopped", "inactive", "none", "unknown"] as const;
+const statusValues = ["all", "active", "expired", "frozen", "stopped", "inactive", "none"] as const;
 const billingValues = ["all", "paid", "pending", "overdue", "trial"] as const;
 const joinedDateValues = ["all", "30", "90"] as const;
 const sortValues = ["newest", "oldest", "name-asc", "name-desc"] as const;
@@ -111,7 +111,7 @@ export function RecentCustomersTable({
     () =>
       statusValues.map((value) => ({
         value,
-        label: value === "all" ? t("filters.all") : t(`statuses.${value}`),
+        label: value === "all" ? t("filters.all") : t(`filters.${value}`),
       })),
     [t],
   );
@@ -204,7 +204,7 @@ export function RecentCustomersTable({
               <UsersRound />
               {t("status")}
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-35" align="start">
+            <DropdownMenuContent className="w-44" align="start">
               <DropdownMenuRadioGroup
                 value={statusFilter}
                 onValueChange={(value) => {
@@ -212,7 +212,7 @@ export function RecentCustomersTable({
                 }}
               >
                 {statusOptions.map((status) => (
-                  <DropdownMenuRadioItem key={status.value} value={status.value}>
+                  <DropdownMenuRadioItem key={status.value} value={status.value} className="whitespace-nowrap">
                     {status.label}
                   </DropdownMenuRadioItem>
                 ))}

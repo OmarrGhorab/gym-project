@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Member;
+use App\Models\Payment;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -49,6 +51,52 @@ test('member list returns correct data shape', function (): void {
             ->has('data.0.status')
             ->etc()
         );
+});
+
+test('member list exposes backend membership and billing statuses', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Member::factory()->create([
+        'name' => 'No Subscription Member',
+        'phone' => '+201000000001',
+    ]);
+
+    $paidMember = Member::factory()->create([
+        'name' => 'Paid Subscription Member',
+        'phone' => '+201000000002',
+    ]);
+    $paidSubscription = Subscription::factory()->for($paidMember)->active()->create();
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $paidSubscription->id,
+        'status' => 'paid',
+    ]);
+
+    $overdueMember = Member::factory()->create([
+        'name' => 'Overdue Subscription Member',
+        'phone' => '+201000000003',
+    ]);
+    $overdueSubscription = Subscription::factory()->for($overdueMember)->active()->create();
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $overdueSubscription->id,
+        'paid_at' => null,
+        'status' => 'due',
+        'due_date' => now()->subDay()->toDateString(),
+    ]);
+
+    $members = collect($this->getJson('/api/v1/members?per_page=10')
+        ->assertStatus(200)
+        ->json('data'))->keyBy('name');
+
+    expect($members['No Subscription Member']['membership_status'])->toBeNull()
+        ->and($members['No Subscription Member']['billing_status'])->toBe('trial')
+        ->and($members['Paid Subscription Member']['membership_status'])->toBe('active')
+        ->and($members['Paid Subscription Member']['billing_status'])->toBe('paid')
+        ->and($members['Overdue Subscription Member']['membership_status'])->toBe('active')
+        ->and($members['Overdue Subscription Member']['billing_status'])->toBe('overdue');
 });
 
 test('member list honors requested per page size', function (): void {

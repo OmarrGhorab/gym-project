@@ -29,7 +29,7 @@ class SubscriptionController extends ApiController
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $subscriptions = QueryBuilder::for(Subscription::class)
-            ->with(['member', 'plan', 'soldBy'])
+            ->with(['member', 'plan', 'soldBy', 'payments'])
             ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),

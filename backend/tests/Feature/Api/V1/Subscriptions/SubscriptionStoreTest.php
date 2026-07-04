@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Member;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
@@ -75,6 +76,59 @@ test('admin can list subscriptions', function (): void {
             ->has('meta.current_page')
             ->has('message')
         );
+});
+
+test('subscription list includes payment balance and renewal health fields', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '450.00',
+        'end_date' => now()->addDays(5)->toDateString(),
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '150.00',
+        'status' => 'partial',
+    ]);
+
+    $this->getJson('/api/v1/subscriptions')
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.paid_total', '150.00')
+        ->assertJsonPath('data.0.balance', '300.00')
+        ->assertJsonPath('data.0.billing_status', 'paid')
+        ->assertJsonPath('data.0.days_left', 5)
+        ->assertJsonPath('data.0.renewal_health', 'needs_action')
+        ->assertJsonPath('data.0.renewal_health_reason', 'has_balance');
+});
+
+test('subscription list marks active subscriptions past end date as expired', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => now()->subDay()->toDateString(),
+        'price_paid' => '450.00',
+    ]);
+
+    $this->getJson('/api/v1/subscriptions')
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.status', 'expired')
+        ->assertJsonPath('data.0.renewal_health', 'needs_action')
+        ->assertJsonPath('data.0.renewal_health_reason', 'expired');
 });
 
 test('admin can view subscription summary', function (): void {

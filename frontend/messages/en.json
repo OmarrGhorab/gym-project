@@ -249,6 +249,7 @@
           "frozen": "Frozen",
           "stopped": "Stopped",
           "inactive": "Inactive",
+          "none": "No subscription",
           "noPlan": "No plan",
           "unknown": "Unknown",
           "paid": "Paid",
@@ -264,13 +265,13 @@
           "nameDesc": "Name Z-A"
         },
         "statuses": {
-          "active": "Active membership",
-          "expired": "Expired membership",
-          "frozen": "Frozen membership",
-          "stopped": "Stopped membership",
-          "inactive": "Inactive membership",
+          "active": "Active",
+          "expired": "Expired",
+          "frozen": "Frozen",
+          "stopped": "Stopped",
+          "inactive": "Inactive",
           "none": "No subscription",
-          "unknown": "Unknown membership"
+          "unknown": "Not set"
         },
         "billingStatuses": {
           "paid": "Paid",
@@ -329,6 +330,7 @@
       "dueRatio": "{value}% due ratio",
       "salesCount": "{count} sales",
       "planEndsIn": "{plan} ends in {days} day(s)",
+      "planEndDateMissing": "{plan} has no end date",
       "noRenewals": "No subscriptions are due for renewal right now.",
       "renewalAttention": "Renewal Attention",
       "active": "{count} active",
@@ -336,19 +338,28 @@
       "renewalPipeline": "Renewal Pipeline",
       "renewalPipelineDescription": "Track subscriptions by member, plan, renewal status, and balances.",
       "searchMembers": "Search members...",
-      "status": "Status",
+      "status": "Subscription status",
       "health": "Health",
+      "renewalHealth": "Renewal health",
+      "payment": "Payment",
       "allStatuses": "All statuses",
       "allHealth": "All health",
+      "allPayments": "All payments",
       "noSubscriptions": "No subscriptions found.",
       "viewingSubscriptions": "Viewing {visible} out of {total} subscriptions",
       "selectAllSubscriptions": "Select all subscriptions",
       "selectSubscription": "Select {member}",
       "id": "ID",
       "member": "Member",
+      "memberNumber": "Member #{id}",
       "plan": "Plan",
+      "period": "Period",
       "value": "Value",
+      "planPrice": "Plan price",
       "balance": "Balance",
+      "balanceDue": "Balance due",
+      "paidTotal": "Paid total",
+      "paidOfValue": "{paid} paid of {value}",
       "actions": "Actions",
       "openSubscriptionActions": "Open subscription actions",
       "viewDetails": "View details",
@@ -359,8 +370,10 @@
       "ends": "Ends",
       "daysLeft": "Days left",
       "daysValue": "{count} day(s)",
+      "expiredDaysAgo": "Expired {count} day(s) ago",
       "noStartDate": "No start date",
       "noEndDate": "No end date",
+      "noPeriod": "No period",
       "renewSubscription": "Renew subscription",
       "renewDescription": "Creates the next subscription period and records payment.",
       "paymentAmount": "Payment amount",
@@ -397,11 +410,11 @@
       "unknownMember": "Unknown member",
       "noPlan": "No plan",
       "healthLabels": {
-        "Active": "Active",
-        "Renewed": "Renewed",
-        "Renew Soon": "Renew Soon",
-        "Needs Action": "Needs Action",
-        "Paused": "Paused"
+        "active": "Healthy",
+        "renewed": "Renewed",
+        "renew_soon": "Renew soon",
+        "needs_action": "Needs action",
+        "paused": "Paused"
       },
       "healthReasons": {
         "nextPeriodStarts": "Next period starts on {date}",
@@ -417,12 +430,17 @@
         "card": "Card",
         "bank_transfer": "Bank transfer"
       },
+      "billingStatuses": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue"
+      },
       "statuses": {
-        "Active": "Active",
-        "Frozen": "Frozen",
-        "Expired": "Expired",
-        "Stopped": "Stopped",
-        "Pending": "Pending"
+        "active": "Active",
+        "frozen": "Frozen",
+        "expired": "Expired",
+        "stopped": "Stopped",
+        "pending": "Pending"
       }
     },
     "attendance": {
