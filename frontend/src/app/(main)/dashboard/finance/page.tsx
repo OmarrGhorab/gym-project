@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { subDays, format as formatDateFns } from "date-fns";
+
+import { format as formatDateFns, subDays } from "date-fns";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,8 +35,8 @@ export default async function Page({
   const t = await getTranslations("Dashboard.finance");
   const locale = await getLocale();
   const { from, to, group_by } = await searchParams;
-  const resolvedFrom = /^\d{4}-\d{2}-\d{2}$/.test(from ?? "") ? from! : defaultFrom();
-  const resolvedTo = /^\d{4}-\d{2}-\d{2}$/.test(to ?? "") ? to! : defaultTo();
+  const resolvedFrom = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : defaultFrom();
+  const resolvedTo = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : defaultTo();
   const groupBy = group_by === "day" ? "day" : "month";
   const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy);
   const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());

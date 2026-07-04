@@ -5,8 +5,8 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
@@ -91,8 +91,22 @@ export default async function Page() {
                   <TableCell>
                     <form action={updatePayroll} className="grid min-w-[240px] grid-cols-[1fr_1fr_auto] gap-2">
                       <input type="hidden" name="id" value={row.id} />
-                      <Input name="bonuses" type="number" min="0" step="0.01" defaultValue={row.bonuses} aria-label={t("bonuses")} />
-                      <Input name="deductions" type="number" min="0" step="0.01" defaultValue={row.deductions} aria-label={t("deductions")} />
+                      <Input
+                        name="bonuses"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={row.bonuses}
+                        aria-label={t("bonuses")}
+                      />
+                      <Input
+                        name="deductions"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={row.deductions}
+                        aria-label={t("deductions")}
+                      />
                       <Button type="submit" size="sm" variant="outline">
                         {t("save")}
                       </Button>

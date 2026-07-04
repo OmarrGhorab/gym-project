@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell, Dumbbell, EllipsisVertical, LogOut, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
+
+import { Bell, Dumbbell, EllipsisVertical, LogOut, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

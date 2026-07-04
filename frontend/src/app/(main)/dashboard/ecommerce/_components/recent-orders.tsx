@@ -22,13 +22,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Pagination,
   PaginationContent,
@@ -41,8 +35,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import type { PosRecentOrder } from "./data";
 import { voidSale } from "./actions";
+import type { PosRecentOrder } from "./data";
 import { getRecentOrdersColumns } from "./recent-orders-table/columns";
 import { preventPaginationNavigation } from "./recent-orders-table/formatters";
 import { type OrderFilter, type OrderRow, orderFilters } from "./recent-orders-table/schema";
@@ -280,13 +274,7 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   );
 }
 
-function SaleDetailsDialog({
-  onOpenChange,
-  order,
-}: {
-  onOpenChange: (open: boolean) => void;
-  order: OrderRow | null;
-}) {
+function SaleDetailsDialog({ onOpenChange, order }: { onOpenChange: (open: boolean) => void; order: OrderRow | null }) {
   const t = useTranslations("Dashboard.ecommerce");
 
   return (

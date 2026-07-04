@@ -287,5 +287,3 @@ function formatDate(value: string | null, locale: string) {
 function formatMethod(value: string | null | undefined) {
   return (value ?? "-").replaceAll("_", " ");
 }
-
-

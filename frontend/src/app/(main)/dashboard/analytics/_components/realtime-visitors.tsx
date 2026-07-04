@@ -1,7 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
 import { MoreHorizontal } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +46,9 @@ export function RealtimeVisitors({ data }: { data: LiveAttendanceData }) {
           <div className="space-y-1">
             <div className="text-3xl tabular-nums leading-none tracking-tight">
               {numberFormatter.format(data.currently_inside.total)}
-              <span className="ml-1 text-background/65 text-base dark:text-muted-foreground">{t("peoplePerMinute")}</span>
+              <span className="ml-1 text-background/65 text-base dark:text-muted-foreground">
+                {t("peoplePerMinute")}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-background/70 text-sm dark:text-muted-foreground">

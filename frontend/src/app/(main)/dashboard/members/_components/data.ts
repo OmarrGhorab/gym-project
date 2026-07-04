@@ -149,8 +149,12 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
 
     const [result, plansResult, staffResult] = await Promise.all([
       serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(`/members?${params.toString()}`),
-      serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100").catch(() => ({ data: [] as PlanRow[] })),
-      serverApiFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100").catch(() => ({ data: [] as StaffOption[] })),
+      serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100").catch(
+        () => ({ data: [] as PlanRow[] }),
+      ),
+      serverApiFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100").catch(
+        () => ({ data: [] as StaffOption[] }),
+      ),
     ]);
     const members = unwrapList(result.data);
     const plans = unwrapList(plansResult.data as PlanRow[] | PaginatedData<PlanRow>);
@@ -182,5 +186,3 @@ function getMeta(result: Awaited<ReturnType<typeof serverApiFetch<MemberRow[] | 
 
   return {};
 }
-
-

@@ -158,5 +158,3 @@ function getMemberPhotoUrl(member: { id: number; updated_at?: string | null }) {
 
   return `/api/media/members/${member.id}/photo${version}`;
 }
-
-

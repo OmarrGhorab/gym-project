@@ -416,7 +416,7 @@ function PermissionPicker({
           <div className="mb-2 font-medium text-sm">{groupLabel(group.group)}</div>
           <div className="grid gap-2">
             {group.permissions.map((permission) => (
-              <label
+              <div
                 key={permission.name}
                 className={cn(
                   "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
@@ -424,6 +424,7 @@ function PermissionPicker({
                 )}
               >
                 <Checkbox
+                  id={`permission-${permission.name}`}
                   name="permissions"
                   value={permission.name}
                   checked={checkedPermissions.has(permission.name)}
@@ -431,8 +432,10 @@ function PermissionPicker({
                   disabled={disabled}
                   aria-label={t("togglePermission", { permission: permission.name })}
                 />
-                <span className="min-w-0 truncate">{permissionActionLabel(permission.name)}</span>
-              </label>
+                <Label htmlFor={`permission-${permission.name}`} className="min-w-0 truncate">
+                  {permissionActionLabel(permission.name)}
+                </Label>
+              </div>
             ))}
           </div>
         </div>

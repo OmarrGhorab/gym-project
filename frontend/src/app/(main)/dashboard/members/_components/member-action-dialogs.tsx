@@ -32,9 +32,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createMember, createMemberSubscription, deactivateMember, fetchMemberDetails, updateMember, uploadMemberPhoto } from "./actions";
-import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
 import type { PlanRow } from "../../plans/_components/data";
+import {
+  createMember,
+  createMemberSubscription,
+  deactivateMember,
+  fetchMemberDetails,
+  updateMember,
+  uploadMemberPhoto,
+} from "./actions";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
 import { MemberDetailsDialog } from "./member-details-dialog";
 
 type ActionResult = {
@@ -170,7 +177,15 @@ export function MemberPhotoDialog({ member }: { member: MemberRow }) {
   );
 }
 
-export function MemberActionsMenu({ member, plans, staff }: { member: MemberRow; plans: PlanRow[]; staff: StaffOption[] }) {
+export function MemberActionsMenu({
+  member,
+  plans,
+  staff,
+}: {
+  member: MemberRow;
+  plans: PlanRow[];
+  staff: StaffOption[];
+}) {
   const t = useTranslations("Dashboard.membersPage");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
@@ -242,7 +257,12 @@ export function MemberActionsMenu({ member, plans, staff }: { member: MemberRow;
       />
       <EditMemberControlledDialog member={member} open={editOpen} onOpenChange={setEditOpen} />
       <MemberPhotoControlledDialog member={member} open={photoOpen} onOpenChange={setPhotoOpen} />
-      <MemberSubscriptionDialog member={member} plans={plans} open={subscriptionOpen} onOpenChange={setSubscriptionOpen} />
+      <MemberSubscriptionDialog
+        member={member}
+        plans={plans}
+        open={subscriptionOpen}
+        onOpenChange={setSubscriptionOpen}
+      />
     </>
   );
 }
@@ -316,7 +336,6 @@ function MemberPhotoControlledDialog({
     </Dialog>
   );
 }
-
 
 function MemberSubscriptionDialog({
   member,
@@ -605,6 +624,3 @@ function DateField({ defaultValue, label, name }: { defaultValue?: string | null
     </div>
   );
 }
-
-
-

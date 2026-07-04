@@ -26,5 +26,6 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleUserSeeder::class);
         $this->call(PlanSeeder::class);
         $this->call(ProductSeeder::class);
+        $this->call(PostmanScenarioSeeder::class);
     }
 }

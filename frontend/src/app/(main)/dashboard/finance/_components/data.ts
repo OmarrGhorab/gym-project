@@ -125,11 +125,7 @@ const emptyFinanceData: FinanceDashboardData = {
   },
 };
 
-export async function getFinanceDashboardData(
-  from: string,
-  to: string,
-  groupBy: string,
-): Promise<FinancePageData> {
+export async function getFinanceDashboardData(from: string, to: string, groupBy: string): Promise<FinancePageData> {
   try {
     const [summaryResult, chartResult, paymentsResult, duesResult, expensesResult] = await Promise.all([
       serverApiFetch<FinanceDashboardData>("/reports/finance-summary"),

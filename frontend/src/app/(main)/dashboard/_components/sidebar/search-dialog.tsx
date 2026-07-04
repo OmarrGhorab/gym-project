@@ -53,28 +53,28 @@ function buildSearchItems(user: DashboardUser): SearchItem[] {
 
   return authorizedItems.flatMap((group) =>
     group.items.flatMap((item) => {
-    if (item.subItems) {
-      return item.subItems.map((sub) => ({
-        id: sub.id,
-        group: getSubItemGroup(group.label, item.title),
-        label: sub.title,
-        url: sub.url,
-        icon: item.icon,
-        disabled: sub.disabled,
-        newTab: sub.newTab,
-      }));
-    }
-    return [
-      {
-        id: item.id,
-        group: group.label ?? "Other",
-        label: item.title,
-        url: item.url,
-        icon: item.icon,
-        disabled: item.disabled,
-        newTab: item.newTab,
-      },
-    ];
+      if (item.subItems) {
+        return item.subItems.map((sub) => ({
+          id: sub.id,
+          group: getSubItemGroup(group.label, item.title),
+          label: sub.title,
+          url: sub.url,
+          icon: item.icon,
+          disabled: sub.disabled,
+          newTab: sub.newTab,
+        }));
+      }
+      return [
+        {
+          id: item.id,
+          group: group.label ?? "Other",
+          label: item.title,
+          url: item.url,
+          icon: item.icon,
+          disabled: item.disabled,
+          newTab: item.newTab,
+        },
+      ];
     }),
   );
 }
@@ -205,7 +205,9 @@ export function SearchDialog({ user }: { user: DashboardUser }) {
                 {item.icon && <item.icon />}
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate">{getItemLabel(item, tNav)}</span>
-                  {item.subtitle ? <span className="truncate text-muted-foreground text-xs">{item.subtitle}</span> : null}
+                  {item.subtitle ? (
+                    <span className="truncate text-muted-foreground text-xs">{item.subtitle}</span>
+                  ) : null}
                 </span>
               </span>
             </CommandItem>

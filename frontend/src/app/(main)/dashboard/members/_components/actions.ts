@@ -110,7 +110,6 @@ export async function updateMember(input: FormData): Promise<void> {
   revalidatePath("/dashboard/crm");
 }
 
-
 export async function createMemberSubscription(input: FormData): Promise<void> {
   const memberId = memberIdSchema.parse(input.get("member_id"));
   const payload = {
@@ -192,4 +191,3 @@ function parseMemberInput(input: FormData) {
     status: input.get("status") || "active",
   });
 }
-

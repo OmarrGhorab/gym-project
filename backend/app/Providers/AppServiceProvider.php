@@ -44,6 +44,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Activity::class, AuditLogPolicy::class);
 
+        Gate::define('change-own-password', fn ($user): bool => $user !== null);
+
         // Ownership check for signed export download/status routes.
         // The signed URL already limits forgery; this gate ensures only the
         // requesting user can download their own export (FR-019/V).

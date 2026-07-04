@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+
 import { useRouter, useSearchParams } from "next/navigation";
+
 import { parseISO } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
-import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import type { DateRange } from "react-day-picker";
+import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
+import { DateRangePicker } from "@/components/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DateRangePicker } from "@/components/date-range-picker";
 
 export type SalesChartPoint = {
   date: string;
@@ -213,10 +215,24 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
               />
             )}
             {showSales && (
-              <Line yAxisId="count" dataKey="sales" type="natural" stroke="var(--color-sales)" strokeWidth={1.4} dot={false} />
+              <Line
+                yAxisId="count"
+                dataKey="sales"
+                type="natural"
+                stroke="var(--color-sales)"
+                strokeWidth={1.4}
+                dot={false}
+              />
             )}
             {showUnits && (
-              <Line yAxisId="count" dataKey="units" type="natural" stroke="var(--color-units)" strokeWidth={1.2} dot={false} />
+              <Line
+                yAxisId="count"
+                dataKey="units"
+                type="natural"
+                stroke="var(--color-units)"
+                strokeWidth={1.2}
+                dot={false}
+              />
             )}
           </ComposedChart>
         </ChartContainer>
@@ -225,10 +241,7 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
   );
 }
 
-function getPerformanceSegmentLabel(
-  value: SegmentValue,
-  t: ReturnType<typeof useTranslations>,
-) {
+function getPerformanceSegmentLabel(value: SegmentValue, t: ReturnType<typeof useTranslations>) {
   if (value === "all") {
     return t("allSales");
   }

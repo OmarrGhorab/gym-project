@@ -9,7 +9,6 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { FormSelect } from "@/components/ui/form-controls";
 import {
   Dialog,
   DialogContent,
@@ -20,19 +19,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createSale, searchPosMembers } from "./actions";
 import type { PosMemberOption, PosProductOption } from "./data";
 
-export function PosCheckoutClient({
-  members,
-  products,
-}: {
-  members: PosMemberOption[];
-  products: PosProductOption[];
-}) {
+export function PosCheckoutClient({ members, products }: { members: PosMemberOption[]; products: PosProductOption[] }) {
   const t = useTranslations("Dashboard.ecommerce");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);

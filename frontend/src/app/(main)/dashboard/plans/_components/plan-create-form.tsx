@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
+
 import { PackageCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -25,7 +26,9 @@ export function PlanCreateForm() {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createPlan, initialPlanFormState);
   const [unlimitedSessions, setUnlimitedSessions] = React.useState(state.values.is_unlimited_sessions === "on");
-  const [freezeRequiresApproval, setFreezeRequiresApproval] = React.useState(state.values.freeze_requires_approval === "on");
+  const [freezeRequiresApproval, setFreezeRequiresApproval] = React.useState(
+    state.values.freeze_requires_approval === "on",
+  );
 
   React.useEffect(() => {
     if (state.ok) {
@@ -84,8 +87,21 @@ export function PlanCreateForm() {
         />
       </div>
 
-      <Field error={fieldError(state, "price")} label={t("price")} name="price" type="number" step="0.01" defaultValue={state.values.price} />
-      <Field error={fieldError(state, "duration_days")} label={t("durationDays")} name="duration_days" type="number" defaultValue={state.values.duration_days || "30"} />
+      <Field
+        error={fieldError(state, "price")}
+        label={t("price")}
+        name="price"
+        type="number"
+        step="0.01"
+        defaultValue={state.values.price}
+      />
+      <Field
+        error={fieldError(state, "duration_days")}
+        label={t("durationDays")}
+        name="duration_days"
+        type="number"
+        defaultValue={state.values.duration_days || "30"}
+      />
 
       <div className="flex items-center gap-2">
         <input type="hidden" name="is_unlimited_sessions" value={unlimitedSessions ? "on" : ""} />
@@ -98,11 +114,29 @@ export function PlanCreateForm() {
       </div>
 
       {!unlimitedSessions ? (
-        <Field error={fieldError(state, "sessions_count")} label={t("sessionsCount")} name="sessions_count" type="number" defaultValue={state.values.sessions_count} />
+        <Field
+          error={fieldError(state, "sessions_count")}
+          label={t("sessionsCount")}
+          name="sessions_count"
+          type="number"
+          defaultValue={state.values.sessions_count}
+        />
       ) : null}
 
-      <Field error={fieldError(state, "max_freeze_days")} label={t("maxFreezeDays")} name="max_freeze_days" type="number" defaultValue={state.values.max_freeze_days || "0"} />
-      <Field error={fieldError(state, "min_freeze_days")} label={t("minFreezeDays")} name="min_freeze_days" type="number" defaultValue={state.values.min_freeze_days || "0"} />
+      <Field
+        error={fieldError(state, "max_freeze_days")}
+        label={t("maxFreezeDays")}
+        name="max_freeze_days"
+        type="number"
+        defaultValue={state.values.max_freeze_days || "0"}
+      />
+      <Field
+        error={fieldError(state, "min_freeze_days")}
+        label={t("minFreezeDays")}
+        name="min_freeze_days"
+        type="number"
+        defaultValue={state.values.min_freeze_days || "0"}
+      />
 
       <div className="space-y-1">
         <div className="flex items-center gap-2">
@@ -117,10 +151,26 @@ export function PlanCreateForm() {
         <p className="text-muted-foreground text-xs">{t("freezeRequiresApprovalHelp")}</p>
       </div>
 
-      <DateField label={t("validFrom")} name="valid_from" placeholder={t("selectDate")} defaultValue={state.values.valid_from} />
-      <DateField error={fieldError(state, "valid_to")} label={t("validTo")} name="valid_to" placeholder={t("selectDate")} defaultValue={state.values.valid_to} />
+      <DateField
+        label={t("validFrom")}
+        name="valid_from"
+        placeholder={t("selectDate")}
+        defaultValue={state.values.valid_from}
+      />
+      <DateField
+        error={fieldError(state, "valid_to")}
+        label={t("validTo")}
+        name="valid_to"
+        placeholder={t("selectDate")}
+        defaultValue={state.values.valid_to}
+      />
       <TimeField label={t("accessStartsAt")} name="access_starts_at" defaultValue={state.values.access_starts_at} />
-      <TimeField error={fieldError(state, "access_ends_at")} label={t("accessEndsAt")} name="access_ends_at" defaultValue={state.values.access_ends_at} />
+      <TimeField
+        error={fieldError(state, "access_ends_at")}
+        label={t("accessEndsAt")}
+        name="access_ends_at"
+        defaultValue={state.values.access_ends_at}
+      />
 
       <div className="space-y-2">
         <Label htmlFor="description">{t("descriptionField")}</Label>
@@ -185,7 +235,17 @@ function DateField({
   );
 }
 
-function TimeField({ defaultValue, error, label, name }: { defaultValue?: string; error?: string; label: string; name: string }) {
+function TimeField({
+  defaultValue,
+  error,
+  label,
+  name,
+}: {
+  defaultValue?: string;
+  error?: string;
+  label: string;
+  name: string;
+}) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -194,5 +254,3 @@ function TimeField({ defaultValue, error, label, name }: { defaultValue?: string
     </div>
   );
 }
-
-

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { getNotificationsPageData } from "./_components/data";
 import { markNotificationRead } from "./_components/actions";
+import { getNotificationsPageData } from "./_components/data";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.mail");

@@ -1,5 +1,6 @@
-import { Clock3, MapPinned, Palette, ShieldAlert } from "lucide-react";
 import type * as React from "react";
+
+import { Clock3, MapPinned, Palette, ShieldAlert } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -160,12 +161,17 @@ export default async function Page() {
                   <FormTimePicker name="ends_at" required />
                 </CompactField>
                 <CompactField label={t("graceMinutes")}>
-                  <Input name="grace_minutes" type="number" min={0} defaultValue={settings.attendance.default_grace_minutes} />
+                  <Input
+                    name="grace_minutes"
+                    type="number"
+                    min={0}
+                    defaultValue={settings.attendance.default_grace_minutes}
+                  />
                 </CompactField>
-                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
-                  <Checkbox name="is_active" defaultChecked />
-                  {t("active")}
-                </label>
+                <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+                  <Checkbox id="new-shift-active" name="is_active" defaultChecked />
+                  <Label htmlFor="new-shift-active">{t("active")}</Label>
+                </div>
                 <Button type="submit" className="md:col-span-5">
                   {t("createShift")}
                 </Button>
@@ -185,10 +191,10 @@ export default async function Page() {
                   <CompactField label={t("graceMinutes")}>
                     <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
                   </CompactField>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
-                    <Checkbox name="is_active" defaultChecked={shift.is_active} />
-                    {t("active")}
-                  </label>
+                  <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+                    <Checkbox id={`shift-${shift.id}-active`} name="is_active" defaultChecked={shift.is_active} />
+                    <Label htmlFor={`shift-${shift.id}-active`}>{t("active")}</Label>
+                  </div>
                   <div className="flex gap-2">
                     <Button type="submit" size="sm">
                       {t("save")}
@@ -256,23 +262,41 @@ export default async function Page() {
                       type="number"
                       defaultValue={rule.threshold_minutes ?? ""}
                     />
-                    <Field label={t("deductionDays")} name="deduction_days" type="number" step="0.01" defaultValue={rule.deduction_days} />
+                    <Field
+                      label={t("deductionDays")}
+                      name="deduction_days"
+                      type="number"
+                      step="0.01"
+                      defaultValue={rule.deduction_days}
+                    />
                     <div className="flex flex-wrap items-center gap-4 pt-7 text-sm">
-                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
-                        <Checkbox name="requires_admin_approval" defaultChecked={rule.requires_admin_approval} />
-                        {t("requiresApproval")}
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
-                        <Checkbox name="auto_apply_if_unreviewed" defaultChecked={rule.auto_apply_if_unreviewed} />
-                        {t("autoApply")}
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
-                        <Checkbox name="is_active" defaultChecked={rule.is_active} />
-                        {t("active")}
-                      </label>
+                      <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                        <Checkbox
+                          id={`rule-${rule.id}-requires-approval`}
+                          name="requires_admin_approval"
+                          defaultChecked={rule.requires_admin_approval}
+                        />
+                        <Label htmlFor={`rule-${rule.id}-requires-approval`}>{t("requiresApproval")}</Label>
+                      </div>
+                      <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                        <Checkbox
+                          id={`rule-${rule.id}-auto-apply`}
+                          name="auto_apply_if_unreviewed"
+                          defaultChecked={rule.auto_apply_if_unreviewed}
+                        />
+                        <Label htmlFor={`rule-${rule.id}-auto-apply`}>{t("autoApply")}</Label>
+                      </div>
+                      <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                        <Checkbox id={`rule-${rule.id}-active`} name="is_active" defaultChecked={rule.is_active} />
+                        <Label htmlFor={`rule-${rule.id}-active`}>{t("active")}</Label>
+                      </div>
                     </div>
                   </div>
-                  <Textarea name="description" defaultValue={rule.description ?? ""} placeholder={t("ruleDescription")} />
+                  <Textarea
+                    name="description"
+                    defaultValue={rule.description ?? ""}
+                    placeholder={t("ruleDescription")}
+                  />
                   <Button type="submit" size="sm">
                     {t("saveRule")}
                   </Button>
@@ -289,7 +313,7 @@ export default async function Page() {
 function CompactField({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     <div className="grid min-w-0 gap-1">
-      <div className="text-muted-foreground text-xs font-medium">{label}</div>
+      <div className="font-medium text-muted-foreground text-xs">{label}</div>
       {children}
     </div>
   );

@@ -1,16 +1,18 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+
 import { useRouter, useSearchParams } from "next/navigation";
+
 import { parseISO } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import type { DateRange } from "react-day-picker";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { DateRangePicker } from "@/components/date-range-picker";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateRangePicker } from "@/components/date-range-picker";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceChartPoint } from "./data";
@@ -80,15 +82,11 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
   const chartData = chart
     .map((point) => {
       const isMonthly = /^\d{4}-\d{2}$/.test(point.period);
-      const date = isMonthly
-        ? Date.parse(`${point.period}-01T00:00:00Z`)
-        : Date.parse(`${point.period}T00:00:00Z`);
+      const date = isMonthly ? Date.parse(`${point.period}-01T00:00:00Z`) : Date.parse(`${point.period}T00:00:00Z`);
 
       return {
         period: point.period,
-        label: isMonthly
-          ? formatMonthOnly(point.period, locale)
-          : formatDayOnly(point.period, locale),
+        label: isMonthly ? formatMonthOnly(point.period, locale) : formatDayOnly(point.period, locale),
         date,
         expenses: Number(point.expenses),
         netProfit: Number(point.net_profit),

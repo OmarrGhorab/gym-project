@@ -1,19 +1,28 @@
 "use client";
 
 import * as React from "react";
+
+import { useRouter } from "next/navigation";
+
 import { CalendarCheck, Dumbbell, FileText, Ruler, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createMemberReportItem, type MemberReportKind } from "./member-report-actions";
 import type { StaffOption } from "./data";
+import { createMemberReportItem, type MemberReportKind } from "./member-report-actions";
 
 const actions: { kind: MemberReportKind; icon: React.ComponentType<{ className?: string }> }[] = [
   { kind: "progress", icon: Ruler },
@@ -138,8 +147,21 @@ function BookingFields({ staff, t }: FieldsProps & { staff: StaffOption[] }) {
       <Field label={t("title")} name="title" required />
       <CoachSelect label={t("coach")} name="coach_id" staff={staff} />
       <Field label={t("type")} name="type" placeholder="session" />
-      <DateTimeField className="sm:col-span-2" dateLabel={t("startsAt")} name="starts_at" placeholder={t("selectDate")} required timeLabel={t("time")} />
-      <DateTimeField className="sm:col-span-2" dateLabel={t("endsAt")} name="ends_at" placeholder={t("selectDate")} timeLabel={t("time")} />
+      <DateTimeField
+        className="sm:col-span-2"
+        dateLabel={t("startsAt")}
+        name="starts_at"
+        placeholder={t("selectDate")}
+        required
+        timeLabel={t("time")}
+      />
+      <DateTimeField
+        className="sm:col-span-2"
+        dateLabel={t("endsAt")}
+        name="ends_at"
+        placeholder={t("selectDate")}
+        timeLabel={t("time")}
+      />
       <TextField className="sm:col-span-2" label={t("notes")} name="notes" />
     </div>
   );
@@ -159,8 +181,6 @@ function DocumentFields({ t }: FieldsProps) {
 
 type FieldsProps = { t: (key: string) => string };
 
-
-
 function CoachSelect({ label, name, staff }: { label: string; name: string; staff: StaffOption[] }) {
   return (
     <div className="grid gap-2 text-sm">
@@ -176,7 +196,17 @@ function CoachSelect({ label, name, staff }: { label: string; name: string; staf
     </div>
   );
 }
-function DateField({ label, name, placeholder, required = false }: { label: string; name: string; placeholder?: string; required?: boolean }) {
+function DateField({
+  label,
+  name,
+  placeholder,
+  required = false,
+}: {
+  label: string;
+  name: string;
+  placeholder?: string;
+  required?: boolean;
+}) {
   return (
     <div className="grid gap-2 text-sm">
       <span className="font-medium">{label}</span>
@@ -217,7 +247,9 @@ function Field(props: React.ComponentProps<typeof Input> & { label: string; name
   const { label, name, ...inputProps } = props;
   return (
     <div className="grid gap-2 text-sm">
-      <label htmlFor={name} className="font-medium">{label}</label>
+      <label htmlFor={name} className="font-medium">
+        {label}
+      </label>
       <Input id={name} name={name} {...inputProps} />
     </div>
   );
@@ -226,14 +258,10 @@ function Field(props: React.ComponentProps<typeof Input> & { label: string; name
 function TextField({ className, label, name }: { className?: string; label: string; name: string }) {
   return (
     <div className={`grid gap-2 text-sm ${className ?? ""}`}>
-      <label htmlFor={name} className="font-medium">{label}</label>
+      <label htmlFor={name} className="font-medium">
+        {label}
+      </label>
       <Textarea id={name} name={name} rows={3} />
     </div>
   );
 }
-
-
-
-
-
-

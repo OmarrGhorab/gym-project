@@ -2,10 +2,11 @@
 
 import { useEffect } from "react";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -54,15 +55,12 @@ export function AnalyticsToolbar({ filters, generatedAt }: { filters: LiveAttend
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <div className="rounded-md border bg-card px-3 py-2 text-muted-foreground text-sm">
-        {t("refreshed", { time: formatGeneratedAt(generatedAt, locale, t("liveData")) })} ·{" "}
-        {t("autoRefresh")}
+        {t("refreshed", { time: formatGeneratedAt(generatedAt, locale, t("liveData")) })} · {t("autoRefresh")}
       </div>
 
       <Popover>
         <PopoverTrigger
-          render={
-            <Button type="button" variant="outline" size="sm" className="min-w-36 justify-between font-normal" />
-          }
+          render={<Button type="button" variant="outline" size="sm" className="min-w-36 justify-between font-normal" />}
         >
           {selectedDate
             ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(selectedDate)

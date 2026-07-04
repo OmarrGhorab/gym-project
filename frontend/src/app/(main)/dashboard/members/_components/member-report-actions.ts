@@ -49,7 +49,6 @@ function buildPayload(kind: MemberReportKind, input: FormData) {
   return payload;
 }
 
-
 function combineDateTime(payload: Record<string, unknown>, key: string) {
   const date = payload[`${key}_date`];
   const time = payload[`${key}_time`];

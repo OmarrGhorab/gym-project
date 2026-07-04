@@ -8,10 +8,7 @@ import { serverApiFetch } from "@/lib/api/server";
 
 const planInputSchema = z
   .object({
-    access_ends_at: z.preprocess(
-      (value) => (String(value ?? "").trim() === "" ? null : value),
-      z.string().nullable(),
-    ),
+    access_ends_at: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
     access_starts_at: z.preprocess(
       (value) => (String(value ?? "").trim() === "" ? null : value),
       z.string().nullable(),
@@ -21,14 +18,8 @@ const planInputSchema = z
     }),
     description: z.string().trim().max(5000).optional(),
     duration_days: z.coerce.number().int().min(1, "Duration days must be at least 1."),
-    freeze_requires_approval: z.preprocess(
-      (value) => value === "on" || value === true,
-      z.boolean().default(false),
-    ),
-    is_unlimited_sessions: z.preprocess(
-      (value) => value === "on" || value === true,
-      z.boolean().default(false),
-    ),
+    freeze_requires_approval: z.preprocess((value) => value === "on" || value === true, z.boolean().default(false)),
+    is_unlimited_sessions: z.preprocess((value) => value === "on" || value === true, z.boolean().default(false)),
     max_freeze_days: z.coerce.number().int().min(0, "Max freeze days cannot be negative."),
     min_freeze_days: z.coerce.number().int().min(0, "Min freeze days cannot be negative."),
     name: z.string().trim().min(1, "Plan name is required.").max(150),
@@ -40,14 +31,8 @@ const planInputSchema = z
     type: z.enum(["membership", "offer"], {
       error: "Plan type must be Membership or Offer.",
     }),
-    valid_from: z.preprocess(
-      (value) => (String(value ?? "").trim() === "" ? null : value),
-      z.string().nullable(),
-    ),
-    valid_to: z.preprocess(
-      (value) => (String(value ?? "").trim() === "" ? null : value),
-      z.string().nullable(),
-    ),
+    valid_from: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
+    valid_to: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
   })
   .refine((value) => value.max_freeze_days <= value.duration_days, {
     message: "Max freeze days cannot be greater than duration days.",
@@ -121,9 +106,9 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
 
   try {
     await mutate("/plans", "POST", {
-    ...parsed.data,
-    description: parsed.data.description ?? "",
-    price: String(parsed.data.price),
+      ...parsed.data,
+      description: parsed.data.description ?? "",
+      price: String(parsed.data.price),
     });
   } catch (error) {
     return {
@@ -141,7 +126,6 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
     values: {},
   };
 }
-
 
 function getFormValues(input: FormData): Record<string, string> {
   return Object.fromEntries(
@@ -170,5 +154,3 @@ async function mutate(path: string, method: string, body?: Record<string, unknow
   revalidatePath("/dashboard/plans");
   revalidatePath("/dashboard/crm");
 }
-
-

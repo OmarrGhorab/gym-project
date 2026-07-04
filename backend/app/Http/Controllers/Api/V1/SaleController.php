@@ -139,9 +139,10 @@ class SaleController extends ApiController
     public function report(PeriodSalesRequest $request, PeriodSalesReport $action): JsonResponse
     {
         $results = $action->execute($request->validated());
+        $data = method_exists($results, 'items') ? $results : ['data' => $results->values()];
 
         return $this->success(
-            data: $results,
+            data: $data,
             message: 'Period sales report retrieved',
         );
     }

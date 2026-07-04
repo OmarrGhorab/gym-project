@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+const skeletonRows = Array.from({ length: 10 }, (_, index) => `member-loading-row-${index}`);
+
 export default function MembersLoading() {
   return (
     <Card className="mx-auto w-full max-w-[1440px] overflow-hidden">
@@ -52,18 +54,32 @@ export default function MembersLoading() {
               <TableHead className="w-10">
                 <Skeleton className="size-4" />
               </TableHead>
-              <TableHead><Skeleton className="h-4 w-16" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-24" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-8" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-12" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-20" /></TableHead>
-              <TableHead><Skeleton className="h-4 w-24" /></TableHead>
-              <TableHead className="text-end"><Skeleton className="ml-auto h-4 w-16" /></TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-16" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-24" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-8" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-12" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-20" />
+              </TableHead>
+              <TableHead>
+                <Skeleton className="h-4 w-24" />
+              </TableHead>
+              <TableHead className="text-end">
+                <Skeleton className="ml-auto h-4 w-16" />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Array.from({ length: 10 }).map((_, i) => (
-              <TableRow key={i}>
+            {skeletonRows.map((rowId) => (
+              <TableRow key={rowId}>
                 <TableCell>
                   <Skeleton className="size-4" />
                 </TableCell>

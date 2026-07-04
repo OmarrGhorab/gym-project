@@ -3,12 +3,9 @@
 
 import * as React from "react";
 
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type VisibilityState,
-} from "@tanstack/react-table";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import { flexRender, getCoreRowModel, useReactTable, type VisibilityState } from "@tanstack/react-table";
 import {
   ArrowUpDown,
   CalendarDays,
@@ -21,7 +18,6 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,8 +32,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { createRecentCustomersColumns } from "./columns";
 import type { MembersMeta, MembersQuery } from "../data";
+import { createRecentCustomersColumns } from "./columns";
 import type { RecentCustomerRow } from "./schema";
 
 const statusValues = ["all", "Active", "Expired", "Frozen", "Stopped", "Inactive", "Unknown"] as const;

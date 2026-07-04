@@ -1,6 +1,7 @@
+import type * as React from "react";
+
 import { format } from "date-fns";
 import { Calculator, UserPlus } from "lucide-react";
-import type * as React from "react";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import { backfillCommissions, deleteEmployee, saveEmployee } from "./actions";
 import type { AcademyEmployee } from "./data";
@@ -50,7 +52,7 @@ export async function StaffManagement({ employees, shifts }: { employees: Academ
           </CardTitle>
           <CardDescription>{t("commissionBackfillDescription")}</CardDescription>
         </CardHeader>
-      <CardContent>
+        <CardContent>
           <form action={backfillCommissions} className="grid gap-3">
             <FormField label={t("fromDate")}>
               <FormDatePicker name="from" defaultValue={from} />
@@ -58,10 +60,10 @@ export async function StaffManagement({ employees, shifts }: { employees: Academ
             <FormField label={t("toDate")}>
               <FormDatePicker name="to" defaultValue={today} />
             </FormField>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
-              <Checkbox name="dry_run" />
-              {t("dryRun")}
-            </label>
+            <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted">
+              <Checkbox id="commission-dry-run" name="dry_run" />
+              <Label htmlFor="commission-dry-run">{t("dryRun")}</Label>
+            </div>
             <Button type="submit">{t("backfillCommissions")}</Button>
           </form>
         </CardContent>
@@ -148,7 +150,7 @@ async function EmployeeForm({ employee, shifts }: { employee?: AcademyEmployee; 
 function FormField({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     <div className="grid min-w-0 gap-1">
-      <div className="text-muted-foreground text-xs font-medium">{label}</div>
+      <div className="font-medium text-muted-foreground text-xs">{label}</div>
       {children}
     </div>
   );

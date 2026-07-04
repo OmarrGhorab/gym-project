@@ -69,7 +69,7 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('me', [AuthController::class, 'me']);
             Route::post('change-password', [AuthController::class, 'changePassword'])
-                ->middleware('throttle:api');
+                ->middleware(['can:change-own-password', 'throttle:api']);
             Route::post('logout', [AuthController::class, 'logout'])
                 ->middleware('throttle:api');
         });
@@ -91,7 +91,8 @@ Route::prefix('v1')->group(function (): void {
     // All areas require authentication; public health/auth above opt out.
     // ------------------------------------------------------------------
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function (): void {
-        Route::get('search', SearchController::class);
+        Route::get('search', SearchController::class)
+            ->middleware('permission:members.view|subscriptions.view|employees.view|products.view|reports.view');
 
         require __DIR__.'/api/members.php';
         require __DIR__.'/api/plans.php';
