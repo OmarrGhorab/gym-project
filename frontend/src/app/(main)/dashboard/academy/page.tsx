@@ -62,7 +62,12 @@ export default async function Page() {
 
       <EmployeePerformanceTable rows={data.employeeRows} />
 
-      <StaffManagement employees={data.employeeRows.map((row) => row.employee)} shifts={data.shifts} />
+      <StaffManagement
+        employees={data.employeeRows.map((row) => row.employee)}
+        shifts={data.shifts}
+        users={data.users}
+        roles={data.roles}
+      />
     </div>
   );
 }

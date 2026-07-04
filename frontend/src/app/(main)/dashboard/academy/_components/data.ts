@@ -64,6 +64,7 @@ export type StaffAcademyData = {
 
 export type AcademyEmployee = {
   id: number;
+  user_id?: number | null;
   name: string;
   phone: string | null;
   attendance_code: string | null;
@@ -113,6 +114,18 @@ export type AcademyPerformanceDetail = {
   };
 };
 
+export type AccessUser = {
+  id: number;
+  name: string;
+  email: string;
+  roles: string[];
+};
+
+export type AccessRole = {
+  id: number;
+  name: string;
+};
+
 export type StaffAcademyPageData = StaffAcademyData & {
   employeeRows: {
     commissions: AcademyCommission[];
@@ -125,6 +138,8 @@ export type StaffAcademyPageData = StaffAcademyData & {
     starts_at: string;
     ends_at: string;
   }[];
+  users: AccessUser[];
+  roles: AccessRole[];
 };
 
 const emptyStaffAcademyData: StaffAcademyData = {
@@ -153,10 +168,12 @@ const emptyStaffAcademyData: StaffAcademyData = {
 
 export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
   try {
-    const [reportResult, employeesResult, shiftsResult] = await Promise.all([
-      serverApiFetch<StaffAcademyData>("/reports/staff-academy"),
+    const [reportResult, employeesResult, shiftsResult, usersResult, rolesResult] = await Promise.all([
+      safeFetch<StaffAcademyData>("/reports/staff-academy", emptyStaffAcademyData),
       safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=8", []),
       safeFetch<StaffAcademyPageData["shifts"]>("/attendance/shifts", []),
+      safeFetch<AccessUser[] | PaginatedData<AccessUser>>("/users?sort=name&per_page=100", []),
+      safeFetch<AccessRole[]>("/roles", []),
     ]);
     const employees = unwrapList(employeesResult.data);
     const employeeRows = await Promise.all(
@@ -181,9 +198,11 @@ export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
       ...reportResult.data,
       employeeRows,
       shifts: shiftsResult.data,
+      users: unwrapList(usersResult.data),
+      roles: rolesResult.data,
     };
   } catch {
-    return { ...emptyStaffAcademyData, employeeRows: [], shifts: [] };
+    return { ...emptyStaffAcademyData, employeeRows: [], shifts: [], users: [], roles: [] };
   }
 }
 

@@ -1715,6 +1715,7 @@
       "active": "نشط",
       "inactive": "غير نشط",
       "userId": "رقم المستخدم",
+      "unlinkedUser": "بدون ربط مستخدم",
       "create": "إنشاء",
       "save": "حفظ",
       "delete": "حذف",

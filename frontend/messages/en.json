@@ -1715,6 +1715,7 @@
       "active": "Active",
       "inactive": "Inactive",
       "userId": "User ID",
+      "unlinkedUser": "No linked user",
       "create": "Create",
       "save": "Save",
       "delete": "Delete",
