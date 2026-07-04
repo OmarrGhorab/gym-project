@@ -29,8 +29,11 @@ test('cashier with products.view permission can list products', function (): voi
         ->assertStatus(200)
         ->assertJson(fn (AssertableJson $json) => $json
             ->has('data', 3)
-            ->has('meta')
-            ->has('message')
+            ->where('meta.current_page', 1)
+            ->where('meta.per_page', 15)
+            ->where('meta.total', 3)
+            ->where('meta.last_page', 1)
+            ->where('message', 'Products retrieved')
             ->etc()
         );
 });

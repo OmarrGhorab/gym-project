@@ -1,8 +1,6 @@
 "use client";
 
-import Image from "next/image";
-
-import { AlertTriangleIcon, Boxes, Copy, PackageSearch } from "lucide-react";
+import { AlertTriangleIcon, Boxes, Copy } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,13 +11,11 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import {
-  getProductImageSrc,
-  type InventoryLogisticsData,
-  type InventoryProduct,
-  type PurchaseOrder,
-} from "./shipment-data";
-import { ProductQuickActions, ReceivePurchaseOrderForm } from "./logistics-actions";
+import { ReceivePurchaseOrderForm } from "./logistics-actions";
+import { ProductImage } from "./product-image";
+import { ProductsGrid } from "./products-grid";
+import { ProductsTab } from "./products-tab";
+import type { InventoryLogisticsData, PurchaseOrder } from "./shipment-data";
 
 type ShipmentDetailsProps = {
   data: InventoryLogisticsData;
@@ -43,43 +39,12 @@ function formatEgp(value: string | number, locale: string) {
   }).format(Number(value) || 0);
 }
 
-function ProductImage({ product, size = "lg" }: { product: InventoryProduct | null; size?: "lg" | "sm" }) {
-  const t = useTranslations("Dashboard.logistics");
-  const src = getProductImageSrc(product);
-  const className = size === "lg" ? "size-16 rounded-xl" : "size-10 rounded-lg";
-
-  return (
-    <div className={cn("relative grid shrink-0 place-items-center overflow-hidden border bg-muted", className)}>
-      {src ? (
-        <Image
-          src={src}
-          alt={product?.name ?? t("product")}
-          fill
-          className="object-cover"
-          sizes={size === "lg" ? "64px" : "40px"}
-        />
-      ) : (
-        <PackageSearch className="size-5 text-muted-foreground" />
-      )}
-    </div>
-  );
-}
-
 function EmptyOrderOverview({ data }: { data: InventoryLogisticsData }) {
-  const t = useTranslations("Dashboard.logistics");
-
   return (
     <div className="grid h-full min-h-0 grid-rows-[280px_1fr] overflow-hidden lg:grid-rows-[360px_1fr]">
       <InventoryHero data={data} order={null} />
-      <div className="min-h-0 overflow-auto p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h3 className="font-medium text-sm">{t("products")}</h3>
-            <p className="text-muted-foreground text-xs">{t("summaryDescription")}</p>
-          </div>
-          <Badge variant="outline">{t("itemCount", { count: data.products.length })}</Badge>
-        </div>
-        <ProductsGrid products={data.products} />
+      <div className="min-h-0 overflow-hidden p-4">
+        <ProductsTab data={data} />
       </div>
     </div>
   );
@@ -237,38 +202,6 @@ function OrderOverview({ order }: { order: PurchaseOrder }) {
   );
 }
 
-function ProductsGrid({ products }: { products: InventoryProduct[] }) {
-  const t = useTranslations("Dashboard.logistics");
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {products.length === 0 ? (
-        <div className="col-span-full rounded-lg border border-dashed p-6 text-center text-muted-foreground text-sm">
-          {t("noLowStock")}
-        </div>
-      ) : (
-        products.map((product) => (
-          <div key={product.id} className="grid gap-3 rounded-lg border p-3">
-            <div className="flex items-center gap-3">
-            <ProductImage product={product} size="sm" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-medium text-sm">{product.name}</div>
-              <div className="truncate text-muted-foreground text-xs">
-                {product.category} • {t("threshold", { value: product.low_stock_threshold })}
-              </div>
-            </div>
-            <Badge variant={product.stock_quantity <= 0 ? "destructive" : "outline"}>
-              {t("left", { count: product.stock_quantity })}
-            </Badge>
-            </div>
-            <ProductQuickActions product={product} compact />
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
 function Activity({ data }: { data: InventoryLogisticsData }) {
   const t = useTranslations("Dashboard.logistics");
 
@@ -330,15 +263,8 @@ export function ShipmentDetails({ data, shipment }: ShipmentDetailsProps) {
             <TabsContent className="min-h-0 overflow-auto p-4" value="overview">
               <OrderOverview order={shipment} />
             </TabsContent>
-            <TabsContent className="min-h-0 overflow-auto p-4" value="products">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-sm">{t("products")}</h3>
-                  <p className="text-muted-foreground text-xs">{t("summaryDescription")}</p>
-                </div>
-                <Badge variant="outline">{t("itemCount", { count: data.products.length })}</Badge>
-              </div>
-              <ProductsGrid products={data.products} />
+            <TabsContent className="min-h-0 overflow-hidden p-4" value="products">
+              <ProductsTab data={data} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-auto p-4" value="alerts">
               <div className="mb-3 flex items-center justify-between">

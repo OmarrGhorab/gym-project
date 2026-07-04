@@ -177,12 +177,13 @@ export function AddProductDialog() {
   );
 }
 
-export function CreatePurchaseOrderDialog({ products }: { products: InventoryProduct[] }) {
+export function CreatePurchaseOrderDialog({ products }: { products?: InventoryProduct[] }) {
   const t = useTranslations("Dashboard.logistics");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
-  const defaultProduct = products[0];
+  const safeProducts = products ?? [];
+  const defaultProduct = safeProducts[0];
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -201,7 +202,7 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" disabled={products.length === 0} />}>
+      <DialogTrigger render={<Button size="sm" variant="outline" disabled={safeProducts.length === 0} />}>
         <Truck />
         {t("createPo")}
       </DialogTrigger>
@@ -224,7 +225,7 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {products.map((product) => (
+                  {safeProducts.map((product) => (
                     <SelectItem key={product.id} value={String(product.id)}>
                       {product.name} · {t("left", { count: product.stock_quantity })}
                     </SelectItem>
@@ -256,7 +257,7 @@ export function CreatePurchaseOrderDialog({ products }: { products: InventoryPro
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t("cancel")}
             </Button>
-            <Button type="submit" disabled={pending || products.length === 0}>
+            <Button type="submit" disabled={pending || safeProducts.length === 0}>
               {pending ? t("saving") : t("createOrder")}
             </Button>
           </DialogFooter>

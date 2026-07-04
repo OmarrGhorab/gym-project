@@ -50,6 +50,20 @@ export type InventoryMovement = {
   creator: string | null;
 };
 
+export type ProductFilters = {
+  search?: string;
+  status?: "all" | "active" | "inactive";
+  stock?: "all" | "low";
+  category?: "all" | string;
+};
+
+export type PaginationMeta = {
+  current_page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+};
+
 export type InventoryLogisticsData = {
   generated_at: string;
   stats: {
@@ -63,6 +77,7 @@ export type InventoryLogisticsData = {
   purchase_orders: PurchaseOrder[];
   low_stock_products: InventoryProduct[];
   products: InventoryProduct[];
+  products_meta: PaginationMeta;
   recent_movements: InventoryMovement[];
 };
 
@@ -78,6 +93,12 @@ export const emptyInventoryLogisticsData: InventoryLogisticsData = {
   },
   low_stock_products: [],
   products: [],
+  products_meta: {
+    current_page: 1,
+    per_page: 15,
+    total: 0,
+    last_page: 1,
+  },
   purchase_orders: [],
   recent_movements: [],
 };

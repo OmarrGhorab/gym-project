@@ -12,7 +12,7 @@ use App\Http\Requests\Products\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -26,9 +26,11 @@ class ProductController extends ApiController
     /**
      * GET /api/v1/products
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Product::class);
+
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $products = QueryBuilder::for(Product::class)
             ->allowedFilters(
@@ -38,18 +40,19 @@ class ProductController extends ApiController
                 AllowedFilter::scope('search')
             )
             ->allowedSorts('name', 'price', 'stock_quantity', 'created_at')
-            ->paginate(15);
+            ->paginate($perPage)
+            ->withQueryString();
 
-        return ProductResource::collection($products)
-            ->additional([
-                'meta' => [
-                    'current_page' => $products->currentPage(),
-                    'per_page' => $products->perPage(),
-                    'total' => $products->total(),
-                    'last_page' => $products->lastPage(),
-                ],
-                'message' => 'Products retrieved',
-            ]);
+        return $this->success(
+            data: ProductResource::collection($products->getCollection())->resolve(),
+            message: 'Products retrieved',
+            meta: [
+                'current_page' => $products->currentPage(),
+                'per_page' => $products->perPage(),
+                'total' => $products->total(),
+                'last_page' => $products->lastPage(),
+            ],
+        );
     }
 
     /**

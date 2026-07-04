@@ -6,6 +6,8 @@ import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
 
+import type { InventoryProduct, PaginationMeta, ProductFilters } from "./shipment-data";
+
 export type LogisticsActionResult =
   | {
       ok: true;
@@ -284,6 +286,48 @@ export async function receivePurchaseOrder(input: FormData): Promise<LogisticsAc
     },
     "Purchase order received.",
   );
+}
+
+export async function getProductsPage(
+  page: number,
+  perPage: number,
+  filters: ProductFilters = {},
+): Promise<{ products: InventoryProduct[]; meta: PaginationMeta }> {
+  const params = new URLSearchParams();
+
+  params.set("sort", "name");
+  params.set("per_page", String(perPage));
+  params.set("page", String(page));
+
+  if (filters.search?.trim()) {
+    params.set("filter[search]", filters.search.trim());
+  }
+
+  if (filters.status && filters.status !== "all") {
+    params.set("filter[is_active]", filters.status === "active" ? "1" : "0");
+  }
+
+  if (filters.stock === "low") {
+    params.set("filter[is_low_stock]", "1");
+  }
+
+  if (filters.category && filters.category !== "all") {
+    params.set("filter[category]", filters.category);
+  }
+
+  const result = await serverApiFetch<InventoryProduct[]>(`/products?${params.toString()}`);
+
+  const meta = result.meta as Partial<PaginationMeta> | undefined;
+
+  return {
+    products: result.data ?? [],
+    meta: {
+      current_page: meta?.current_page ?? 1,
+      per_page: meta?.per_page ?? perPage,
+      total: meta?.total ?? 0,
+      last_page: meta?.last_page ?? 1,
+    },
+  };
 }
 
 async function mutateSimple(path: string, method: string, message: string): Promise<LogisticsActionResult> {
