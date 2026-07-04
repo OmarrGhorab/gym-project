@@ -4,6 +4,14 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
@@ -19,9 +27,24 @@ export default async function Page() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="space-y-1">
-        <h1 className="text-3xl tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
+        </div>
+        <Dialog>
+          <DialogTrigger render={<Button />}>
+            <Plus />
+            {t("createPlan")}
+          </DialogTrigger>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{t("createPlan")}</DialogTitle>
+              <DialogDescription>{t("createDescription")}</DialogDescription>
+            </DialogHeader>
+            <PlanCreateForm />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -30,21 +53,8 @@ export default async function Page() {
         <Summary label={t("sellableToday")} value={sellable.toString()} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-4">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-normal">
-              <Plus className="size-4" />
-              {t("createPlan")}
-            </CardTitle>
-            <CardDescription>{t("createDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PlanCreateForm />
-          </CardContent>
-        </Card>
-
-        <Card className="xl:col-span-8">
+      <div className="grid grid-cols-1 gap-4">
+        <Card>
           <CardHeader>
             <CardTitle className="font-normal">{t("catalog")}</CardTitle>
             <CardDescription>{t("catalogDescription")}</CardDescription>

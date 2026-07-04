@@ -1,23 +1,18 @@
 "use client";
 
-import { useState } from "react";
-
-import { format, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { deleteExpenseForm, recordPaymentForm, updateExpenseForm } from "./actions";
+import { recordPaymentForm } from "./actions";
 import type { FinanceDue, FinanceExpense, FinancePayment } from "./data";
+import { ExpenseRowActions } from "./expense-row-actions";
 
 export function LedgerTab({
   dues,
@@ -201,29 +196,14 @@ function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
                 {formatCurrency(Number(expense.amount), { currency: "EGP", noDecimals: true })}
               </TableCell>
               <TableCell>
-                <form
-                  action={updateExpenseForm}
-                  className="grid min-w-[520px] grid-cols-[1fr_110px_130px_auto_auto] gap-2"
-                >
-                  <input type="hidden" name="id" value={expense.id} />
-                  <Input name="category" defaultValue={expense.category} aria-label={t("category")} />
-                  <Input
-                    name="amount"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    defaultValue={expense.amount}
-                    aria-label={t("amount")}
-                  />
-                  <LedgerDatePicker name="date" value={expense.date ?? ""} locale={locale} />
-                  <input type="hidden" name="description" value={expense.description ?? ""} />
-                  <Button type="submit" size="sm">
-                    {t("save")}
-                  </Button>
-                  <Button formAction={deleteExpenseForm} type="submit" size="sm" variant="outline">
-                    {t("delete")}
-                  </Button>
-                </form>
+                <ExpenseRowActions
+                  id={expense.id}
+                  category={expense.category}
+                  amount={expense.amount}
+                  date={expense.date ?? ""}
+                  description={expense.description}
+                  locale={locale}
+                />
               </TableCell>
             </TableRow>
           ))
@@ -233,52 +213,6 @@ function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
       </TableBody>
     </Table>
   );
-}
-
-function LedgerDatePicker({ locale, name, value }: { locale: string; name: string; value: string }) {
-  const t = useTranslations("Dashboard.finance");
-  const [selectedValue, setSelectedValue] = useState(value);
-  const selectedDate = parseDateString(selectedValue);
-
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button type="button" variant="outline" className="h-9 w-full justify-between font-normal">
-            {selectedDate
-              ? new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(
-                  selectedDate,
-                )
-              : t("selectDate")}
-            <CalendarIcon className="size-4 text-muted-foreground" />
-          </Button>
-        }
-      />
-      <PopoverContent align="start" className="w-auto overflow-hidden p-0">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          defaultMonth={selectedDate}
-          onSelect={(date) => {
-            if (date) {
-              setSelectedValue(format(date, "yyyy-MM-dd"));
-            }
-          }}
-        />
-      </PopoverContent>
-      <input type="hidden" name={name} value={selectedValue} />
-    </Popover>
-  );
-}
-
-function parseDateString(value: string) {
-  if (!value) {
-    return undefined;
-  }
-
-  const date = parseISO(value);
-
-  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function EmptyRow({ colSpan, label }: { colSpan: number; label: string }) {

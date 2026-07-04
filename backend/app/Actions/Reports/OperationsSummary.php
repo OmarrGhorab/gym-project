@@ -74,15 +74,16 @@ final class OperationsSummary
                 'week_progress' => $weeklyProgress,
                 'focus_title' => $this->focusTitle($tasks),
                 'focus_description' => $this->focusDescription($tasks),
+                'focus_href' => $this->focusHref($tasks),
             ],
             'tasks' => $tasks->take(8)->values()->all(),
             'workflows' => $this->workflows($pendingViolations, $pendingPayroll, $expiringSubscriptions, $dues, $lowStockProducts),
             'quick_actions' => [
-                ['label' => 'Attendance Review', 'href' => '/dashboard/analytics'],
-                ['label' => 'Membership Follow-up', 'href' => '/dashboard/crm'],
+                ['label' => 'Attendance Review', 'href' => '/dashboard/attendance'],
+                ['label' => 'Membership Follow-up', 'href' => '/dashboard/members'],
                 ['label' => 'Finance Collections', 'href' => '/dashboard/finance'],
-                ['label' => 'Payroll', 'href' => '/dashboard/finance'],
-                ['label' => 'Products', 'href' => '/dashboard/ecommerce'],
+                ['label' => 'Payroll', 'href' => '/dashboard/payroll'],
+                ['label' => 'Products', 'href' => '/dashboard/logistics'],
             ],
             'calendar_events' => $this->calendarEvents($expiringSubscriptions, $pendingPayroll),
             'activity' => $this->activity(),
@@ -123,7 +124,7 @@ final class OperationsSummary
                 'tag' => 'Attendance',
                 'priority' => 'high',
                 'due_label' => $violation->violation_date?->format('M d') ?? 'Today',
-                'href' => '/dashboard/analytics',
+                'href' => '/dashboard/attendance',
             ]))
             ->merge($blockedVisits->map(fn (MemberVisit $visit): array => [
                 'id' => 'visit-'.$visit->id,
@@ -131,7 +132,7 @@ final class OperationsSummary
                 'tag' => 'Member Visit',
                 'priority' => $visit->status === 'blocked' ? 'high' : 'medium',
                 'due_label' => $visit->check_in_at?->format('h:i A') ?? 'Today',
-                'href' => '/dashboard/analytics',
+                'href' => '/dashboard/attendance',
             ]))
             ->merge($dues->map(fn (array $due): array => [
                 'id' => 'due-'.$due['id'],
@@ -147,7 +148,7 @@ final class OperationsSummary
                 'tag' => 'Renewal',
                 'priority' => 'medium',
                 'due_label' => 'Ends '.$subscription->end_date?->format('M d'),
-                'href' => '/dashboard/crm',
+                'href' => '/dashboard/members',
             ]))
             ->merge($pendingPayroll->take(5)->map(fn (Payroll $payroll): array => [
                 'id' => 'payroll-'.$payroll->id,
@@ -155,7 +156,7 @@ final class OperationsSummary
                 'tag' => 'Payroll',
                 'priority' => 'medium',
                 'due_label' => $payroll->month,
-                'href' => '/dashboard/finance',
+                'href' => '/dashboard/payroll',
             ]))
             ->merge($lowStockProducts->map(fn (Product $product): array => [
                 'id' => 'product-'.$product->id,
@@ -163,7 +164,7 @@ final class OperationsSummary
                 'tag' => 'Inventory',
                 'priority' => 'low',
                 'due_label' => $product->stock_quantity.' left',
-                'href' => '/dashboard/ecommerce',
+                'href' => '/dashboard/logistics',
             ]))
             ->sortBy(fn (array $task): int => ['high' => 0, 'medium' => 1, 'low' => 2][$task['priority']] ?? 3)
             ->values();
@@ -191,7 +192,7 @@ final class OperationsSummary
                 'description' => $pendingViolations->count().' warnings waiting for admin decision.',
                 'progress' => $pendingViolations->isEmpty() ? 100 : max(10, 100 - ($pendingViolations->count() * 15)),
                 'footer' => 'Staff warnings and exceptions',
-                'href' => '/dashboard/analytics',
+                'href' => '/dashboard/attendance',
             ],
             [
                 'title' => 'Payroll Run',
@@ -199,7 +200,7 @@ final class OperationsSummary
                 'description' => $pendingPayroll->count().' salary receipts pending payment.',
                 'progress' => $pendingPayroll->isEmpty() ? 100 : max(20, 100 - ($pendingPayroll->count() * 10)),
                 'footer' => 'Attendance deductions included',
-                'href' => '/dashboard/finance',
+                'href' => '/dashboard/payroll',
             ],
             [
                 'title' => 'Membership Follow-up',
@@ -207,7 +208,7 @@ final class OperationsSummary
                 'description' => $expiringSubscriptions->count().' renewals soon · '.$dues['count'].' dues.',
                 'progress' => max(5, 100 - (($expiringSubscriptions->count() + $dues['count']) * 8)),
                 'footer' => 'Renewals and collections',
-                'href' => '/dashboard/crm',
+                'href' => '/dashboard/members',
             ],
             [
                 'title' => 'Inventory Watch',
@@ -215,7 +216,7 @@ final class OperationsSummary
                 'description' => $lowStockProducts->count().' products need restock attention.',
                 'progress' => $lowStockProducts->isEmpty() ? 100 : max(15, 100 - ($lowStockProducts->count() * 12)),
                 'footer' => 'POS product availability',
-                'href' => '/dashboard/ecommerce',
+                'href' => '/dashboard/logistics',
             ],
         ];
     }
@@ -335,5 +336,13 @@ final class OperationsSummary
         }
 
         return $tasks->first()['title'];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $tasks
+     */
+    private function focusHref(Collection $tasks): string
+    {
+        return $tasks->first()['href'] ?? '/dashboard/operations';
     }
 }

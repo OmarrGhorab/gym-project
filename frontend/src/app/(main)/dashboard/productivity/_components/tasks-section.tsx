@@ -20,7 +20,7 @@ export function TasksSection({ tasks }: { tasks: OperationsTask[] }) {
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-xl tracking-tight">{t("operationsQueue")}</h2>
-        <Button render={<a href="/dashboard/analytics" />} nativeButton={false} variant="outline">
+        <Button render={<a href="/dashboard/attendance" />} nativeButton={false} variant="outline">
           {t("attendanceReview")}
         </Button>
       </div>

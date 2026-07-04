@@ -47,6 +47,7 @@ export type OperationsSummaryData = {
     week_progress: number;
     focus_title: string;
     focus_description: string;
+    focus_href: string;
   };
   tasks: OperationsTask[];
   workflows: OperationsWorkflow[];
@@ -73,15 +74,16 @@ const emptyOperationsData: OperationsSummaryData = {
     week_progress: 100,
     focus_title: "Gym Ops",
     focus_description: "No urgent operations need attention.",
+    focus_href: "/dashboard/operations",
   },
   tasks: [],
   workflows: [],
   quick_actions: [
-    { label: "Attendance Review", href: "/dashboard/analytics" },
-    { label: "Membership Follow-up", href: "/dashboard/crm" },
+    { label: "Attendance Review", href: "/dashboard/attendance" },
+    { label: "Membership Follow-up", href: "/dashboard/members" },
     { label: "Finance Collections", href: "/dashboard/finance" },
-    { label: "Payroll", href: "/dashboard/finance" },
-    { label: "Products", href: "/dashboard/ecommerce" },
+    { label: "Payroll", href: "/dashboard/payroll" },
+    { label: "Products", href: "/dashboard/logistics" },
   ],
   calendar_events: [],
   activity: [],

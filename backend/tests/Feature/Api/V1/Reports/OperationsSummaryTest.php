@@ -59,12 +59,15 @@ test('accountant can view operations summary', function (): void {
     $this->getJson('/api/v1/reports/operations-summary')
         ->assertOk()
         ->assertJsonPath('data.summary.pending_review_count', 2)
+        ->assertJsonPath('data.summary.focus_href', '/dashboard/attendance')
         ->assertJsonFragment(['title' => 'Review Late Captain attendance warning'])
         ->assertJsonFragment(['title' => 'Restock Protein Bar'])
+        ->assertJsonFragment(['tag' => 'Payroll', 'href' => '/dashboard/payroll'])
+        ->assertJsonFragment(['tag' => 'Inventory', 'href' => '/dashboard/logistics'])
         ->assertJsonStructure([
             'data' => [
                 'generated_at',
-                'summary' => ['today_action_count', 'pending_review_count', 'week_progress', 'focus_title', 'focus_description'],
+                'summary' => ['today_action_count', 'pending_review_count', 'week_progress', 'focus_title', 'focus_description', 'focus_href'],
                 'tasks' => [
                     '*' => ['id', 'title', 'tag', 'priority', 'due_label', 'href'],
                 ],

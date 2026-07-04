@@ -29,6 +29,8 @@ type MemberResource = {
   email?: string | null;
   phone?: string | null;
   status?: string | null;
+  membership_status?: string | null;
+  billing_status?: string | null;
   join_date?: string | null;
   created_at?: string | null;
   total_paid?: string | null;
@@ -61,13 +63,15 @@ export type DefaultDashboardData = {
 
 export type MemberSort = "newest" | "oldest" | "name-asc" | "name-desc";
 
-export type MemberBillingFilter = "Paid" | "Pending" | "Overdue" | "Trial";
+export type MemberBillingFilter = "paid" | "pending" | "overdue" | "trial";
+
+export type MemberStatusFilter = "active" | "expired" | "frozen" | "stopped" | "inactive" | "none" | "unknown";
 
 export type MembersQuery = {
   page?: number;
   perPage?: number;
   search?: string;
-  status?: string;
+  status?: MemberStatusFilter;
   billing?: MemberBillingFilter;
   joinedWindow?: "30" | "90";
   sort?: MemberSort;
@@ -148,11 +152,11 @@ function buildMemberParams(options: MembersQuery) {
   }
 
   if (options.status) {
-    params.set("filter[subscription_status]", options.status.toLowerCase());
+    params.set("filter[subscription_status]", options.status);
   }
 
   if (options.billing) {
-    params.set("filter[billing]", options.billing.toLowerCase());
+    params.set("filter[billing]", options.billing);
   }
 
   const joinedFrom = getJoinedFromDate(options.joinedWindow);
@@ -205,17 +209,18 @@ function unwrapList<T>(value: T[] | PaginatedData<T>): T[] {
 
 function mapMemberToRow(member: MemberResource): RecentCustomerRow {
   const subscription = member.latest_subscription;
-  const subscriptionStatus = subscription?.status ?? member.status ?? "unknown";
-  const billingStatus = Number(member.total_paid ?? 0) > 0 ? "Paid" : "Pending";
 
   return {
     id: String(member.id),
     name: member.name,
-    email: member.email ?? member.phone ?? "",
-    plan: subscription?.plan_name ?? "No plan",
-    status: toTitleCase(subscriptionStatus),
-    billing: billingStatus,
-    joined: member.join_date ?? member.created_at?.slice(0, 10) ?? formatDate(new Date()),
+    email: member.email ?? "",
+    phone: member.phone ?? "",
+    plan: subscription?.plan_name ?? null,
+    planEndsAt: subscription?.end_date ?? null,
+    status: member.membership_status ?? null,
+    billing: member.billing_status ?? "unknown",
+    totalPaid: member.total_paid ?? "0.00",
+    joined: member.join_date ?? member.created_at?.slice(0, 10) ?? null,
   };
 }
 
@@ -251,12 +256,4 @@ function getMetaNumber(meta: Record<string, unknown> | undefined, key: string, f
 
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-function toTitleCase(value: string) {
-  return value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
-    .join(" ");
 }

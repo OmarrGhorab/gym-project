@@ -2,20 +2,25 @@
 "use no memo";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { addMinutes, differenceInCalendarDays, endOfToday, parseISO } from "date-fns";
+import { differenceInCalendarDays, endOfToday, parseISO } from "date-fns";
 import { CircleAlertIcon, CircleCheckIcon, Clock3Icon, LoaderIcon, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 import type { RecentCustomerRow } from "./schema";
 
 type RecentCustomersColumnLabels = {
-  atTime: (values: { time: string }) => string;
   billing: string;
   billingStatuses: Record<string, string>;
+  contactMissing: string;
+  dateMissing: string;
+  endsAt: (values: { date: string }) => string;
   joined: string;
   member: string;
+  noPlan: string;
+  paidAmount: (values: { amount: string }) => string;
   plan: string;
   selectAll: string;
   selectMember: (values: { name: string }) => string;
@@ -25,16 +30,47 @@ type RecentCustomersColumnLabels = {
 
 function billingIcon(billing: string) {
   switch (billing) {
-    case "Paid":
+    case "paid":
       return <CircleCheckIcon className="fill-green-500 stroke-primary-foreground dark:fill-green-600" />;
-    case "Pending":
+    case "pending":
       return <LoaderIcon />;
-    case "Overdue":
+    case "overdue":
       return <CircleAlertIcon className="text-amber-600 dark:text-amber-500" />;
-    case "Trial":
+    case "trial":
       return <Clock3Icon className="text-muted-foreground" />;
     default:
       return null;
+  }
+}
+
+function statusBadgeClassName(status: string | null) {
+  switch (status) {
+    case "active":
+      return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
+    case "expired":
+    case "stopped":
+      return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
+    case "frozen":
+      return "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    case "inactive":
+      return "border-slate-500/35 bg-slate-500/10 text-slate-600 dark:text-slate-300";
+    default:
+      return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
+  }
+}
+
+function billingBadgeClassName(billing: string) {
+  switch (billing) {
+    case "paid":
+      return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
+    case "overdue":
+      return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
+    case "pending":
+      return "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    case "trial":
+      return "border-sky-500/35 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+    default:
+      return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
   }
 }
 
@@ -50,11 +86,11 @@ export function createRecentCustomersColumns({
     month: "long",
     year: "numeric",
   });
-  const timeFormatter = new Intl.DateTimeFormat(locale, {
-    hour: "numeric",
-    minute: "2-digit",
+  const compactDateFormatter = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
-
   return [
     {
       id: "select",
@@ -90,7 +126,9 @@ export function createRecentCustomersColumns({
             <div className="flex items-end justify-between gap-3">
               <div className="grid min-w-0 gap-0.5">
                 <span className="truncate font-medium text-sm leading-none">{row.original.name}</span>
-                <span className="truncate text-muted-foreground text-xs leading-none">#{row.original.id}</span>
+                <span className="truncate text-muted-foreground text-xs leading-none">
+                  {row.original.phone || row.original.email || labels.contactMissing}
+                </span>
               </div>
             </div>
           </div>
@@ -100,7 +138,7 @@ export function createRecentCustomersColumns({
     },
     {
       id: "search",
-      accessorFn: (row) => `${row.id} ${row.name} ${row.email}`,
+      accessorFn: (row) => `${row.id} ${row.name} ${row.email} ${row.phone}`,
       filterFn: "includesString",
       enableHiding: true,
     },
@@ -109,8 +147,8 @@ export function createRecentCustomersColumns({
       header: labels.status,
       filterFn: "equalsString",
       cell: ({ row }) => (
-        <Badge variant="outline" className="px-1.5 text-muted-foreground">
-          {labels.statuses[row.original.status] ?? row.original.status}
+        <Badge variant="outline" className={cn("w-fit px-1.5", statusBadgeClassName(row.original.status))}>
+          {labels.statuses[row.original.status ?? "none"] ?? row.original.status}
         </Badge>
       ),
     },
@@ -119,20 +157,36 @@ export function createRecentCustomersColumns({
       header: labels.billing,
       filterFn: "equalsString",
       cell: ({ row }) => (
-        <Badge variant="outline" className="px-1.5 text-muted-foreground">
-          {billingIcon(row.original.billing)}
-          {labels.billingStatuses[row.original.billing] ?? row.original.billing}
-        </Badge>
+        <div className="grid gap-1">
+          <Badge variant="outline" className={cn("w-fit px-1.5", billingBadgeClassName(row.original.billing))}>
+            {billingIcon(row.original.billing)}
+            {labels.billingStatuses[row.original.billing] ?? row.original.billing}
+          </Badge>
+          <span className="text-muted-foreground text-xs">{labels.paidAmount({ amount: row.original.totalPaid })}</span>
+        </div>
       ),
     },
     {
       accessorKey: "plan",
       header: labels.plan,
-      cell: ({ row }) => <span className="text-sm">{row.original.plan}</span>,
+      cell: ({ row }) => (
+        <div className="grid max-w-72 gap-0.5">
+          <span className="truncate text-sm">{row.original.plan ?? labels.noPlan}</span>
+          {row.original.planEndsAt ? (
+            <span className="text-muted-foreground text-xs">
+              {labels.endsAt({ date: compactDateFormatter.format(parseISO(row.original.planEndsAt)) })}
+            </span>
+          ) : null}
+        </div>
+      ),
     },
     {
       id: "joinedWindow",
       accessorFn: (row) => {
+        if (!row.joined) {
+          return [];
+        }
+
         const daysSinceJoined = differenceInCalendarDays(endOfToday(), parseISO(row.joined));
 
         if (daysSinceJoined <= 30) return ["30", "90"];
@@ -146,15 +200,16 @@ export function createRecentCustomersColumns({
       accessorKey: "joined",
       header: labels.joined,
       cell: ({ row }) => {
-        const baseDate = parseISO(row.original.joined);
-        const joinedAt = addMinutes(baseDate, 9 * 60 + (Number(row.original.id) % 12) * 17);
+        if (!row.original.joined) {
+          return <span className="text-muted-foreground text-sm">{labels.dateMissing}</span>;
+        }
+
+        const joinedAt = parseISO(row.original.joined);
 
         return (
           <div className="grid gap-0.5">
             <span className="text-sm">{dateFormatter.format(joinedAt)}</span>
-            <span className="text-muted-foreground text-xs">
-              {labels.atTime({ time: timeFormatter.format(joinedAt) })}
-            </span>
+            <span className="text-muted-foreground text-xs">#{row.original.id}</span>
           </div>
         );
       },

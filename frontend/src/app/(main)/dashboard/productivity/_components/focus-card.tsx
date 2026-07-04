@@ -23,7 +23,7 @@ export function FocusCard({ summary }: { summary: OperationsSummaryData["summary
               <div className="truncate text-2xl tracking-tight">{summary.focus_title}</div>
               <div className="line-clamp-2 text-muted-foreground text-sm">{summary.focus_description}</div>
             </div>
-            <Button render={<a href="/dashboard/analytics" />} nativeButton={false} className="min-w-24">
+            <Button render={<a href={summary.focus_href} />} nativeButton={false} className="min-w-24">
               {t("open")}
             </Button>
           </div>

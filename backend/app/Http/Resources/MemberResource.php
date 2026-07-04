@@ -32,6 +32,8 @@ final class MemberResource extends JsonResource
             'join_date' => $this->join_date?->toDateString(),
             'expiry_date' => $latestSubscription?->end_date?->toDateString(),
             'status' => $this->status,
+            'membership_status' => $latestSubscription?->status,
+            'billing_status' => bccomp((string) ($this->total_paid ?? '0.00'), '0.00', 2) === 1 ? 'paid' : 'pending',
             'notes' => $this->notes,
             'goals' => $this->goals,
             'injuries' => $this->injuries,

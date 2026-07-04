@@ -5,13 +5,13 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { generatePayroll, markPayrollPaid, updatePayroll } from "./_components/actions";
+import { generatePayroll } from "./_components/actions";
 import { getPayrollPageData } from "./_components/data";
+import { PayrollAdjustmentForm, PayrollPayForm } from "./_components/payroll-action-forms";
 import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
 export default async function Page() {
@@ -31,7 +31,7 @@ export default async function Page() {
         </div>
         <form action={generatePayroll} className="flex flex-wrap items-end gap-2">
           <div className="space-y-1">
-            <Label htmlFor="month">{t("month")}</Label>
+            <Label htmlFor="month">{t("payrollMonth")}</Label>
             <PayrollMonthPicker defaultMonth={defaultMonth} />
           </div>
           <Button type="submit">
@@ -59,67 +59,53 @@ export default async function Page() {
           <CardDescription>{t("salaryReceiptsDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="min-w-[1180px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>{t("employee")}</TableHead>
-                <TableHead>{t("month")}</TableHead>
-                <TableHead>{t("base")}</TableHead>
-                <TableHead>{t("attendance")}</TableHead>
-                <TableHead>{t("adjustments")}</TableHead>
-                <TableHead>{t("net")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead className="text-end">{t("actions")}</TableHead>
+                <TableHead className="w-[16rem]">{t("employee")}</TableHead>
+                <TableHead className="w-[8rem]">{t("paycheckMonth")}</TableHead>
+                <TableHead className="w-[7rem] text-end">{t("base")}</TableHead>
+                <TableHead className="w-[7rem] text-end">{t("commissions")}</TableHead>
+                <TableHead className="w-[7rem] text-end">{t("attendance")}</TableHead>
+                <TableHead className="w-[22rem]">{t("adjustments")}</TableHead>
+                <TableHead className="w-[8rem] text-end">{t("net")}</TableHead>
+                <TableHead className="w-[7rem]">{t("status")}</TableHead>
+                <TableHead className="w-[10rem] text-end">{t("actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell>
+                  <TableCell className="align-middle">
                     <div className="font-medium">
                       {row.employee.name ?? t("employeeFallback", { id: row.employee.id })}
                     </div>
                     <div className="text-muted-foreground text-xs">{row.employee.role ?? t("staff")}</div>
                   </TableCell>
-                  <TableCell>{row.month}</TableCell>
-                  <TableCell>
+                  <TableCell className="align-middle">
+                    <div className="font-medium">{formatPayrollMonth(row.month)}</div>
+                    <div className="text-muted-foreground text-xs">{row.month}</div>
+                  </TableCell>
+                  <TableCell className="text-end align-middle">
                     {formatCurrency(Number(row.base_salary), { currency: "EGP", noDecimals: true })}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-end align-middle">
+                    {formatCurrency(Number(row.commissions_total), { currency: "EGP", noDecimals: true })}
+                  </TableCell>
+                  <TableCell className="text-end align-middle">
                     {formatCurrency(Number(row.attendance_deductions), { currency: "EGP", noDecimals: true })}
                   </TableCell>
-                  <TableCell>
-                    <form action={updatePayroll} className="grid min-w-[240px] grid-cols-[1fr_1fr_auto] gap-2">
-                      <input type="hidden" name="id" value={row.id} />
-                      <Input
-                        name="bonuses"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        defaultValue={row.bonuses}
-                        aria-label={t("bonuses")}
-                      />
-                      <Input
-                        name="deductions"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        defaultValue={row.deductions}
-                        aria-label={t("deductions")}
-                      />
-                      <Button type="submit" size="sm" variant="outline">
-                        {t("save")}
-                      </Button>
-                    </form>
+                  <TableCell className="align-middle">
+                    <PayrollAdjustmentForm id={row.id} bonuses={row.bonuses} deductions={row.deductions} />
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="text-end align-middle font-medium">
                     {formatCurrency(Number(row.net_salary), { currency: "EGP", noDecimals: true })}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-middle">
                     <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{row.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-end">
-                    <div className="flex justify-end gap-2">
+                  <TableCell className="text-end align-middle">
+                    <div className="flex justify-end gap-2 whitespace-nowrap">
                       <Button
                         render={<a href={`/api/payroll/${row.id}/payslip`} />}
                         nativeButton={false}
@@ -129,21 +115,14 @@ export default async function Page() {
                         <ReceiptText />
                         {t("payslip")}
                       </Button>
-                      {row.status !== "paid" ? (
-                        <form action={markPayrollPaid}>
-                          <input type="hidden" name="id" value={row.id} />
-                          <Button type="submit" size="sm">
-                            {t("pay")}
-                          </Button>
-                        </form>
-                      ) : null}
+                      {row.status !== "paid" ? <PayrollPayForm id={row.id} /> : null}
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                     {t("noRecords")}
                   </TableCell>
                 </TableRow>
@@ -165,4 +144,11 @@ function Summary({ label, value }: { label: string; value: string }) {
       </CardContent>
     </Card>
   );
+}
+
+function formatPayrollMonth(month: string) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  const date = new Date(year, (monthIndex || 1) - 1, 1);
+
+  return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(date);
 }

@@ -36,8 +36,8 @@ import type { MembersMeta, MembersQuery } from "../data";
 import { createRecentCustomersColumns } from "./columns";
 import type { RecentCustomerRow } from "./schema";
 
-const statusValues = ["all", "Active", "Expired", "Frozen", "Stopped", "Inactive", "Unknown"] as const;
-const billingValues = ["all", "Paid", "Pending", "Overdue", "Trial"] as const;
+const statusValues = ["all", "active", "expired", "frozen", "stopped", "inactive", "none", "unknown"] as const;
+const billingValues = ["all", "paid", "pending", "overdue", "trial"] as const;
 const joinedDateValues = ["all", "30", "90"] as const;
 const sortValues = ["newest", "oldest", "name-asc", "name-desc"] as const;
 
@@ -143,13 +143,17 @@ export function RecentCustomersTable({
     () =>
       createRecentCustomersColumns({
         labels: {
-          atTime: (values) => t("atTime", values),
           billing: t("billing"),
           billingStatuses: Object.fromEntries(
             billingValues.filter((value) => value !== "all").map((value) => [value, t(`billingStatuses.${value}`)]),
           ),
+          contactMissing: t("contactMissing"),
+          dateMissing: t("dateMissing"),
+          endsAt: (values) => t("endsAt", values),
           joined: t("joined"),
           member: t("member"),
+          noPlan: t("noPlan"),
+          paidAmount: (values) => t("paidAmount", values),
           plan: t("plan"),
           selectAll: t("selectAll"),
           selectMember: (values) => t("selectMember", values),

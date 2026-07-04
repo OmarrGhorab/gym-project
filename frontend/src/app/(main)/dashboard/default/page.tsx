@@ -9,7 +9,7 @@ import { getCurrentUser, requireAuth } from "@/lib/session";
 
 import { DashboardChartStyleSwitcher } from "./_components/dashboard-chart-style-switcher";
 import { DashboardShortcuts } from "./_components/dashboard-shortcuts";
-import type { MemberBillingFilter, MemberSort, MembersQuery } from "./_components/data";
+import type { MemberBillingFilter, MemberSort, MemberStatusFilter, MembersQuery } from "./_components/data";
 import { getDefaultDashboardData } from "./_components/data";
 import { MetricCards } from "./_components/metric-cards";
 import { SubscriberOverview } from "./_components/subscriber-overview";
@@ -107,12 +107,16 @@ function parsePageSize(value: string | undefined) {
   return [10, 20, 30, 40, 50].includes(parsed) ? parsed : 10;
 }
 
-function parseMemberStatus(value: string | undefined) {
-  return ["Active", "Expired", "Frozen", "Stopped", "Inactive", "Unknown"].includes(value ?? "") ? value : undefined;
+function parseMemberStatus(value: string | undefined): MemberStatusFilter | undefined {
+  const statuses: MemberStatusFilter[] = ["active", "expired", "frozen", "stopped", "inactive", "none", "unknown"];
+
+  return statuses.find((status) => status === value);
 }
 
 function parseMemberBilling(value: string | undefined): MemberBillingFilter | undefined {
-  return ["Paid", "Pending", "Overdue", "Trial"].includes(value ?? "") ? (value as MemberBillingFilter) : undefined;
+  const statuses: MemberBillingFilter[] = ["paid", "pending", "overdue", "trial"];
+
+  return statuses.find((status) => status === value);
 }
 
 function parseMemberSort(value: string | undefined): MemberSort {
