@@ -36,7 +36,7 @@ export function ProductsTable({
           const product = row.original;
           return (
             <div className={cn("flex items-center gap-3", isArabic && "flex-row-reverse text-right")}>
-              <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-xs font-black text-primary">
+              <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-primary/15 text-xs font-black text-primary">
                 {product.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

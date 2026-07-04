@@ -564,6 +564,7 @@
     "formThreshold": "Low stock threshold",
     "formImage": "Product image",
     "formImageHint": "Optional image, up to 2 MB.",
+    "formImageCurrent": "Current image saved. Choose a new file to replace it.",
     "formCancel": "Cancel",
     "formSave": "Save changes",
     "formAdd": "Add product",

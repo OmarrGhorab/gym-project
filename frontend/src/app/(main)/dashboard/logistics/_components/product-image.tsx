@@ -21,6 +21,7 @@ export function ProductImage({ product, size = "lg" }: { product: InventoryProdu
           src={src}
           alt={product?.name ?? t("product")}
           fill
+          unoptimized
           className="object-cover"
           sizes={size === "lg" ? "64px" : "40px"}
         />

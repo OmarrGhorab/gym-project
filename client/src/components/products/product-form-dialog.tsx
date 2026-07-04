@@ -184,7 +184,7 @@ function ProductFormDialogContent({
               />
               <FieldError messages={fieldErrors.image} />
               <p className="text-xs font-semibold text-muted-foreground">
-                {form.image?.name ?? product?.image ?? t("formImageHint")}
+                {form.image?.name ?? (product?.image ? t("formImageCurrent") : t("formImageHint"))}
               </p>
             </div>
           </div>
