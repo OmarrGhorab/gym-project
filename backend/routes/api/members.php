@@ -25,6 +25,9 @@ Route::prefix('members')->group(function (): void {
     Route::get('/{member}/report', [MemberController::class, 'report'])
         ->middleware('permission:members.view');
 
+    Route::get('/{member}/report/export', [MemberController::class, 'exportReport'])
+        ->middleware('permission:members.view');
+
     Route::get('/{member}', [MemberController::class, 'show'])
         ->middleware('permission:members.view');
 
@@ -36,7 +39,6 @@ Route::prefix('members')->group(function (): void {
 
     Route::delete('/{member}', [MemberController::class, 'destroy'])
         ->middleware(['permission:members.delete', 'throttle:api']);
-
 
     Route::post('/{member}/progress', [MemberController::class, 'storeProgress'])
         ->middleware(['permission:members.update', 'throttle:api']);
@@ -61,6 +63,3 @@ Route::prefix('members')->group(function (): void {
     Route::get('/{member}/payments', [MemberController::class, 'payments'])
         ->middleware('permission:payments.view');
 });
-
-
-

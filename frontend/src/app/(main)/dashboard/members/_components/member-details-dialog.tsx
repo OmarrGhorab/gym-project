@@ -4,7 +4,7 @@ import type * as React from "react";
 
 import Image from "next/image";
 
-import { Copy, QrCode } from "lucide-react";
+import { Copy, Download, QrCode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -60,9 +60,25 @@ export function MemberDetailsDialog({
         </div>
 
         <div className="rounded-lg border p-3">
-          <div className="mb-3">
-            <h3 className="font-medium text-sm">{t("memberReport")}</h3>
-            <p className="text-muted-foreground text-xs">{t("memberReportDescription")}</p>
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-medium text-sm">{t("memberReport")}</h3>
+              <p className="text-muted-foreground text-xs">{t("memberReportDescription")}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild type="button" size="sm" variant="outline">
+                <a href={`/api/members/${member.id}/report/export?format=xlsx`} download>
+                  <Download data-icon="inline-start" />
+                  {t("exportReportXlsx")}
+                </a>
+              </Button>
+              <Button asChild type="button" size="sm" variant="outline">
+                <a href={`/api/members/${member.id}/report/export?format=pdf`} download>
+                  <Download data-icon="inline-start" />
+                  {t("exportReportPdf")}
+                </a>
+              </Button>
+            </div>
           </div>
           <MemberReportControls memberId={member.id} staff={staff} />
         </div>

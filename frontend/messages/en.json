@@ -882,6 +882,8 @@
       "saving": "Saving...",
       "memberReport": "Member report",
       "memberReportDescription": "Add progress, plans, nutrition, bookings, and documents for this member.",
+      "exportReportXlsx": "Export XLSX",
+      "exportReportPdf": "Export PDF",
       "reportItemSaved": "Report item saved.",
       "addReportItem": "Add report item",
       "addReportItemDescription": "Save a new record for this member.",
@@ -906,7 +908,7 @@
       "startsAt": "Starts at",
       "endsAt": "Ends at",
       "expiresOn": "Expires on",
-      "filePath": "File path",
+      "documentFile": "Document file",
       "reportAdd": {
         "progress": "Add progress",
         "workout": "Add workout",

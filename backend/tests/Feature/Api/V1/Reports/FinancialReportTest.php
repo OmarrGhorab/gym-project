@@ -2,6 +2,7 @@
 
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
@@ -92,6 +93,19 @@ test('finance dashboard summary returns real gym finance aggregates', function (
         'status' => 'paid',
         'paid_at' => Carbon::now(),
     ]);
+    $sale = Sale::factory()->create([
+        'total' => '200.00',
+        'status' => 'completed',
+        'created_at' => Carbon::now(),
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Sale::class,
+        'payable_id' => $sale->id,
+        'amount' => '200.00',
+        'method' => 'card',
+        'status' => 'paid',
+        'paid_at' => Carbon::now(),
+    ]);
     Expense::factory()->create([
         'amount' => '120.00',
         'date' => Carbon::now()->toDateString(),
@@ -100,8 +114,11 @@ test('finance dashboard summary returns real gym finance aggregates', function (
 
     $this->getJson('/api/v1/reports/finance-summary')
         ->assertOk()
-        ->assertJsonPath('data.totals.revenue_mtd', '300.00')
+        ->assertJsonPath('data.totals.revenue_mtd', '500.00')
         ->assertJsonPath('data.totals.expenses_mtd', '120.00')
+        ->assertJsonPath('data.revenue_sources.0.amount', '300.00')
+        ->assertJsonPath('data.revenue_sources.1.amount', '200.00')
+        ->assertJsonPath('data.revenue_sources.2.amount', '0.00')
         ->assertJsonStructure([
             'data' => [
                 'totals' => [

@@ -89,6 +89,15 @@ final class FinanceDashboardSummary
             ->sum('amount');
     }
 
+    private function paidPaymentsTotalForType(Carbon $from, Carbon $to, string $payableType): float
+    {
+        return (float) Payment::query()
+            ->where('status', 'paid')
+            ->where('payable_type', $payableType)
+            ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
+            ->sum('amount');
+    }
+
     private function expensesTotal(Carbon $from, Carbon $to): float
     {
         return (float) Expense::query()
@@ -142,17 +151,11 @@ final class FinanceDashboardSummary
      */
     private function revenueSources(Carbon $from, Carbon $to): array
     {
-        $subscriptionRevenue = (float) Payment::query()
-            ->where('status', 'paid')
-            ->where('payable_type', Subscription::class)
-            ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
-            ->sum('amount');
-        $posRevenue = (float) Sale::query()
-            ->completed()
-            ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
-            ->sum('total');
-        $otherRevenue = max($this->paidPaymentsTotal($from, $to) - $subscriptionRevenue, 0);
-        $total = max($subscriptionRevenue + $posRevenue + $otherRevenue, 1);
+        $paidRevenue = $this->paidPaymentsTotal($from, $to);
+        $subscriptionRevenue = $this->paidPaymentsTotalForType($from, $to, Subscription::class);
+        $posRevenue = $this->paidPaymentsTotalForType($from, $to, Sale::class);
+        $otherRevenue = max($paidRevenue - $subscriptionRevenue - $posRevenue, 0);
+        $total = max($paidRevenue, 1);
 
         return collect([
             ['key' => 'subscriptions', 'label' => 'Subscription payments', 'amount' => $subscriptionRevenue],

@@ -173,7 +173,7 @@ function DocumentFields({ t }: FieldsProps) {
       <Field label={t("title")} name="title" required />
       <Field label={t("type")} name="type" required placeholder="waiver" />
       <DateField label={t("expiresOn")} name="expires_on" placeholder={t("selectDate")} />
-      <Field label={t("filePath")} name="file_path" />
+      <Field label={t("documentFile")} name="document" type="file" />
       <TextField className="sm:col-span-2" label={t("notes")} name="notes" />
     </div>
   );

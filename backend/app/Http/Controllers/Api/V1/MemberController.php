@@ -6,6 +6,7 @@ use App\Actions\Members\DeactivateMember;
 use App\Actions\Members\StoreMember;
 use App\Actions\Members\StoreMemberPhoto;
 use App\Actions\Members\UpdateMember;
+use App\Exports\MemberReportExport;
 use App\Http\Requests\Members\StoreMemberRequest;
 use App\Http\Requests\Members\UpdateMemberRequest;
 use App\Http\Requests\Members\UploadMemberPhotoRequest;
@@ -25,6 +26,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Excel as ExcelFormat;
+use Maatwebsite\Excel\Facades\Excel;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -340,6 +344,203 @@ final class MemberController extends ApiController
         );
     }
 
+    public function storeProgress(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('update', $member);
+
+        $validated = $request->validate([
+            'recorded_on' => ['required', 'date'],
+            'weight_kg' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'body_fat_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'chest_cm' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'waist_cm' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'hips_cm' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'arms_cm' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'thighs_cm' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $entry = MemberProgressEntry::query()->create([
+            ...$validated,
+            'member_id' => $member->id,
+            'created_by' => $request->user()?->id,
+        ]);
+
+        return $this->success(
+            data: [
+                'id' => $entry->id,
+                'recorded_on' => $entry->recorded_on?->toDateString(),
+                'weight_kg' => $entry->weight_kg,
+                'body_fat_percent' => $entry->body_fat_percent,
+                'chest_cm' => $entry->chest_cm,
+                'waist_cm' => $entry->waist_cm,
+                'hips_cm' => $entry->hips_cm,
+                'arms_cm' => $entry->arms_cm,
+                'thighs_cm' => $entry->thighs_cm,
+                'notes' => $entry->notes,
+            ],
+            message: 'Progress entry created',
+            status: 201,
+        );
+    }
+
+    public function storeWorkoutPlan(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('update', $member);
+
+        $validated = $request->validate([
+            'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'title' => ['required', 'string', 'max:150'],
+            'status' => ['nullable', 'string', 'in:active,paused,completed'],
+            'starts_on' => ['nullable', 'date'],
+            'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
+            'sessions' => ['nullable', 'array'],
+            'sessions.*.title' => ['required_with:sessions', 'string', 'max:150'],
+            'notes' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $plan = MemberWorkoutPlan::query()->create([
+            ...$validated,
+            'member_id' => $member->id,
+            'status' => $validated['status'] ?? 'active',
+            'created_by' => $request->user()?->id,
+        ])->load('coach');
+
+        return $this->success(
+            data: [
+                'id' => $plan->id,
+                'title' => $plan->title,
+                'status' => $plan->status,
+                'starts_on' => $plan->starts_on?->toDateString(),
+                'ends_on' => $plan->ends_on?->toDateString(),
+                'coach' => $plan->coach ? ['id' => $plan->coach->id, 'name' => $plan->coach->name] : null,
+                'sessions' => $plan->sessions ?? [],
+                'notes' => $plan->notes,
+            ],
+            message: 'Workout plan created',
+            status: 201,
+        );
+    }
+
+    public function storeNutritionPlan(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('update', $member);
+
+        $validated = $request->validate([
+            'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'title' => ['required', 'string', 'max:150'],
+            'status' => ['nullable', 'string', 'in:active,paused,completed'],
+            'daily_calories' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'protein_grams' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'carbs_grams' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'fat_grams' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'supplements' => ['nullable', 'string', 'max:4000'],
+            'notes' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $plan = MemberNutritionPlan::query()->create([
+            ...$validated,
+            'member_id' => $member->id,
+            'status' => $validated['status'] ?? 'active',
+            'created_by' => $request->user()?->id,
+        ])->load('coach');
+
+        return $this->success(
+            data: [
+                'id' => $plan->id,
+                'title' => $plan->title,
+                'status' => $plan->status,
+                'daily_calories' => $plan->daily_calories,
+                'protein_grams' => $plan->protein_grams,
+                'carbs_grams' => $plan->carbs_grams,
+                'fat_grams' => $plan->fat_grams,
+                'supplements' => $plan->supplements,
+                'notes' => $plan->notes,
+                'coach' => $plan->coach ? ['id' => $plan->coach->id, 'name' => $plan->coach->name] : null,
+            ],
+            message: 'Nutrition plan created',
+            status: 201,
+        );
+    }
+
+    public function storeDocument(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('update', $member);
+
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'max:40'],
+            'title' => ['required', 'string', 'max:150'],
+            'document' => ['nullable', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx'],
+            'expires_on' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $filePath = $request->hasFile('document')
+            ? $request->file('document')->store("members/documents/{$member->id}", 'local')
+            : null;
+
+        $document = MemberDocument::query()->create([
+            'type' => $validated['type'],
+            'title' => $validated['title'],
+            'file_path' => $filePath,
+            'expires_on' => $validated['expires_on'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'member_id' => $member->id,
+            'created_by' => $request->user()?->id,
+        ]);
+
+        return $this->success(
+            data: [
+                'id' => $document->id,
+                'type' => $document->type,
+                'title' => $document->title,
+                'file_path' => $document->file_path,
+                'expires_on' => $document->expires_on?->toDateString(),
+                'notes' => $document->notes,
+            ],
+            message: 'Document created',
+            status: 201,
+        );
+    }
+
+    public function storeBooking(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('update', $member);
+
+        $validated = $request->validate([
+            'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
+            'title' => ['required', 'string', 'max:150'],
+            'type' => ['nullable', 'string', 'max:30'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'status' => ['nullable', 'string', 'in:scheduled,completed,cancelled,no_show'],
+            'notes' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $booking = MemberBooking::query()->create([
+            ...$validated,
+            'member_id' => $member->id,
+            'type' => $validated['type'] ?? 'session',
+            'status' => $validated['status'] ?? 'scheduled',
+            'created_by' => $request->user()?->id,
+        ])->load('coach');
+
+        return $this->success(
+            data: [
+                'id' => $booking->id,
+                'title' => $booking->title,
+                'type' => $booking->type,
+                'starts_at' => $booking->starts_at?->toIso8601String(),
+                'ends_at' => $booking->ends_at?->toIso8601String(),
+                'status' => $booking->status,
+                'coach' => $booking->coach ? ['id' => $booking->coach->id, 'name' => $booking->coach->name] : null,
+                'notes' => $booking->notes,
+            ],
+            message: 'Booking created',
+            status: 201,
+        );
+    }
+
     public function report(Request $request, Member $member): JsonResponse
     {
         $this->authorize('view', $member);
@@ -472,5 +673,19 @@ final class MemberController extends ApiController
             ],
             message: 'Member report retrieved'
         );
+    }
+
+    public function exportReport(Request $request, Member $member)
+    {
+        $this->authorize('view', $member);
+
+        $validated = $request->validate([
+            'format' => ['nullable', 'string', 'in:xlsx,pdf'],
+        ]);
+        $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $writerType = $format === 'pdf' ? ExcelFormat::DOMPDF : ExcelFormat::XLSX;
+        $filename = 'member-report-'.$member->id.'-'.Str::slug($member->name).'.'.$format;
+
+        return Excel::download(new MemberReportExport($member), $filename, $writerType);
     }
 }

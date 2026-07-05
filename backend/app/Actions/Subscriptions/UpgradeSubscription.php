@@ -25,7 +25,7 @@ class UpgradeSubscription
         return DB::transaction(function () use ($subscription, $data, $seller): Subscription {
             $lockedSubscription = Subscription::query()
                 ->lockForUpdate()
-                ->with(['member', 'plan'])
+                ->with(['member', 'payments', 'plan'])
                 ->findOrFail($subscription->id);
 
             if ($lockedSubscription->status !== 'active') {
@@ -51,9 +51,18 @@ class UpgradeSubscription
             $credit = $this->calculateRemainingCredit($lockedSubscription);
             $extraDiscount = (float) ($data['discount'] ?? 0);
             $newPlanPrice = (float) $newPlan->price;
+            $submittedPaymentAmount = bcadd((string) ($data['payment']['amount'] ?? '0.00'), '0.00', 2);
             $totalDiscount = min($newPlanPrice, $credit + $extraDiscount);
             $amountDue = bcsub((string) $newPlanPrice, (string) $totalDiscount, 2);
-            $paymentAmount = max('0.00', $amountDue);
+
+            if (bccomp($submittedPaymentAmount, $amountDue, 2) === 1) {
+                $totalDiscount = min($newPlanPrice, $extraDiscount);
+                $amountDue = bcsub((string) $newPlanPrice, (string) $totalDiscount, 2);
+            }
+
+            $paymentAmount = bccomp($submittedPaymentAmount, '0.00', 2) === 1
+                ? $submittedPaymentAmount
+                : max('0.00', $amountDue);
 
             $lockedSubscription->update(['status' => 'stopped']);
 
@@ -61,6 +70,7 @@ class UpgradeSubscription
                 'member_id' => $lockedSubscription->member_id,
                 'plan_id' => $newPlan->id,
                 'start_date' => Carbon::today()->toDateString(),
+                'end_date' => Carbon::today()->addDays(max(1, (int) $newPlan->duration_days))->toDateString(),
                 'discount' => $totalDiscount,
                 'payment' => [
                     'amount' => $paymentAmount,
@@ -98,7 +108,18 @@ class UpgradeSubscription
             return 0.0;
         }
 
-        $dailyRate = bcdiv((string) $subscription->price_paid, (string) $totalDays, 4);
+        $paidTotal = $subscription->payments
+            ->filter(fn ($payment): bool => in_array($payment->status, ['paid', 'partial'], true))
+            ->reduce(
+                fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
+                '0.00',
+            );
+
+        if (bccomp($paidTotal, '0.00', 2) <= 0) {
+            return 0.0;
+        }
+
+        $dailyRate = bcdiv($paidTotal, (string) $totalDays, 4);
 
         return (float) bcmul($dailyRate, (string) $remainingDays, 2);
     }

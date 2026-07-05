@@ -15,6 +15,17 @@ const endpoints = {
 export type MemberReportKind = keyof typeof endpoints;
 
 export async function createMemberReportItem(memberId: number, kind: MemberReportKind, input: FormData): Promise<void> {
+  if (kind === "document") {
+    await serverApiFetch(`/members/${memberId}/${endpoints[kind]}`, {
+      body: input,
+      method: "POST",
+    });
+
+    revalidatePath("/dashboard/members");
+
+    return;
+  }
+
   const payload = buildPayload(kind, input);
 
   await serverApiFetch(`/members/${memberId}/${endpoints[kind]}`, {

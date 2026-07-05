@@ -882,6 +882,8 @@
       "saving": "جاري الحفظ...",
       "memberReport": "تقرير العضو",
       "memberReportDescription": "أضف التقدم والخطط والتغذية والحجوزات والمستندات لهذا العضو.",
+      "exportReportXlsx": "تصدير XLSX",
+      "exportReportPdf": "تصدير PDF",
       "reportItemSaved": "تم حفظ عنصر التقرير.",
       "addReportItem": "إضافة عنصر تقرير",
       "addReportItemDescription": "احفظ سجل جديد لهذا العضو.",
@@ -906,7 +908,7 @@
       "startsAt": "يبدأ في",
       "endsAt": "ينتهي في",
       "expiresOn": "ينتهي في",
-      "filePath": "مسار الملف",
+      "documentFile": "ملف المستند",
       "reportAdd": {
         "progress": "إضافة تقدم",
         "workout": "إضافة تمرين",

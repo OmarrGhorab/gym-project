@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Member;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
@@ -39,6 +40,7 @@ test('admin can upgrade a subscription to a new plan with prorated credit', func
     $vipPlan = Plan::factory()->active()->create([
         'price' => '600.00',
         'duration_days' => 30,
+        'duration_months' => 1,
         'category' => 'gym_access',
     ]);
 
@@ -48,6 +50,14 @@ test('admin can upgrade a subscription to a new plan with prorated credit', func
         'start_date' => '2026-06-01',
         'end_date' => '2026-06-30',
         'price_paid' => '300.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '300.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-06-01 10:00:00',
     ]);
 
     // 9 of 30 days used -> 21 remaining -> 210.00 credit
@@ -61,11 +71,90 @@ test('admin can upgrade a subscription to a new plan with prorated credit', func
         ->assertStatus(201)
         ->assertJsonPath('data.status', 'active')
         ->assertJsonPath('data.plan.id', $vipPlan->id)
+        ->assertJsonPath('data.start_date', '2026-06-10')
+        ->assertJsonPath('data.end_date', '2026-07-10')
+        ->assertJsonPath('data.days_left', 30)
         ->assertJsonPath('data.price_paid', '390.00');
 
     $subscription->refresh();
     expect($subscription->status)->toBe('stopped')
         ->and(Subscription::count())->toBe(2);
+});
+
+test('upgrade resets days left to the selected plan duration days', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $basicPlan = Plan::factory()->active()->create([
+        'price' => '12000.00',
+        'duration_days' => 365,
+        'duration_months' => 12,
+    ]);
+    $sixMonthPlan = Plan::factory()->active()->create([
+        'price' => '6500.00',
+        'duration_days' => 180,
+        'duration_months' => 6,
+    ]);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basicPlan->id,
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-06-01',
+        'price_paid' => '12000.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $sixMonthPlan->id,
+        'payment' => [
+            'amount' => '0.00',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.start_date', '2026-06-10')
+        ->assertJsonPath('data.end_date', '2026-12-07')
+        ->assertJsonPath('data.days_left', 180)
+        ->assertJsonPath('data.price_paid', '6500.00')
+        ->assertJsonPath('data.paid_total', '6500.00');
+});
+
+test('upgrade does not give credit for unpaid old subscription balance', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $yearlyPlan = Plan::factory()->active()->create([
+        'price' => '12000.00',
+        'duration_days' => 365,
+    ]);
+    $monthlyPlan = Plan::factory()->active()->create([
+        'price' => '800.00',
+        'duration_days' => 30,
+    ]);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $yearlyPlan->id,
+        'start_date' => '2026-06-01',
+        'end_date' => '2027-06-01',
+        'price_paid' => '12000.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $monthlyPlan->id,
+        'payment' => [
+            'amount' => '800.00',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.price_paid', '800.00')
+        ->assertJsonPath('data.paid_total', '800.00')
+        ->assertJsonPath('data.balance', '0.00');
 });
 
 test('upgrade stops the old subscription and tracks the link', function (): void {
@@ -114,6 +203,14 @@ test('upgrade with full credit coverage allows zero payment', function (): void 
         'start_date' => '2026-06-01',
         'end_date' => '2026-06-30',
         'price_paid' => '1000.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '1000.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-06-01 10:00:00',
     ]);
 
     // 9 of 30 days used -> 21 remaining -> 700.00 credit, covers VIP price
