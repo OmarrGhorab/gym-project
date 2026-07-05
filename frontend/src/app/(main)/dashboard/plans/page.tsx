@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,11 @@ export default async function Page() {
                     <TableCell>{plan.type}</TableCell>
                     <TableCell>{t(`categories.${plan.category}`)}</TableCell>
                     <TableCell>{formatCurrency(Number(plan.price), { currency: "EGP", noDecimals: true })}</TableCell>
-                    <TableCell>{t("days", { count: plan.duration_days })}</TableCell>
+                    <TableCell>
+                      {plan.duration_months
+                        ? t("months", { count: plan.duration_months })
+                        : t("days", { count: plan.duration_days })}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={plan.is_active ? "secondary" : "outline"}>
                         {plan.is_active ? t("active") : t("inactive")}
@@ -96,6 +100,19 @@ export default async function Page() {
                             {plan.is_active ? t("disable") : t("enable")}
                           </Button>
                         </form>
+                        <Dialog>
+                          <DialogTrigger render={<Button size="sm" variant="outline" />}>
+                            <Pencil />
+                            {t("edit")}
+                          </DialogTrigger>
+                          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
+                            <DialogHeader>
+                              <DialogTitle>{t("editPlan")}</DialogTitle>
+                              <DialogDescription>{t("editDescription")}</DialogDescription>
+                            </DialogHeader>
+                            <PlanCreateForm mode="edit" plan={plan} />
+                          </DialogContent>
+                        </Dialog>
                         <form action={deletePlan}>
                           <input type="hidden" name="id" value={plan.id} />
                           <Button type="submit" size="sm" variant="destructive">

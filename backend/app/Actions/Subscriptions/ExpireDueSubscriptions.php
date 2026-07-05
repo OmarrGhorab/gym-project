@@ -9,9 +9,25 @@ class ExpireDueSubscriptions
 {
     public function handle(): int
     {
-        return Subscription::query()
+        $count = 0;
+
+        Subscription::query()
+            ->with('plan')
             ->where('status', 'active')
             ->whereDate('end_date', '<', Carbon::today()->toDateString())
-            ->update(['status' => 'expired']);
+            ->chunkById(100, function ($subscriptions) use (&$count): void {
+                foreach ($subscriptions as $subscription) {
+                    $graceDays = (int) ($subscription->plan?->access_grace_days ?? 0);
+
+                    if ($subscription->end_date->copy()->addDays($graceDays)->gte(Carbon::today())) {
+                        continue;
+                    }
+
+                    $subscription->update(['status' => 'expired']);
+                    $count++;
+                }
+            });
+
+        return $count;
     }
 }

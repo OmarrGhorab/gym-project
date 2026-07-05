@@ -13,7 +13,7 @@ class SubscriptionResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $this->loadMissing('payments');
+        $this->loadMissing(['payments', 'plan']);
         $balance = $this->balanceDue();
         $daysLeft = $this->daysLeft();
         $status = $this->effectiveStatus();
@@ -115,7 +115,14 @@ class SubscriptionResource extends JsonResource
 
     private function effectiveStatus(): string
     {
-        if ($this->status === 'active' && $this->end_date && $this->end_date->lt(Carbon::today())) {
+        if (! $this->end_date || $this->status !== 'active') {
+            return $this->status;
+        }
+
+        $graceDays = (int) ($this->plan?->access_grace_days ?? 0);
+        $accessEndsOn = $this->end_date->copy()->addDays($graceDays);
+
+        if ($accessEndsOn->lt(Carbon::today())) {
             return 'expired';
         }
 

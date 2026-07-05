@@ -59,3 +59,26 @@ test('expire subscriptions action only expires past end date active subscription
         ->and($frozen->status)->toBe('frozen')
         ->and($stopped->status)->toBe('stopped');
 });
+
+test('expire subscriptions action respects plan access grace days', function (): void {
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['access_grace_days' => 3]);
+
+    $withinGrace = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-08',
+    ]);
+
+    $pastGrace = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-06',
+    ]);
+
+    $count = app(ExpireDueSubscriptions::class)->handle();
+
+    expect($count)->toBe(1)
+        ->and($withinGrace->refresh()->status)->toBe('active')
+        ->and($pastGrace->refresh()->status)->toBe('expired');
+});

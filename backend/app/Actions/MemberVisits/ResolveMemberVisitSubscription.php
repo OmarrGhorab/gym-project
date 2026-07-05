@@ -14,14 +14,14 @@ final class ResolveMemberVisitSubscription
             ->with('plan')
             ->where('status', 'active')
             ->whereDate('start_date', '<=', $checkIn->toDateString())
-            ->whereDate('end_date', '>=', $checkIn->toDateString())
             ->where(function ($query): void {
                 $query->whereNull('sessions_remaining')
                     ->orWhere('sessions_remaining', '>', 0);
             })
             ->latest('end_date')
             ->lockForUpdate()
-            ->first();
+            ->get()
+            ->first(fn (Subscription $subscription): bool => $this->coversAccessDate($subscription, $checkIn));
 
         if (! $subscription) {
             return null;
@@ -51,7 +51,7 @@ final class ResolveMemberVisitSubscription
             return "Subscription is {$latest->status}.";
         }
 
-        if ($latest->end_date?->lt($checkIn)) {
+        if (! $this->coversAccessDate($latest, $checkIn)) {
             return 'Subscription is expired.';
         }
 
@@ -64,5 +64,16 @@ final class ResolveMemberVisitSubscription
         }
 
         return 'No active subscription covers this visit date.';
+    }
+
+    private function coversAccessDate(Subscription $subscription, Carbon $checkIn): bool
+    {
+        if ($subscription->end_date === null) {
+            return false;
+        }
+
+        $graceDays = (int) ($subscription->plan?->access_grace_days ?? 0);
+
+        return $subscription->end_date->copy()->addDays($graceDays)->gte($checkIn->copy()->startOfDay());
     }
 }

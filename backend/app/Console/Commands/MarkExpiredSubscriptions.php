@@ -14,10 +14,24 @@ class MarkExpiredSubscriptions extends Command
 
     public function handle(): int
     {
-        $count = Subscription::query()
+        $count = 0;
+
+        Subscription::query()
+            ->with('plan')
             ->where('status', 'active')
             ->where('end_date', '<', Carbon::today()->toDateString())
-            ->update(['status' => 'expired']);
+            ->chunkById(100, function ($subscriptions) use (&$count): void {
+                foreach ($subscriptions as $subscription) {
+                    $graceDays = (int) ($subscription->plan?->access_grace_days ?? 0);
+
+                    if ($subscription->end_date->copy()->addDays($graceDays)->gte(Carbon::today())) {
+                        continue;
+                    }
+
+                    $subscription->update(['status' => 'expired']);
+                    $count++;
+                }
+            });
 
         $this->info("Marked {$count} subscription(s) as expired.");
 

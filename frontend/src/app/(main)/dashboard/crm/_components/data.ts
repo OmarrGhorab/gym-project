@@ -81,6 +81,7 @@ type SubscriptionResource = {
     id?: number;
     max_freeze_days?: number | string | null;
     min_freeze_days?: number | string | null;
+    access_grace_days?: number | string | null;
     name?: string | null;
   } | null;
   freeze?: {
@@ -142,9 +143,10 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const dueRows = dues.data ?? [];
   const expiringRows = expiringSoon.data ?? [];
   const subscriptionRows = dedupeLatestSubscriptions(subscriptions.data ?? []);
+  const latestDueRows = filterDuesForSubscriptions(dueRows, subscriptionRows);
   const latestExpiringRows = filterLatestExpiringRows(subscriptionRows, expiringRows);
   const salesRows = unwrapList(salesReport.data ?? []);
-  const outstandingDuesTotal = dueRows.reduce((sum, due) => sum + Number(due.balance ?? 0), 0);
+  const outstandingDuesTotal = latestDueRows.reduce((sum, due) => sum + Number(due.balance ?? 0), 0);
   const expiringCount = latestExpiringRows.length;
   const activeSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "active").length;
   const renewalTarget = Math.max(activeSubscriptions, expiringCount, 1);
@@ -158,12 +160,12 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
       memberGrowthRate: Number(dashboardData.new_members_growth_rate ?? 0),
       subscriptionRevenue: Number(subscriptionSummaryData.revenue ?? dashboardData.revenue_mtd ?? 0),
       outstandingDuesTotal,
-      outstandingDuesCount: getMetaTotal(dues.meta) ?? dueRows.length,
+      outstandingDuesCount: latestDueRows.length,
       salesTodayRevenue: Number(dashboardData.sales_today?.revenue ?? 0),
     },
     chart: mapSalesToMonthlyChart(salesRows),
     followUps: latestExpiringRows.slice(0, 4).map(mapRenewalFollowUp),
-    pipelineRows: subscriptionRows.map((subscription) => mapSubscriptionToPipeline(subscription, dueRows)),
+    pipelineRows: subscriptionRows.map((subscription) => mapSubscriptionToPipeline(subscription, latestDueRows)),
     renewalGoal: {
       expiringSoon: expiringCount,
       target: renewalTarget,
@@ -250,6 +252,16 @@ function filterLatestExpiringRows(
     );
 }
 
+function filterDuesForSubscriptions(dues: DueResource[], subscriptions: SubscriptionResource[]): DueResource[] {
+  const subscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
+
+  return dues.filter((due) => {
+    const subscriptionId = due.subscription?.id;
+
+    return typeof subscriptionId === "number" && subscriptionIds.has(subscriptionId);
+  });
+}
+
 function mapSubscriptionToPipeline(subscription: SubscriptionResource, dues: DueResource[]): MembershipPipelineRow {
   const matchingDue = dues.find((due) => due.subscription?.id === subscription.id);
   const balance = Number(subscription.balance ?? matchingDue?.balance ?? 0);
@@ -331,10 +343,6 @@ function getDaysUntil(date: string | null | undefined) {
   target.setHours(0, 0, 0, 0);
 
   return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
-}
-
-function getMetaTotal(meta: Record<string, unknown> | undefined) {
-  return typeof meta?.total === "number" ? meta.total : undefined;
 }
 
 function formatDate(date: Date) {

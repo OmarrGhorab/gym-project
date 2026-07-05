@@ -28,6 +28,7 @@ type FormSelectProps = {
   required?: boolean;
   searchPlaceholder?: string;
   onSearchChange?: (query: string) => void;
+  onValueChange?: (value: string) => void;
   size?: "default" | "sm";
 };
 
@@ -43,6 +44,7 @@ export function FormSelect({
   required = false,
   searchPlaceholder = "Search...",
   onSearchChange,
+  onValueChange,
   size = "default",
 }: FormSelectProps) {
   const initialValue = defaultValue === null || defaultValue === undefined || defaultValue === "" ? emptySelectValue : String(defaultValue);
@@ -72,7 +74,14 @@ export function FormSelect({
   return (
     <>
       <input type="hidden" name={name} value={value === emptySelectValue ? "" : value} required={required} />
-      <Select value={value} onValueChange={(next) => setValue(next ?? emptySelectValue)}>
+      <Select
+        value={value}
+        onValueChange={(next) => {
+          const nextValue = next ?? emptySelectValue;
+          setValue(nextValue);
+          onValueChange?.(nextValue === emptySelectValue ? "" : nextValue);
+        }}
+      >
         <SelectTrigger className={cn("w-full", className)} size={size}>
           <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
         </SelectTrigger>
@@ -119,11 +128,19 @@ type FormDatePickerProps = {
   className?: string;
   defaultValue?: string | null;
   name: string;
+  onValueChange?: (value: string) => void;
   placeholder?: string;
   required?: boolean;
 };
 
-export function FormDatePicker({ className, defaultValue = "", name, placeholder = "Select date", required = false }: FormDatePickerProps) {
+export function FormDatePicker({
+  className,
+  defaultValue = "",
+  name,
+  onValueChange,
+  placeholder = "Select date",
+  required = false,
+}: FormDatePickerProps) {
   const locale = useLocale();
   const [value, setValue] = React.useState(defaultValue ?? "");
   const selectedDate = parseDateString(value);
@@ -146,7 +163,9 @@ export function FormDatePicker({ className, defaultValue = "", name, placeholder
             captionLayout="dropdown"
             onSelect={(date) => {
               if (date) {
-                setValue(format(date, "yyyy-MM-dd"));
+                const nextValue = format(date, "yyyy-MM-dd");
+                setValue(nextValue);
+                onValueChange?.(nextValue);
               }
             }}
           />

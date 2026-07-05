@@ -87,6 +87,31 @@ test('create subscription prices multiple cycles from custom end date', function
         ->and($subscription->payments()->first()?->status)->toBe('paid');
 });
 
+test('create subscription derives end date from plan duration months', function (): void {
+    $seller = User::factory()->create();
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+        'duration_months' => 1,
+    ]);
+
+    $subscription = app(CreateSubscription::class)->handle([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-01-31',
+        'payment' => [
+            'amount' => '300.00',
+            'method' => 'cash',
+        ],
+    ], $seller);
+
+    expect($subscription)
+        ->toBeInstanceOf(Subscription::class)
+        ->and($subscription->start_date->toDateString())->toBe('2026-01-31')
+        ->and($subscription->end_date->toDateString())->toBe('2026-02-28');
+});
+
 test('create subscription rejects inactive member', function (): void {
     $seller = User::factory()->create();
     $member = Member::factory()->inactive()->create();

@@ -885,6 +885,9 @@
       "sellableToday": "Sellable today",
       "createPlan": "Create plan",
       "createDescription": "Add a membership offer directly to the backend.",
+      "edit": "Edit",
+      "editPlan": "Edit plan",
+      "editDescription": "Update plan pricing, freeze limits, access grace, and availability.",
       "name": "Name",
       "type": "Type",
       "planTypes": {
@@ -900,10 +903,16 @@
         "recovery": "Recovery"
       },
       "price": "Price",
+      "durationType": "Duration type",
+      "durationTypeDays": "Days",
+      "durationTypeMonths": "Months",
       "durationDays": "Duration days",
+      "durationMonths": "Duration months",
+      "durationMonthsHelp": "Optional. Use this for calendar-month plans that can start anytime, like 1 month or 2 months.",
       "sessionsCount": "Sessions count",
       "unlimitedSessions": "Unlimited sessions",
       "maxFreezeDays": "Max freeze days",
+      "accessGraceDays": "Access grace days",
       "minFreezeDays": "Min freeze days",
       "freezeRequiresApproval": "Freeze requires approval",
       "validFrom": "Valid from",
@@ -917,6 +926,7 @@
       "status": "Status",
       "actions": "Actions",
       "days": "{count} days",
+      "months": "{count, plural, one {# month} other {# months}}",
       "inactive": "Inactive",
       "disable": "Disable",
       "enable": "Enable",
@@ -925,6 +935,8 @@
       "selectDate": "Select date",
       "freezeRequiresApprovalHelp": "When enabled, freeze requests wait for staff/admin approval before pausing the membership.",
       "planCreated": "Plan created.",
+      "planUpdated": "Plan updated.",
+      "savePlan": "Save plan",
       "saving": "Saving..."
     },
     "payroll": {

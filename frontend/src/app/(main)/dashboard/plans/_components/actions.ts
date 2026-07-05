@@ -13,11 +13,17 @@ const planInputSchema = z
       (value) => (String(value ?? "").trim() === "" ? null : value),
       z.string().nullable(),
     ),
+    access_grace_days: z.coerce.number().int().min(0, "Access grace days cannot be negative."),
     category: z.enum(["gym_access", "personal_training", "classes", "nutrition", "recovery"], {
       error: "Plan category is required.",
     }),
     description: z.string().trim().max(5000).optional(),
+    duration_basis: z.enum(["days", "months"]).default("days"),
     duration_days: z.coerce.number().int().min(1, "Duration days must be at least 1."),
+    duration_months: z.preprocess(
+      (value) => (String(value ?? "").trim() === "" ? null : value),
+      z.coerce.number().int().min(1, "Duration months must be at least 1.").nullable(),
+    ),
     freeze_requires_approval: z.preprocess((value) => value === "on" || value === true, z.boolean().default(false)),
     is_unlimited_sessions: z.preprocess((value) => value === "on" || value === true, z.boolean().default(false)),
     max_freeze_days: z.coerce.number().int().min(0, "Max freeze days cannot be negative."),
@@ -35,8 +41,16 @@ const planInputSchema = z
     valid_to: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
   })
   .refine((value) => value.max_freeze_days <= value.duration_days, {
-    message: "Max freeze days cannot be greater than duration days.",
+    message: "Max freeze days cannot be greater than the plan duration.",
     path: ["max_freeze_days"],
+  })
+  .refine((value) => value.type !== "offer" || Boolean(value.valid_from), {
+    message: "Offer valid from date is required.",
+    path: ["valid_from"],
+  })
+  .refine((value) => value.type !== "offer" || Boolean(value.valid_to), {
+    message: "Offer valid to date is required.",
+    path: ["valid_to"],
   })
   .refine((value) => value.min_freeze_days <= value.max_freeze_days, {
     message: "Min freeze days cannot be greater than max freeze days.",
@@ -78,9 +92,12 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
   const parsed = planInputSchema.safeParse({
     access_ends_at: input.get("access_ends_at"),
     access_starts_at: input.get("access_starts_at"),
+    access_grace_days: input.get("access_grace_days"),
     category: input.get("category"),
     description: input.get("description"),
+    duration_basis: input.get("duration_basis"),
     duration_days: input.get("duration_days"),
+    duration_months: input.get("duration_months"),
     freeze_requires_approval: input.get("freeze_requires_approval"),
     is_unlimited_sessions: input.get("is_unlimited_sessions"),
     max_freeze_days: input.get("max_freeze_days"),
@@ -108,6 +125,7 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
     await mutate("/plans", "POST", {
       ...parsed.data,
       description: parsed.data.description ?? "",
+      duration_months: parsed.data.duration_basis === "months" ? parsed.data.duration_months : null,
       price: String(parsed.data.price),
     });
   } catch (error) {
@@ -122,6 +140,73 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
   return {
     ok: true,
     message: "Plan created.",
+    errors: {},
+    values: {},
+  };
+}
+
+export async function updatePlan(_state: PlanFormState, input: FormData): Promise<PlanFormState> {
+  const id = Number(input.get("id"));
+  const parsed = planInputSchema.safeParse({
+    access_ends_at: input.get("access_ends_at"),
+    access_starts_at: input.get("access_starts_at"),
+    access_grace_days: input.get("access_grace_days"),
+    category: input.get("category"),
+    description: input.get("description"),
+    duration_basis: input.get("duration_basis"),
+    duration_days: input.get("duration_days"),
+    duration_months: input.get("duration_months"),
+    freeze_requires_approval: input.get("freeze_requires_approval"),
+    is_unlimited_sessions: input.get("is_unlimited_sessions"),
+    max_freeze_days: input.get("max_freeze_days"),
+    min_freeze_days: input.get("min_freeze_days"),
+    name: input.get("name"),
+    price: input.get("price"),
+    sessions_count: input.get("sessions_count"),
+    type: input.get("type"),
+    valid_from: input.get("valid_from"),
+    valid_to: input.get("valid_to"),
+  });
+
+  const values = getFormValues(input);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return {
+      ok: false,
+      message: "Invalid plan.",
+      errors: {},
+      values,
+    };
+  }
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Invalid plan input.",
+      errors: parsed.error.flatten().fieldErrors,
+      values,
+    };
+  }
+
+  try {
+    await mutate(`/plans/${id}`, "PUT", {
+      ...parsed.data,
+      description: parsed.data.description ?? "",
+      duration_months: parsed.data.duration_basis === "months" ? parsed.data.duration_months : null,
+      price: String(parsed.data.price),
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not update plan.",
+      errors: {},
+      values,
+    };
+  }
+
+  return {
+    ok: true,
+    message: "Plan updated.",
     errors: {},
     values: {},
   };

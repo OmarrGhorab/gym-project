@@ -2,6 +2,7 @@
 
 use App\Models\Member;
 use App\Models\MemberVisit;
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
@@ -54,6 +55,27 @@ test('member visit records blocked visits when subscription is invalid', functio
         ->assertJsonPath('data.subscription_id', null);
 
     expect(MemberVisit::first()->alert_reason)->not->toBeNull();
+});
+
+test('member visit allows access during plan grace days after subscription end', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->active()->create(['access_grace_days' => 3]);
+    $subscription = Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'check_in_at' => '2026-07-03 10:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed')
+        ->assertJsonPath('data.subscription_id', $subscription->id);
 });
 
 test('member visits can be listed by member', function (): void {

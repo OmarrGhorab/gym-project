@@ -19,6 +19,7 @@ final class Plan extends Model
         'description',
         'price',
         'duration_days',
+        'duration_months',
         'sessions_count',
         'is_unlimited_sessions',
         'type',
@@ -29,6 +30,7 @@ final class Plan extends Model
         'access_starts_at',
         'access_ends_at',
         'max_freeze_days',
+        'access_grace_days',
         'min_freeze_days',
         'freeze_requires_approval',
         'commission_rate',
@@ -55,6 +57,15 @@ final class Plan extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function endDateFrom(Carbon $startDate): Carbon
+    {
+        if ((int) ($this->duration_months ?? 0) > 0) {
+            return $startDate->copy()->addMonthsNoOverflow((int) $this->duration_months);
+        }
+
+        return $startDate->copy()->addDays((int) $this->duration_days);
     }
 
     /**

@@ -117,11 +117,18 @@ test('subscription list marks active subscriptions past end date as expired', fu
     $member = Member::factory()->active()->create();
     $plan = Plan::factory()->active()->create();
 
-    Subscription::factory()->active()->create([
+    $subscription = Subscription::factory()->active()->create([
         'member_id' => $member->id,
         'plan_id' => $plan->id,
         'end_date' => now()->subDay()->toDateString(),
         'price_paid' => '450.00',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '450.00',
+        'status' => 'paid',
     ]);
 
     $this->getJson('/api/v1/subscriptions')
@@ -129,6 +136,37 @@ test('subscription list marks active subscriptions past end date as expired', fu
         ->assertJsonPath('data.0.status', 'expired')
         ->assertJsonPath('data.0.renewal_health', 'needs_action')
         ->assertJsonPath('data.0.renewal_health_reason', 'expired');
+});
+
+test('subscription list keeps active status during plan access grace days', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'access_grace_days' => 3,
+    ]);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => now()->subDay()->toDateString(),
+        'price_paid' => '450.00',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '450.00',
+        'status' => 'paid',
+    ]);
+
+    $this->getJson('/api/v1/subscriptions')
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.status', 'active')
+        ->assertJsonPath('data.0.renewal_health', 'renew_soon')
+        ->assertJsonPath('data.0.renewal_health_reason', 'ends_in');
 });
 
 test('admin can view subscription summary', function (): void {

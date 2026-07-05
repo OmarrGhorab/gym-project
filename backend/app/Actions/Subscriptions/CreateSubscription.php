@@ -41,7 +41,7 @@ class CreateSubscription
             $startDate = Carbon::parse($data['start_date'])->startOfDay();
             $endDate = isset($data['end_date'])
                 ? Carbon::parse($data['end_date'])->startOfDay()
-                : $startDate->copy()->addDays((int) $plan->duration_days);
+                : $plan->endDateFrom($startDate);
             $cycles = $this->cycleCount($startDate, $endDate, (int) $plan->duration_days);
             $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
             $subtotal = bcmul((string) $plan->price, (string) $cycles, 2);

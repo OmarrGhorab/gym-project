@@ -885,6 +885,9 @@
       "sellableToday": "متاحة للبيع اليوم",
       "createPlan": "إنشاء خطة",
       "createDescription": "أضف عرض عضوية مباشرة إلى الخادم.",
+      "edit": "تعديل",
+      "editPlan": "تعديل الخطة",
+      "editDescription": "حدّث السعر وحدود التجميد وأيام سماح الدخول وتوفر الخطة.",
       "name": "الاسم",
       "type": "النوع",
       "planTypes": {
@@ -900,10 +903,16 @@
         "recovery": "استشفاء"
       },
       "price": "السعر",
+      "durationType": "نوع المدة",
+      "durationTypeDays": "أيام",
+      "durationTypeMonths": "أشهر",
       "durationDays": "مدة الأيام",
+      "durationMonths": "مدة الأشهر",
+      "durationMonthsHelp": "اختياري. استخدمها للخطط الشهرية التي تبدأ في أي وقت، مثل شهر أو شهرين.",
       "sessionsCount": "عدد الحصص",
       "unlimitedSessions": "حصص غير محدودة",
       "maxFreezeDays": "أقصى أيام تجميد",
+      "accessGraceDays": "أيام سماح الدخول",
       "minFreezeDays": "أقل أيام تجميد",
       "freezeRequiresApproval": "التجميد يحتاج موافقة",
       "validFrom": "ساري من",
@@ -917,6 +926,7 @@
       "status": "الحالة",
       "actions": "الإجراءات",
       "days": "{count} يوم",
+      "months": "{count, plural, one {# شهر} other {# أشهر}}",
       "inactive": "غير نشطة",
       "disable": "تعطيل",
       "enable": "تفعيل",
@@ -925,6 +935,8 @@
       "selectDate": "اختر التاريخ",
       "freezeRequiresApprovalHelp": "عند تفعيلها، طلبات التجميد تحتاج موافقة الموظف أو المدير قبل إيقاف الاشتراك مؤقتًا.",
       "planCreated": "تم إنشاء الخطة.",
+      "planUpdated": "تم تحديث الخطة.",
+      "savePlan": "حفظ الخطة",
       "saving": "جار الحفظ..."
     },
     "payroll": {

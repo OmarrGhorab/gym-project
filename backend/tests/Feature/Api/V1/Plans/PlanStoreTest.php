@@ -107,6 +107,7 @@ test('admin can create a plan and receives 201 with plan resource', function ():
         'description' => 'One month access',
         'price' => '300.00',
         'duration_days' => 30,
+        'duration_months' => 1,
         'sessions_count' => null,
         'type' => 'membership',
         'category' => 'gym_access',
@@ -114,6 +115,7 @@ test('admin can create a plan and receives 201 with plan resource', function ():
         'valid_from' => '2026-06-01',
         'valid_to' => '2026-12-31',
         'max_freeze_days' => 7,
+        'access_grace_days' => 3,
     ])
         ->assertStatus(201)
         ->assertJson(fn (AssertableJson $json) => $json
@@ -122,12 +124,15 @@ test('admin can create a plan and receives 201 with plan resource', function ():
             ->has('data.name')
             ->has('data.price')
             ->has('data.duration_days')
+            ->has('data.duration_months')
             ->has('data.type')
             ->has('data.is_active')
             ->has('meta')
             ->has('message')
             ->where('data.name', 'Monthly Membership')
             ->where('data.type', 'membership')
+            ->where('data.duration_months', 1)
+            ->where('data.access_grace_days', 3)
         );
 
     $this->assertDatabaseHas('plans', ['name' => 'Monthly Membership']);
@@ -264,6 +269,8 @@ test('plan store accepts zero price (free plan)', function (): void {
         'duration_days' => 7,
         'type' => 'offer',
         'category' => 'gym_access',
+        'valid_from' => '2026-07-01',
+        'valid_to' => '2026-07-07',
     ])->assertStatus(201);
 });
 
