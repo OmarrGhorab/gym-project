@@ -18,6 +18,7 @@ class RecordPayment
         return DB::transaction(function () use ($subscription, $data, $creator): Payment {
             $lockedSubscription = Subscription::query()
                 ->lockForUpdate()
+                ->with('plan')
                 ->findOrFail($subscription->id);
 
             $paidSoFar = bcadd((string) $lockedSubscription->payments()->sum('amount'), '0.00', 2);
@@ -26,19 +27,11 @@ class RecordPayment
             $newTotal = bcadd($paidSoFar, $amount, 2);
             $owed = (string) $lockedSubscription->price_paid;
 
-            if (bccomp($paidSoFar, $owed, 2) >= 0) {
-                throw ValidationException::withMessages([
-                    'subscription_id' => 'This subscription is already settled.',
-                ]);
-            }
-
             if (bccomp($newTotal, $owed, 2) === 1) {
-                throw ValidationException::withMessages([
-                    'amount' => 'Payment amount exceeds the outstanding balance.',
-                ]);
+                $this->extendSubscriptionForOverpayment($lockedSubscription, bcsub($newTotal, $owed, 2));
             }
 
-            $remaining = bcsub($owed, $newTotal, 2);
+            $remaining = bccomp($newTotal, $owed, 2) === 1 ? '0.00' : bcsub($owed, $newTotal, 2);
             $status = bccomp($remaining, '0.00', 2) === 0 ? 'paid' : 'partial';
 
             return Payment::create([
@@ -52,5 +45,37 @@ class RecordPayment
                 'created_by' => $creator?->id,
             ]);
         });
+    }
+
+    private function extendSubscriptionForOverpayment(Subscription $subscription, string $extraAmount): void
+    {
+        if (bccomp($extraAmount, '0.00', 2) <= 0) {
+            return;
+        }
+
+        if ($subscription->end_date === null || $subscription->plan === null) {
+            throw ValidationException::withMessages([
+                'amount' => 'Extra payment cannot extend a subscription without an end date and plan.',
+            ]);
+        }
+
+        $durationDays = max(1, (int) $subscription->start_date->diffInDays($subscription->end_date));
+        $dailyRate = bcdiv((string) $subscription->price_paid, (string) $durationDays, 4);
+
+        if (bccomp($dailyRate, '0.0000', 4) <= 0) {
+            throw ValidationException::withMessages([
+                'amount' => 'Extra payment cannot extend a zero-value subscription.',
+            ]);
+        }
+
+        $extraDays = (int) floor((float) bcdiv($extraAmount, $dailyRate, 4));
+
+        if ($extraDays < 1) {
+            return;
+        }
+
+        $subscription->forceFill([
+            'end_date' => $subscription->end_date->copy()->addDays($extraDays)->toDateString(),
+        ])->save();
     }
 }

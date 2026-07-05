@@ -44,6 +44,16 @@ export async function renewMembershipSubscription(
   return mutateSubscription(`/subscriptions/${id}/renew`, "Subscription renewed.", input);
 }
 
+export type RecordMembershipPaymentInput = {
+  subscription_id: number;
+  amount: string;
+  method: "cash" | "card" | "bank_transfer";
+};
+
+export async function recordMembershipPayment(input: RecordMembershipPaymentInput): Promise<MembershipActionResult> {
+  return mutateSubscription("/payments", "Payment recorded.", input);
+}
+
 export type ChangeMembershipPlanInput = {
   plan_id: number;
   discount?: string;

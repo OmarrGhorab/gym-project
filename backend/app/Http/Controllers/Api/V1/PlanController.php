@@ -10,6 +10,7 @@ use App\Http\Requests\Plans\UpdatePlanRequest;
 use App\Http\Resources\PlanResource;
 use App\Models\Plan;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -25,9 +26,10 @@ final class PlanController extends ApiController
     /**
      * GET /api/v1/plans
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Plan::class);
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $plans = QueryBuilder::for(Plan::class)
             ->allowedFilters(
@@ -35,7 +37,7 @@ final class PlanController extends ApiController
                 AllowedFilter::exact('is_active'),
             )
             ->allowedSorts('name', 'price', 'duration_days', 'created_at')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return PlanResource::collection($plans)
             ->additional([

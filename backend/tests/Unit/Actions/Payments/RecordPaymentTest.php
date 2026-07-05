@@ -9,7 +9,6 @@ use App\Models\User;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -65,8 +64,11 @@ test('record payment marks paid when full balance is cleared', function (): void
         ->and(Payment::where('payable_id', $subscription->id)->count())->toBe(2);
 });
 
-test('record payment rejects overpayment', function (): void {
-    $subscription = makePaymentSubscription();
+test('record payment extends subscription days when payment exceeds balance', function (): void {
+    $subscription = makePaymentSubscription([
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+    ]);
 
     Payment::factory()->partial()->create([
         'payable_type' => Subscription::class,
@@ -74,14 +76,20 @@ test('record payment rejects overpayment', function (): void {
         'amount' => '250.00',
     ]);
 
-    expect(fn () => app(RecordPayment::class)->handle($subscription, [
+    $payment = app(RecordPayment::class)->handle($subscription, [
         'amount' => '60.00',
         'method' => 'cash',
-    ]))->toThrow(ValidationException::class);
+    ]);
+
+    expect($payment->status)->toBe('paid')
+        ->and($subscription->fresh()->end_date->toDateString())->toBe('2026-08-01');
 });
 
-test('record payment rejects settled subscriptions', function (): void {
-    $subscription = makePaymentSubscription();
+test('record payment on settled subscription converts money into extra days', function (): void {
+    $subscription = makePaymentSubscription([
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+    ]);
 
     Payment::factory()->create([
         'payable_type' => Subscription::class,
@@ -90,15 +98,20 @@ test('record payment rejects settled subscriptions', function (): void {
         'status' => 'paid',
     ]);
 
-    expect(fn () => app(RecordPayment::class)->handle($subscription, [
-        'amount' => '10.00',
+    $payment = app(RecordPayment::class)->handle($subscription, [
+        'amount' => '150.00',
         'method' => 'cash',
-    ]))->toThrow(ValidationException::class);
+    ]);
+
+    expect($payment->status)->toBe('paid')
+        ->and($subscription->fresh()->end_date->toDateString())->toBe('2026-08-15');
 });
 
 test('record payment re-reads locked subscription payments before accepting a stale request', function (): void {
     $subscription = makePaymentSubscription([
         'price_paid' => '300.00',
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
     ]);
 
     $staleSubscription = Subscription::query()->findOrFail($subscription->id);
@@ -109,9 +122,11 @@ test('record payment re-reads locked subscription payments before accepting a st
         'amount' => '250.00',
     ]);
 
-    expect(fn () => app(RecordPayment::class)->handle($staleSubscription, [
+    app(RecordPayment::class)->handle($staleSubscription, [
         'amount' => '60.00',
         'method' => 'cash',
-    ]))->toThrow(ValidationException::class)
-        ->and(Payment::where('payable_id', $subscription->id)->count())->toBe(1);
+    ]);
+
+    expect(Payment::where('payable_id', $subscription->id)->count())->toBe(2)
+        ->and($subscription->fresh()->end_date->toDateString())->toBe('2026-08-01');
 });

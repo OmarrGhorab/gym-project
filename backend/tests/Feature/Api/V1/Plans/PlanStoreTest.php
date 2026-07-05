@@ -49,6 +49,18 @@ test('admin can list plans with 200 paginated envelope', function (): void {
         );
 });
 
+test('plan index honors requested per page size', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Plan::factory()->count(20)->create();
+
+    $this->getJson('/api/v1/plans?per_page=20')
+        ->assertStatus(200)
+        ->assertJsonCount(20, 'data');
+});
+
 test('unauthenticated request to plan index returns 401', function (): void {
     $this->getJson('/api/v1/plans')
         ->assertStatus(401)
