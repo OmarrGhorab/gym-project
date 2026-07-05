@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\MemberVisits\AutoCloseStaleMemberVisits;
 use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\Plan;
@@ -8,6 +9,7 @@ use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function (): void {
@@ -90,4 +92,54 @@ test('member visits can be listed by member', function (): void {
     $this->getJson("/api/v1/member-visits?filter[member_id]={$member->id}")
         ->assertOk()
         ->assertJsonCount(2, 'data');
+});
+
+test('stale open member visits are auto checked out after three hours on next check in', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $staleMember = Member::factory()->create();
+    $newMember = Member::factory()->create();
+    Subscription::factory()->for($newMember)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    $staleVisit = MemberVisit::factory()->for($staleMember)->create([
+        'check_in_at' => Carbon::parse('2026-06-26 11:00:00'),
+        'check_out_at' => null,
+        'notes' => 'Forgot checkout.',
+    ]);
+
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $newMember->id,
+        'check_in_at' => '2026-06-26 14:30:00',
+    ])->assertCreated();
+
+    $staleVisit->refresh();
+
+    expect($staleVisit->check_out_at?->toDateTimeString())->toBe('2026-06-26 14:00:00')
+        ->and($staleVisit->notes)->toContain('Forgot checkout.')
+        ->and($staleVisit->notes)->toContain(AutoCloseStaleMemberVisits::SYSTEM_NOTE);
+});
+
+test('member visit auto close command closes stale open visits', function (): void {
+    $member = Member::factory()->create();
+    $staleVisit = MemberVisit::factory()->for($member)->create([
+        'check_in_at' => Carbon::parse('2026-06-26 23:00:00'),
+        'check_out_at' => null,
+        'notes' => null,
+    ]);
+
+    Carbon::setTestNow('2026-06-27 02:15:00');
+
+    $this->artisan('member-visits:auto-close')
+        ->expectsOutput('Auto-closed 1 member visit(s).')
+        ->assertSuccessful();
+
+    $staleVisit->refresh();
+
+    expect($staleVisit->check_out_at?->toDateTimeString())->toBe('2026-06-27 02:00:00')
+        ->and($staleVisit->notes)->toBe(AutoCloseStaleMemberVisits::SYSTEM_NOTE);
 });

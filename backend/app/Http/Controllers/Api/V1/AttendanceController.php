@@ -230,7 +230,7 @@ final class AttendanceController extends ApiController
                 'employees.name',
                 'employees.role',
                 DB::raw('COUNT(*) as records_count'),
-                DB::raw("SUM(CASE WHEN attendance.status = 'present' THEN 1 ELSE 0 END) as present_count"),
+                DB::raw("SUM(CASE WHEN attendance.status IN ('present', 'late') THEN 1 ELSE 0 END) as present_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'late' THEN 1 ELSE 0 END) as late_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'excused' THEN 1 ELSE 0 END) as excused_count"),

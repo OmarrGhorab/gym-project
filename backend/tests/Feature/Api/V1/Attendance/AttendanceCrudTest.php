@@ -44,7 +44,7 @@ test('manager can view monthly attendance summary per employee', function (): vo
         ->assertJsonPath('data.0.employee_id', $employee->id)
         ->assertJsonPath('data.0.name', 'Mona Ahmed')
         ->assertJsonPath('data.0.records_count', 2)
-        ->assertJsonPath('data.0.present_count', 1)
+        ->assertJsonPath('data.0.present_count', 2)
         ->assertJsonPath('data.0.late_count', 1);
 });
 

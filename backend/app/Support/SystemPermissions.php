@@ -25,6 +25,10 @@ final class SystemPermissions
 
     public const PERM_EXPORT_REPORTS = 'export.reports';
 
+    public const PERM_EXPORT_ATTENDANCE = 'export.attendance';
+
+    public const PERM_EXPORT_MEMBER_VISITS = 'export.member-visits';
+
     public const ALL_PERMISSIONS = [
         self::PERM_ROLES_MANAGE,
         self::PERM_SETTINGS_MANAGE,
@@ -35,6 +39,8 @@ final class SystemPermissions
         self::PERM_EXPORT_PAYMENTS,
         self::PERM_EXPORT_PAYROLL,
         self::PERM_EXPORT_REPORTS,
+        self::PERM_EXPORT_ATTENDANCE,
+        self::PERM_EXPORT_MEMBER_VISITS,
     ];
 
     /**
@@ -47,6 +53,8 @@ final class SystemPermissions
         'payments' => self::PERM_EXPORT_PAYMENTS,
         'payroll' => self::PERM_EXPORT_PAYROLL,
         'reports' => self::PERM_EXPORT_REPORTS,
+        'attendance' => self::PERM_EXPORT_ATTENDANCE,
+        'member-visits' => self::PERM_EXPORT_MEMBER_VISITS,
     ];
 
     /**
@@ -60,5 +68,7 @@ final class SystemPermissions
         'payments' => 'payments.view',
         'payroll' => 'payroll.view',
         'reports' => 'reports.view',
+        'attendance' => 'attendance.view',
+        'member-visits' => 'members.view',
     ];
 }

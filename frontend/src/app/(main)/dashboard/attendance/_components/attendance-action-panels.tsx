@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useActionState, useCallback, useEffect, useRef, useState } from "react";
 
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
+import { AlertTriangle, CalendarIcon, CheckCircle2, Clock3, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,17 +39,18 @@ import type { AttendanceViolation, EmployeeOption, EmployeeShift } from "./data"
 const initialState: AttendanceActionResult = { ok: true, message: "" };
 
 type Props = {
+  defaultAttendanceDate: string;
   employees: EmployeeOption[];
   shifts: EmployeeShift[];
   violations: AttendanceViolation[];
 };
 
-export function AttendanceActionPanels({ employees, shifts, violations }: Props) {
+export function AttendanceActionPanels({ defaultAttendanceDate, employees, shifts, violations }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <MemberScanCard />
       <StaffScanCard employees={employees} />
-      <ManualAttendanceCard employees={employees} shifts={shifts} />
+      <ManualAttendanceCard defaultAttendanceDate={defaultAttendanceDate} employees={employees} shifts={shifts} />
       <ViolationReviewCard violations={violations} />
     </div>
   );
@@ -71,7 +73,10 @@ function MemberScanCard() {
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
-          <ScanDirectionSelect />
+          <FieldGroup>
+            <FieldLabel htmlFor="member-scan-direction" label={t("scanDirection")} meta={t("requiredField")} />
+            <ScanDirectionSelect id="member-scan-direction" />
+          </FieldGroup>
           <QrImageScanner
             label={t("scanQrImage")}
             placeholder={t("scanQrImageHelp")}
@@ -80,17 +85,33 @@ function MemberScanCard() {
               toast.success(t("qrDecoded"));
             }}
           />
-          <Input
-            name="qr_token"
-            placeholder={t("memberQrPlaceholder")}
-            value={scanValue}
-            onChange={(event) => setScanValue(event.target.value)}
-          />
-          <Input name="member_id" inputMode="numeric" placeholder={t("memberIdPlaceholder")} />
-          <Input name="phone" placeholder={t("phonePlaceholder")} />
-          <Input name="name" placeholder={t("namePlaceholder")} />
+          <FieldGroup>
+            <FieldLabel htmlFor="member-qr-token" label={t("memberQrTokenLabel")} meta={t("lookupField")} />
+            <Input
+              id="member-qr-token"
+              name="qr_token"
+              placeholder={t("memberQrPlaceholder")}
+              value={scanValue}
+              onChange={(event) => setScanValue(event.target.value)}
+            />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="member-id" label={t("memberIdLabel")} meta={t("lookupField")} />
+            <Input id="member-id" name="member_id" inputMode="numeric" placeholder={t("memberIdPlaceholder")} />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="member-phone" label={t("phoneLabel")} meta={t("lookupField")} />
+            <Input id="member-phone" name="phone" placeholder={t("phonePlaceholder")} />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="member-name" label={t("memberNameLabel")} meta={t("lookupField")} />
+            <Input id="member-name" name="name" placeholder={t("namePlaceholder")} />
+          </FieldGroup>
           <GpsFields location={location} />
-          <Textarea name="notes" placeholder={t("notesPlaceholder")} className="md:col-span-2" />
+          <FieldGroup className="md:col-span-2">
+            <FieldLabel htmlFor="member-scan-notes" label={t("notesLabel")} meta={t("optionalField")} />
+            <Textarea id="member-scan-notes" name="notes" placeholder={t("notesPlaceholder")} />
+          </FieldGroup>
           <PanelFooter state={state} pending={pending} label={t("submitMemberScan")} />
         </form>
       </CardContent>
@@ -115,7 +136,10 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
-          <ScanDirectionSelect />
+          <FieldGroup>
+            <FieldLabel htmlFor="staff-scan-direction" label={t("scanDirection")} meta={t("requiredField")} />
+            <ScanDirectionSelect id="staff-scan-direction" />
+          </FieldGroup>
           <QrImageScanner
             label={t("scanQrImage")}
             placeholder={t("scanQrImageHelp")}
@@ -124,28 +148,38 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
               toast.success(t("qrDecoded"));
             }}
           />
-          <Input
-            name="qr_token"
-            placeholder={t("employeeQrPlaceholder")}
-            value={scanValue}
-            onChange={(event) => setScanValue(event.target.value)}
-          />
-          <Select name="employee_id" defaultValue="">
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t("selectEmployee")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={String(employee.id)}>
-                    {employee.name} - {employee.role}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <FieldGroup>
+            <FieldLabel htmlFor="employee-qr-token" label={t("employeeQrTokenLabel")} meta={t("lookupField")} />
+            <Input
+              id="employee-qr-token"
+              name="qr_token"
+              placeholder={t("employeeQrPlaceholder")}
+              value={scanValue}
+              onChange={(event) => setScanValue(event.target.value)}
+            />
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="employee-id" label={t("employeeLabel")} meta={t("lookupField")} />
+            <Select name="employee_id" defaultValue="">
+              <SelectTrigger id="employee-id" className="w-full">
+                <SelectValue placeholder={t("selectEmployee")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={String(employee.id)}>
+                      {employee.name} - {employee.role}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
           <GpsFields location={location} />
-          <Textarea name="notes" placeholder={t("notesPlaceholder")} className="md:col-span-2" />
+          <FieldGroup className="md:col-span-2">
+            <FieldLabel htmlFor="staff-scan-notes" label={t("notesLabel")} meta={t("optionalField")} />
+            <Textarea id="staff-scan-notes" name="notes" placeholder={t("notesPlaceholder")} />
+          </FieldGroup>
           <PanelFooter state={state} pending={pending} label={t("submitStaffScan")} />
         </form>
       </CardContent>
@@ -153,10 +187,17 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
   );
 }
 
-function ManualAttendanceCard({ employees, shifts }: { employees: EmployeeOption[]; shifts: EmployeeShift[] }) {
+function ManualAttendanceCard({
+  defaultAttendanceDate,
+  employees,
+  shifts,
+}: {
+  defaultAttendanceDate: string;
+  employees: EmployeeOption[];
+  shifts: EmployeeShift[];
+}) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(createManualAttendance, initialState);
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   return (
     <Card className="xl:col-span-7">
@@ -166,76 +207,94 @@ function ManualAttendanceCard({ employees, shifts }: { employees: EmployeeOption
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-3">
-          <Select name="employee_id" required defaultValue="">
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t("selectEmployee")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={String(employee.id)}>
-                    {employee.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select name="shift_id" defaultValue="">
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t("noShift")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {shifts.map((shift) => (
-                  <SelectItem key={shift.id} value={String(shift.id)}>
-                    {shift.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <DatePickerField name="date" defaultValue={today} required />
-          <TimePickerField name="check_in" />
-          <TimePickerField name="check_out" />
-          <Select name="status" defaultValue="present">
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="present">{t("statuses.present")}</SelectItem>
-                <SelectItem value="late">{t("statuses.late")}</SelectItem>
-                <SelectItem value="absent">{t("statuses.absent")}</SelectItem>
-                <SelectItem value="excused">{t("statuses.excused")}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select name="schedule_status" defaultValue="">
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t("scheduleStatus")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="on_shift">{t("scheduleStatuses.on_shift")}</SelectItem>
-                <SelectItem value="late">{t("scheduleStatuses.late")}</SelectItem>
-                <SelectItem value="off_shift">{t("scheduleStatuses.off_shift")}</SelectItem>
-                <SelectItem value="unassigned">{t("scheduleStatuses.unassigned")}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select name="approval_status" defaultValue="">
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t("approvalStatus")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
-                <SelectItem value="pending">{t("approvalStatuses.pending")}</SelectItem>
-                <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Textarea name="notes" placeholder={t("notesPlaceholder")} className="md:col-span-3" />
+          <FieldGroup>
+            <FieldLabel htmlFor="manual-employee-id" label={t("employeeLabel")} meta={t("requiredField")} />
+            <Select name="employee_id" required defaultValue="">
+              <SelectTrigger id="manual-employee-id" className="w-full">
+                <SelectValue placeholder={t("selectEmployee")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={String(employee.id)}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="manual-shift-id" label={t("shiftLabel")} meta={t("optionalField")} />
+            <Select name="shift_id" defaultValue="">
+              <SelectTrigger id="manual-shift-id" className="w-full">
+                <SelectValue placeholder={t("noShift")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {shifts.map((shift) => (
+                    <SelectItem key={shift.id} value={String(shift.id)}>
+                      {shift.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <DatePickerField label={t("attendanceDate")} name="date" defaultValue={defaultAttendanceDate} required />
+          <TimePickerField label={t("checkInTime")} name="check_in" />
+          <TimePickerField label={t("checkOutTime")} name="check_out" />
+          <FieldGroup>
+            <FieldLabel htmlFor="manual-status" label={t("status")} meta={t("requiredField")} />
+            <Select name="status" defaultValue="present">
+              <SelectTrigger id="manual-status" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="present">{t("statuses.present")}</SelectItem>
+                  <SelectItem value="late">{t("statuses.late")}</SelectItem>
+                  <SelectItem value="absent">{t("statuses.absent")}</SelectItem>
+                  <SelectItem value="excused">{t("statuses.excused")}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="manual-schedule-status" label={t("scheduleStatus")} meta={t("optionalField")} />
+            <Select name="schedule_status" defaultValue="">
+              <SelectTrigger id="manual-schedule-status" className="w-full">
+                <SelectValue placeholder={t("scheduleStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="on_shift">{t("scheduleStatuses.on_shift")}</SelectItem>
+                  <SelectItem value="late">{t("scheduleStatuses.late")}</SelectItem>
+                  <SelectItem value="off_shift">{t("scheduleStatuses.off_shift")}</SelectItem>
+                  <SelectItem value="unassigned">{t("scheduleStatuses.unassigned")}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup>
+            <FieldLabel htmlFor="manual-approval-status" label={t("approvalStatus")} meta={t("optionalField")} />
+            <Select name="approval_status" defaultValue="">
+              <SelectTrigger id="manual-approval-status" className="w-full">
+                <SelectValue placeholder={t("approvalStatus")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
+                  <SelectItem value="pending">{t("approvalStatuses.pending")}</SelectItem>
+                  <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup className="md:col-span-3">
+            <FieldLabel htmlFor="manual-notes" label={t("notesLabel")} meta={t("optionalField")} />
+            <Textarea id="manual-notes" name="notes" placeholder={t("notesPlaceholder")} />
+          </FieldGroup>
           <PanelFooter state={state} pending={pending} label={t("createAttendance")} />
         </form>
       </CardContent>
@@ -247,45 +306,133 @@ function ViolationReviewCard({ violations }: { violations: AttendanceViolation[]
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(reviewAttendanceViolation, initialState);
   const firstViolation = violations[0];
+  const [selectedViolationId, setSelectedViolationId] = useState(firstViolation?.id ? String(firstViolation.id) : "");
+  const selectedViolation =
+    violations.find((violation) => String(violation.id) === selectedViolationId) ?? firstViolation ?? null;
 
   return (
     <Card className="xl:col-span-5">
       <CardHeader>
-        <CardTitle className="font-normal">{t("reviewWarnings")}</CardTitle>
-        <CardDescription>{t("reviewWarningsDescription")}</CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="font-normal">{t("reviewWarnings")}</CardTitle>
+            <CardDescription>{t("reviewWarningsDescription")}</CardDescription>
+          </div>
+          <Badge variant="outline" className="shrink-0">
+            {t("warningCount", { count: violations.length })}
+          </Badge>
+        </div>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-3">
-          <Select name="id" required defaultValue={firstViolation?.id ? String(firstViolation.id) : ""}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t("selectWarning")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {violations.map((violation) => (
-                  <SelectItem key={violation.id} value={String(violation.id)}>
-                    {violation.employee?.name ?? t("staff")} - {violation.type} - {violation.violation_date}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <div className="grid grid-cols-2 gap-3">
-            <Select name="status" defaultValue="approved">
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
-                  <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Input name="deduction_amount" inputMode="decimal" placeholder={t("deductionAmount")} />
-          </div>
-          <Input name="deduction_days" inputMode="decimal" placeholder={t("deductionDays")} />
-          <Textarea name="notes" placeholder={t("reviewNotes")} />
+        <form action={action} className="grid gap-4">
+          {violations.length > 0 ? (
+            <>
+              <div className="grid gap-2">
+                <FieldLabel htmlFor="attendance-warning-id" label={t("warningToReview")} meta={t("requiredField")} />
+                <Select
+                  name="id"
+                  required
+                  value={selectedViolationId}
+                  onValueChange={(value) => setSelectedViolationId(value ?? "")}
+                >
+                  <SelectTrigger id="attendance-warning-id" className="w-full">
+                    <SelectValue placeholder={t("selectWarning")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {violations.map((violation) => (
+                        <SelectItem key={violation.id} value={String(violation.id)}>
+                          {violation.employee?.name ?? t("staff")} - {formatViolationType(violation.type)} -{" "}
+                          {violation.violation_date}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedViolation ? (
+                <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-sm">{selectedViolation.employee?.name ?? t("staff")}</p>
+                      <p className="text-muted-foreground text-xs">{selectedViolation.employee?.role ?? t("staff")}</p>
+                    </div>
+                    <Badge variant="outline">{formatViolationType(selectedViolation.type)}</Badge>
+                  </div>
+                  <div className="grid gap-2 text-sm sm:grid-cols-3">
+                    <WarningMeta
+                      icon={<CalendarIcon className="size-3.5" />}
+                      label={t("warningDate")}
+                      value={selectedViolation.violation_date}
+                    />
+                    <WarningMeta
+                      icon={<Clock3 className="size-3.5" />}
+                      label={t("warningMinutes")}
+                      value={
+                        selectedViolation.minutes === null
+                          ? t("notAvailable")
+                          : t("minutesValue", { count: selectedViolation.minutes })
+                      }
+                    />
+                    <WarningMeta
+                      icon={<AlertTriangle className="size-3.5" />}
+                      label={t("suggestedDeduction")}
+                      value={`EGP ${selectedViolation.deduction_amount}`}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <FieldLabel
+                    htmlFor="attendance-warning-status"
+                    label={t("reviewDecision")}
+                    meta={t("requiredField")}
+                  />
+                  <Select name="status" defaultValue="approved">
+                    <SelectTrigger id="attendance-warning-status" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
+                        <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <FieldLabel
+                    htmlFor="attendance-deduction-amount"
+                    label={t("deductionAmount")}
+                    meta={t("optionalField")}
+                  />
+                  <Input
+                    id="attendance-deduction-amount"
+                    name="deduction_amount"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                  />
+                  <FieldHelp>{t("deductionAmountHelp")}</FieldHelp>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <FieldLabel htmlFor="attendance-deduction-days" label={t("deductionDays")} meta={t("optionalField")} />
+                <Input id="attendance-deduction-days" name="deduction_days" inputMode="decimal" placeholder="0" />
+                <FieldHelp>{t("deductionDaysHelp")}</FieldHelp>
+              </div>
+              <div className="grid gap-2">
+                <FieldLabel htmlFor="attendance-review-notes" label={t("reviewNotesLabel")} meta={t("optionalField")} />
+                <Textarea id="attendance-review-notes" name="notes" placeholder={t("reviewNotes")} />
+                <FieldHelp>{t("reviewNotesHelp")}</FieldHelp>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-center">
+              <p className="font-medium text-sm">{t("noWarnings")}</p>
+              <p className="text-muted-foreground text-xs">{t("noWarningsReviewHelp")}</p>
+            </div>
+          )}
           <PanelFooter state={state} pending={pending} label={t("reviewWarning")} disabled={!firstViolation} />
         </form>
       </CardContent>
@@ -293,12 +440,48 @@ function ViolationReviewCard({ violations }: { violations: AttendanceViolation[]
   );
 }
 
-function ScanDirectionSelect() {
+function FieldGroup({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={["grid gap-2", className].filter(Boolean).join(" ")}>{children}</div>;
+}
+
+function FieldLabel({ htmlFor, label, meta }: { htmlFor: string; label: string; meta: string }) {
+  return (
+    <Label htmlFor={htmlFor} className="justify-between gap-3">
+      <span>{label}</span>
+      <span className="font-normal text-muted-foreground text-xs">{meta}</span>
+    </Label>
+  );
+}
+
+function FieldHelp({ children }: { children: ReactNode }) {
+  return <p className="text-muted-foreground text-xs leading-relaxed">{children}</p>;
+}
+
+function WarningMeta({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="grid gap-1 rounded-md bg-background/60 p-2">
+      <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+        {icon}
+        {label}
+      </span>
+      <span className="font-medium text-sm">{value}</span>
+    </div>
+  );
+}
+
+function formatViolationType(value: string) {
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function ScanDirectionSelect({ id }: { id: string }) {
   const t = useTranslations("Dashboard.attendance");
 
   return (
     <Select name="direction" defaultValue="check-in">
-      <SelectTrigger className="w-full">
+      <SelectTrigger id={id} className="w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -313,10 +496,12 @@ function ScanDirectionSelect() {
 
 function DatePickerField({
   defaultValue,
+  label,
   name,
   required = false,
 }: {
   defaultValue: string;
+  label: string;
   name: string;
   required?: boolean;
 }) {
@@ -326,11 +511,19 @@ function DatePickerField({
   const selectedDate = value ? parseISO(value) : undefined;
 
   return (
-    <div className="flex flex-col justify-center">
+    <FieldGroup>
+      <FieldLabel htmlFor={`date-${name}`} label={label} meta={required ? t("requiredField") : t("optionalField")} />
       <input type="hidden" name={name} value={value} required={required} />
       <Popover>
         <PopoverTrigger
-          render={<Button type="button" variant="outline" className="w-full justify-between font-normal" />}
+          render={
+            <Button
+              id={`date-${name}`}
+              type="button"
+              variant="outline"
+              className="w-full justify-between font-normal"
+            />
+          }
         >
           {selectedDate
             ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(selectedDate)
@@ -351,7 +544,7 @@ function DatePickerField({
           />
         </PopoverContent>
       </Popover>
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -378,7 +571,8 @@ function parseTime24(value: string) {
   return { hour, minute, period };
 }
 
-function TimePickerField({ defaultValue = "", name }: { defaultValue?: string; name: string }) {
+function TimePickerField({ defaultValue = "", label, name }: { defaultValue?: string; label: string; name: string }) {
+  const t = useTranslations("Dashboard.attendance");
   const initial = parseTime24(defaultValue);
   const [hour, setHour] = useState<number | null>(initial ? initial.hour : null);
   const [minute, setMinute] = useState<number | null>(initial ? initial.minute : null);
@@ -387,49 +581,52 @@ function TimePickerField({ defaultValue = "", name }: { defaultValue?: string; n
   const value = hour !== null && minute !== null ? formatTime24(hour, minute, period) : "";
 
   return (
-    <div className="flex items-center gap-1.5">
+    <FieldGroup>
+      <FieldLabel htmlFor={`time-${name}-hour`} label={label} meta={t("optionalField")} />
       <input type="hidden" name={name} value={value} />
-      <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="--" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {TIME_HOURS.map((h) => (
-              <SelectItem key={h} value={String(h)}>
-                {String(h).padStart(2, "0")}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <span className="text-muted-foreground text-sm">:</span>
-      <Select value={minute !== null ? String(minute) : ""} onValueChange={(next) => setMinute(Number(next))}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="--" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {TIME_MINUTES.map((m) => (
-              <SelectItem key={m} value={String(m)}>
-                {String(m).padStart(2, "0")}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <Select value={period} onValueChange={(next) => setPeriod(next as "AM" | "PM")}>
-        <SelectTrigger className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectItem value="AM">AM</SelectItem>
-            <SelectItem value="PM">PM</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </div>
+      <div className="flex items-center gap-1.5">
+        <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
+          <SelectTrigger id={`time-${name}-hour`} className="w-full">
+            <SelectValue placeholder="--" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {TIME_HOURS.map((h) => (
+                <SelectItem key={h} value={String(h)}>
+                  {String(h).padStart(2, "0")}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground text-sm">:</span>
+        <Select value={minute !== null ? String(minute) : ""} onValueChange={(next) => setMinute(Number(next))}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="--" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {TIME_MINUTES.map((m) => (
+                <SelectItem key={m} value={String(m)}>
+                  {String(m).padStart(2, "0")}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Select value={period} onValueChange={(next) => setPeriod(next as "AM" | "PM")}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="AM">AM</SelectItem>
+              <SelectItem value="PM">PM</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+    </FieldGroup>
   );
 }
 

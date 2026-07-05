@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 final class StoreMemberVisit
 {
     public function __construct(
+        private readonly AutoCloseStaleMemberVisits $autoCloseStaleVisits,
         private readonly ResolveMemberVisitSubscription $visitSubscription,
     ) {}
 
@@ -20,6 +21,8 @@ final class StoreMemberVisit
         $member = Member::query()->findOrFail($data['member_id']);
 
         $visit = DB::transaction(function () use ($data, $user, $checkIn, $member): MemberVisit {
+            $this->autoCloseStaleVisits->handle($checkIn);
+
             $subscription = $this->visitSubscription->consume($member, $checkIn);
             $status = $subscription ? 'allowed' : 'blocked';
 

@@ -1,9 +1,21 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import Image from "next/image";
 
-import { Badge } from "@/components/ui/badge";
+import { Copy, QrCode } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
@@ -65,9 +77,10 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={row.employee.attendance_qr ? "secondary" : "outline"}>
-                        {row.employee.attendance_qr ? t("ready") : t("missing")}
-                      </Badge>
+                      <StaffQrDialog
+                        employeeName={row.employee.name}
+                        payload={row.employee.attendance_qr ?? row.employee.attendance_code}
+                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -83,5 +96,75 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
         </Table>
       </CardContent>
     </Card>
+  );
+}
+
+function StaffQrDialog({ employeeName, payload }: { employeeName: string; payload: string | null }) {
+  const t = useTranslations("Dashboard.academy");
+  const qrUrl = payload
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payload)}`
+    : null;
+
+  async function copyPayload() {
+    if (!payload) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      toast.success(t("staffQrCopied"));
+    } catch {
+      toast.error(t("staffQrCopyFailed"));
+    }
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={
+          <Button type="button" size="sm" variant={payload ? "secondary" : "outline"} disabled={!payload}>
+            <QrCode data-icon="inline-start" />
+            {payload ? t("viewQr") : t("missing")}
+          </Button>
+        }
+      />
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("staffQrTitle", { name: employeeName })}</DialogTitle>
+          <DialogDescription>{t("staffQrDescription")}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-center">
+          <div className="flex aspect-square w-full max-w-56 items-center justify-center rounded-lg border bg-background">
+            {qrUrl ? (
+              <Image
+                src={qrUrl}
+                alt={t("staffQrTitle", { name: employeeName })}
+                width={220}
+                height={220}
+                unoptimized
+                className="size-full rounded-lg object-contain p-2"
+              />
+            ) : (
+              <div className="grid place-items-center gap-2 text-center text-muted-foreground">
+                <QrCode className="size-9" />
+                <span className="text-xs">{t("missing")}</span>
+              </div>
+            )}
+          </div>
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <p className="text-muted-foreground text-xs">{t("qrPayload")}</p>
+              <div className="break-all rounded-lg border bg-muted/30 p-3 font-mono text-sm">
+                {payload ?? t("missing")}
+              </div>
+            </div>
+            <Button type="button" variant="outline" onClick={copyPayload} disabled={!payload}>
+              <Copy data-icon="inline-start" />
+              {t("copyQr")}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

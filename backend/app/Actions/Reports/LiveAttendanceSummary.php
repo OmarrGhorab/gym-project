@@ -304,7 +304,7 @@ final class LiveAttendanceSummary
                     : $attendance->date->toDateString(),
             ]);
 
-        return $memberAlerts
+        return collect($memberAlerts->values())
             ->merge($staffAlerts)
             ->sortByDesc('time')
             ->values()

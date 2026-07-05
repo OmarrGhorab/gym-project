@@ -2,7 +2,9 @@
 
 namespace App\Actions\Export;
 
+use App\Exports\AttendanceExport;
 use App\Exports\MembersExport;
+use App\Exports\MemberVisitsExport;
 use App\Exports\PaymentsExport;
 use App\Exports\PayrollExport;
 use App\Exports\ReportExport;
@@ -70,6 +72,8 @@ class BuildExport
     public function getExportClass(string $resource, array $filters)
     {
         return match ($resource) {
+            'attendance' => new AttendanceExport($filters),
+            'member-visits' => new MemberVisitsExport($filters),
             'members' => new MembersExport($filters),
             'subscriptions' => new SubscriptionsExport($filters),
             'sales' => new SalesExport($filters),

@@ -129,9 +129,7 @@ export default async function Page() {
                 {shifts.map((shift) => (
                   <TableRow key={shift.id}>
                     <TableCell className="font-medium">{shift.name}</TableCell>
-                    <TableCell>
-                      {shift.starts_at} - {shift.ends_at}
-                    </TableCell>
+                    <TableCell>{formatShiftTimeRange(shift.starts_at, shift.ends_at)}</TableCell>
                     <TableCell>{t("minutesShort", { count: shift.grace_minutes })}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{shift.is_active ? t("active") : t("inactive")}</Badge>
@@ -324,6 +322,25 @@ function CompactField({ children, label }: { children: React.ReactNode; label: s
       {children}
     </div>
   );
+}
+
+function formatShiftTimeRange(startsAt: string, endsAt: string) {
+  return `${formatShiftTime(startsAt)} - ${formatShiftTime(endsAt)}`;
+}
+
+function formatShiftTime(value: string) {
+  const [hourValue, minuteValue = "0"] = value.split(":");
+  const hour = Number(hourValue);
+  const minute = Number(minuteValue);
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return value;
+  }
+
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${period}`;
 }
 
 function Field({

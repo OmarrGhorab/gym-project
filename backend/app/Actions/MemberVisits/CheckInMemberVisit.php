@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 final class CheckInMemberVisit
 {
     public function __construct(
+        private readonly AutoCloseStaleMemberVisits $autoCloseStaleVisits,
         private readonly ResolveAttendanceIdentity $identity,
         private readonly Geofence $geofence,
         private readonly ResolveMemberVisitSubscription $visitSubscription,
@@ -25,6 +26,8 @@ final class CheckInMemberVisit
         $location = $this->geofence->evaluate($data);
 
         $visit = DB::transaction(function () use ($data, $user, $checkIn, $member, $location): MemberVisit {
+            $this->autoCloseStaleVisits->handle($checkIn);
+
             $subscription = $this->visitSubscription->consume($member, $checkIn);
             $subscriptionStatus = $subscription ? 'allowed' : 'blocked';
             $status = $subscriptionStatus === 'allowed' && $location['location_status'] === 'outside'

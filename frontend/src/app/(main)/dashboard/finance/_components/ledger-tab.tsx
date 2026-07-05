@@ -26,8 +26,8 @@ export function LedgerTab({
   const t = useTranslations("Dashboard.finance");
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <Card className="xl:col-span-7">
+    <div className="grid grid-cols-1 gap-4">
+      <Card>
         <CardHeader>
           <CardTitle className="font-normal">{t("recentPayments")}</CardTitle>
           <CardDescription>{t("recentPaymentsDescription")}</CardDescription>
@@ -37,7 +37,7 @@ export function LedgerTab({
         </CardContent>
       </Card>
 
-      <Card className="xl:col-span-5">
+      <Card>
         <CardHeader>
           <CardTitle className="font-normal">{t("outstandingDues")}</CardTitle>
           <CardDescription>{t("outstandingDuesDescription")}</CardDescription>
@@ -47,7 +47,7 @@ export function LedgerTab({
         </CardContent>
       </Card>
 
-      <Card className="xl:col-span-12">
+      <Card>
         <CardHeader>
           <CardTitle className="font-normal">{t("expenseLedger")}</CardTitle>
           <CardDescription>{t("expenseLedgerDescription")}</CardDescription>

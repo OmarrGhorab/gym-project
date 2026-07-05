@@ -86,16 +86,19 @@ export type MemberVisitStationRow = {
   alert_reason: string | null;
 };
 
-export async function getAttendancePageData() {
+export async function getAttendancePageData({ date, month }: { date: string; month: string }) {
   const [employees, memberVisits, records, shifts, summary, violations] = await Promise.all([
     safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/employees?filter[status]=active&per_page=100", []),
     safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
       "/member-visits?sort=-check_in_at&page=1&per_page=8",
       [],
     ),
-    safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>("/attendance?sort=-date&page=1", []),
+    safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>(
+      `/attendance?filter[date]=${encodeURIComponent(date)}&sort=-date&page=1&per_page=100`,
+      [],
+    ),
     safeFetch<EmployeeShift[]>("/attendance/shifts", []),
-    safeFetch<AttendanceSummary[]>("/attendance/summary", []),
+    safeFetch<AttendanceSummary[]>(`/attendance/summary?month=${encodeURIComponent(month)}`, []),
     safeFetch<AttendanceViolation[] | PaginatedData<AttendanceViolation>>("/attendance/violations?status=pending", []),
   ]);
 

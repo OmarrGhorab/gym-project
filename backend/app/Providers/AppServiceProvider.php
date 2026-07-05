@@ -69,31 +69,31 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Define the application's rate limiters.
      *
-     * "auth"      — tight limit on login/sensitive auth endpoints to mitigate
-     *               brute-force attacks. 10 attempts per minute per IP.
+     * "auth"      — login/sensitive auth endpoints. Kept lower than the
+     *               dashboard API, but high enough for local/internal use.
      *
      * "sensitive" — tight limit on write-heavy / financial operations
      *               (commission backfill, payroll generation, payroll payout)
      *               that are expensive or money-moving and must not be hammered.
-     *               10 requests per minute per authenticated user or IP.
+     *               300 requests per minute per authenticated user or IP.
      *
-     * "api"       — general API limit. 60 requests per minute per authenticated
+     * "api"       — general API limit. 1000 requests per minute per authenticated
      *               user or IP.
      */
     private function configureRateLimiters(): void
     {
         RateLimiter::for('auth', function (Request $request): Limit {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(60)->by($request->ip());
         });
 
         RateLimiter::for('sensitive', function (Request $request): Limit {
-            return Limit::perMinute(10)->by(
+            return Limit::perMinute(300)->by(
                 optional($request->user())->id ?: $request->ip(),
             );
         });
 
         RateLimiter::for('api', function (Request $request): Limit {
-            return Limit::perMinute(60)->by(
+            return Limit::perMinute(1000)->by(
                 optional($request->user())->id ?: $request->ip(),
             );
         });
@@ -101,11 +101,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('otp-send', function (Request $request): Limit {
             $email = $request->input('email', 'unknown');
 
-            return Limit::perMinute(3)->by('otp-send:'.$email);
+            return Limit::perMinute(20)->by('otp-send:'.$email);
         });
 
         RateLimiter::for('export', function (Request $request): Limit {
-            return Limit::perMinute(5)->by(
+            return Limit::perMinute(120)->by(
                 optional($request->user())->id ?: $request->ip(),
             );
         });
