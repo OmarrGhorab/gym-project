@@ -41,6 +41,7 @@ final class LiveAttendanceSummary
             ->get();
 
         $membersInside = $isToday ? $memberVisits
+            ->whereIn('status', ['allowed', 'flagged'])
             ->whereNull('check_out_at')
             ->sortByDesc('check_in_at')
             ->values() : collect();
@@ -165,7 +166,9 @@ final class LiveAttendanceSummary
                 $checkIn = $visit->check_in_at;
                 $checkOut = $visit->check_out_at;
 
-                return $checkIn && $checkIn->lessThanOrEqualTo($slotEnd)
+                return in_array($visit->status, ['allowed', 'flagged'], true)
+                    && $checkIn
+                    && $checkIn->lessThanOrEqualTo($slotEnd)
                     && (! $checkOut || $checkOut->greaterThanOrEqualTo($slotStart));
             })->count(),
         };

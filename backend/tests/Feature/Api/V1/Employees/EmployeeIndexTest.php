@@ -75,6 +75,29 @@ test('can filter employees list by search query (q)', function (): void {
     expect($responsePhone->json('data.0.name'))->toBe('Sara Smith');
 });
 
+test('can filter employees list by id and attendance qr token', function (): void {
+    $adminUser = User::factory()->create();
+    $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($adminUser);
+
+    $employee = Employee::factory()->create([
+        'attendance_code' => 'EMP12345',
+        'name' => 'Lookup Staff',
+    ]);
+    Employee::factory()->create(['name' => 'Other Staff']);
+
+    $responseById = $this->getJson('/api/v1/employees?filter[q]='.$employee->id)
+        ->assertStatus(200);
+
+    expect(collect($responseById->json('data'))->pluck('id'))->toContain($employee->id);
+
+    $responseByQr = $this->getJson('/api/v1/employees?filter[q]=employee:EMP12345')
+        ->assertStatus(200)
+        ->assertJsonCount(1, 'data');
+
+    expect($responseByQr->json('data.0.id'))->toBe($employee->id);
+});
+
 test('unauthenticated employees index request receives 401', function (): void {
     $this->getJson('/api/v1/employees')
         ->assertStatus(401);

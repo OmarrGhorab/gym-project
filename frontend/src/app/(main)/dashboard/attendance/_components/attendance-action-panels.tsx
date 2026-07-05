@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -34,21 +35,27 @@ import {
   scanMemberVisit,
   scanStaffAttendance,
 } from "./actions";
-import type { AttendanceViolation, EmployeeOption, EmployeeShift } from "./data";
+import type { AttendanceViolation, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
 
 const initialState: AttendanceActionResult = { ok: true, message: "" };
+const fixedTopSelectCollision = {
+  align: "shift",
+  fallbackAxisSide: "none",
+  side: "shift",
+} as const;
 
 type Props = {
   defaultAttendanceDate: string;
   employees: EmployeeOption[];
+  members: MemberLookupOption[];
   shifts: EmployeeShift[];
   violations: AttendanceViolation[];
 };
 
-export function AttendanceActionPanels({ defaultAttendanceDate, employees, shifts, violations }: Props) {
+export function AttendanceActionPanels({ defaultAttendanceDate, employees, members, shifts, violations }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <MemberScanCard />
+      <MemberScanCard members={members} />
       <StaffScanCard employees={employees} />
       <ManualAttendanceCard defaultAttendanceDate={defaultAttendanceDate} employees={employees} shifts={shifts} />
       <ViolationReviewCard violations={violations} />
@@ -56,11 +63,52 @@ export function AttendanceActionPanels({ defaultAttendanceDate, employees, shift
   );
 }
 
-function MemberScanCard() {
+function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
   const location = useGpsLocation();
   const [scanValue, setScanValue] = useState("");
+  const [selectedMember, setSelectedMember] = useState<MemberLookupOption | null>(null);
+  const [lookupMembers, setLookupMembers] = useState(members);
+  const selectMember = useCallback((member: MemberLookupOption | null) => {
+    setSelectedMember(member);
+
+    if (!member) {
+      setScanValue("");
+      return;
+    }
+
+    setLookupMembers((current) => mergeMemberLookup(current, [member]));
+    setScanValue(member.attendance_qr ?? (member.attendance_code ? `member:${member.attendance_code}` : ""));
+  }, []);
+  const handleMemberSearch = useCallback(
+    async (query: string) => {
+      const nextMembers = await fetchMemberLookup(query, members);
+      setLookupMembers((current) => mergeMemberLookup(selectedMember ? [selectedMember] : current, nextMembers));
+    },
+    [members, selectedMember],
+  );
+  const idOptions = memberIdSelectOptions(lookupMembers);
+  const phoneOptions = memberPhoneSelectOptions(lookupMembers);
+  const nameOptions = memberNameSelectOptions(lookupMembers);
+
+  useEffect(() => {
+    const query = scanValue.trim();
+
+    if (!query) {
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      const matches = await fetchMemberLookup(query, members);
+
+      if (matches.length === 1) {
+        selectMember(matches[0]);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [members, scanValue, selectMember]);
 
   return (
     <Card className="xl:col-span-6">
@@ -92,20 +140,69 @@ function MemberScanCard() {
               name="qr_token"
               placeholder={t("memberQrPlaceholder")}
               value={scanValue}
-              onChange={(event) => setScanValue(event.target.value)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setScanValue(nextValue);
+
+                if (!nextValue.trim()) {
+                  setSelectedMember(null);
+                }
+              }}
             />
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="member-id" label={t("memberIdLabel")} meta={t("lookupField")} />
-            <Input id="member-id" name="member_id" inputMode="numeric" placeholder={t("memberIdPlaceholder")} />
+            <FormSelect
+              className="w-full"
+              contentClassName="max-h-80"
+              id="member-id"
+              name="member_id"
+              options={idOptions}
+              placeholder={t("memberIdPlaceholder")}
+              selectedLabel={selectedMember ? memberIdLabel(selectedMember) : undefined}
+              value={selectedMember ? String(selectedMember.id) : ""}
+              contentCollisionAvoidance={fixedTopSelectCollision}
+              contentSide="top"
+              onOptionSelect={(option) => selectMember(memberFromOption(option))}
+              onSearchChange={handleMemberSearch}
+              searchPlaceholder={t("searchMembers")}
+            />
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="member-phone" label={t("phoneLabel")} meta={t("lookupField")} />
-            <Input id="member-phone" name="phone" placeholder={t("phonePlaceholder")} />
+            <FormSelect
+              className="w-full"
+              contentClassName="max-h-80"
+              id="member-phone"
+              name="phone"
+              options={phoneOptions}
+              placeholder={t("phonePlaceholder")}
+              selectedLabel={selectedMember ? memberPhoneLabel(selectedMember) : undefined}
+              value={selectedMember?.phone ?? ""}
+              contentCollisionAvoidance={fixedTopSelectCollision}
+              contentSide="top"
+              onOptionSelect={(option) => selectMember(memberFromOption(option))}
+              onSearchChange={handleMemberSearch}
+              searchPlaceholder={t("searchMembers")}
+            />
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="member-name" label={t("memberNameLabel")} meta={t("lookupField")} />
-            <Input id="member-name" name="name" placeholder={t("namePlaceholder")} />
+            <FormSelect
+              className="w-full"
+              contentClassName="max-h-80"
+              id="member-name"
+              name="name"
+              options={nameOptions}
+              placeholder={t("namePlaceholder")}
+              selectedLabel={selectedMember ? memberNameLabel(selectedMember) : undefined}
+              value={selectedMember?.name ?? ""}
+              contentCollisionAvoidance={fixedTopSelectCollision}
+              contentSide="top"
+              onOptionSelect={(option) => selectMember(memberFromOption(option))}
+              onSearchChange={handleMemberSearch}
+              searchPlaceholder={t("searchMembers")}
+            />
           </FieldGroup>
           <GpsFields location={location} />
           <FieldGroup className="md:col-span-2">
@@ -124,6 +221,47 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
   const [state, action, pending] = useActionState(scanStaffAttendance, initialState);
   const location = useGpsLocation();
   const [scanValue, setScanValue] = useState("");
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption | null>(null);
+  const [lookupEmployees, setLookupEmployees] = useState(employees);
+  const selectEmployee = useCallback((employee: EmployeeOption | null) => {
+    setSelectedEmployee(employee);
+
+    if (!employee) {
+      setScanValue("");
+      return;
+    }
+
+    setLookupEmployees((current) => mergeEmployeeLookup(current, [employee]));
+    setScanValue(employee.attendance_qr ?? (employee.attendance_code ? `employee:${employee.attendance_code}` : ""));
+  }, []);
+  const handleEmployeeSearch = useCallback(
+    async (query: string) => {
+      const nextEmployees = await fetchEmployeeLookup(query, employees);
+      setLookupEmployees((current) =>
+        mergeEmployeeLookup(selectedEmployee ? [selectedEmployee] : current, nextEmployees),
+      );
+    },
+    [employees, selectedEmployee],
+  );
+  const employeeOptions = employeeSelectOptions(lookupEmployees, true);
+
+  useEffect(() => {
+    const query = scanValue.trim();
+
+    if (!query) {
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      const matches = await fetchEmployeeLookup(query, employees);
+
+      if (matches.length === 1) {
+        selectEmployee(matches[0]);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [employees, scanValue, selectEmployee]);
 
   return (
     <Card className="xl:col-span-6">
@@ -155,25 +293,33 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
               name="qr_token"
               placeholder={t("employeeQrPlaceholder")}
               value={scanValue}
-              onChange={(event) => setScanValue(event.target.value)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setScanValue(nextValue);
+
+                if (!nextValue.trim()) {
+                  setSelectedEmployee(null);
+                }
+              }}
             />
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="employee-id" label={t("employeeLabel")} meta={t("lookupField")} />
-            <Select name="employee_id" defaultValue="">
-              <SelectTrigger id="employee-id" className="w-full">
-                <SelectValue placeholder={t("selectEmployee")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={String(employee.id)}>
-                      {employee.name} - {employee.role}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FormSelect
+              className="w-full"
+              contentClassName="max-h-80"
+              id="employee-id"
+              name="employee_id"
+              options={employeeOptions}
+              placeholder={t("selectEmployee")}
+              selectedLabel={selectedEmployee ? employeeLabel(selectedEmployee, true) : undefined}
+              value={selectedEmployee ? String(selectedEmployee.id) : ""}
+              contentCollisionAvoidance={fixedTopSelectCollision}
+              contentSide="top"
+              onOptionSelect={(option) => selectEmployee(employeeFromOption(option))}
+              onSearchChange={handleEmployeeSearch}
+              searchPlaceholder={t("searchEmployees")}
+            />
           </FieldGroup>
           <GpsFields location={location} />
           <FieldGroup className="md:col-span-2">
@@ -198,6 +344,7 @@ function ManualAttendanceCard({
 }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(createManualAttendance, initialState);
+  const employeeOptions = employeeSelectOptions(employees);
 
   return (
     <Card className="xl:col-span-7">
@@ -209,20 +356,18 @@ function ManualAttendanceCard({
         <form action={action} className="grid gap-3 md:grid-cols-3">
           <FieldGroup>
             <FieldLabel htmlFor="manual-employee-id" label={t("employeeLabel")} meta={t("requiredField")} />
-            <Select name="employee_id" required defaultValue="">
-              <SelectTrigger id="manual-employee-id" className="w-full">
-                <SelectValue placeholder={t("selectEmployee")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={String(employee.id)}>
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <FormSelect
+              className="w-full"
+              contentClassName="max-h-80"
+              id="manual-employee-id"
+              name="employee_id"
+              options={employeeOptions}
+              placeholder={t("selectEmployee")}
+              contentCollisionAvoidance={fixedTopSelectCollision}
+              contentSide="top"
+              required
+              searchPlaceholder={t("searchEmployees")}
+            />
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="manual-shift-id" label={t("shiftLabel")} meta={t("optionalField")} />
@@ -492,6 +637,152 @@ function ScanDirectionSelect({ id }: { id: string }) {
       </SelectContent>
     </Select>
   );
+}
+
+function employeeSelectOptions(employees: EmployeeOption[], includeRole = false) {
+  return employees.map((employee) => ({
+    data: employee,
+    key: `employee-${employee.id}`,
+    label: employeeLabel(employee, includeRole),
+    value: String(employee.id),
+  }));
+}
+
+function employeeLabel(employee: EmployeeOption, includeRole = false) {
+  return includeRole ? `${employee.name} - ${employee.role}` : employee.name;
+}
+
+function employeeFromOption(option: { data?: unknown } | null): EmployeeOption | null {
+  if (!option?.data) {
+    return null;
+  }
+
+  return option.data as EmployeeOption;
+}
+
+function mergeEmployeeLookup(current: EmployeeOption[], next: EmployeeOption[]) {
+  const employeesById = new Map<number, EmployeeOption>();
+
+  for (const employee of [...current, ...next]) {
+    employeesById.set(employee.id, employee);
+  }
+
+  return Array.from(employeesById.values());
+}
+
+function memberIdSelectOptions(members: MemberLookupOption[]) {
+  return members.map((member) => ({
+    data: member,
+    key: `member-id-${member.id}`,
+    label: memberIdLabel(member),
+    value: String(member.id),
+  }));
+}
+
+function memberPhoneSelectOptions(members: MemberLookupOption[]) {
+  return members
+    .filter((member) => member.phone)
+    .map((member) => ({
+      data: member,
+      key: `member-phone-${member.id}`,
+      label: memberPhoneLabel(member),
+      value: member.phone ?? "",
+    }));
+}
+
+function memberNameSelectOptions(members: MemberLookupOption[]) {
+  return members.map((member) => ({
+    data: member,
+    key: `member-name-${member.id}`,
+    label: memberNameLabel(member),
+    value: member.name,
+  }));
+}
+
+function memberIdLabel(member: MemberLookupOption) {
+  return `#${member.id} - ${member.name}${member.phone ? ` - ${member.phone}` : ""}`;
+}
+
+function memberPhoneLabel(member: MemberLookupOption) {
+  return `${member.phone} - ${member.name}`;
+}
+
+function memberNameLabel(member: MemberLookupOption) {
+  return `${member.name}${member.phone ? ` - ${member.phone}` : ` - #${member.id}`}`;
+}
+
+function memberFromOption(option: { data?: unknown } | null): MemberLookupOption | null {
+  if (!option?.data) {
+    return null;
+  }
+
+  return option.data as MemberLookupOption;
+}
+
+function mergeMemberLookup(current: MemberLookupOption[], next: MemberLookupOption[]) {
+  const membersById = new Map<number, MemberLookupOption>();
+
+  for (const member of [...current, ...next]) {
+    membersById.set(member.id, member);
+  }
+
+  return Array.from(membersById.values());
+}
+
+async function fetchMemberLookup(query: string, fallback: MemberLookupOption[]) {
+  const normalizedQuery = query.trim();
+
+  if (!normalizedQuery) {
+    return fallback;
+  }
+
+  try {
+    const response = await fetch(`/api/attendance/member-lookup?q=${encodeURIComponent(normalizedQuery)}`, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    const payload = (await response.json()) as { data?: MemberLookupOption[] | { data?: MemberLookupOption[] } };
+
+    if (Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    return payload.data?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function fetchEmployeeLookup(query: string, fallback: EmployeeOption[]) {
+  const normalizedQuery = query.trim();
+
+  if (!normalizedQuery) {
+    return fallback;
+  }
+
+  try {
+    const response = await fetch(`/api/attendance/employee-lookup?q=${encodeURIComponent(normalizedQuery)}`, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    const payload = (await response.json()) as { data?: EmployeeOption[] | { data?: EmployeeOption[] } };
+
+    if (Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    return payload.data?.data ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function DatePickerField({

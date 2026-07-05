@@ -39,7 +39,7 @@ test('accountant can view live gym attendance summary', function (): void {
     MemberVisit::factory()->create([
         'member_id' => $blockedMember->id,
         'check_in_at' => Carbon::now()->subMinutes(15),
-        'check_out_at' => Carbon::now()->subMinutes(5),
+        'check_out_at' => null,
         'status' => 'blocked',
         'scan_method' => 'phone',
         'alert_reason' => 'Subscription expired',
@@ -69,6 +69,7 @@ test('accountant can view live gym attendance summary', function (): void {
         ->assertJsonPath('data.today.late_staff', 1)
         ->assertJsonFragment(['name' => 'Late Captain'])
         ->assertJsonFragment(['name' => 'Blocked Member'])
+        ->assertJsonMissingPath('data.currently_inside_rows.2')
         ->assertJsonStructure([
             'data' => [
                 'generated_at',

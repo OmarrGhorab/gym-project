@@ -69,6 +69,7 @@ export default async function Page({ searchParams }: PageProps) {
       <AttendanceActionPanels
         defaultAttendanceDate={selectedDate}
         employees={data.employees}
+        members={data.members}
         shifts={data.shifts}
         violations={data.violations}
       />

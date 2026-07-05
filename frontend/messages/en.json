@@ -548,6 +548,8 @@
       "phoneLabel": "Phone number",
       "memberNameLabel": "Member name",
       "employeeLabel": "Employee",
+      "searchMembers": "Search members...",
+      "searchEmployees": "Search employees...",
       "shiftLabel": "Shift",
       "attendanceDate": "Attendance date",
       "checkInTime": "Check-in time",

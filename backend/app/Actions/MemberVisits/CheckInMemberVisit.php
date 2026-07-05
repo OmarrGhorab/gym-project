@@ -14,6 +14,7 @@ final class CheckInMemberVisit
 {
     public function __construct(
         private readonly AutoCloseStaleMemberVisits $autoCloseStaleVisits,
+        private readonly EnsureMemberCanCheckIn $ensureMemberCanCheckIn,
         private readonly ResolveAttendanceIdentity $identity,
         private readonly Geofence $geofence,
         private readonly ResolveMemberVisitSubscription $visitSubscription,
@@ -27,6 +28,7 @@ final class CheckInMemberVisit
 
         $visit = DB::transaction(function () use ($data, $user, $checkIn, $member, $location): MemberVisit {
             $this->autoCloseStaleVisits->handle($checkIn);
+            $this->ensureMemberCanCheckIn->handle($member);
 
             $subscription = $this->visitSubscription->consume($member, $checkIn);
             $subscriptionStatus = $subscription ? 'allowed' : 'blocked';

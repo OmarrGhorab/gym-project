@@ -69,6 +69,30 @@ test('member check in accepts raw printed attendance code', function (): void {
         ->assertJsonPath('data.scan_method', 'qr');
 });
 
+test('member qr check in is rejected when member already has an open visit', function (): void {
+    actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-OPEN123']);
+    Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => '2026-06-26 09:53:00',
+        'check_out_at' => null,
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-OPEN123',
+        'check_in_at' => '2026-06-26 10:07:00',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonFragment([
+            'member_id' => ['This member already has an open visit. Check them out before checking in again.'],
+        ]);
+
+    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1);
+});
+
 test('member phone lookup records blocked visit for invalid subscription', function (): void {
     actingManager();
     $member = Member::factory()->create(['phone' => '+201111111111']);

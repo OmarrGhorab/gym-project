@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { format, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CheckIcon, ChevronDownIcon } from "lucide-react";
 import { useLocale } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { cn } from "@/lib/utils";
 
 type FormSelectOption = {
+  data?: unknown;
+  key?: string;
   label: React.ReactNode;
   value: string;
 };
@@ -22,12 +24,18 @@ type FormSelectProps = {
   className?: string;
   contentClassName?: string;
   defaultValue?: string | number | null;
+  id?: string;
   name: string;
   options: FormSelectOption[];
   placeholder?: string;
   required?: boolean;
   searchPlaceholder?: string;
+  selectedLabel?: React.ReactNode;
+  value?: string | number | null;
+  contentCollisionAvoidance?: React.ComponentProps<typeof PopoverContent>["collisionAvoidance"];
+  contentSide?: React.ComponentProps<typeof PopoverContent>["side"];
   onSearchChange?: (query: string) => void;
+  onOptionSelect?: (option: FormSelectOption | null) => void;
   onValueChange?: (value: string) => void;
   size?: "default" | "sm";
 };
@@ -38,26 +46,45 @@ export function FormSelect({
   className,
   contentClassName,
   defaultValue,
+  id,
   name,
   options,
   placeholder,
   required = false,
   searchPlaceholder = "Search...",
+  selectedLabel: controlledSelectedLabel,
+  value: controlledValue,
+  contentCollisionAvoidance,
+  contentSide = "bottom",
   onSearchChange,
+  onOptionSelect,
   onValueChange,
   size = "default",
 }: FormSelectProps) {
   const initialValue = defaultValue === null || defaultValue === undefined || defaultValue === "" ? emptySelectValue : String(defaultValue);
-  const [value, setValue] = React.useState(initialValue);
+  const isControlled = controlledValue !== undefined;
+  const currentValue =
+    controlledValue === null || controlledValue === undefined || controlledValue === ""
+      ? emptySelectValue
+      : String(controlledValue);
+  const [open, setOpen] = React.useState(false);
+  const [internalValue, setInternalValue] = React.useState(initialValue);
   const [query, setQuery] = React.useState("");
+  const [selectedLabelOverride, setSelectedLabelOverride] = React.useState<React.ReactNode>(null);
+  const value = isControlled ? currentValue : internalValue;
   const normalizedQuery = query.trim().toLowerCase();
   const filteredOptions = normalizedQuery
     ? options.filter((option) => getOptionSearchText(option.label).includes(normalizedQuery))
     : options;
-  const selectedLabel =
+  const selectedLabel: React.ReactNode =
     value === emptySelectValue
       ? placeholder
-      : options.find((option) => option.value === value)?.label ?? placeholder ?? value;
+      : options.find((option) => option.value === value)?.label ??
+        controlledSelectedLabel ??
+        selectedLabelOverride ??
+        placeholder ??
+        value;
+  const showSearch = options.length > 8 || Boolean(onSearchChange);
 
   React.useEffect(() => {
     if (!onSearchChange) {
@@ -74,41 +101,105 @@ export function FormSelect({
   return (
     <>
       <input type="hidden" name={name} value={value === emptySelectValue ? "" : value} required={required} />
-      <Select
-        value={value}
-        onValueChange={(next) => {
-          const nextValue = next ?? emptySelectValue;
-          setValue(nextValue);
-          onValueChange?.(nextValue === emptySelectValue ? "" : nextValue);
-        }}
-      >
-        <SelectTrigger className={cn("w-full", className)} size={size}>
-          <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
-        </SelectTrigger>
-        <SelectContent className={contentClassName}>
-          {options.length > 8 ? (
-            <div className="sticky top-0 z-10 border-b bg-popover p-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              id={id}
+              type="button"
+              variant="outline"
+              size={size}
+              className={cn("w-full justify-between bg-transparent px-2.5 font-normal", className)}
+            />
+          }
+        >
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-left",
+              value === emptySelectValue && "text-muted-foreground",
+            )}
+          >
+            {selectedLabel}
+          </span>
+          <ChevronDownIcon data-icon="inline-end" className="text-muted-foreground" />
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className={cn("w-(--anchor-width) gap-0 overflow-hidden p-0", contentClassName)}
+          collisionAvoidance={contentCollisionAvoidance}
+          side={contentSide}
+        >
+          {showSearch ? (
+            <div className="border-b bg-popover p-2">
               <Input
+                autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
                 placeholder={searchPlaceholder}
                 className="h-8"
               />
             </div>
           ) : null}
-          <SelectGroup>
-            {placeholder ? <SelectItem value={emptySelectValue}>{placeholder}</SelectItem> : null}
+          <div className="max-h-72 overflow-y-auto p-1">
+            {placeholder ? (
+              <FormSelectOptionButton
+                checked={value === emptySelectValue}
+                label={placeholder}
+                onSelect={() => {
+                  if (!isControlled) {
+                    setInternalValue(emptySelectValue);
+                  }
+                  setSelectedLabelOverride(null);
+                  onOptionSelect?.(null);
+                  onValueChange?.("");
+                  setOpen(false);
+                }}
+              />
+            ) : null}
             {filteredOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
+              <FormSelectOptionButton
+                key={option.key ?? option.value}
+                checked={option.value === value}
+                label={option.label}
+                onSelect={() => {
+                  if (!isControlled) {
+                    setInternalValue(option.value);
+                  }
+                  setSelectedLabelOverride(option.label);
+                  onOptionSelect?.(option);
+                  onValueChange?.(option.value);
+                  setOpen(false);
+                }}
+              />
             ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+            {filteredOptions.length === 0 ? (
+              <div className="px-2 py-3 text-center text-muted-foreground text-sm">No results</div>
+            ) : null}
+          </div>
+        </PopoverContent>
+      </Popover>
     </>
+  );
+}
+
+function FormSelectOptionButton({
+  checked,
+  label,
+  onSelect,
+}: {
+  checked: boolean;
+  label: React.ReactNode;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+      onClick={onSelect}
+    >
+      <span className="flex min-w-0 flex-1 truncate">{label}</span>
+      {checked ? <CheckIcon className="size-4 shrink-0" /> : <span className="size-4 shrink-0" />}
+    </button>
   );
 }
 

@@ -94,6 +94,34 @@ test('member visits can be listed by member', function (): void {
         ->assertJsonCount(2, 'data');
 });
 
+test('member cannot check in again while an earlier visit is still open', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => Carbon::parse('2026-06-26 10:00:00'),
+        'check_out_at' => null,
+    ]);
+
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'check_in_at' => '2026-06-26 10:30:00',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonFragment([
+            'member_id' => ['This member already has an open visit. Check them out before checking in again.'],
+        ]);
+
+    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1);
+});
+
 test('stale open member visits are auto checked out after three hours on next check in', function (): void {
     $manager = User::factory()->create();
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);

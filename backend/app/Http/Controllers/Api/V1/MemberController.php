@@ -43,11 +43,20 @@ final class MemberController extends ApiController
                 AllowedFilter::exact('gender'),
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
+                    $attendanceCode = str_starts_with($value, 'member:') ? substr($value, 7) : $value;
 
-                    $query->where(function ($q) use ($value): void {
+                    $query->where(function ($q) use ($attendanceCode, $value): void {
                         $q->where('name', 'like', "{$value}%")
                             ->orWhere('phone', 'like', "{$value}%")
                             ->orWhere('phone', 'like', '+'.$value.'%');
+
+                        if (ctype_digit($value)) {
+                            $q->orWhere('id', (int) $value);
+                        }
+
+                        if ($attendanceCode !== '') {
+                            $q->orWhere('attendance_code', $attendanceCode);
+                        }
                     });
                 }),
                 AllowedFilter::callback('plan_id', function ($query, $value): void {

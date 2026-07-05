@@ -62,6 +62,14 @@ export type EmployeeOption = {
   attendance_qr: string | null;
 };
 
+export type MemberLookupOption = {
+  id: number;
+  name: string;
+  phone: string | null;
+  attendance_code: string | null;
+  attendance_qr: string | null;
+};
+
 export type EmployeeShift = {
   id: number;
   name: string;
@@ -87,8 +95,9 @@ export type MemberVisitStationRow = {
 };
 
 export async function getAttendancePageData({ date, month }: { date: string; month: string }) {
-  const [employees, memberVisits, records, shifts, summary, violations] = await Promise.all([
+  const [employees, members, memberVisits, records, shifts, summary, violations] = await Promise.all([
     safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/employees?filter[status]=active&per_page=100", []),
+    safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
     safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
       "/member-visits?sort=-check_in_at&page=1&per_page=8",
       [],
@@ -104,6 +113,7 @@ export async function getAttendancePageData({ date, month }: { date: string; mon
 
   return {
     employees: unwrapList(employees),
+    members: unwrapList(members),
     memberVisits: unwrapList(memberVisits).slice(0, 8),
     records: unwrapList(records).slice(0, 12),
     shifts,

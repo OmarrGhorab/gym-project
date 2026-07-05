@@ -21,6 +21,8 @@ final class EmployeeController extends ApiController
     {
         $this->authorize('viewAny', Employee::class);
 
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
+
         $employees = QueryBuilder::for(Employee::class)
             ->with(['user.roles', 'shift'])
             ->allowedFilters(
@@ -28,15 +30,25 @@ final class EmployeeController extends ApiController
                 AllowedFilter::exact('status'),
                 AllowedFilter::callback('q', function ($query, string $value): void {
                     $value = trim($value);
-                    $query->where(function ($q) use ($value): void {
+                    $attendanceCode = str_starts_with($value, 'employee:') ? substr($value, 9) : $value;
+
+                    $query->where(function ($q) use ($attendanceCode, $value): void {
                         $q->where('name', 'like', "%{$value}%")
                             ->orWhere('phone', 'like', "%{$value}%");
+
+                        if (ctype_digit($value)) {
+                            $q->orWhere('id', (int) $value);
+                        }
+
+                        if ($attendanceCode !== '') {
+                            $q->orWhere('attendance_code', $attendanceCode);
+                        }
                     });
                 })
             )
             ->allowedSorts('name', 'role', 'status', 'created_at')
             ->defaultSort('-created_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         return $this->success(

@@ -548,6 +548,8 @@
       "phoneLabel": "رقم الهاتف",
       "memberNameLabel": "اسم العضو",
       "employeeLabel": "الموظف",
+      "searchMembers": "ابحث عن الأعضاء...",
+      "searchEmployees": "ابحث عن الموظفين...",
       "shiftLabel": "الوردية",
       "attendanceDate": "تاريخ الحضور",
       "checkInTime": "وقت الدخول",

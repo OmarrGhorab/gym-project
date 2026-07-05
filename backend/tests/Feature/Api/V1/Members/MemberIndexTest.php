@@ -187,6 +187,41 @@ test('member list can search by phone', function (): void {
     expect(count($data))->toBe(1);
 });
 
+test('member list can search by id', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create(['name' => 'Lookup By Id Member']);
+    Member::factory()->create(['name' => 'Another Member']);
+
+    $response = $this->getJson('/api/v1/members?filter[search]='.$member->id)
+        ->assertStatus(200);
+
+    $data = $response->json('data');
+    expect(count($data))->toBe(1)
+        ->and($data[0]['id'])->toBe($member->id);
+});
+
+test('member list can search by attendance qr token', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create([
+        'attendance_code' => 'ABC12345',
+        'name' => 'Lookup By Code Member',
+    ]);
+    Member::factory()->create(['name' => 'Another Member']);
+
+    $response = $this->getJson('/api/v1/members?filter[search]=member:ABC12345')
+        ->assertStatus(200);
+
+    $data = $response->json('data');
+    expect(count($data))->toBe(1)
+        ->and($data[0]['id'])->toBe($member->id);
+});
+
 test('unauthenticated request receives 401', function (): void {
     $this->getJson('/api/v1/members')
         ->assertStatus(401)
