@@ -6,7 +6,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { format, parseISO } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { CalendarIcon, EllipsisVertical } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -63,6 +63,7 @@ const paymentMethodItems = [{ value: "cash" }, { value: "card" }, { value: "bank
 
 type SubscriptionAction = "renew" | "freeze" | "stop" | "unfreeze";
 type CrmT = ReturnType<typeof useTranslations<"Dashboard.crm">>;
+type DialogMode = "details" | "renew" | "freeze" | "unfreeze";
 
 function getHealthScore(health: MembershipPipelineRow["health"]) {
   switch (health) {
@@ -266,16 +267,33 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
 function SubscriptionActions({ subscription, t }: { subscription: MembershipPipelineRow; t: CrmT }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [confirmAction, setConfirmAction] = React.useState<"stop" | "unfreeze" | null>(null);
+  const [confirmAction, setConfirmAction] = React.useState<"stop" | null>(null);
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
-  const [dialogMode, setDialogMode] = React.useState<"details" | "renew" | "freeze">("details");
+  const [dialogMode, setDialogMode] = React.useState<DialogMode>("details");
   const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card" | "bank_transfer">("cash");
   const [freezeStartDate, setFreezeStartDate] = React.useState(() => getTodayDateString());
   const [freezeEndDate, setFreezeEndDate] = React.useState(() => getTodayDateString());
+  const [resumeOnDate, setResumeOnDate] = React.useState(() => getTodayDateString());
   const backendActions = getBackendActions(subscription.status);
+  const selectedFreezeDays = getInclusiveDays(freezeStartDate, freezeEndDate);
+  const freezeEndRange = getFreezeEndRange(freezeStartDate, subscription.minFreezeDays, subscription.maxFreezeDays);
+  const isFreezeDurationInvalid =
+    selectedFreezeDays === null ||
+    (subscription.minFreezeDays > 0 && selectedFreezeDays < subscription.minFreezeDays) ||
+    selectedFreezeDays > subscription.maxFreezeDays;
   const freezeDisabledReason = subscription.maxFreezeDays < 1 ? t("freezeUnavailableReason") : null;
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
   const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
+
+  function updateFreezeStartDate(value: string) {
+    setFreezeStartDate(value);
+
+    const nextRange = getFreezeEndRange(value, subscription.minFreezeDays, subscription.maxFreezeDays);
+
+    if (nextRange) {
+      setFreezeEndDate(clampDateString(freezeEndDate, nextRange.from, nextRange.to));
+    }
+  }
 
   async function submitRenew(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -315,12 +333,44 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
       return;
     }
 
+    const freezeDays = getInclusiveDays(freezeStart, freezeEnd);
+
+    if (subscription.minFreezeDays > 0 && freezeDays !== null && freezeDays < subscription.minFreezeDays) {
+      toast.error(t("freezeTooShort", { min: subscription.minFreezeDays, selected: freezeDays }));
+      return;
+    }
+
+    if (freezeDays !== null && freezeDays > subscription.maxFreezeDays) {
+      toast.error(t("freezeTooLong", { max: subscription.maxFreezeDays, selected: freezeDays }));
+      return;
+    }
+
     setPendingAction("freeze");
 
     const result = await freezeMembershipSubscription(subscription.subscriptionId, {
       freeze_start: freezeStart,
       freeze_end: freezeEnd,
       ...(reason ? { reason } : {}),
+    });
+
+    finishAction(result);
+  }
+
+  async function submitUnfreeze(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const resumeOn = String(formData.get("resume_on") ?? "").trim();
+
+    if (!resumeOn) {
+      toast.error(t("resumeDateRequired"));
+      return;
+    }
+
+    setPendingAction("unfreeze");
+
+    const result = await unfreezeMembershipSubscription(subscription.subscriptionId, {
+      resume_on: resumeOn,
     });
 
     finishAction(result);
@@ -338,7 +388,13 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
       return;
     }
 
-    if (action === "stop" || action === "unfreeze") {
+    if (action === "unfreeze") {
+      setDialogMode("unfreeze");
+      setOpen(true);
+      return;
+    }
+
+    if (action === "stop") {
       setConfirmAction(action);
       return;
     }
@@ -351,10 +407,7 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
 
     setPendingAction(action);
 
-    const result =
-      action === "stop"
-        ? await stopMembershipSubscription(subscription.subscriptionId)
-        : await unfreezeMembershipSubscription(subscription.subscriptionId);
+    const result = await stopMembershipSubscription(subscription.subscriptionId);
 
     finishAction(result);
   }
@@ -531,13 +584,20 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
                 <div className="font-medium text-sm">{t("freezeSubscription")}</div>
                 <p className="text-muted-foreground text-xs">{t("freezeDescription")}</p>
               </div>
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-muted-foreground text-xs">
+                {t("freezeAllowance", {
+                  max: subscription.maxFreezeDays,
+                  min: subscription.minFreezeDays,
+                  selected: selectedFreezeDays ?? 0,
+                })}
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <DatePickerField
                   id={fieldId("freeze-start")}
                   label={t("freezeStart")}
                   name="freeze_start"
                   value={freezeStartDate}
-                  onChange={setFreezeStartDate}
+                  onChange={updateFreezeStartDate}
                   t={t}
                 />
                 <DatePickerField
@@ -546,6 +606,7 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
                   name="freeze_end"
                   value={freezeEndDate}
                   onChange={setFreezeEndDate}
+                  disabled={freezeEndRange ? { before: freezeEndRange.from, after: freezeEndRange.to } : undefined}
                   t={t}
                 />
               </div>
@@ -557,8 +618,46 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
                 <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
                   {t("cancel")}
                 </Button>
-                <Button type="submit" size="sm" disabled={pendingAction !== null}>
+                <Button type="submit" size="sm" disabled={pendingAction !== null || isFreezeDurationInvalid}>
                   {pendingAction === "freeze" ? t("freezing") : t("freeze")}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+
+          {dialogMode === "unfreeze" ? (
+            <form className="grid gap-3 rounded-lg border border-border/70 p-3" onSubmit={submitUnfreeze}>
+              <div>
+                <div className="font-medium text-sm">{t("unfreezeSubscription")}</div>
+                <p className="text-muted-foreground text-xs">
+                  {t("unfreezeDescription", {
+                    count: subscription.freeze?.remainingDaysAtFreeze ?? subscription.daysLeft ?? 0,
+                  })}
+                </p>
+              </div>
+              <DatePickerField
+                id={fieldId("resume-on")}
+                label={t("resumeOn")}
+                name="resume_on"
+                value={resumeOnDate}
+                onChange={setResumeOnDate}
+                t={t}
+              />
+              <div className="grid gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                <DetailRow label={t("frozenFrom")} value={subscription.freeze?.freezeStart ?? t("notAvailable")} />
+                <DetailRow
+                  label={t("remainingDaysProtected")}
+                  value={t("daysValue", {
+                    count: subscription.freeze?.remainingDaysAtFreeze ?? subscription.daysLeft ?? 0,
+                  })}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+                  {t("cancel")}
+                </Button>
+                <Button type="submit" size="sm" disabled={pendingAction !== null}>
+                  {pendingAction === "unfreeze" ? t("working") : t("unfreeze")}
                 </Button>
               </div>
             </form>
@@ -610,6 +709,7 @@ function DatePickerField({
   name,
   value,
   onChange,
+  disabled,
   t,
 }: {
   id: string;
@@ -617,6 +717,7 @@ function DatePickerField({
   name: string;
   value: string;
   onChange: (value: string) => void;
+  disabled?: React.ComponentProps<typeof Calendar>["disabled"];
   t: CrmT;
 }) {
   const selectedDate = parseDateString(value);
@@ -638,6 +739,7 @@ function DatePickerField({
             mode="single"
             selected={selectedDate}
             defaultMonth={selectedDate}
+            disabled={disabled}
             onSelect={(date) => {
               if (date) {
                 onChange(formatDateString(date));
@@ -674,7 +776,7 @@ function getActionMenuLabel(action: SubscriptionAction, disabledReason: string |
   return labelAction(action, t);
 }
 
-function getConfirmActionLabel(action: "stop" | "unfreeze" | null, pendingAction: string | null, t: CrmT) {
+function getConfirmActionLabel(action: "stop" | null, pendingAction: string | null, t: CrmT) {
   if (pendingAction === action) {
     return t("working");
   }
@@ -686,12 +788,14 @@ function getConfirmActionLabel(action: "stop" | "unfreeze" | null, pendingAction
   return t("confirm");
 }
 
-function getDialogDescription(mode: "details" | "renew" | "freeze", t: CrmT) {
+function getDialogDescription(mode: DialogMode, t: CrmT) {
   switch (mode) {
     case "renew":
       return t("renewDialogDescription");
     case "freeze":
       return t("freezeDialogDescription");
+    case "unfreeze":
+      return t("unfreezeDialogDescription");
     default:
       return t("detailsDescription");
   }
@@ -720,6 +824,49 @@ function parseDateString(value: string) {
   } catch {
     return undefined;
   }
+}
+
+function getFreezeEndRange(start: string, minDays: number, maxDays: number) {
+  const startDate = parseDateString(start);
+
+  if (!startDate || maxDays < 1) {
+    return null;
+  }
+
+  const normalizedMinDays = Math.max(1, minDays);
+
+  return {
+    from: addDays(startDate, normalizedMinDays - 1),
+    to: addDays(startDate, maxDays - 1),
+  };
+}
+
+function clampDateString(value: string, min: Date, max: Date) {
+  const date = parseDateString(value);
+
+  if (!date || date < min) {
+    return formatDateString(min);
+  }
+
+  if (date > max) {
+    return formatDateString(max);
+  }
+
+  return value;
+}
+
+function getInclusiveDays(start: string, end: string) {
+  const startDate = parseDateString(start);
+  const endDate = parseDateString(end);
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  return Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1);
 }
 
 function formatDateLabel(value: string, t: CrmT) {

@@ -17,6 +17,17 @@ export const membershipPipelineSchema = z.object({
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
   maxFreezeDays: z.number(),
+  minFreezeDays: z.number(),
+  freeze: z
+    .object({
+      freezeStart: z.string().nullable(),
+      freezeEnd: z.string().nullable(),
+      resumedOn: z.string().nullable(),
+      plannedDays: z.number().nullable(),
+      remainingDaysAtFreeze: z.number().nullable(),
+      reason: z.string().nullable(),
+    })
+    .nullable(),
 });
 
 export const membershipPipelineRowsSchema = z.array(membershipPipelineSchema);

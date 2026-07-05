@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\SubscriptionFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -86,5 +87,25 @@ class Subscription extends Model
     public function payments(): MorphMany
     {
         return $this->morphMany(Payment::class, 'payable');
+    }
+
+    /**
+     * Exclude an older active subscription when the same member already has
+     * a later active renewal. Renewal attention should follow the member's
+     * latest active period, not the expiring period it replaced.
+     *
+     * @param  Builder<Subscription>  $query
+     * @return Builder<Subscription>
+     */
+    public function scopeWithoutLaterActiveRenewal(Builder $query): Builder
+    {
+        return $query->whereNotExists(function ($subquery): void {
+            $subquery
+                ->selectRaw('1')
+                ->from('subscriptions as later_subscriptions')
+                ->whereColumn('later_subscriptions.member_id', 'subscriptions.member_id')
+                ->where('later_subscriptions.status', 'active')
+                ->whereColumn('later_subscriptions.end_date', '>', 'subscriptions.end_date');
+        });
     }
 }

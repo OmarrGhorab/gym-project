@@ -60,6 +60,7 @@ class DashboardSummary
             $end = $today->copy()->addDays(app(FindExpiringSubscriptions::class)->reminderDays());
             $expiringSoon = Subscription::query()
                 ->where('status', 'active')
+                ->withoutLaterActiveRenewal()
                 ->whereBetween('end_date', [$today->toDateString(), $end->toDateString()])
                 ->count();
 

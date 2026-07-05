@@ -30,6 +30,7 @@ class FindExpiringSubscriptions
         return Subscription::query()
             ->with(['member', 'soldBy'])
             ->where('status', 'active')
+            ->withoutLaterActiveRenewal()
             ->whereBetween('end_date', [$today->toDateString(), $end->toDateString()])
             ->where(function ($query) use ($today): void {
                 $query->whereNull('last_reminded_on')

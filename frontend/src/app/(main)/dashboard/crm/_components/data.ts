@@ -80,7 +80,16 @@ type SubscriptionResource = {
   plan?: {
     id?: number;
     max_freeze_days?: number | string | null;
+    min_freeze_days?: number | string | null;
     name?: string | null;
+  } | null;
+  freeze?: {
+    freeze_start?: string | null;
+    freeze_end?: string | null;
+    resumed_on?: string | null;
+    planned_days?: number | string | null;
+    remaining_days_at_freeze?: number | string | null;
+    reason?: string | null;
   } | null;
   sold_by?: {
     id?: number;
@@ -133,10 +142,11 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const dueRows = dues.data ?? [];
   const expiringRows = expiringSoon.data ?? [];
   const subscriptionRows = dedupeLatestSubscriptions(subscriptions.data ?? []);
+  const latestExpiringRows = filterLatestExpiringRows(subscriptionRows, expiringRows);
   const salesRows = unwrapList(salesReport.data ?? []);
   const outstandingDuesTotal = dueRows.reduce((sum, due) => sum + Number(due.balance ?? 0), 0);
-  const expiringCount = getMetaTotal(expiringSoon.meta) ?? dashboardData.expiring_soon ?? expiringRows.length;
-  const activeSubscriptions = subscriptionSummaryData.active ?? dashboardData.active_subscriptions ?? 0;
+  const expiringCount = latestExpiringRows.length;
+  const activeSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "active").length;
   const renewalTarget = Math.max(activeSubscriptions, expiringCount, 1);
 
   return {
@@ -152,7 +162,7 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
       salesTodayRevenue: Number(dashboardData.sales_today?.revenue ?? 0),
     },
     chart: mapSalesToMonthlyChart(salesRows),
-    followUps: expiringRows.slice(0, 4).map(mapRenewalFollowUp),
+    followUps: latestExpiringRows.slice(0, 4).map(mapRenewalFollowUp),
     pipelineRows: subscriptionRows.map((subscription) => mapSubscriptionToPipeline(subscription, dueRows)),
     renewalGoal: {
       expiringSoon: expiringCount,
@@ -226,6 +236,20 @@ function mapRenewalFollowUp(subscription: SubscriptionResource): RenewalFollowUp
   };
 }
 
+function filterLatestExpiringRows(
+  latestSubscriptions: SubscriptionResource[],
+  expiringSubscriptions: SubscriptionResource[],
+): SubscriptionResource[] {
+  const expiringIds = new Set(expiringSubscriptions.map((subscription) => subscription.id));
+
+  return latestSubscriptions
+    .filter((subscription) => expiringIds.has(subscription.id))
+    .sort(
+      (left, right) =>
+        (left.days_left ?? getDaysUntil(left.end_date) ?? 0) - (right.days_left ?? getDaysUntil(right.end_date) ?? 0),
+    );
+}
+
 function mapSubscriptionToPipeline(subscription: SubscriptionResource, dues: DueResource[]): MembershipPipelineRow {
   const matchingDue = dues.find((due) => due.subscription?.id === subscription.id);
   const balance = Number(subscription.balance ?? matchingDue?.balance ?? 0);
@@ -248,6 +272,24 @@ function mapSubscriptionToPipeline(subscription: SubscriptionResource, dues: Due
     startDate: subscription.start_date ?? null,
     endDate: subscription.end_date ?? null,
     maxFreezeDays: Number(subscription.plan?.max_freeze_days ?? 0),
+    minFreezeDays: Number(subscription.plan?.min_freeze_days ?? 0),
+    freeze: subscription.freeze
+      ? {
+          freezeStart: subscription.freeze.freeze_start ?? null,
+          freezeEnd: subscription.freeze.freeze_end ?? null,
+          resumedOn: subscription.freeze.resumed_on ?? null,
+          plannedDays:
+            subscription.freeze.planned_days === null || subscription.freeze.planned_days === undefined
+              ? null
+              : Number(subscription.freeze.planned_days),
+          remainingDaysAtFreeze:
+            subscription.freeze.remaining_days_at_freeze === null ||
+            subscription.freeze.remaining_days_at_freeze === undefined
+              ? null
+              : Number(subscription.freeze.remaining_days_at_freeze),
+          reason: subscription.freeze.reason ?? null,
+        }
+      : null,
   };
 }
 
@@ -256,8 +298,7 @@ function dedupeLatestSubscriptions(subscriptions: SubscriptionResource[]) {
 
   for (const subscription of subscriptions) {
     const memberId = subscription.member?.id ?? `memberless-${subscription.id}`;
-    const planId = subscription.plan?.id ?? `planless-${subscription.id}`;
-    const key = `${memberId}:${planId}`;
+    const key = `${memberId}`;
     const current = latest.get(key);
 
     if (!current || compareSubscriptionFreshness(subscription, current) > 0) {

@@ -67,8 +67,10 @@ test('dashboard expiring soon endpoint returns in window subscriptions with pagi
         'last_reminded_on' => '2026-06-10',
     ]);
 
+    $otherMember = Member::factory()->active()->create();
+
     Subscription::factory()->active()->create([
-        'member_id' => $member->id,
+        'member_id' => $otherMember->id,
         'plan_id' => $plan->id,
         'end_date' => '2026-06-30',
         'last_reminded_on' => null,
@@ -85,6 +87,39 @@ test('dashboard expiring soon endpoint returns in window subscriptions with pagi
             'meta' => ['current_page', 'per_page', 'total', 'last_page'],
             'message',
         ]);
+});
+
+test('dashboard expiring soon excludes subscriptions that already have a later active renewal', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Setting::create([
+        'key' => 'reminder_days',
+        'value' => 7,
+    ]);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-05-16',
+        'end_date' => '2026-06-15',
+    ]);
+
+    Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-16',
+        'end_date' => '2026-09-14',
+    ]);
+
+    $this->getJson('/api/v1/dashboard/expiring-soon')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 0)
+        ->assertJsonCount(0, 'data');
 });
 
 test('dashboard expiring soon endpoint returns 401 when unauthenticated', function (): void {

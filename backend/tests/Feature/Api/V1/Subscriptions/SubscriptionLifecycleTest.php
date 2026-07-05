@@ -3,6 +3,7 @@
 use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -47,7 +48,8 @@ test('admin can freeze a subscription', function (): void {
     ])
         ->assertStatus(200)
         ->assertJsonPath('data.status', 'frozen')
-        ->assertJsonPath('data.end_date', '2026-07-03');
+        ->assertJsonPath('data.end_date', '2026-06-30')
+        ->assertJsonPath('data.freeze.remaining_days_at_freeze', 20);
 });
 
 test('subscription index supports bounded per page requests', function (): void {
@@ -91,11 +93,22 @@ test('admin can unfreeze a subscription', function (): void {
 
     $subscription = makeLifecycleSubscription($user, subscriptionOverrides: [
         'status' => 'frozen',
+        'end_date' => '2026-07-23',
+    ]);
+    SubscriptionFreeze::factory()->create([
+        'subscription_id' => $subscription->id,
+        'freeze_start' => '2026-07-05',
+        'freeze_end' => '2026-07-09',
+        'remaining_days_at_freeze' => 18,
+        'resumed_on' => null,
     ]);
 
-    $this->postJson("/api/v1/subscriptions/{$subscription->id}/unfreeze")
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/unfreeze", [
+        'resume_on' => '2026-07-09',
+    ])
         ->assertStatus(200)
-        ->assertJsonPath('data.status', 'active');
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.end_date', '2026-07-27');
 });
 
 test('admin can stop a subscription', function (): void {

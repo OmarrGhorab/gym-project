@@ -18,8 +18,15 @@ export async function stopMembershipSubscription(id: number): Promise<Membership
   return mutateSubscription(`/subscriptions/${id}/stop`, "Subscription stopped.");
 }
 
-export async function unfreezeMembershipSubscription(id: number): Promise<MembershipActionResult> {
-  return mutateSubscription(`/subscriptions/${id}/unfreeze`, "Subscription unfrozen.");
+export type UnfreezeMembershipSubscriptionInput = {
+  resume_on?: string;
+};
+
+export async function unfreezeMembershipSubscription(
+  id: number,
+  input: UnfreezeMembershipSubscriptionInput = {},
+): Promise<MembershipActionResult> {
+  return mutateSubscription(`/subscriptions/${id}/unfreeze`, "Subscription unfrozen.", input);
 }
 
 export type RenewMembershipSubscriptionInput = {

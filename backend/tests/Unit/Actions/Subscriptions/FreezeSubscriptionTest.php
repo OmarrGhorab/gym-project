@@ -18,7 +18,7 @@ beforeEach(function (): void {
     $this->seed(MembershipAccessSeeder::class);
 });
 
-test('freeze subscription creates freeze row and extends end date by inclusive day count', function (): void {
+test('freeze subscription creates freeze row and preserves end date until resume', function (): void {
     $user = User::factory()->create();
     $member = Member::factory()->active()->create();
     $plan = Plan::factory()->active()->create([
@@ -37,11 +37,12 @@ test('freeze subscription creates freeze row and extends end date by inclusive d
     ], $user);
 
     expect($frozen->status)->toBe('frozen')
-        ->and($frozen->end_date->toDateString())->toBe('2026-07-03');
+        ->and($frozen->end_date->toDateString())->toBe('2026-06-30');
 
     $freeze = SubscriptionFreeze::first();
     expect($freeze)->not->toBeNull()
         ->and($freeze->days)->toBe(3)
+        ->and($freeze->remaining_days_at_freeze)->toBe(20)
         ->and($freeze->created_by)->toBe($user->id);
 });
 

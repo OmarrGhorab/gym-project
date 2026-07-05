@@ -29,8 +29,13 @@ class FreezeSubscription
             }
 
             $plan = $lockedSubscription->plan;
-            $days = Carbon::parse($data['freeze_start'])
-                ->diffInDays(Carbon::parse($data['freeze_end'])) + 1;
+            $freezeStart = Carbon::parse($data['freeze_start'])->startOfDay();
+            $freezeEnd = Carbon::parse($data['freeze_end'])->startOfDay();
+            $days = $freezeStart->diffInDays($freezeEnd) + 1;
+            $remainingDays = max(
+                0,
+                (int) $freezeStart->diffInDays($lockedSubscription->end_date, false),
+            );
 
             $usedDays = (int) $lockedSubscription->freezes->sum('days');
             $maxFreezeDays = (int) $plan->max_freeze_days;
@@ -38,13 +43,21 @@ class FreezeSubscription
 
             if ($minFreezeDays > 0 && $days < $minFreezeDays) {
                 throw ValidationException::withMessages([
-                    'freeze_end' => 'Freeze duration is shorter than the plan minimum.',
+                    'freeze_end' => "Selected {$days} freeze day(s), but this plan requires at least {$minFreezeDays}.",
                 ]);
             }
 
             if ($maxFreezeDays < 1 || ($usedDays + $days) > $maxFreezeDays) {
+                $remainingAllowance = max(0, $maxFreezeDays - $usedDays);
+
                 throw ValidationException::withMessages([
-                    'freeze_end' => 'Freeze duration exceeds the plan allowance.',
+                    'freeze_end' => "Selected {$days} freeze day(s), but this plan has {$remainingAllowance} freeze day(s) available.",
+                ]);
+            }
+
+            if ($freezeStart->gt($lockedSubscription->end_date)) {
+                throw ValidationException::withMessages([
+                    'freeze_start' => 'Freeze start must be on or before the subscription end date.',
                 ]);
             }
 
@@ -59,13 +72,13 @@ class FreezeSubscription
                 'freeze_start' => $data['freeze_start'],
                 'freeze_end' => $data['freeze_end'],
                 'days' => $days,
+                'remaining_days_at_freeze' => $remainingDays,
                 'reason' => $data['reason'] ?? null,
                 'created_by' => $user->id,
             ]);
 
             $lockedSubscription->update([
                 'status' => 'frozen',
-                'end_date' => $lockedSubscription->end_date->copy()->addDays($days)->toDateString(),
             ]);
 
             return $lockedSubscription->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes']);

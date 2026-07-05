@@ -11,6 +11,7 @@ use App\Actions\Subscriptions\UpgradeSubscription;
 use App\Http\Requests\Subscriptions\FreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\RenewSubscriptionRequest;
 use App\Http\Requests\Subscriptions\StoreSubscriptionRequest;
+use App\Http\Requests\Subscriptions\UnfreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\UpgradeSubscriptionRequest;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
@@ -29,7 +30,7 @@ class SubscriptionController extends ApiController
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $subscriptions = QueryBuilder::for(Subscription::class)
-            ->with(['member', 'plan', 'soldBy', 'payments'])
+            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes'])
             ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),
@@ -78,6 +79,7 @@ class SubscriptionController extends ApiController
         $today = Carbon::today();
         $expiringSoon = (clone $baseQuery)
             ->where('status', 'active')
+            ->withoutLaterActiveRenewal()
             ->whereBetween('end_date', [$today->toDateString(), $today->copy()->addDays(7)->toDateString()])
             ->count();
 
@@ -99,7 +101,7 @@ class SubscriptionController extends ApiController
     {
         $this->authorize('view', $subscription);
 
-        return (new SubscriptionResource($subscription->load(['member', 'plan', 'soldBy', 'payments'])))
+        return (new SubscriptionResource($subscription->load(['member', 'plan', 'soldBy', 'payments', 'freezes'])))
             ->withMessage('Subscription retrieved')
             ->response()
             ->setStatusCode(200);
@@ -145,12 +147,11 @@ class SubscriptionController extends ApiController
     }
 
     public function unfreeze(
+        UnfreezeSubscriptionRequest $request,
         Subscription $subscription,
         UnfreezeSubscription $action,
     ): JsonResponse {
-        $this->authorize('freeze', $subscription);
-
-        $unfrozen = $action->handle($subscription);
+        $unfrozen = $action->handle($subscription, $request->validated());
 
         return (new SubscriptionResource($unfrozen))
             ->withMessage('Subscription unfrozen')

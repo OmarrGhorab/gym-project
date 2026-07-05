@@ -23,6 +23,7 @@ class SubscriptionResource extends JsonResource
             'status' => $status,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
+            'freeze' => $this->freezeSnapshot(),
             'price_paid' => $this->price_paid,
             'paid_total' => $this->paidTotal(),
             'balance' => $balance,
@@ -52,6 +53,33 @@ class SubscriptionResource extends JsonResource
                 fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
                 '0.00',
             );
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function freezeSnapshot(): ?array
+    {
+        $this->loadMissing('freezes');
+        $openFreeze = $this->freezes
+            ->whereNull('resumed_on')
+            ->sortByDesc('freeze_start')
+            ->first();
+
+        if ($openFreeze === null) {
+            return null;
+        }
+
+        return [
+            'freeze_start' => $openFreeze->freeze_start?->toDateString(),
+            'freeze_end' => $openFreeze->freeze_end?->toDateString(),
+            'resumed_on' => $openFreeze->resumed_on?->toDateString(),
+            'planned_days' => $openFreeze->freeze_start && $openFreeze->freeze_end
+                ? (int) $openFreeze->freeze_start->diffInDays($openFreeze->freeze_end) + 1
+                : (int) $openFreeze->days,
+            'remaining_days_at_freeze' => $openFreeze->remaining_days_at_freeze,
+            'reason' => $openFreeze->reason,
+        ];
     }
 
     private function balanceDue(): string

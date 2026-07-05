@@ -28,7 +28,9 @@ class SubscriptionFreeze extends Model
         'subscription_id',
         'freeze_start',
         'freeze_end',
+        'resumed_on',
         'days',
+        'remaining_days_at_freeze',
         'reason',
         'created_by',
     ];
@@ -38,6 +40,8 @@ class SubscriptionFreeze extends Model
         return [
             'freeze_start' => 'date',
             'freeze_end' => 'date',
+            'resumed_on' => 'date',
+            'remaining_days_at_freeze' => 'integer',
         ];
     }
 
