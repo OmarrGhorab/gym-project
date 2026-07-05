@@ -163,7 +163,7 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         id: "invoice",
-        title: "Invoices",
+        title: "Documents",
         url: "/dashboard/invoice",
         icon: ReceiptText,
       },

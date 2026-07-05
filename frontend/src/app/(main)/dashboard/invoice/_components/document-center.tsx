@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
+import Image from "next/image";
+
 import { Download, FileArchive, IdCard, Printer, ReceiptText, ShieldAlert } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -12,15 +16,13 @@ import { formatCurrency } from "@/lib/utils";
 
 import type { DocumentCenterData, DocumentMemberRow } from "./document-center-data";
 
-const qrPreviewCells = Array.from({ length: 25 }, (_, index) => ({
-  filled: index % 2 === 0 || index % 7 === 0,
-  id: `qr-cell-${index}`,
-}));
-
 export function DocumentCenter({ data }: { data: DocumentCenterData }) {
   const t = useTranslations("Dashboard.documents");
   const locale = useLocale();
   const firstMemberWithCode = data.members.find((member) => member.attendance_code || member.attendance_qr);
+  const [selectedMember, setSelectedMember] = useState<DocumentMemberRow | null>(
+    firstMemberWithCode ?? data.members[0] ?? null,
+  );
 
   return (
     <Tabs defaultValue="payroll" className="gap-4">
@@ -51,7 +53,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
         <Card>
           <CardHeader>
             <CardTitle>{t("salaryReceipts")}</CardTitle>
-            <CardDescription>{t("salaryReceiptsDescription")}</CardDescription>
+            <CardDescription>{t("salaryReceiptsDescription", { count: data.payroll.length })}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -104,7 +106,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
         <Card>
           <CardHeader>
             <CardTitle>{t("posSaleReceipts")}</CardTitle>
-            <CardDescription>{t("posSaleReceiptsDescription")}</CardDescription>
+            <CardDescription>{t("posSaleReceiptsDescription", { count: data.sales.length })}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -161,7 +163,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
           <Card>
             <CardHeader>
               <CardTitle>{t("memberQrCards")}</CardTitle>
-              <CardDescription>{t("memberQrDescription")}</CardDescription>
+              <CardDescription>{t("memberQrDescription", { count: data.members.length })}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -175,10 +177,17 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                 </TableHeader>
                 <TableBody>
                   {data.members.map((member) => (
-                    <TableRow key={member.id}>
+                    <TableRow
+                      key={member.id}
+                      className="cursor-pointer"
+                      data-state={selectedMember?.id === member.id ? "selected" : undefined}
+                      onClick={() => setSelectedMember(member)}
+                    >
                       <TableCell>
-                        <div className="font-medium">{member.name}</div>
-                        <div className="text-muted-foreground text-xs">{member.phone}</div>
+                        <button type="button" className="grid text-left" onClick={() => setSelectedMember(member)}>
+                          <span className="font-medium">{member.name}</span>
+                          <span className="text-muted-foreground text-xs">{member.phone}</span>
+                        </button>
                       </TableCell>
                       <TableCell>
                         <div>{member.latest_subscription?.plan_name ?? t("noActivePlan")}</div>
@@ -202,7 +211,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
             </CardContent>
           </Card>
 
-          <MemberQrPreview member={firstMemberWithCode ?? data.members[0] ?? null} />
+          <MemberQrPreview member={selectedMember} />
         </div>
       </TabsContent>
 
@@ -282,6 +291,9 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
 function MemberQrPreview({ member }: { member: DocumentMemberRow | null }) {
   const t = useTranslations("Dashboard.documents");
   const payload = member?.attendance_qr ?? member?.attendance_code ?? null;
+  const qrUrl = payload
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payload)}`
+    : null;
 
   return (
     <Card>
@@ -293,14 +305,18 @@ function MemberQrPreview({ member }: { member: DocumentMemberRow | null }) {
         {member ? (
           <div className="rounded-xl border bg-background p-5 text-center">
             <div className="mx-auto flex size-44 items-center justify-center rounded-lg border bg-muted/40 p-4">
-              <div className="grid size-32 grid-cols-5 gap-1">
-                {qrPreviewCells.map((cell) => (
-                  <span
-                    key={`${member.id}-${cell.id}`}
-                    className={cell.filled ? "rounded-sm bg-foreground" : "rounded-sm bg-background"}
-                  />
-                ))}
-              </div>
+              {qrUrl ? (
+                <Image
+                  src={qrUrl}
+                  alt={t("printableQrCard")}
+                  width={220}
+                  height={220}
+                  unoptimized
+                  className="size-full rounded-lg object-contain"
+                />
+              ) : (
+                <IdCard className="size-12 text-muted-foreground" />
+              )}
             </div>
             <div className="mt-4 font-medium">{member.name}</div>
             <div className="text-muted-foreground text-sm">{member.phone}</div>

@@ -65,6 +65,13 @@ type AttendanceViolation = {
   status: string;
 };
 
+type DocumentTotals = {
+  members: number;
+  payroll: number;
+  pendingViolations: number;
+  sales: number;
+};
+
 export type DocumentCenterData = {
   attendance: {
     pendingViolations: number;
@@ -73,35 +80,47 @@ export type DocumentCenterData = {
   members: DocumentMemberRow[];
   payroll: DocumentPayrollRow[];
   sales: DocumentSaleRow[];
+  totals: DocumentTotals;
 };
 
 export async function getDocumentCenterData(): Promise<DocumentCenterData> {
   const [payroll, sales, members, attendanceSummary, attendanceViolations] = await Promise.all([
-    safeList<DocumentPayrollRow>("/payroll?sort=-created_at&page=1&per_page=10"),
-    safeList<DocumentSaleRow>("/sales?sort=-created_at&page=1&per_page=10"),
-    safeList<DocumentMemberRow>("/members?sort=-created_at&page=1&per_page=12"),
+    safePage<DocumentPayrollRow>("/payroll?sort=-created_at&page=1&per_page=10"),
+    safePage<DocumentSaleRow>("/sales?sort=-created_at&page=1&per_page=10"),
+    safePage<DocumentMemberRow>("/members?sort=-created_at&page=1&per_page=12"),
     safeData<DocumentAttendanceSummary[]>("/attendance/summary", []),
-    safeList<AttendanceViolation>("/attendance/violations?status=pending&page=1&per_page=50"),
+    safePage<AttendanceViolation>("/attendance/violations?status=pending&page=1&per_page=50"),
   ]);
 
   return {
     attendance: {
-      pendingViolations: attendanceViolations.length,
+      pendingViolations: attendanceViolations.total,
       summary: attendanceSummary.slice(0, 8),
     },
-    members,
-    payroll,
-    sales,
+    members: members.rows,
+    payroll: payroll.rows,
+    sales: sales.rows,
+    totals: {
+      members: members.total,
+      payroll: payroll.total,
+      pendingViolations: attendanceViolations.total,
+      sales: sales.total,
+    },
   };
 }
 
-async function safeList<T>(path: string): Promise<T[]> {
+async function safePage<T>(path: string): Promise<{ rows: T[]; total: number }> {
   try {
     const result = await serverApiFetch<T[] | PaginatedData<T>>(path);
+    const rows = unwrapList(result.data);
+    const metaTotal = typeof result.meta?.total === "number" ? result.meta.total : undefined;
 
-    return unwrapList(result.data);
+    return {
+      rows,
+      total: metaTotal ?? rows.length,
+    };
   } catch {
-    return [];
+    return { rows: [], total: 0 };
   }
 }
 

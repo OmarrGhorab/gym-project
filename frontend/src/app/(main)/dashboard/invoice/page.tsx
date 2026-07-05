@@ -1,5 +1,5 @@
 import { Download, FileArchive, FileText, IdCard, ReceiptText } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 
@@ -8,6 +8,8 @@ import { getDocumentCenterData } from "./_components/document-center-data";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.documents");
+  const locale = await getLocale();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const data = await getDocumentCenterData();
 
   return (
@@ -33,13 +35,17 @@ export default async function Page() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <SummaryCard icon={ReceiptText} label={t("salaryReceipts")} value={data.payroll.length.toString()} />
-        <SummaryCard icon={FileText} label={t("saleReceipts")} value={data.sales.length.toString()} />
-        <SummaryCard icon={IdCard} label={t("memberQrCards")} value={data.members.length.toString()} />
+        <SummaryCard
+          icon={ReceiptText}
+          label={t("salaryReceipts")}
+          value={numberFormatter.format(data.totals.payroll)}
+        />
+        <SummaryCard icon={FileText} label={t("saleReceipts")} value={numberFormatter.format(data.totals.sales)} />
+        <SummaryCard icon={IdCard} label={t("memberQrCards")} value={numberFormatter.format(data.totals.members)} />
         <SummaryCard
           icon={FileArchive}
           label={t("pendingWarnings")}
-          value={data.attendance.pendingViolations.toString()}
+          value={numberFormatter.format(data.totals.pendingViolations)}
         />
       </div>
 
