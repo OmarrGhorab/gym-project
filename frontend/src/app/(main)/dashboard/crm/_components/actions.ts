@@ -44,6 +44,23 @@ export async function renewMembershipSubscription(
   return mutateSubscription(`/subscriptions/${id}/renew`, "Subscription renewed.", input);
 }
 
+export type ChangeMembershipPlanInput = {
+  plan_id: number;
+  discount?: string;
+  payment: {
+    amount: string;
+    method: "cash" | "card" | "bank_transfer";
+  };
+};
+
+export async function changeMembershipPlan(
+  id: number,
+  input: ChangeMembershipPlanInput,
+  mode: "upgrade" | "renew" = "upgrade",
+): Promise<MembershipActionResult> {
+  return mutateSubscription(`/subscriptions/${id}/${mode}`, "Plan changed.", input);
+}
+
 export type FreezeMembershipSubscriptionInput = {
   freeze_start: string;
   freeze_end: string;
@@ -78,6 +95,7 @@ async function mutateSubscription(
   }
 
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/default");
 
   return {

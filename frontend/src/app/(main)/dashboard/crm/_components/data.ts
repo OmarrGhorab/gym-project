@@ -79,6 +79,8 @@ type SubscriptionResource = {
   } | null;
   plan?: {
     id?: number;
+    duration_days?: number | string | null;
+    duration_months?: number | string | null;
     max_freeze_days?: number | string | null;
     min_freeze_days?: number | string | null;
     access_grace_days?: number | string | null;
@@ -96,6 +98,14 @@ type SubscriptionResource = {
     id?: number;
     name?: string | null;
   } | null;
+};
+
+type PlanResource = {
+  id: number;
+  name?: string | null;
+  price?: string | number | null;
+  duration_days?: string | number | null;
+  duration_months?: string | number | null;
 };
 
 type DueResource = {
@@ -129,13 +139,14 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
     group_by: "day",
   });
 
-  const [dashboard, subscriptionSummary, expiringSoon, dues, subscriptions, salesReport] = await Promise.all([
+  const [dashboard, subscriptionSummary, expiringSoon, dues, subscriptions, salesReport, plans] = await Promise.all([
     safeApiFetch<DashboardSummaryResponse>("/dashboard/summary"),
     safeApiFetch<SubscriptionSummaryResponse>("/subscriptions/summary"),
     safeApiFetch<SubscriptionResource[]>("/dashboard/expiring-soon"),
     safeApiFetch<DueResource[]>("/payments/dues"),
     safeApiFetch<SubscriptionResource[]>("/subscriptions?sort=-end_date&page=1&per_page=100"),
     safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${salesParams.toString()}`),
+    safeApiFetch<PlanResource[] | PaginatedData<PlanResource>>("/plans?filter[is_active]=1&sort=name&per_page=100"),
   ]);
 
   const dashboardData = dashboard.data ?? {};
@@ -146,6 +157,7 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const latestDueRows = filterDuesForSubscriptions(dueRows, subscriptionRows);
   const latestExpiringRows = filterLatestExpiringRows(subscriptionRows, expiringRows);
   const salesRows = unwrapList(salesReport.data ?? []);
+  const planRows = unwrapList(plans.data ?? []);
   const outstandingDuesTotal = latestDueRows.reduce((sum, due) => sum + Number(due.balance ?? 0), 0);
   const expiringCount = latestExpiringRows.length;
   const activeSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "active").length;
@@ -165,7 +177,9 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
     },
     chart: mapSalesToMonthlyChart(salesRows),
     followUps: latestExpiringRows.slice(0, 4).map(mapRenewalFollowUp),
-    pipelineRows: subscriptionRows.map((subscription) => mapSubscriptionToPipeline(subscription, latestDueRows)),
+    pipelineRows: subscriptionRows.map((subscription) =>
+      mapSubscriptionToPipeline(subscription, latestDueRows, planRows),
+    ),
     renewalGoal: {
       expiringSoon: expiringCount,
       target: renewalTarget,
@@ -262,7 +276,11 @@ function filterDuesForSubscriptions(dues: DueResource[], subscriptions: Subscrip
   });
 }
 
-function mapSubscriptionToPipeline(subscription: SubscriptionResource, dues: DueResource[]): MembershipPipelineRow {
+function mapSubscriptionToPipeline(
+  subscription: SubscriptionResource,
+  dues: DueResource[],
+  plans: PlanResource[],
+): MembershipPipelineRow {
   const matchingDue = dues.find((due) => due.subscription?.id === subscription.id);
   const balance = Number(subscription.balance ?? matchingDue?.balance ?? 0);
   const daysLeft = subscription.days_left ?? getDaysUntil(subscription.end_date);
@@ -272,7 +290,16 @@ function mapSubscriptionToPipeline(subscription: SubscriptionResource, dues: Due
     subscriptionId: subscription.id,
     memberId: subscription.member?.id ?? null,
     member: subscription.member?.name ?? null,
+    planId: subscription.plan?.id ?? null,
     plan: subscription.plan?.name ?? null,
+    planOptions: plans.map((plan) => ({
+      id: plan.id,
+      name: plan.name ?? "",
+      price: Number(plan.price ?? 0),
+      durationDays: Number(plan.duration_days ?? 0),
+      durationMonths:
+        plan.duration_months === null || plan.duration_months === undefined ? null : Number(plan.duration_months),
+    })),
     status: subscription.status,
     billingStatus: subscription.billing_status ?? "pending",
     daysLeft,
@@ -322,6 +349,13 @@ function dedupeLatestSubscriptions(subscriptions: SubscriptionResource[]) {
 }
 
 function compareSubscriptionFreshness(left: SubscriptionResource, right: SubscriptionResource) {
+  const leftStatusPriority = getSubscriptionStatusPriority(left.status);
+  const rightStatusPriority = getSubscriptionStatusPriority(right.status);
+
+  if (leftStatusPriority !== rightStatusPriority) {
+    return leftStatusPriority - rightStatusPriority;
+  }
+
   const leftEnd = Date.parse(left.end_date ?? "") || 0;
   const rightEnd = Date.parse(right.end_date ?? "") || 0;
 
@@ -330,6 +364,23 @@ function compareSubscriptionFreshness(left: SubscriptionResource, right: Subscri
   }
 
   return left.id - right.id;
+}
+
+function getSubscriptionStatusPriority(status: string) {
+  switch (status) {
+    case "active":
+      return 5;
+    case "frozen":
+      return 4;
+    case "pending":
+      return 3;
+    case "expired":
+      return 2;
+    case "stopped":
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 function getDaysUntil(date: string | null | undefined) {

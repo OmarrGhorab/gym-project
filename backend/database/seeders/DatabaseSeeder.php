@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         $this->call(EmployeeShiftSeeder::class);
         $this->call(GymStaffSeeder::class);
         $this->call(PlanSeeder::class);
+        $this->call(MembershipDemoSeeder::class);
         $this->call(ProductSeeder::class);
         $this->call(PostmanScenarioSeeder::class);
     }

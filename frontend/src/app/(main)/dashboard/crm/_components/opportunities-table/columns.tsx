@@ -47,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
 
 import {
+  changeMembershipPlan,
   freezeMembershipSubscription,
   renewMembershipSubscription,
   stopMembershipSubscription,
@@ -63,7 +64,7 @@ const paymentMethodItems = [{ value: "cash" }, { value: "card" }, { value: "bank
 
 type SubscriptionAction = "renew" | "freeze" | "stop" | "unfreeze";
 type CrmT = ReturnType<typeof useTranslations<"Dashboard.crm">>;
-type DialogMode = "details" | "renew" | "freeze" | "unfreeze";
+type DialogMode = "details" | "renew" | "freeze" | "unfreeze" | "change_plan";
 
 function getHealthScore(health: MembershipPipelineRow["health"]) {
   switch (health) {
@@ -274,7 +275,21 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
   const [freezeStartDate, setFreezeStartDate] = React.useState(() => getTodayDateString());
   const [freezeEndDate, setFreezeEndDate] = React.useState(() => getTodayDateString());
   const [resumeOnDate, setResumeOnDate] = React.useState(() => getTodayDateString());
+  const canChangePlan =
+    subscription.status === "active" || subscription.status === "expired" || subscription.status === "stopped";
+  const changePlanMode = subscription.status === "active" ? "upgrade" : "renew";
+  const changePlanOptions =
+    subscription.status === "active"
+      ? subscription.planOptions.filter((plan) => plan.id !== subscription.planId)
+      : subscription.planOptions;
+  const firstPlanOption = changePlanOptions[0] ?? null;
+  const [changePlanId, setChangePlanId] = React.useState(() => (firstPlanOption ? String(firstPlanOption.id) : ""));
+  const [changePlanDiscount, setChangePlanDiscount] = React.useState("0");
   const backendActions = getBackendActions(subscription.status);
+  const selectedChangePlan = changePlanOptions.find((plan) => String(plan.id) === changePlanId) ?? firstPlanOption;
+  const changePlanPaymentAmount = selectedChangePlan
+    ? calculatePaymentAmount(selectedChangePlan.price, changePlanDiscount)
+    : "";
   const selectedFreezeDays = getInclusiveDays(freezeStartDate, freezeEndDate);
   const freezeEndRange = getFreezeEndRange(freezeStartDate, subscription.minFreezeDays, subscription.maxFreezeDays);
   const isFreezeDurationInvalid =
@@ -316,6 +331,37 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
         method: paymentMethod,
       },
     });
+
+    finishAction(result);
+  }
+
+  async function submitChangePlan(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const planId = Number(formData.get("plan_id"));
+    const amount = String(formData.get("amount") ?? "").trim();
+    const discount = String(formData.get("discount") ?? "").trim();
+
+    if (!planId || !amount || Number(amount) < 0) {
+      toast.error(t("paymentAmountRequired"));
+      return;
+    }
+
+    setPendingAction("change_plan");
+
+    const result = await changeMembershipPlan(
+      subscription.subscriptionId,
+      {
+        plan_id: planId,
+        ...(discount ? { discount } : {}),
+        payment: {
+          amount,
+          method: paymentMethod,
+        },
+      },
+      changePlanMode,
+    );
 
     finishAction(result);
   }
@@ -451,6 +497,21 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
             {t("viewDetails")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          {canChangePlan ? (
+            <DropdownMenuItem
+              data-disabled={pendingAction !== null || changePlanOptions.length === 0 ? "" : undefined}
+              onClick={() => {
+                if (pendingAction !== null || changePlanOptions.length === 0) {
+                  return;
+                }
+
+                setDialogMode("change_plan");
+                setOpen(true);
+              }}
+            >
+              {pendingAction === "change_plan" ? t("working") : t("changePlan")}
+            </DropdownMenuItem>
+          ) : null}
           {backendActions.map((action) => {
             const disabledReason = action === "freeze" ? freezeDisabledReason : null;
             const isDisabled = pendingAction !== null || disabledReason !== null;
@@ -573,6 +634,87 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
                 </Button>
                 <Button type="submit" size="sm" disabled={pendingAction !== null}>
                   {pendingAction === "renew" ? t("renewing") : t("renew")}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+
+          {dialogMode === "change_plan" ? (
+            <form className="grid gap-3 rounded-lg border border-border/70 p-3" onSubmit={submitChangePlan}>
+              <div>
+                <div className="font-medium text-sm">{t("changePlan")}</div>
+                <p className="text-muted-foreground text-xs">{t("changePlanDescription")}</p>
+              </div>
+              <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan")}>
+                {t("newPlan")}
+                <Select value={changePlanId} onValueChange={(value) => setChangePlanId(value ?? "")}>
+                  <SelectTrigger id={fieldId("change-plan")} className="w-full">
+                    <SelectValue placeholder={t("selectPlan")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {changePlanOptions.map((plan) => (
+                        <SelectItem key={plan.id} value={String(plan.id)}>
+                          {plan.name} - {formatCurrency(plan.price, { currency: "EGP", noDecimals: true })}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <input type="hidden" name="plan_id" value={changePlanId} />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-amount")}>
+                  {t("paymentAmount")}
+                  <Input
+                    id={fieldId("change-plan-amount")}
+                    name="amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={changePlanPaymentAmount}
+                    readOnly
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-discount")}>
+                  {t("discount")}
+                  <Input
+                    id={fieldId("change-plan-discount")}
+                    name="discount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={changePlanDiscount}
+                    onChange={(event) => setChangePlanDiscount(event.currentTarget.value)}
+                  />
+                </label>
+              </div>
+              <div className="grid gap-1.5 text-sm">
+                {t("paymentMethod")}
+                <Select
+                  value={paymentMethod}
+                  onValueChange={(value) => setPaymentMethod(value as "cash" | "card" | "bank_transfer")}
+                >
+                  <SelectTrigger id={fieldId("change-plan-method")} className="w-full">
+                    <SelectValue placeholder={t("selectPaymentMethod")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {paymentMethodItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {t(`paymentMethods.${item.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+                  {t("cancel")}
+                </Button>
+                <Button type="submit" size="sm" disabled={pendingAction !== null || !changePlanId}>
+                  {pendingAction === "change_plan" ? t("working") : t("changePlan")}
                 </Button>
               </div>
             </form>
@@ -792,6 +934,8 @@ function getDialogDescription(mode: DialogMode, t: CrmT) {
   switch (mode) {
     case "renew":
       return t("renewDialogDescription");
+    case "change_plan":
+      return t("changePlanDialogDescription");
     case "freeze":
       return t("freezeDialogDescription");
     case "unfreeze":
@@ -799,6 +943,14 @@ function getDialogDescription(mode: DialogMode, t: CrmT) {
     default:
       return t("detailsDescription");
   }
+}
+
+function calculatePaymentAmount(price: number, discount: string) {
+  const normalizedPrice = Number.isFinite(price) ? price : 0;
+  const normalizedDiscount = Number(discount || 0);
+  const amount = Math.max(0, normalizedPrice - (Number.isFinite(normalizedDiscount) ? normalizedDiscount : 0));
+
+  return amount.toFixed(2);
 }
 
 function DetailRow({ label, value }: { label: string; value: string | null }) {

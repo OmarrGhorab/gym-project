@@ -190,27 +190,30 @@ function FilterSelect({
   const t = useTranslations("Dashboard.membersPage");
 
   return (
-    <Select
-      value={value}
-      onValueChange={(nextValue) => {
-        if (nextValue) {
-          onValueChange(nextValue);
-        }
-      }}
-    >
-      <SelectTrigger className="w-fit">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {label}: {getOptionLabel(option, t)}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+    <div className="flex flex-col gap-1">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <Select
+        value={value}
+        onValueChange={(nextValue) => {
+          if (nextValue) {
+            onValueChange(nextValue);
+          }
+        }}
+      >
+        <SelectTrigger className="min-w-24">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {getOptionLabel(option, t)}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

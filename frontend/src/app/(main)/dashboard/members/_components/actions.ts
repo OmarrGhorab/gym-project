@@ -135,6 +135,33 @@ export async function createMemberSubscription(input: FormData): Promise<void> {
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
 }
+
+export async function changeMemberPlan(input: FormData): Promise<void> {
+  const subscriptionId = z.coerce
+    .number()
+    .int()
+    .min(1, "Subscription is required.")
+    .parse(input.get("subscription_id"));
+  const payload = {
+    plan_id: z.coerce.number().int().min(1).parse(input.get("plan_id")),
+    discount: optionalTextInput().parse(input.get("discount")) ?? "0",
+    payment: {
+      amount: z.string().trim().min(1, "Payment amount is required.").parse(input.get("payment_amount")),
+      method: z.enum(["cash", "card", "bank_transfer"]).parse(input.get("payment_method") || "cash"),
+    },
+  };
+
+  await serverApiFetch(`/subscriptions/${subscriptionId}/upgrade`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/crm");
+}
 export async function deactivateMember(input: FormData): Promise<void> {
   const memberId = memberIdSchema.parse(input.get("id"));
 

@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { PlanRow } from "../../plans/_components/data";
 import {
+  changeMemberPlan,
   createMember,
   createMemberSubscription,
   deactivateMember,
@@ -191,6 +192,7 @@ export function MemberActionsMenu({
   const [editOpen, setEditOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = React.useState(false);
+  const [changePlanOpen, setChangePlanOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
   const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
   const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
@@ -239,6 +241,12 @@ export function MemberActionsMenu({
             <DropdownMenuItem onClick={() => setEditOpen(true)}>{t("editMember")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{t("uploadPhoto")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>{t("addSubscription")}</DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={member.latest_subscription?.status !== "active"}
+              onClick={() => setChangePlanOpen(true)}
+            >
+              {t("changePlan")}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -263,6 +271,7 @@ export function MemberActionsMenu({
         open={subscriptionOpen}
         onOpenChange={setSubscriptionOpen}
       />
+      <MemberChangePlanDialog member={member} plans={plans} open={changePlanOpen} onOpenChange={setChangePlanOpen} />
     </>
   );
 }
@@ -349,10 +358,29 @@ function MemberSubscriptionDialog({
   plans: PlanRow[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
+  const initialPlan = plans[0];
+  const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
+  const [startDate, setStartDate] = React.useState("");
+  const [discount, setDiscount] = React.useState("0");
+  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
+  const endDate = selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
+  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, discount) : "";
   const { pending, submit } = useActionSubmit(
     { label: t("addSubscription"), run: createMemberSubscription, success: t("subscriptionAdded") },
-    () => onOpenChange(false),
+    () => {
+      onOpenChange(false);
+      setStartDate("");
+      setDiscount("0");
+    },
   );
+
+  React.useEffect(() => {
+    if (!open) {
+      setSelectedPlanId(initialPlan ? String(initialPlan.id) : "");
+      setStartDate("");
+      setDiscount("0");
+    }
+  }, [initialPlan, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -368,6 +396,8 @@ function MemberSubscriptionDialog({
               <span className="font-medium text-sm">{t("plan")}</span>
               <FormSelect
                 name="plan_id"
+                defaultValue={selectedPlanId}
+                onValueChange={setSelectedPlanId}
                 required
                 placeholder={t("selectPlan")}
                 options={plans.map((plan) => ({
@@ -378,13 +408,21 @@ function MemberSubscriptionDialog({
             </div>
             <div className="grid gap-2">
               <span className="font-medium text-sm">{t("startDate")}</span>
-              <FormDatePicker name="start_date" placeholder={t("selectDate")} required />
+              <FormDatePicker name="start_date" placeholder={t("selectDate")} required onValueChange={setStartDate} />
             </div>
             <div className="grid gap-2">
               <span className="font-medium text-sm">{t("endDate")}</span>
-              <FormDatePicker name="end_date" placeholder={t("selectDate")} required />
+              <input type="hidden" name="end_date" value={endDate} />
+              <Input value={endDate || t("selectDate")} readOnly aria-readonly="true" />
             </div>
-            <Field label={t("paymentAmount")} name="payment_amount" required type="number" />
+            <Field
+              label={t("paymentAmount")}
+              name="payment_amount"
+              required
+              type="number"
+              value={paymentAmount}
+              readOnly
+            />
             <div className="grid gap-2">
               <span className="font-medium text-sm">{t("paymentMethod")}</span>
               <FormSelect
@@ -397,7 +435,13 @@ function MemberSubscriptionDialog({
                 ]}
               />
             </div>
-            <Field label={t("discount")} name="discount" type="number" defaultValue="0" />
+            <Field
+              label={t("discount")}
+              name="discount"
+              type="number"
+              value={discount}
+              onChange={(event) => setDiscount(event.currentTarget.value)}
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -405,6 +449,119 @@ function MemberSubscriptionDialog({
             </Button>
             <Button type="submit" disabled={pending || plans.length === 0}>
               {pending ? t("saving") : t("addSubscription")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MemberChangePlanDialog({
+  member,
+  onOpenChange,
+  open,
+  plans,
+}: {
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  plans: PlanRow[];
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+  const initialPlan = plans[0];
+  const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
+  const [discount, setDiscount] = React.useState("0");
+  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
+  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, discount) : "";
+  const currentSubscription = member.latest_subscription;
+  const { pending, submit } = useActionSubmit(
+    { label: t("changePlan"), run: changeMemberPlan, success: t("planChanged") },
+    () => {
+      onOpenChange(false);
+      setDiscount("0");
+    },
+  );
+
+  React.useEffect(() => {
+    if (!open) {
+      setSelectedPlanId(initialPlan ? String(initialPlan.id) : "");
+      setDiscount("0");
+    }
+  }, [initialPlan, open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("changePlan")}</DialogTitle>
+          <DialogDescription>
+            {t("changePlanDescription", {
+              name: member.name,
+              plan: member.latest_subscription?.plan_name ?? t("noActivePlan"),
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <form action={submit} className="grid gap-4">
+          <input
+            type="hidden"
+            name="subscription_id"
+            value={currentSubscription ? String(currentSubscription.id) : ""}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
+              <span className="font-medium text-sm">{t("newPlan")}</span>
+              <FormSelect
+                name="plan_id"
+                defaultValue={selectedPlanId}
+                onValueChange={setSelectedPlanId}
+                required
+                placeholder={t("selectPlan")}
+                options={plans.map((plan) => ({
+                  value: String(plan.id),
+                  label: `${plan.name} - ${plan.price} EGP`,
+                }))}
+              />
+            </div>
+            <Field
+              label={t("paymentAmount")}
+              name="payment_amount"
+              required
+              type="number"
+              value={paymentAmount}
+              readOnly
+            />
+            <div className="grid gap-2">
+              <span className="font-medium text-sm">{t("paymentMethod")}</span>
+              <FormSelect
+                name="payment_method"
+                defaultValue="cash"
+                options={[
+                  { value: "cash", label: t("cash") },
+                  { value: "card", label: t("card") },
+                  { value: "bank_transfer", label: t("bankTransfer") },
+                ]}
+              />
+            </div>
+            <Field
+              label={t("discount")}
+              name="discount"
+              type="number"
+              value={discount}
+              onChange={(event) => setDiscount(event.currentTarget.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                pending || plans.length === 0 || !currentSubscription || currentSubscription.status !== "active"
+              }
+            >
+              {pending ? t("saving") : t("changePlan")}
             </Button>
           </DialogFooter>
         </form>
@@ -520,6 +677,64 @@ function DeactivateMemberItem({ member }: { member: MemberRow }) {
   );
 }
 
+function calculatePlanEndDate(startDate: string, plan: PlanRow) {
+  const parsedStart = parseDateOnly(startDate);
+
+  if (!parsedStart) {
+    return "";
+  }
+
+  const endDate =
+    plan.duration_months && plan.duration_months > 0
+      ? addMonthsNoOverflow(parsedStart, plan.duration_months)
+      : addDays(parsedStart, Math.max(1, plan.duration_days));
+
+  return formatDateOnly(endDate);
+}
+
+function calculatePaymentAmount(price: string, discount: string) {
+  const amount = Math.max(0, Number(price || 0) - Number(discount || 0));
+
+  return Number.isFinite(amount) ? amount.toFixed(2) : "";
+}
+
+function parseDateOnly(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function formatDateOnly(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+
+  return next;
+}
+
+function addMonthsNoOverflow(date: Date, months: number) {
+  const targetMonth = date.getMonth() + months;
+  const lastDay = new Date(date.getFullYear(), targetMonth + 1, 0).getDate();
+  const next = new Date(date);
+
+  next.setDate(1);
+  next.setMonth(targetMonth);
+  next.setDate(Math.min(date.getDate(), lastDay));
+
+  return next;
+}
+
 function MemberFormContent({
   description,
   member,
@@ -599,19 +814,33 @@ function Field({
   defaultValue,
   label,
   name,
+  onChange,
+  readOnly = false,
   required = false,
   type = "text",
+  value,
 }: {
   defaultValue?: string | null;
   label: string;
   name: string;
+  onChange?: React.ChangeEventHandler<HTMLInputElement>;
+  readOnly?: boolean;
   required?: boolean;
   type?: string;
+  value?: string;
 }) {
   return (
     <div className="grid gap-2">
       <span className="font-medium text-sm">{label}</span>
-      <Input name={name} type={type} defaultValue={defaultValue ?? ""} required={required} />
+      <Input
+        name={name}
+        type={type}
+        defaultValue={value === undefined ? (defaultValue ?? "") : undefined}
+        value={value}
+        onChange={onChange}
+        readOnly={readOnly}
+        required={required}
+      />
     </div>
   );
 }
