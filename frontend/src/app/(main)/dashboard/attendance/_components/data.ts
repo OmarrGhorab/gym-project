@@ -11,6 +11,7 @@ export type AttendanceRecord = {
     role: string;
     attendance_code: string;
   };
+  shift_id: number | null;
   date: string;
   check_in: string | null;
   check_out: string | null;
@@ -18,6 +19,7 @@ export type AttendanceRecord = {
   scan_method: string | null;
   schedule_status: string | null;
   approval_status: string | null;
+  notes: string | null;
   late_minutes: number;
   early_leave_minutes: number;
   check_in_location: {

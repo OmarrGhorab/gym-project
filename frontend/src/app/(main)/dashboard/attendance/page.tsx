@@ -13,16 +13,21 @@ import { AttendanceDayPicker } from "./_components/attendance-day-picker";
 import { getAttendancePageData } from "./_components/data";
 
 type PageProps = {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ correction?: string; date?: string }>;
 };
 
 export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.attendance");
   const locale = await getLocale();
   const numberFormatter = new Intl.NumberFormat(locale);
-  const selectedDate = normalizeDate((await searchParams).date);
+  const resolvedSearchParams = await searchParams;
+  const selectedDate = normalizeDate(resolvedSearchParams.date);
   const selectedMonth = selectedDate.slice(0, 7);
   const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth });
+  const correctionRecordId = Number(resolvedSearchParams.correction);
+  const correctionRecord = Number.isFinite(correctionRecordId)
+    ? data.records.find((record) => record.id === correctionRecordId)
+    : undefined;
   const dayTotals = data.records.reduce(
     (acc, row) => ({
       absent: acc.absent + (row.status === "absent" ? 1 : 0),
@@ -67,6 +72,8 @@ export default async function Page({ searchParams }: PageProps) {
       </div>
 
       <AttendanceActionPanels
+        key={correctionRecord?.id ?? "new-correction"}
+        correctionRecord={correctionRecord}
         defaultAttendanceDate={selectedDate}
         employees={data.employees}
         members={data.members}
@@ -89,6 +96,7 @@ export default async function Page({ searchParams }: PageProps) {
                   <TableHead>{t("inOut")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("gps")}</TableHead>
+                  <TableHead className="text-right">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -114,10 +122,23 @@ export default async function Page({ searchParams }: PageProps) {
                           {record.check_in_location?.status ?? t("unknown")}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          render={
+                            <a
+                              href={`/dashboard/attendance?date=${selectedDate}&correction=${record.id}#manual-correction`}
+                            />
+                          }
+                          size="sm"
+                          variant="outline"
+                        >
+                          {t("correctAttendance")}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
-                {data.records.length === 0 ? <EmptyRow cols={5} label={t("noRecords")} /> : null}
+                {data.records.length === 0 ? <EmptyRow cols={6} label={t("noRecords")} /> : null}
               </TableBody>
             </Table>
           </CardContent>

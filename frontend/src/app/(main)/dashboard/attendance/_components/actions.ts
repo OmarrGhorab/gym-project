@@ -46,6 +46,7 @@ export async function createManualAttendance(
   _previousState: AttendanceActionResult,
   input: FormData,
 ): Promise<AttendanceActionResult> {
+  const attendanceId = nullableNumber(input.get("attendance_id"));
   const payload = {
     approval_status: nullableString(input.get("approval_status")),
     check_in: nullableString(input.get("check_in")),
@@ -57,6 +58,10 @@ export async function createManualAttendance(
     shift_id: nullableNumber(input.get("shift_id")),
     status: String(input.get("status") || "present"),
   };
+
+  if (attendanceId !== null) {
+    return mutateScan(`/attendance/${attendanceId}`, payload, "Attendance correction saved.", "PUT");
+  }
 
   return mutateScan("/attendance", payload, "Manual attendance record created.", "POST");
 }

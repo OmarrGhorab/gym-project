@@ -35,7 +35,7 @@ import {
   scanMemberVisit,
   scanStaffAttendance,
 } from "./actions";
-import type { AttendanceViolation, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
+import type { AttendanceRecord, AttendanceViolation, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
 
 const initialState: AttendanceActionResult = { ok: true, message: "" };
 const fixedTopSelectCollision = {
@@ -45,6 +45,7 @@ const fixedTopSelectCollision = {
 } as const;
 
 type Props = {
+  correctionRecord?: AttendanceRecord;
   defaultAttendanceDate: string;
   employees: EmployeeOption[];
   members: MemberLookupOption[];
@@ -52,12 +53,24 @@ type Props = {
   violations: AttendanceViolation[];
 };
 
-export function AttendanceActionPanels({ defaultAttendanceDate, employees, members, shifts, violations }: Props) {
+export function AttendanceActionPanels({
+  correctionRecord,
+  defaultAttendanceDate,
+  employees,
+  members,
+  shifts,
+  violations,
+}: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <MemberScanCard members={members} />
       <StaffScanCard employees={employees} />
-      <ManualAttendanceCard defaultAttendanceDate={defaultAttendanceDate} employees={employees} shifts={shifts} />
+      <ManualAttendanceCard
+        correctionRecord={correctionRecord}
+        defaultAttendanceDate={defaultAttendanceDate}
+        employees={employees}
+        shifts={shifts}
+      />
       <ViolationReviewCard violations={violations} />
     </div>
   );
@@ -334,10 +347,12 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
 }
 
 function ManualAttendanceCard({
+  correctionRecord,
   defaultAttendanceDate,
   employees,
   shifts,
 }: {
+  correctionRecord?: AttendanceRecord;
   defaultAttendanceDate: string;
   employees: EmployeeOption[];
   shifts: EmployeeShift[];
@@ -345,15 +360,25 @@ function ManualAttendanceCard({
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(createManualAttendance, initialState);
   const employeeOptions = employeeSelectOptions(employees);
+  const isCorrection = Boolean(correctionRecord);
 
   return (
-    <Card className="xl:col-span-7">
+    <Card id="manual-correction" className="scroll-mt-4 xl:col-span-7">
       <CardHeader>
-        <CardTitle className="font-normal">{t("manualAttendance")}</CardTitle>
-        <CardDescription>{t("manualAttendanceDescription")}</CardDescription>
+        <CardTitle className="font-normal">
+          {isCorrection ? t("manualAttendanceCorrection") : t("manualAttendance")}
+        </CardTitle>
+        <CardDescription>
+          {isCorrection
+            ? t("manualAttendanceCorrectionDescription", {
+                employee: correctionRecord?.employee?.name ?? t("employee"),
+              })
+            : t("manualAttendanceDescription")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-3">
+          <input type="hidden" name="attendance_id" value={correctionRecord?.id ?? ""} />
           <FieldGroup>
             <FieldLabel htmlFor="manual-employee-id" label={t("employeeLabel")} meta={t("requiredField")} />
             <FormSelect
@@ -365,13 +390,14 @@ function ManualAttendanceCard({
               placeholder={t("selectEmployee")}
               contentCollisionAvoidance={fixedTopSelectCollision}
               contentSide="top"
+              defaultValue={correctionRecord?.employee_id ?? ""}
               required
               searchPlaceholder={t("searchEmployees")}
             />
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="manual-shift-id" label={t("shiftLabel")} meta={t("optionalField")} />
-            <Select name="shift_id" defaultValue="">
+            <Select name="shift_id" defaultValue={correctionRecord?.shift_id ? String(correctionRecord.shift_id) : ""}>
               <SelectTrigger id="manual-shift-id" className="w-full">
                 <SelectValue placeholder={t("noShift")} />
               </SelectTrigger>
@@ -386,12 +412,21 @@ function ManualAttendanceCard({
               </SelectContent>
             </Select>
           </FieldGroup>
-          <DatePickerField label={t("attendanceDate")} name="date" defaultValue={defaultAttendanceDate} required />
-          <TimePickerField label={t("checkInTime")} name="check_in" />
-          <TimePickerField label={t("checkOutTime")} name="check_out" />
+          <DatePickerField
+            label={t("attendanceDate")}
+            name="date"
+            defaultValue={correctionRecord?.date ?? defaultAttendanceDate}
+            required
+          />
+          <TimePickerField label={t("checkInTime")} name="check_in" defaultValue={correctionRecord?.check_in ?? ""} />
+          <TimePickerField
+            label={t("checkOutTime")}
+            name="check_out"
+            defaultValue={correctionRecord?.check_out ?? ""}
+          />
           <FieldGroup>
             <FieldLabel htmlFor="manual-status" label={t("status")} meta={t("requiredField")} />
-            <Select name="status" defaultValue="present">
+            <Select name="status" defaultValue={correctionRecord?.status ?? "present"}>
               <SelectTrigger id="manual-status" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -407,7 +442,7 @@ function ManualAttendanceCard({
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="manual-schedule-status" label={t("scheduleStatus")} meta={t("optionalField")} />
-            <Select name="schedule_status" defaultValue="">
+            <Select name="schedule_status" defaultValue={correctionRecord?.schedule_status ?? ""}>
               <SelectTrigger id="manual-schedule-status" className="w-full">
                 <SelectValue placeholder={t("scheduleStatus")} />
               </SelectTrigger>
@@ -423,7 +458,7 @@ function ManualAttendanceCard({
           </FieldGroup>
           <FieldGroup>
             <FieldLabel htmlFor="manual-approval-status" label={t("approvalStatus")} meta={t("optionalField")} />
-            <Select name="approval_status" defaultValue="">
+            <Select name="approval_status" defaultValue={correctionRecord?.approval_status ?? ""}>
               <SelectTrigger id="manual-approval-status" className="w-full">
                 <SelectValue placeholder={t("approvalStatus")} />
               </SelectTrigger>
@@ -438,9 +473,18 @@ function ManualAttendanceCard({
           </FieldGroup>
           <FieldGroup className="md:col-span-3">
             <FieldLabel htmlFor="manual-notes" label={t("notesLabel")} meta={t("optionalField")} />
-            <Textarea id="manual-notes" name="notes" placeholder={t("notesPlaceholder")} />
+            <Textarea
+              id="manual-notes"
+              name="notes"
+              placeholder={t("notesPlaceholder")}
+              defaultValue={correctionRecord?.notes ?? ""}
+            />
           </FieldGroup>
-          <PanelFooter state={state} pending={pending} label={t("createAttendance")} />
+          <PanelFooter
+            state={state}
+            pending={pending}
+            label={isCorrection ? t("saveAttendanceCorrection") : t("createAttendance")}
+          />
         </form>
       </CardContent>
     </Card>
