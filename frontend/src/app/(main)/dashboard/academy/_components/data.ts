@@ -35,8 +35,6 @@ export type StaffAcademyPerformance = {
   attendance_count: number;
   commissions_total: string;
   warnings_count: number;
-  start: number;
-  duration: number;
 };
 
 export type StaffAcademyEvent = {
@@ -142,68 +140,40 @@ export type StaffAcademyPageData = StaffAcademyData & {
   roles: AccessRole[];
 };
 
-const emptyStaffAcademyData: StaffAcademyData = {
-  generated_at: new Date().toISOString(),
-  kpis: [
-    { detail: "employees and captains in service", label: "Active Staff", trend: null, value: 0 },
-    { detail: "0 attended this month", label: "Staff Attendance", trend: null, value: "0.0%" },
-    { detail: "needs admin decision", label: "Warnings Pending", trend: null, value: 0 },
-    { detail: "pending salary receipts", label: "Payroll Receipts", trend: null, value: 0 },
-  ],
-  shift_schedule: [],
-  warning_status: [
-    { approved: 0, auto_applied: 0, label: "Late", pending: 0 },
-    { approved: 0, auto_applied: 0, label: "Absence", pending: 0 },
-    { approved: 0, auto_applied: 0, label: "Off shift", pending: 0 },
-  ],
-  performance_highlights: [],
-  upcoming_events: [],
-  today: {
-    checked_in: 0,
-    late: 0,
-    off_shift: 0,
-    pending_approval: 0,
-  },
-};
-
 export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
-  try {
-    const [reportResult, employeesResult, shiftsResult, usersResult, rolesResult] = await Promise.all([
-      safeFetch<StaffAcademyData>("/reports/staff-academy", emptyStaffAcademyData),
-      safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=8", []),
-      safeFetch<StaffAcademyPageData["shifts"]>("/attendance/shifts", []),
-      safeFetch<AccessUser[] | PaginatedData<AccessUser>>("/users?sort=name&per_page=100", []),
-      safeFetch<AccessRole[]>("/roles", []),
-    ]);
-    const employees = unwrapList(employeesResult.data);
-    const employeeRows = await Promise.all(
-      employees.map(async (employee) => {
-        const [performanceResult, commissionsResult] = await Promise.all([
-          safeFetch<AcademyPerformanceDetail | null>(`/employees/${employee.id}/performance`, null),
-          safeFetch<AcademyCommission[] | PaginatedData<AcademyCommission>>(
-            `/employees/${employee.id}/commissions?per_page=5`,
-            [],
-          ),
-        ]);
+  const [reportResult, employeesResult, shiftsResult, usersResult, rolesResult] = await Promise.all([
+    serverApiFetch<StaffAcademyData>("/reports/staff-academy"),
+    safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=100", []),
+    safeFetch<StaffAcademyPageData["shifts"]>("/attendance/shifts", []),
+    safeFetch<AccessUser[] | PaginatedData<AccessUser>>("/users?sort=name&per_page=100", []),
+    safeFetch<AccessRole[]>("/roles", []),
+  ]);
+  const employees = unwrapList(employeesResult.data);
+  const employeeRows = await Promise.all(
+    employees.map(async (employee) => {
+      const [performanceResult, commissionsResult] = await Promise.all([
+        safeFetch<AcademyPerformanceDetail | null>(`/employees/${employee.id}/performance`, null),
+        safeFetch<AcademyCommission[] | PaginatedData<AcademyCommission>>(
+          `/employees/${employee.id}/commissions?per_page=5`,
+          [],
+        ),
+      ]);
 
-        return {
-          commissions: unwrapList(commissionsResult.data),
-          employee,
-          performance: performanceResult.data,
-        };
-      }),
-    );
+      return {
+        commissions: unwrapList(commissionsResult.data),
+        employee,
+        performance: performanceResult.data,
+      };
+    }),
+  );
 
-    return {
-      ...reportResult.data,
-      employeeRows,
-      shifts: shiftsResult.data,
-      users: unwrapList(usersResult.data),
-      roles: rolesResult.data,
-    };
-  } catch {
-    return { ...emptyStaffAcademyData, employeeRows: [], shifts: [], users: [], roles: [] };
-  }
+  return {
+    ...reportResult.data,
+    employeeRows,
+    shifts: shiftsResult.data,
+    users: unwrapList(usersResult.data),
+    roles: rolesResult.data,
+  };
 }
 
 async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {

@@ -1,20 +1,25 @@
+import Image from "next/image";
 import Link from "next/link";
-
-import { Command } from "lucide-react";
 
 import { LoginForm } from "../../_components/login-form";
 
 export default function LoginV1() {
   return (
     <div className="flex h-dvh">
-      <div className="hidden bg-primary lg:block lg:w-1/3">
-        <div className="flex h-full flex-col items-center justify-center p-12 text-center">
-          <div className="space-y-6">
-            <Command className="mx-auto size-12 text-primary-foreground" />
-            <div className="space-y-2">
-              <h1 className="font-light text-5xl text-primary-foreground">Hello again</h1>
-              <p className="text-primary-foreground/80 text-xl">Login to continue</p>
-            </div>
+      <div className="relative hidden overflow-hidden bg-primary lg:block lg:w-1/3">
+        <Image
+          src="/authentication-img.png"
+          alt="ATP Gym training floor"
+          fill
+          priority
+          className="object-cover"
+          sizes="33vw"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/25 to-black/75" />
+        <div className="relative flex h-full flex-col items-center justify-center p-12 text-center">
+          <div className="space-y-2 text-white">
+            <h1 className="font-light text-5xl">Hello again</h1>
+            <p className="text-white/80 text-xl">Login to continue</p>
           </div>
         </div>
       </div>

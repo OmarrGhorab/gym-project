@@ -4,10 +4,16 @@ import * as React from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { Search } from "lucide-react";
+import { ChevronDownIcon, Download, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -47,6 +53,7 @@ export function MembersHeaderActions() {
   const router = useQueryRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
+  const exportUrl = React.useMemo(() => buildMembersExportUrl(searchParams), [searchParams]);
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,6 +66,7 @@ export function MembersHeaderActions() {
         <Search className="absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           className="w-64 ps-8"
+          aria-label={t("searchMembers")}
           placeholder={t("searchMembers")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -74,9 +82,23 @@ export function MembersHeaderActions() {
       >
         {t("reset")}
       </Button>
-      <Button nativeButton={false} size="sm" variant="outline" render={<a href="/api/finance/export" />}>
-        {t("export")}
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
+          <Download data-icon="inline-start" />
+          {t("export")}
+          <ChevronDownIcon data-icon="inline-end" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onSelect={() => window.location.assign(exportUrl("xlsx"))}>
+            <FileSpreadsheet data-icon="inline-start" />
+            {t("exportMembersXlsx")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => window.location.assign(exportUrl("pdf"))}>
+            <FileText data-icon="inline-start" />
+            {t("exportMembersPdf")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <AddMemberDialog />
     </div>
   );
@@ -260,5 +282,35 @@ function useQueryRouter() {
 
       navigate(params);
     },
+  };
+}
+
+function buildMembersExportUrl(searchParams: ReturnType<typeof useSearchParams>) {
+  return (format: "xlsx" | "pdf") => {
+    const params = new URLSearchParams();
+    params.set("format", format);
+
+    const q = searchParams.get("q")?.trim();
+    const status = searchParams.get("status");
+    const plan = searchParams.get("plan");
+    const qr = searchParams.get("qr");
+
+    if (q) {
+      params.set("q", q);
+    }
+
+    if (status && status !== "all") {
+      params.set("status", status);
+    }
+
+    if (plan && plan !== "all") {
+      params.set("plan", plan);
+    }
+
+    if (qr && qr !== "all") {
+      params.set("qr", qr);
+    }
+
+    return `/api/members/export?${params.toString()}`;
   };
 }

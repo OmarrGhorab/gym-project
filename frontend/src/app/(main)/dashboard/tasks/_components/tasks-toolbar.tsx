@@ -38,6 +38,7 @@ export function TasksToolbar<TData>({ table }: TasksToolbarProps<TData>) {
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
         <Input
+          aria-label={t("filterTasks")}
           placeholder={t("filterTasks")}
           value={searchValue}
           onChange={(event) => {

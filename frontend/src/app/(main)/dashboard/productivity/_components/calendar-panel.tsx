@@ -20,11 +20,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createOperationsCalendarEvent } from "./actions";
+import { type CreateOperationsCalendarEventResult, createOperationsCalendarEvent } from "./actions";
 import type { OperationsCalendarEvent } from "./data";
 
 const eventTypes = [
@@ -46,11 +47,14 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
   const [currentMonth, setCurrentMonth] = React.useState<Date>(startOfMonth(today));
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<CreateOperationsCalendarEventResult["errors"]>({});
   const selectedEvents = events.filter((event) => date && isSameDay(new Date(event.date), date));
 
   function submitEvent(formData: FormData) {
     startTransition(async () => {
       const result = await createOperationsCalendarEvent(formData);
+
+      setErrors(result.errors ?? {});
 
       if (result.ok) {
         toast.success(result.message);
@@ -104,14 +108,21 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
                     <label className="font-medium text-sm" htmlFor="ops-event-title">
                       {t("eventTitle")}
                     </label>
-                    <Input id="ops-event-title" name="title" required placeholder={t("eventTitlePlaceholder")} />
+                    <Input
+                      id="ops-event-title"
+                      name="title"
+                      required
+                      placeholder={t("eventTitlePlaceholder")}
+                      aria-invalid={Boolean(errors?.title?.[0])}
+                    />
+                    <FieldError errors={errors?.title} />
                   </div>
                   <div className="grid gap-2">
                     <label className="font-medium text-sm" htmlFor="ops-event-type">
                       {t("eventType")}
                     </label>
                     <Select defaultValue="manual" name="type">
-                      <SelectTrigger id="ops-event-type" className="w-full">
+                      <SelectTrigger id="ops-event-type" className="w-full" aria-invalid={Boolean(errors?.type?.[0])}>
                         <SelectValue placeholder={t("eventTypePlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -124,12 +135,19 @@ export function CalendarPanel({ events }: { events: OperationsCalendarEvent[] })
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                    <FieldError errors={errors?.type} />
                   </div>
                   <div className="grid gap-2">
                     <label className="font-medium text-sm" htmlFor="ops-event-notes">
                       {t("notes")}
                     </label>
-                    <Textarea id="ops-event-notes" name="notes" placeholder={t("notesPlaceholder")} />
+                    <Textarea
+                      id="ops-event-notes"
+                      name="notes"
+                      placeholder={t("notesPlaceholder")}
+                      aria-invalid={Boolean(errors?.notes?.[0])}
+                    />
+                    <FieldError errors={errors?.notes} />
                   </div>
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>

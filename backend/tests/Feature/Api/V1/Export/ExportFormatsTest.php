@@ -37,3 +37,16 @@ test('admin can export members in csv format', function (): void {
 
     Excel::assertDownloaded('members.csv');
 });
+
+test('admin can export attendance in xlsx format with date filters', function (): void {
+    Excel::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $this->getJson('/api/v1/export/attendance?format=xlsx&filter[period]=daily&filter[date]=2026-07-06')
+        ->assertStatus(200);
+
+    Excel::assertDownloaded('attendance.xlsx');
+});

@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
@@ -87,6 +88,7 @@ export function Roles({ permissionGroups, roles }: { permissionGroups: Permissio
                   <Search />
                 </InputGroupAddon>
                 <InputGroupInput
+                  aria-label={t("searchPlaceholder")}
                   placeholder={t("searchPlaceholder")}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -175,6 +177,7 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<Partial<Record<string, string[]>>>({});
   const chips = role.permissions.slice(0, 3);
   const extra = Math.max(role.permissions.length - chips.length, 0);
   const accessLevel = role.permissions.some((permission) => permission === "roles.manage") ? t("full") : t("scoped");
@@ -184,6 +187,7 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
     startTransition(async () => {
       const result = await updateRole(formData);
 
+      setErrors(result.errors ?? {});
       handleActionResult(result);
 
       if (result.ok) {
@@ -270,12 +274,15 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
                     defaultValue={role.name}
                     readOnly={role.is_preset}
                     aria-readonly={role.is_preset}
+                    aria-invalid={Boolean(errors.name?.[0])}
                   />
+                  <FieldError errors={errors.name} />
                 </div>
                 <Button type="submit" size="sm" disabled={pending}>
                   {t("savePermissions")}
                 </Button>
               </div>
+              <FieldError errors={errors.permissions} />
               <PermissionPicker permissionGroups={permissionGroups} selected={role.permissions} compact />
             </form>
             {!role.is_preset ? (
@@ -302,12 +309,14 @@ function CreateRolePanel({
   const t = useTranslations("Dashboard.roles");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<Partial<Record<string, string[]>>>({});
   const handleActionResult = useRoleActionToast();
 
   function submitCreate(formData: FormData) {
     startTransition(async () => {
       const result = await createRole(formData);
 
+      setErrors(result.errors ?? {});
       handleActionResult(result);
 
       if (result.ok) {
@@ -332,8 +341,15 @@ function CreateRolePanel({
         <form action={submitCreate} className="grid gap-4">
           <div className="max-w-sm space-y-2">
             <Label htmlFor="role-name">{t("roleName")}</Label>
-            <Input id="role-name" name="name" placeholder={t("rolePlaceholder")} />
+            <Input
+              id="role-name"
+              name="name"
+              placeholder={t("rolePlaceholder")}
+              aria-invalid={Boolean(errors.name?.[0])}
+            />
+            <FieldError errors={errors.name} />
           </div>
+          <FieldError errors={errors.permissions} />
           <PermissionPicker permissionGroups={permissionGroups} selected={[]} compact />
           <Button type="submit" className="w-fit" disabled={pending}>
             {t("createRole")}

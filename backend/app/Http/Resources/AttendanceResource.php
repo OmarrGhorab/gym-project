@@ -52,6 +52,7 @@ class AttendanceResource extends JsonResource
             'approval_status' => $this->approval_status,
             'late_minutes' => (int) $this->late_minutes,
             'early_leave_minutes' => (int) $this->early_leave_minutes,
+            'off_day_bonus_amount' => number_format((float) $this->off_day_bonus_amount, 2, '.', ''),
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

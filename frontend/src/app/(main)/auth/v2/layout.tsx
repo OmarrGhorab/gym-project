@@ -14,7 +14,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
       <div className="grid h-dvh justify-center p-2 lg:grid-cols-2">
         <div className="relative order-2 hidden h-full overflow-hidden rounded-3xl bg-primary lg:flex">
           <Image
-            src="/authentication-img.jpeg"
+            src="/authentication-img.png"
             alt="ATP Gym training floor"
             fill
             priority

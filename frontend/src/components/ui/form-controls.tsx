@@ -8,6 +8,7 @@ import { useLocale } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +25,7 @@ type FormSelectProps = {
   className?: string;
   contentClassName?: string;
   defaultValue?: string | number | null;
+  error?: string;
   id?: string;
   name: string;
   options: FormSelectOption[];
@@ -46,6 +48,7 @@ export function FormSelect({
   className,
   contentClassName,
   defaultValue,
+  error,
   id,
   name,
   options,
@@ -61,6 +64,7 @@ export function FormSelect({
   onValueChange,
   size = "default",
 }: FormSelectProps) {
+  const errorId = React.useId();
   const initialValue = defaultValue === null || defaultValue === undefined || defaultValue === "" ? emptySelectValue : String(defaultValue);
   const isControlled = controlledValue !== undefined;
   const currentValue =
@@ -110,6 +114,8 @@ export function FormSelect({
               variant="outline"
               size={size}
               className={cn("w-full justify-between bg-transparent px-2.5 font-normal", className)}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
             />
           }
         >
@@ -178,6 +184,9 @@ export function FormSelect({
           </div>
         </PopoverContent>
       </Popover>
+      <FieldError id={errorId} className="pt-1">
+        {error}
+      </FieldError>
     </>
   );
 }
@@ -218,6 +227,8 @@ function getOptionSearchText(label: React.ReactNode): string {
 type FormDatePickerProps = {
   className?: string;
   defaultValue?: string | null;
+  error?: string;
+  id?: string;
   name: string;
   onValueChange?: (value: string) => void;
   placeholder?: string;
@@ -227,11 +238,14 @@ type FormDatePickerProps = {
 export function FormDatePicker({
   className,
   defaultValue = "",
+  error,
+  id,
   name,
   onValueChange,
   placeholder = "Select date",
   required = false,
 }: FormDatePickerProps) {
+  const errorId = React.useId();
   const locale = useLocale();
   const [value, setValue] = React.useState(defaultValue ?? "");
   const selectedDate = parseDateString(value);
@@ -240,7 +254,18 @@ export function FormDatePicker({
     <>
       <input type="hidden" name={name} value={value} required={required} />
       <Popover>
-        <PopoverTrigger render={<Button type="button" variant="outline" className={cn("w-full justify-between font-normal", className)} />}>
+        <PopoverTrigger
+          render={
+            <Button
+              id={id}
+              type="button"
+              variant="outline"
+              className={cn("w-full justify-between font-normal", className)}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
+            />
+          }
+        >
           {selectedDate
             ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(selectedDate)
             : placeholder}
@@ -262,6 +287,9 @@ export function FormDatePicker({
           />
         </PopoverContent>
       </Popover>
+      <FieldError id={errorId} className="pt-1">
+        {error}
+      </FieldError>
     </>
   );
 }
@@ -272,11 +300,14 @@ const timeMinutes = Array.from({ length: 60 }, (_, index) => index);
 type FormTimePickerProps = {
   className?: string;
   defaultValue?: string | null;
+  error?: string;
+  id?: string;
   name: string;
   required?: boolean;
 };
 
-export function FormTimePicker({ className, defaultValue = "", name, required = false }: FormTimePickerProps) {
+export function FormTimePicker({ className, defaultValue = "", error, id, name, required = false }: FormTimePickerProps) {
+  const errorId = React.useId();
   const initial = parseTime24(defaultValue ?? "");
   const [hour, setHour] = React.useState<number | null>(initial?.hour ?? null);
   const [minute, setMinute] = React.useState<number | null>(initial?.minute ?? null);
@@ -292,7 +323,7 @@ export function FormTimePicker({ className, defaultValue = "", name, required = 
     >
       <input type="hidden" name={name} value={value} required={required} />
       <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger id={id ? `${id}-hour` : undefined} className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
           <SelectValue placeholder="--" />
         </SelectTrigger>
         <SelectContent>
@@ -307,7 +338,7 @@ export function FormTimePicker({ className, defaultValue = "", name, required = 
       </Select>
       <span className="text-muted-foreground text-sm">:</span>
       <Select value={minute !== null ? String(minute) : ""} onValueChange={(next) => setMinute(Number(next))}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
           <SelectValue placeholder="--" />
         </SelectTrigger>
         <SelectContent>
@@ -321,7 +352,7 @@ export function FormTimePicker({ className, defaultValue = "", name, required = 
         </SelectContent>
       </Select>
       <Select value={period} onValueChange={(next) => setPeriod(next as "AM" | "PM")}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger id={id ? `${id}-period` : undefined} className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -331,6 +362,9 @@ export function FormTimePicker({ className, defaultValue = "", name, required = 
           </SelectGroup>
         </SelectContent>
       </Select>
+      <FieldError id={errorId} className="col-span-full pt-1">
+        {error}
+      </FieldError>
     </div>
   );
 }

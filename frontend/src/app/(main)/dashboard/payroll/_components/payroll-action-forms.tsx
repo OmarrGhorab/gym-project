@@ -6,23 +6,40 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-import { markPayrollPaid, updatePayroll } from "./actions";
+import {
+  generatePayroll,
+  markPayrollPaid,
+  type PayrollActionResult,
+  type PayrollActionState,
+  updatePayroll,
+} from "./actions";
+
+const initialPayrollState: PayrollActionState = {
+  ok: false,
+  message: "",
+  errors: {},
+  values: {},
+};
 
 export function PayrollAdjustmentForm({
+  attendanceDeductions,
   bonuses,
   deductions,
   id,
 }: {
+  attendanceDeductions: string;
   bonuses: string;
   deductions: string;
   id: number;
 }) {
   const t = useTranslations("Dashboard.payroll");
-  const [pending, startTransition] = React.useTransition();
+  const [state, formAction, pending] = React.useActionState(updatePayroll, initialPayrollState);
   const [bonusValue, setBonusValue] = React.useState(bonuses);
   const [deductionValue, setDeductionValue] = React.useState(deductions);
+  const attendanceDeductionInputId = `payroll-${id}-attendance-deduction`;
   const bonusInputId = `payroll-${id}-bonus`;
   const deductionInputId = `payroll-${id}-deduction`;
 
@@ -34,19 +51,23 @@ export function PayrollAdjustmentForm({
     setDeductionValue(deductions);
   }, [deductions]);
 
+  React.useEffect(() => {
+    if (!state.message) {
+      return;
+    }
+
+    if (state.ok) {
+      toast.success(state.message);
+      return;
+    }
+
+    toast.error(t("actionFailed"), { description: state.message });
+  }, [state, t]);
+
   return (
     <form
-      action={(formData) => {
-        startTransition(async () => {
-          try {
-            await updatePayroll(formData);
-            toast.success(t("payrollSaved"));
-          } catch (error) {
-            toast.error(t("actionFailed"), { description: getErrorMessage(error) });
-          }
-        });
-      }}
-      className="grid w-full grid-cols-[minmax(6.5rem,1fr)_minmax(6.5rem,1fr)_auto] items-end gap-2"
+      action={formAction}
+      className="grid w-full grid-cols-[minmax(6.5rem,1fr)_minmax(6.5rem,1fr)_minmax(6.5rem,1fr)_auto] items-end gap-2"
     >
       <input type="hidden" name="id" value={id} />
       <label className="grid gap-1" htmlFor={bonusInputId}>
@@ -59,9 +80,11 @@ export function PayrollAdjustmentForm({
           step="0.01"
           value={bonusValue}
           aria-label={t("bonusAdds")}
+          aria-invalid={Boolean(state.errors.bonuses?.[0])}
           disabled={pending}
           onChange={(event) => setBonusValue(event.target.value)}
         />
+        <FieldError errors={state.errors.bonuses} />
       </label>
       <label className="grid gap-1" htmlFor={deductionInputId}>
         <span className="text-muted-foreground text-xs">{t("deductionSubtracts")}</span>
@@ -73,8 +96,19 @@ export function PayrollAdjustmentForm({
           step="0.01"
           value={deductionValue}
           aria-label={t("deductionSubtracts")}
+          aria-invalid={Boolean(state.errors.deductions?.[0])}
           disabled={pending}
           onChange={(event) => setDeductionValue(event.target.value)}
+        />
+        <FieldError errors={state.errors.deductions} />
+      </label>
+      <label className="grid gap-1" htmlFor={attendanceDeductionInputId}>
+        <span className="text-muted-foreground text-xs">{t("attendanceDeductionApplied")}</span>
+        <Input
+          id={attendanceDeductionInputId}
+          value={attendanceDeductions}
+          readOnly
+          aria-label={t("attendanceDeductionApplied")}
         />
       </label>
       <Button type="submit" size="sm" variant="outline" disabled={pending}>
@@ -93,8 +127,14 @@ export function PayrollPayForm({ id }: { id: number }) {
       action={(formData) => {
         startTransition(async () => {
           try {
-            await markPayrollPaid(formData);
-            toast.success(t("payrollPaid"));
+            const result = await markPayrollPaid(formData);
+
+            if (result.ok) {
+              toast.success(result.message);
+              return;
+            }
+
+            toast.error(t("actionFailed"), { description: result.message });
           } catch (error) {
             toast.error(t("actionFailed"), { description: getErrorMessage(error) });
           }
@@ -105,6 +145,33 @@ export function PayrollPayForm({ id }: { id: number }) {
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? t("paying") : t("pay")}
       </Button>
+    </form>
+  );
+}
+
+export function PayrollGenerateForm({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("Dashboard.payroll");
+  const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<PayrollActionResult["errors"]>({});
+
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const result = await generatePayroll(formData);
+      setErrors(result.errors ?? {});
+
+      if (result.ok) {
+        toast.success(result.message);
+        return;
+      }
+
+      toast.error(t("actionFailed"), { description: result.message });
+    });
+  }
+
+  return (
+    <form action={submit} className="flex flex-wrap items-end gap-2" aria-busy={pending}>
+      {children}
+      <FieldError errors={errors?.month} />
     </form>
   );
 }

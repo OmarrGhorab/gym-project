@@ -10,10 +10,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { AttendanceDayPicker } from "./_components/attendance-day-picker";
+import { AttendanceWarningsTable } from "./_components/attendance-warnings-table";
 import { getAttendancePageData } from "./_components/data";
 
 type PageProps = {
-  searchParams: Promise<{ correction?: string; date?: string }>;
+  searchParams: Promise<{
+    correction?: string;
+    date?: string;
+    warning_employee_id?: string;
+    warning_page?: string;
+    warning_per_page?: string;
+    warning_status?: string;
+    warning_type?: string;
+  }>;
 };
 
 export default async function Page({ searchParams }: PageProps) {
@@ -23,7 +32,15 @@ export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const selectedDate = normalizeDate(resolvedSearchParams.date);
   const selectedMonth = selectedDate.slice(0, 7);
-  const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth });
+  const warningStatusParam = readParam(resolvedSearchParams.warning_status);
+  const warningFilters = {
+    employeeId: readParam(resolvedSearchParams.warning_employee_id),
+    page: readParam(resolvedSearchParams.warning_page) ?? "1",
+    perPage: readParam(resolvedSearchParams.warning_per_page) ?? "10",
+    status: warningStatusParam === "all" ? undefined : (warningStatusParam ?? "pending"),
+    type: readParam(resolvedSearchParams.warning_type),
+  };
+  const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth, warnings: warningFilters });
   const correctionRecordId = Number(resolvedSearchParams.correction);
   const correctionRecord = Number.isFinite(correctionRecordId)
     ? data.records.find((record) => record.id === correctionRecordId)
@@ -78,11 +95,24 @@ export default async function Page({ searchParams }: PageProps) {
         employees={data.employees}
         members={data.members}
         shifts={data.shifts}
+      />
+
+      <AttendanceWarningsTable
+        employees={data.employees}
+        filters={{
+          date: selectedDate,
+          employeeId: warningFilters.employeeId ?? "",
+          page: Number(warningFilters.page),
+          perPage: warningFilters.perPage,
+          status: warningStatusParam === "all" ? "all" : (warningFilters.status ?? "pending"),
+          type: warningFilters.type ?? "",
+        }}
+        meta={data.violationsMeta}
         violations={data.violations}
       />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-7">
+      <div className="grid grid-cols-1 gap-4">
+        <Card>
           <CardHeader>
             <CardTitle className="font-normal">{t("dailyStaffAttendance")}</CardTitle>
             <CardDescription>{t("dailyStaffDescription")}</CardDescription>
@@ -111,7 +141,7 @@ export default async function Page({ searchParams }: PageProps) {
                       </TableCell>
                       <TableCell>{record.date}</TableCell>
                       <TableCell>
-                        {record.check_in ?? "--"} / {record.check_out ?? "--"}
+                        {formatClockTime(record.check_in, locale)} / {formatClockTime(record.check_out, locale)}
                       </TableCell>
                       <TableCell>
                         <StatusBadge label={t(`statuses.${displayStatus}`)} value={displayStatus} />
@@ -139,37 +169,6 @@ export default async function Page({ searchParams }: PageProps) {
                   );
                 })}
                 {data.records.length === 0 ? <EmptyRow cols={6} label={t("noRecords")} /> : null}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card className="xl:col-span-5">
-          <CardHeader>
-            <CardTitle className="font-normal">{t("pendingWarnings")}</CardTitle>
-            <CardDescription>{t("pendingWarningsDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("employee")}</TableHead>
-                  <TableHead>{t("type")}</TableHead>
-                  <TableHead>{t("deduction")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.violations.map((violation) => (
-                  <TableRow key={violation.id}>
-                    <TableCell>
-                      <div className="font-medium">{violation.employee?.name ?? t("staff")}</div>
-                      <div className="text-muted-foreground text-xs">{violation.violation_date}</div>
-                    </TableCell>
-                    <TableCell>{violation.type}</TableCell>
-                    <TableCell>EGP {violation.deduction_amount}</TableCell>
-                  </TableRow>
-                ))}
-                {data.violations.length === 0 ? <EmptyRow cols={3} label={t("noWarnings")} /> : null}
               </TableBody>
             </Table>
           </CardContent>
@@ -228,8 +227,10 @@ export default async function Page({ searchParams }: PageProps) {
                 <TableHead>{t("present")}</TableHead>
                 <TableHead>{t("late")}</TableHead>
                 <TableHead>{t("absent")}</TableHead>
+                <TableHead>{t("offDays")}</TableHead>
                 <TableHead>{t("lateMinutes")}</TableHead>
                 <TableHead>{t("earlyLeave")}</TableHead>
+                <TableHead>{t("offDayBonus")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -242,11 +243,13 @@ export default async function Page({ searchParams }: PageProps) {
                   <TableCell>{numberFormatter.format(row.present_count)}</TableCell>
                   <TableCell>{numberFormatter.format(row.late_count)}</TableCell>
                   <TableCell>{numberFormatter.format(row.absent_count)}</TableCell>
+                  <TableCell>{numberFormatter.format(row.off_day_count)}</TableCell>
                   <TableCell>{formatDurationMinutes(row.late_minutes, locale)}</TableCell>
                   <TableCell>{formatDurationMinutes(row.early_leave_minutes, locale)}</TableCell>
+                  <TableCell>EGP {row.off_day_bonus_amount}</TableCell>
                 </TableRow>
               ))}
-              {data.summary.length === 0 ? <EmptyRow cols={6} label={t("noMonthlySummary")} /> : null}
+              {data.summary.length === 0 ? <EmptyRow cols={8} label={t("noMonthlySummary")} /> : null}
             </TableBody>
           </Table>
         </CardContent>
@@ -371,6 +374,22 @@ function formatDateTime(value: string | null, locale: string) {
   }).format(new Date(value));
 }
 
+function formatClockTime(value: string | null, locale: string) {
+  if (!value) {
+    return "--";
+  }
+
+  const [hours = "0", minutes = "0"] = value.split(":");
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  return new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+    hour12: true,
+    minute: "2-digit",
+  }).format(date);
+}
+
 function formatDurationMinutes(totalMinutes: number, locale: string) {
   const numberFormatter = new Intl.NumberFormat(locale);
   const minutes = Math.max(0, totalMinutes);
@@ -394,6 +413,12 @@ function normalizeDate(value: string | undefined) {
   }
 
   return new Date().toISOString().slice(0, 10);
+}
+
+function readParam(value: string | undefined) {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : undefined;
 }
 
 function toneClass(tone: "neutral" | "ready" | "warning" | "critical") {

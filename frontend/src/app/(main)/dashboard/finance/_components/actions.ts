@@ -2,29 +2,64 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
 export type FinanceActionResult =
   | {
       ok: true;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
     }
   | {
       ok: false;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
     };
 
-export async function createExpense(input: FormData): Promise<FinanceActionResult> {
-  const payload = {
-    amount: String(input.get("amount") ?? ""),
-    category: String(input.get("category") ?? ""),
-    date: String(input.get("date") ?? ""),
-    description: String(input.get("description") ?? ""),
-  };
+export type ExpenseFormState = {
+  errors: Partial<Record<string, string[]>>;
+  message?: string;
+  ok: boolean;
+  values: Record<string, string>;
+};
+
+const expenseInputSchema = z.object({
+  amount: z.coerce.number().positive("Amount must be greater than zero."),
+  category: z.string().trim().min(1, "Category is required.").max(100),
+  date: z.string().date("Date is required."),
+  description: z.string().trim().max(1000).optional().default(""),
+});
+
+const paymentInputSchema = z.object({
+  amount: z.coerce.number().positive("Amount must be greater than zero."),
+  method: z.enum(["cash", "card", "bank_transfer"], { error: "Choose a valid payment method." }),
+  paid_at: z.string().min(1).optional(),
+  subscription_id: z.coerce.number().int().positive("Subscription is required."),
+});
+
+export async function createExpense(_state: ExpenseFormState, input: FormData): Promise<ExpenseFormState> {
+  const values = getFormValues(input);
+  const parsed = expenseInputSchema.safeParse({
+    amount: input.get("amount"),
+    category: input.get("category"),
+    date: input.get("date"),
+    description: input.get("description"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Please review the highlighted fields.",
+      errors: parsed.error.flatten().fieldErrors,
+      values,
+    };
+  }
 
   try {
     await serverApiFetch("/expenses", {
-      body: JSON.stringify(payload),
+      body: JSON.stringify(parsed.data),
       headers: {
         "Content-Type": "application/json",
       },
@@ -34,6 +69,8 @@ export async function createExpense(input: FormData): Promise<FinanceActionResul
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Could not create expense.",
+      errors: {},
+      values,
     };
   }
 
@@ -42,7 +79,15 @@ export async function createExpense(input: FormData): Promise<FinanceActionResul
   return {
     ok: true,
     message: "Expense recorded.",
+    errors: {},
+    values: {},
   };
+}
+
+function getFormValues(input: FormData): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(input.entries()).map(([key, value]) => [key, typeof value === "string" ? value : ""]),
+  );
 }
 
 export async function updateExpense(input: FormData): Promise<FinanceActionResult> {
@@ -72,11 +117,26 @@ export async function deleteExpense(input: FormData): Promise<FinanceActionResul
 }
 
 export async function recordPayment(input: FormData): Promise<FinanceActionResult> {
-  const payload = {
-    amount: String(input.get("amount") ?? ""),
-    method: String(input.get("method") ?? "cash"),
+  const parsed = paymentInputSchema.safeParse({
+    amount: input.get("amount"),
+    method: input.get("method") ?? "cash",
     paid_at: String(input.get("paid_at") || new Date().toISOString()),
-    subscription_id: Number(input.get("subscription_id")),
+    subscription_id: input.get("subscription_id"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Please check the payment fields.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const payload = {
+    amount: String(parsed.data.amount),
+    method: parsed.data.method,
+    paid_at: parsed.data.paid_at || new Date().toISOString(),
+    subscription_id: parsed.data.subscription_id,
   };
 
   return mutateFinance("/payments", "POST", payload, "Payment recorded.");
@@ -112,6 +172,7 @@ async function mutateFinance(
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Action failed.",
+      errors: {},
     };
   }
 

@@ -123,6 +123,7 @@ final class AttendanceController extends ApiController
         $query = AttendanceViolation::query()
             ->with(['employee', 'rule'])
             ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
+            ->when($request->query('type'), fn ($query, $type) => $query->where('type', $type))
             ->when($request->query('employee_id'), fn ($query, $employeeId) => $query->where('employee_id', $employeeId))
             ->latest('violation_date');
 
@@ -167,11 +168,22 @@ final class AttendanceController extends ApiController
     public function reviewViolation(ReviewAttendanceViolationRequest $request, AttendanceViolation $attendanceViolation): JsonResponse
     {
         $data = $request->validated();
+        $deductionDays = $data['deduction_days'] ?? $attendanceViolation->deduction_days;
+        $deductionAmount = $data['deduction_amount'] ?? $attendanceViolation->deduction_amount;
+
+        if (! array_key_exists('deduction_amount', $data) && $data['status'] === 'approved') {
+            $attendanceViolation->loadMissing('employee');
+
+            if ($attendanceViolation->employee?->base_salary !== null) {
+                $dailySalary = bcdiv((string) $attendanceViolation->employee->base_salary, '30', 2);
+                $deductionAmount = bcmul($dailySalary, (string) $deductionDays, 2);
+            }
+        }
 
         $attendanceViolation->update([
             'status' => $data['status'],
-            'deduction_days' => $data['deduction_days'] ?? $attendanceViolation->deduction_days,
-            'deduction_amount' => $data['deduction_amount'] ?? $attendanceViolation->deduction_amount,
+            'deduction_days' => $deductionDays,
+            'deduction_amount' => $deductionAmount,
             'notes' => $data['notes'] ?? $attendanceViolation->notes,
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
@@ -234,8 +246,10 @@ final class AttendanceController extends ApiController
                 DB::raw("SUM(CASE WHEN attendance.status = 'late' THEN 1 ELSE 0 END) as late_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'excused' THEN 1 ELSE 0 END) as excused_count"),
+                DB::raw("SUM(CASE WHEN attendance.schedule_status = 'off_day' THEN 1 ELSE 0 END) as off_day_count"),
                 DB::raw('SUM(attendance.late_minutes) as late_minutes'),
                 DB::raw('SUM(attendance.early_leave_minutes) as early_leave_minutes'),
+                DB::raw('SUM(attendance.off_day_bonus_amount) as off_day_bonus_amount'),
             ])
             ->orderBy('employees.name');
 
@@ -251,8 +265,10 @@ final class AttendanceController extends ApiController
                 'late_count' => (int) $row->late_count,
                 'absent_count' => (int) $row->absent_count,
                 'excused_count' => (int) $row->excused_count,
+                'off_day_count' => (int) $row->off_day_count,
                 'late_minutes' => (int) $row->late_minutes,
                 'early_leave_minutes' => (int) $row->early_leave_minutes,
+                'off_day_bonus_amount' => number_format((float) $row->off_day_bonus_amount, 2, '.', ''),
             ])->values(),
             message: 'Attendance monthly summary retrieved',
         );

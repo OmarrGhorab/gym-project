@@ -21,7 +21,7 @@ class MemberVisitsExport implements FromQuery, WithHeadings, WithMapping
         $customRequest = new Request(['filter' => $this->normalizedFilters()]);
 
         return QueryBuilder::for($query, $customRequest)
-            ->allowedFilters([
+            ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),
                 AllowedFilter::callback('from', function ($query, string $value): void {
@@ -30,7 +30,7 @@ class MemberVisitsExport implements FromQuery, WithHeadings, WithMapping
                 AllowedFilter::callback('to', function ($query, string $value): void {
                     $query->where('check_in_at', '<=', "{$value} 23:59:59");
                 }),
-            ])
+            )
             ->allowedSorts('check_in_at', 'created_at')
             ->defaultSort('check_in_at');
     }

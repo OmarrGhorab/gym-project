@@ -2,6 +2,13 @@ import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
 
+export type PaginationMeta = {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
 export type AttendanceRecord = {
   id: number;
   employee_id: number;
@@ -22,6 +29,7 @@ export type AttendanceRecord = {
   notes: string | null;
   late_minutes: number;
   early_leave_minutes: number;
+  off_day_bonus_amount: string;
   check_in_location: {
     status: string | null;
     distance_meters: number | null;
@@ -38,8 +46,10 @@ export type AttendanceSummary = {
   late_count: number;
   absent_count: number;
   excused_count: number;
+  off_day_count: number;
   late_minutes: number;
   early_leave_minutes: number;
+  off_day_bonus_amount: string;
 };
 
 export type AttendanceViolation = {
@@ -48,10 +58,18 @@ export type AttendanceViolation = {
     name: string;
     role: string;
   };
+  rule?: {
+    id: number;
+    code: string;
+    name: string;
+    description: string | null;
+  };
   violation_date: string;
   type: string;
   minutes: number | null;
+  deduction_days: string;
   deduction_amount: string;
+  estimated_deduction_amount: string | null;
   status: string;
   notes: string | null;
 };
@@ -96,12 +114,45 @@ export type MemberVisitStationRow = {
   alert_reason: string | null;
 };
 
-export async function getAttendancePageData({ date, month }: { date: string; month: string }) {
+export type AttendanceWarningsQuery = {
+  employeeId?: string;
+  page?: string;
+  perPage?: string;
+  status?: string;
+  type?: string;
+};
+
+export async function getAttendancePageData({
+  date,
+  month,
+  warnings,
+}: {
+  date: string;
+  month: string;
+  warnings: AttendanceWarningsQuery;
+}) {
+  const warningParams = new URLSearchParams({
+    page: warnings.page ?? "1",
+    per_page: warnings.perPage ?? "10",
+  });
+
+  if (warnings.status) {
+    warningParams.set("status", warnings.status);
+  }
+
+  if (warnings.type) {
+    warningParams.set("type", warnings.type);
+  }
+
+  if (warnings.employeeId) {
+    warningParams.set("employee_id", warnings.employeeId);
+  }
+
   const [employees, members, memberVisits, records, shifts, summary, violations] = await Promise.all([
     safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/employees?filter[status]=active&per_page=100", []),
     safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
     safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
-      "/member-visits?sort=-check_in_at&page=1&per_page=8",
+      `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=8`,
       [],
     ),
     safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>(
@@ -110,8 +161,12 @@ export async function getAttendancePageData({ date, month }: { date: string; mon
     ),
     safeFetch<EmployeeShift[]>("/attendance/shifts", []),
     safeFetch<AttendanceSummary[]>(`/attendance/summary?month=${encodeURIComponent(month)}`, []),
-    safeFetch<AttendanceViolation[] | PaginatedData<AttendanceViolation>>("/attendance/violations?status=pending", []),
+    safeFetch<AttendanceViolation[] | PaginatedData<AttendanceViolation>>(
+      `/attendance/violations?${warningParams.toString()}`,
+      [],
+    ),
   ]);
+  const violationsList = unwrapList(violations);
 
   return {
     employees: unwrapList(employees),
@@ -120,7 +175,26 @@ export async function getAttendancePageData({ date, month }: { date: string; mon
     records: unwrapList(records).slice(0, 12),
     shifts,
     summary,
-    violations: unwrapList(violations).slice(0, 12),
+    violations: violationsList,
+    violationsMeta: paginationMeta(violations, violationsList.length),
+  };
+}
+
+function paginationMeta<T>(payload: T[] | PaginatedData<T>, fallbackTotal: number): PaginationMeta {
+  if (Array.isArray(payload)) {
+    return {
+      current_page: 1,
+      last_page: 1,
+      per_page: fallbackTotal,
+      total: fallbackTotal,
+    };
+  }
+
+  return {
+    current_page: Number(payload.meta?.current_page ?? 1),
+    last_page: Number(payload.meta?.last_page ?? 1),
+    per_page: Number(payload.meta?.per_page ?? fallbackTotal),
+    total: Number(payload.meta?.total ?? fallbackTotal),
   };
 }
 

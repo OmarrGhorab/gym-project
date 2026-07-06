@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useActionState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -20,11 +21,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createExpense } from "./actions";
+import { createExpense, type ExpenseFormState } from "./actions";
+
+const initialExpenseFormState: ExpenseFormState = {
+  errors: {},
+  ok: false,
+  values: {},
+};
 
 function formatDateString(date: Date) {
   return format(date, "yyyy-MM-dd");
@@ -40,19 +49,29 @@ function parseDateString(value: string) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function DatePickerField({ name }: { name: string }) {
+function DatePickerField({ error, name }: { error?: string; name: string }) {
   const t = useTranslations("Dashboard.finance");
   const locale = useLocale();
   const [value, setValue] = React.useState(formatDateString(new Date()));
   const selectedDate = parseDateString(value);
+  const errorId = React.useId();
 
   return (
     <div className="grid gap-2">
-      <span className="font-medium text-sm">{t("date")}</span>
+      <Label htmlFor={`${name}-date`} className="font-medium text-sm">
+        {t("date")}
+      </Label>
       <Popover>
         <PopoverTrigger
           render={
-            <Button type="button" variant="outline" className="w-full justify-between font-normal">
+            <Button
+              id={`${name}-date`}
+              type="button"
+              variant="outline"
+              className="w-full justify-between font-normal"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
+            >
               {selectedDate
                 ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(
                     selectedDate,
@@ -76,6 +95,7 @@ function DatePickerField({ name }: { name: string }) {
         </PopoverContent>
       </Popover>
       <input name={name} type="hidden" value={value} />
+      <FieldError id={errorId}>{error}</FieldError>
     </div>
   );
 }
@@ -84,22 +104,17 @@ export function RecordExpenseDialog() {
   const t = useTranslations("Dashboard.finance");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [pending, startTransition] = React.useTransition();
+  const [state, submit, pending] = useActionState(createExpense, initialExpenseFormState);
 
-  function submit(formData: FormData) {
-    startTransition(async () => {
-      const result = await createExpense(formData);
+  React.useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
 
-      if (result.ok) {
-        toast.success(result.message);
-        setOpen(false);
-        router.refresh();
-        return;
-      }
-
-      toast.error(t("expenseNotRecorded"), { description: result.message });
-    });
-  }
+    toast.success(state.message ?? t("saveExpense"));
+    setOpen(false);
+    router.refresh();
+  }, [router, state.message, state.ok, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -113,20 +128,54 @@ export function RecordExpenseDialog() {
           <DialogDescription>{t("recordExpenseDescription")}</DialogDescription>
         </DialogHeader>
         <form action={submit} className="grid gap-4">
+          {state.message && !state.ok ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
+              {state.message}
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <span className="font-medium text-sm">{t("category")}</span>
-              <Input name="category" required placeholder={t("categoryPlaceholder")} />
+              <Label htmlFor="expense-category" className="font-medium text-sm">
+                {t("category")}
+              </Label>
+              <Input
+                id="expense-category"
+                name="category"
+                required
+                placeholder={t("categoryPlaceholder")}
+                aria-invalid={Boolean(state.errors.category?.[0])}
+              />
+              <FieldError errors={state.errors.category} />
             </div>
             <div className="grid gap-2">
-              <span className="font-medium text-sm">{t("amount")}</span>
-              <Input name="amount" required type="number" min="0.01" step="0.01" placeholder="1500" />
+              <Label htmlFor="expense-amount" className="font-medium text-sm">
+                {t("amount")}
+              </Label>
+              <Input
+                id="expense-amount"
+                name="amount"
+                required
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="1500"
+                aria-invalid={Boolean(state.errors.amount?.[0])}
+              />
+              <FieldError errors={state.errors.amount} />
             </div>
           </div>
-          <DatePickerField name="date" />
+          <DatePickerField error={state.errors.date?.[0]} name="date" />
           <div className="grid gap-2">
-            <span className="font-medium text-sm">{t("description")}</span>
-            <Textarea name="description" placeholder={t("descriptionPlaceholder")} />
+            <Label htmlFor="expense-description" className="font-medium text-sm">
+              {t("description")}
+            </Label>
+            <Textarea
+              id="expense-description"
+              name="description"
+              placeholder={t("descriptionPlaceholder")}
+              aria-invalid={Boolean(state.errors.description?.[0])}
+            />
+            <FieldError errors={state.errors.description} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { format, parseISO } from "date-fns";
 import { ArrowRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -23,8 +25,13 @@ export function UpcomingEvents({ events }: { events: StaffAcademyEvent[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">{t("upcomingEvents")}</CardTitle>
-        <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          {t("viewCalendar")} <ArrowRight className="size-4" />
+        <CardAction>
+          <Link
+            href="/dashboard/calendar"
+            className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+          >
+            {t("viewCalendar")} <ArrowRight className="size-4" />
+          </Link>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

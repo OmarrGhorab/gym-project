@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useActionState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -21,7 +22,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,17 +34,42 @@ import {
   createProduct,
   createPurchaseOrder,
   deleteProduct,
+  type LogisticsActionResult,
   receivePurchaseOrder,
   toggleProduct,
   updateProduct,
 } from "./actions";
 import type { InventoryProduct, PurchaseOrder } from "./shipment-data";
 
-function Field({ children, label }: { children: React.ReactNode; label: string }) {
+const initialLogisticsActionState: LogisticsActionResult = {
+  errors: {},
+  message: "",
+  ok: true,
+  values: {},
+};
+
+function Field({
+  children,
+  error,
+  label,
+  name,
+}: {
+  children: React.ReactNode;
+  error?: string;
+  label: string;
+  name?: string;
+}) {
   return (
     <div className="grid gap-2">
-      <div className="font-medium text-sm">{label}</div>
+      {name ? (
+        <Label htmlFor={name} className="font-medium text-sm">
+          {label}
+        </Label>
+      ) : (
+        <div className="font-medium text-sm">{label}</div>
+      )}
       {children}
+      <FieldError errors={error ? [{ message: error }] : undefined} />
     </div>
   );
 }
@@ -68,18 +96,24 @@ function parseDateString(value: string) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function DatePickerField({ name }: { name: string }) {
+function DatePickerField({ error, name }: { error?: string; name: string }) {
   const t = useTranslations("Dashboard.logistics");
   const locale = useLocale();
   const [value, setValue] = React.useState("");
   const selectedDate = parseDateString(value);
 
   return (
-    <Field label={t("expectedDate")}>
+    <Field error={error} label={t("expectedDate")} name={name}>
       <Popover>
         <PopoverTrigger
           render={
-            <Button type="button" variant="outline" className="w-full justify-between font-normal">
+            <Button
+              id={name}
+              type="button"
+              variant="outline"
+              className="w-full justify-between font-normal"
+              aria-invalid={Boolean(error)}
+            >
               {formatDateLabel(value, locale, t("selectDate"))}
               <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
             </Button>
@@ -105,22 +139,23 @@ export function AddProductDialog() {
   const t = useTranslations("Dashboard.logistics");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [pending, startTransition] = React.useTransition();
+  const [state, submitAction, pending] = useActionState(
+    async (_state: LogisticsActionResult, formData: FormData) => createProduct(formData),
+    initialLogisticsActionState,
+  );
 
-  function submit(formData: FormData) {
-    startTransition(async () => {
-      const result = await createProduct(formData);
+  React.useEffect(() => {
+    if (!state.message) return;
 
-      if (result.ok) {
-        toast.success(result.message);
-        setOpen(false);
-        router.refresh();
-        return;
-      }
+    if (state.ok) {
+      toast.success(state.message);
+      setOpen(false);
+      router.refresh();
+      return;
+    }
 
-      toast.error(t("productNotCreated"), { description: result.message });
-    });
-  }
+    toast.error(t("productNotCreated"), { description: state.message });
+  }, [router, state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -133,34 +168,94 @@ export function AddProductDialog() {
           <DialogTitle>{t("addProductTitle")}</DialogTitle>
           <DialogDescription>{t("addProductDescription")}</DialogDescription>
         </DialogHeader>
-        <form action={submit} className="grid gap-4">
+        <form action={submitAction} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("name")}>
-              <Input name="name" required placeholder={t("namePlaceholder")} />
+            <Field error={state.errors?.name?.[0]} label={t("name")} name="product-name">
+              <Input
+                id="product-name"
+                name="name"
+                required
+                placeholder={t("namePlaceholder")}
+                aria-invalid={Boolean(state.errors?.name?.[0])}
+              />
             </Field>
-            <Field label={t("category")}>
-              <Input name="category" required placeholder={t("categoryPlaceholder")} />
+            <Field error={state.errors?.category?.[0]} label={t("category")} name="product-category">
+              <Input
+                id="product-category"
+                name="category"
+                required
+                placeholder={t("categoryPlaceholder")}
+                aria-invalid={Boolean(state.errors?.category?.[0])}
+              />
             </Field>
-            <Field label={t("sku")}>
-              <Input name="sku" required placeholder={t("skuPlaceholder")} />
+            <Field error={state.errors?.sku?.[0]} label={t("sku")} name="product-sku">
+              <Input
+                id="product-sku"
+                name="sku"
+                required
+                placeholder={t("skuPlaceholder")}
+                aria-invalid={Boolean(state.errors?.sku?.[0])}
+              />
             </Field>
-            <Field label={t("image")}>
+            <Field label={t("image")} name="product-image">
               <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
                 <ImagePlus className="size-4 text-muted-foreground" />
-                <Input name="image" type="file" accept="image/*" className="border-0 px-0 focus-visible:ring-0" />
+                <Input
+                  id="product-image"
+                  name="image"
+                  type="file"
+                  accept="image/*"
+                  className="border-0 px-0 focus-visible:ring-0"
+                />
               </div>
             </Field>
-            <Field label={t("salePrice")}>
-              <Input name="price" required type="number" min="0.01" step="0.01" placeholder="150" />
+            <Field error={state.errors?.price?.[0]} label={t("salePrice")} name="product-price">
+              <Input
+                id="product-price"
+                name="price"
+                required
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="150"
+                aria-invalid={Boolean(state.errors?.price?.[0])}
+              />
             </Field>
-            <Field label={t("cost")}>
-              <Input name="cost" required type="number" min="0" step="0.01" placeholder="90" />
+            <Field error={state.errors?.cost?.[0]} label={t("cost")} name="product-cost">
+              <Input
+                id="product-cost"
+                name="cost"
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="90"
+                aria-invalid={Boolean(state.errors?.cost?.[0])}
+              />
             </Field>
-            <Field label={t("openingStock")}>
-              <Input name="stock_quantity" type="number" min="0" defaultValue="0" />
+            <Field error={state.errors?.stock_quantity?.[0]} label={t("openingStock")} name="product-stock-quantity">
+              <Input
+                id="product-stock-quantity"
+                name="stock_quantity"
+                type="number"
+                min="0"
+                defaultValue="0"
+                aria-invalid={Boolean(state.errors?.stock_quantity?.[0])}
+              />
             </Field>
-            <Field label={t("lowStockThreshold")}>
-              <Input name="low_stock_threshold" type="number" min="0" defaultValue="5" />
+            <Field
+              error={state.errors?.low_stock_threshold?.[0]}
+              label={t("lowStockThreshold")}
+              name="product-low-stock-threshold"
+            >
+              <Input
+                id="product-low-stock-threshold"
+                name="low_stock_threshold"
+                type="number"
+                min="0"
+                defaultValue="5"
+                aria-invalid={Boolean(state.errors?.low_stock_threshold?.[0])}
+              />
             </Field>
           </div>
           <DialogFooter>
@@ -181,24 +276,25 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
   const t = useTranslations("Dashboard.logistics");
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [pending, startTransition] = React.useTransition();
+  const [state, submitAction, pending] = useActionState(
+    async (_state: LogisticsActionResult, formData: FormData) => createPurchaseOrder(formData),
+    initialLogisticsActionState,
+  );
   const safeProducts = products ?? [];
   const defaultProduct = safeProducts[0];
 
-  function submit(formData: FormData) {
-    startTransition(async () => {
-      const result = await createPurchaseOrder(formData);
+  React.useEffect(() => {
+    if (!state.message) return;
 
-      if (result.ok) {
-        toast.success(result.message);
-        setOpen(false);
-        router.refresh();
-        return;
-      }
+    if (state.ok) {
+      toast.success(state.message);
+      setOpen(false);
+      router.refresh();
+      return;
+    }
 
-      toast.error(t("purchaseOrderNotCreated"), { description: result.message });
-    });
-  }
+    toast.error(t("purchaseOrderNotCreated"), { description: state.message });
+  }, [router, state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -211,22 +307,43 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
           <DialogTitle>{t("createPurchaseOrder")}</DialogTitle>
           <DialogDescription>{t("createPurchaseOrderDescription")}</DialogDescription>
         </DialogHeader>
-        <form action={submit} className="grid gap-4">
-          <Field label={t("supplier")}>
-            <Input name="supplier_name" required placeholder={t("supplierPlaceholder")} />
+        <form action={submitAction} className="grid gap-4">
+          <Field error={state.errors?.supplier_name?.[0]} label={t("supplier")} name="po-supplier-name">
+            <Input
+              id="po-supplier-name"
+              name="supplier_name"
+              required
+              placeholder={t("supplierPlaceholder")}
+              aria-invalid={Boolean(state.errors?.supplier_name?.[0])}
+            />
           </Field>
-          <Field label={t("supplierPhone")}>
-            <Input name="supplier_phone" placeholder="+20..." />
+          <Field error={state.errors?.supplier_phone?.[0]} label={t("supplierPhone")} name="po-supplier-phone">
+            <Input
+              id="po-supplier-phone"
+              name="supplier_phone"
+              placeholder="+20..."
+              aria-invalid={Boolean(state.errors?.supplier_phone?.[0])}
+            />
           </Field>
-          <Field label={t("image")}>
+          <Field label={t("image")} name="po-image">
             <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
               <ImagePlus className="size-4 text-muted-foreground" />
-              <Input name="image" type="file" accept="image/*" className="border-0 px-0 focus-visible:ring-0" />
+              <Input
+                id="po-image"
+                name="image"
+                type="file"
+                accept="image/*"
+                className="border-0 px-0 focus-visible:ring-0"
+              />
             </div>
           </Field>
-          <Field label={t("product")}>
+          <Field error={state.errors?.product_id?.[0]} label={t("product")} name="po-product-id">
             <Select name="product_id" defaultValue={defaultProduct ? String(defaultProduct.id) : undefined}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger
+                id="po-product-id"
+                className="w-full"
+                aria-invalid={Boolean(state.errors?.product_id?.[0])}
+              >
                 <SelectValue placeholder={t("selectProduct")} />
               </SelectTrigger>
               <SelectContent>
@@ -241,23 +358,38 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
             </Select>
           </Field>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label={t("quantity")}>
-              <Input name="quantity_ordered" required type="number" min="1" defaultValue="1" />
-            </Field>
-            <Field label={t("unitCost")}>
+            <Field error={state.errors?.quantity_ordered?.[0]} label={t("quantity")} name="po-quantity-ordered">
               <Input
+                id="po-quantity-ordered"
+                name="quantity_ordered"
+                required
+                type="number"
+                min="1"
+                defaultValue="1"
+                aria-invalid={Boolean(state.errors?.quantity_ordered?.[0])}
+              />
+            </Field>
+            <Field error={state.errors?.unit_cost?.[0]} label={t("unitCost")} name="po-unit-cost">
+              <Input
+                id="po-unit-cost"
                 name="unit_cost"
                 required
                 type="number"
                 min="0"
                 step="0.01"
                 defaultValue={defaultProduct?.cost ?? "0"}
+                aria-invalid={Boolean(state.errors?.unit_cost?.[0])}
               />
             </Field>
-            <DatePickerField name="expected_at" />
+            <DatePickerField error={state.errors?.expected_at?.[0]} name="expected_at" />
           </div>
-          <Field label={t("notes")}>
-            <Textarea name="notes" placeholder={t("notesPlaceholder")} />
+          <Field error={state.errors?.notes?.[0]} label={t("notes")} name="po-notes">
+            <Textarea
+              id="po-notes"
+              name="notes"
+              placeholder={t("notesPlaceholder")}
+              aria-invalid={Boolean(state.errors?.notes?.[0])}
+            />
           </Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

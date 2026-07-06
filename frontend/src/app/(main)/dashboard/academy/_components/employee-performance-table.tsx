@@ -25,7 +25,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
   const t = useTranslations("Dashboard.academy");
 
   return (
-    <Card>
+    <Card id="employee-performance">
       <CardHeader>
         <CardTitle className="font-normal">{t("employeePerformance")}</CardTitle>
         <CardDescription>{t("employeePerformanceDescription")}</CardDescription>

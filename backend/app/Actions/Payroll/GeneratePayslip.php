@@ -37,16 +37,13 @@ class GeneratePayslip
 
             $violations = AttendanceViolation::query()
                 ->with('rule')
-                ->where(function ($query) use ($payroll): void {
-                    $query->where('payroll_id', $payroll->id);
-                    $query->orWhere(function ($query) use ($payroll): void {
-                        $query->where('employee_id', $payroll->employee_id)
-                            ->whereBetween('violation_date', [
-                                "{$payroll->month}-01",
-                                now()->parse("{$payroll->month}-01")->endOfMonth()->toDateString(),
-                            ]);
-                    });
-                })
+                ->where('employee_id', $payroll->employee_id)
+                ->whereBetween('violation_date', [
+                    "{$payroll->month}-01",
+                    now()->parse("{$payroll->month}-01")->endOfMonth()->toDateString(),
+                ])
+                ->orderBy('violation_date')
+                ->orderBy('id')
                 ->get();
             $payroll->setRelation('attendanceViolations', $violations);
 

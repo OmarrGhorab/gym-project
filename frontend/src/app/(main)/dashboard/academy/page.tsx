@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { ClipboardCheck, QrCode, ReceiptText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
@@ -25,15 +27,15 @@ export default async function Page() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:w-fit">
-          <Button size="sm">
+          <Button size="sm" nativeButton={false} render={<Link href="/dashboard/attendance" />}>
             <QrCode />
             {t("staffScan")}
           </Button>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/dashboard/attendance" />}>
             <ClipboardCheck />
             {t("reviewWarnings")}
           </Button>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/dashboard/payroll" />}>
             <ReceiptText />
             {t("payrollReceipts")}
           </Button>
@@ -51,14 +53,9 @@ export default async function Page() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="xl:col-span-8">
-          <PerformanceHighlights highlights={data.performance_highlights} />
-        </div>
-        <div className="xl:col-span-4">
-          <UpcomingEvents events={data.upcoming_events} />
-        </div>
-      </div>
+      <PerformanceHighlights highlights={data.performance_highlights} />
+
+      <UpcomingEvents events={data.upcoming_events} />
 
       <EmployeePerformanceTable rows={data.employeeRows} />
 

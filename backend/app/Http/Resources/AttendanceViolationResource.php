@@ -12,6 +12,13 @@ class AttendanceViolationResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        $estimatedDeductionAmount = null;
+
+        if ($this->relationLoaded('employee') && $this->employee?->base_salary !== null) {
+            $dailySalary = bcdiv((string) $this->employee->base_salary, '30', 2);
+            $estimatedDeductionAmount = bcmul($dailySalary, (string) $this->deduction_days, 2);
+        }
+
         return [
             'id' => $this->id,
             'employee_id' => $this->employee_id,
@@ -33,6 +40,9 @@ class AttendanceViolationResource extends JsonResource
             'minutes' => $this->minutes,
             'deduction_days' => number_format((float) $this->deduction_days, 2, '.', ''),
             'deduction_amount' => number_format((float) $this->deduction_amount, 2, '.', ''),
+            'estimated_deduction_amount' => $estimatedDeductionAmount !== null
+                ? number_format((float) $estimatedDeductionAmount, 2, '.', '')
+                : null,
             'status' => $this->status,
             'notes' => $this->notes,
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),

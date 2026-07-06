@@ -9,18 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { generatePayroll } from "./_components/actions";
 import { getPayrollPageData } from "./_components/data";
-import { PayrollAdjustmentForm, PayrollPayForm } from "./_components/payroll-action-forms";
+import { PayrollAdjustmentForm, PayrollGenerateForm, PayrollPayForm } from "./_components/payroll-action-forms";
 import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
-export default async function Page() {
+type PageProps = {
+  searchParams: Promise<{ month?: string }>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.payroll");
-  const rows = await getPayrollPageData();
+  const params = await searchParams;
+  const defaultMonth = normalizePayrollMonth(params.month);
+  const rows = await getPayrollPageData(defaultMonth);
   const pending = rows.filter((row) => row.status === "pending");
   const totalPending = pending.reduce((sum, row) => sum + Number(row.net_salary), 0);
   const attendanceDeductions = rows.reduce((sum, row) => sum + Number(row.attendance_deductions), 0);
-  const defaultMonth = format(new Date(), "yyyy-MM");
 
   return (
     <div className="flex flex-col gap-4">
@@ -29,7 +33,7 @@ export default async function Page() {
           <h1 className="text-3xl tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <form action={generatePayroll} className="flex flex-wrap items-end gap-2">
+        <PayrollGenerateForm>
           <div className="space-y-1">
             <Label htmlFor="month">{t("payrollMonth")}</Label>
             <PayrollMonthPicker defaultMonth={defaultMonth} />
@@ -38,7 +42,7 @@ export default async function Page() {
             <Banknote />
             {t("generate")}
           </Button>
-        </form>
+        </PayrollGenerateForm>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -96,7 +100,12 @@ export default async function Page() {
                     {formatCurrency(Number(row.attendance_deductions), { currency: "EGP", noDecimals: true })}
                   </TableCell>
                   <TableCell className="align-middle">
-                    <PayrollAdjustmentForm id={row.id} bonuses={row.bonuses} deductions={row.deductions} />
+                    <PayrollAdjustmentForm
+                      attendanceDeductions={row.attendance_deductions}
+                      bonuses={row.bonuses}
+                      deductions={row.deductions}
+                      id={row.id}
+                    />
                   </TableCell>
                   <TableCell className="text-end align-middle font-medium">
                     {formatCurrency(Number(row.net_salary), { currency: "EGP", noDecimals: true })}
@@ -151,4 +160,8 @@ function formatPayrollMonth(month: string) {
   const date = new Date(year, (monthIndex || 1) - 1, 1);
 
   return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(date);
+}
+
+function normalizePayrollMonth(month: string | undefined) {
+  return month && /^\d{4}-\d{2}$/.test(month) ? month : format(new Date(), "yyyy-MM");
 }

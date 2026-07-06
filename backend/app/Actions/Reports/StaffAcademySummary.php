@@ -193,11 +193,10 @@ final class StaffAcademySummary
             ])
             ->orderByDesc('attendance_count')
             ->orderByDesc('commissions_total')
-            ->limit(5)
             ->get();
 
-        return $rows->map(function ($row, int $index): array {
-            $score = min(100, max(20, ((int) $row->attendance_count * 6) + min(35, ((float) $row->commissions_total / 100)) - ((int) $row->warnings_count * 6)));
+        return $rows->map(function ($row): array {
+            $score = min(100, max(0, ((int) $row->attendance_count * 6) + min(35, ((float) $row->commissions_total / 100)) - ((int) $row->warnings_count * 6)));
 
             return [
                 'employee_id' => (int) $row->id,
@@ -208,8 +207,6 @@ final class StaffAcademySummary
                 'attendance_count' => (int) $row->attendance_count,
                 'commissions_total' => number_format((float) $row->commissions_total, 2, '.', ''),
                 'warnings_count' => (int) $row->warnings_count,
-                'start' => round(0.35 + ($index * 0.42), 2),
-                'duration' => round(1.35 + min(1.2, $score / 85), 2),
             ];
         })->values()->all();
     }
@@ -246,7 +243,7 @@ final class StaffAcademySummary
                 'type' => 'payroll',
             ]);
 
-        return $events->merge($pendingPayroll)
+        return $events->toBase()->merge($pendingPayroll->toBase())
             ->sortBy('date')
             ->take(5)
             ->values()

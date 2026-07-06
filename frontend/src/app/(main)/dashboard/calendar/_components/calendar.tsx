@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +45,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "./actions";
+import { type CalendarActionResult, createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "./actions";
 import type { CalendarEmployeeOption, CalendarEventType, OperationsCalendarEvent } from "./data";
 
 const views = [
@@ -316,6 +317,7 @@ function EventDialog({
 }) {
   const t = useTranslations("Dashboard.calendar");
   const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<Partial<Record<string, string[]>>>({});
   const isView = mode === "view";
   const editableEventId = typeof event?.id === "number" ? event.id : null;
   const submitLabel = pending ? t("saving") : getSubmitLabel(mode, t);
@@ -326,6 +328,8 @@ function EventDialog({
         mode === "edit" && editableEventId
           ? await updateCalendarEvent(editableEventId, formData)
           : await createCalendarEvent(formData);
+
+      setErrors(result.errors ?? {});
 
       if (result.ok) {
         toast.success(result.message);
@@ -367,7 +371,7 @@ function EventDialog({
           <GeneratedEventDetails event={event} locale={locale} />
         ) : (
           <form action={submit} className="grid gap-4">
-            <EventFormFields employees={employees} event={event} locale={locale} />
+            <EventFormFields employees={employees} errors={errors} event={event} locale={locale} />
             <DialogFooter>
               {mode === "edit" ? (
                 <Button type="button" variant="outline" disabled={pending} onClick={removeEvent}>
@@ -391,10 +395,12 @@ function EventDialog({
 
 function EventFormFields({
   employees,
+  errors,
   event,
   locale,
 }: {
   employees: CalendarEmployeeOption[];
+  errors: CalendarActionResult["errors"];
   event: OperationsCalendarEvent | null;
   locale: string;
 }) {
@@ -418,11 +424,14 @@ function EventFormFields({
             required
             defaultValue={event?.title ?? ""}
             placeholder={t("titlePlaceholder")}
+            aria-invalid={Boolean(errors?.title?.[0])}
           />
+          <FieldError errors={errors?.title} />
         </div>
 
         <div className="grid gap-2">
           <Label>{t("date")}</Label>
+          <FieldError errors={errors?.date} />
           <Popover>
             <PopoverTrigger
               render={<Button type="button" variant="outline" className="justify-start text-left font-normal" />}
@@ -439,7 +448,7 @@ function EventFormFields({
         <div className="grid gap-2">
           <Label htmlFor="calendar-type">{t("type")}</Label>
           <Select defaultValue={event?.type ?? "manual"} name="type">
-            <SelectTrigger id="calendar-type" className="w-full">
+            <SelectTrigger id="calendar-type" className="w-full" aria-invalid={Boolean(errors?.type?.[0])}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -452,22 +461,23 @@ function EventFormFields({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <FieldError errors={errors?.type} />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-start">{t("startTime")}</Label>
-          <FormTimePicker name="start_time" defaultValue={timeValue(event?.start)} />
+          <FormTimePicker name="start_time" defaultValue={timeValue(event?.start)} error={errors?.start_time?.[0]} />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-end">{t("endTime")}</Label>
-          <FormTimePicker name="end_time" defaultValue={timeValue(event?.end)} />
+          <FormTimePicker name="end_time" defaultValue={timeValue(event?.end)} error={errors?.end_time?.[0]} />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-status">{t("status")}</Label>
           <Select defaultValue={event?.status ?? "scheduled"} name="status">
-            <SelectTrigger id="calendar-status" className="w-full">
+            <SelectTrigger id="calendar-status" className="w-full" aria-invalid={Boolean(errors?.status?.[0])}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -480,6 +490,7 @@ function EventFormFields({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <FieldError errors={errors?.status} />
         </div>
 
         <div className="grid gap-2">
@@ -488,7 +499,11 @@ function EventFormFields({
             defaultValue={event?.assigned_employee?.id ? String(event.assigned_employee.id) : "none"}
             name="assigned_employee_id"
           >
-            <SelectTrigger id="calendar-employee" className="w-full">
+            <SelectTrigger
+              id="calendar-employee"
+              className="w-full"
+              aria-invalid={Boolean(errors?.assigned_employee_id?.[0])}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -502,6 +517,7 @@ function EventFormFields({
               </SelectGroup>
             </SelectContent>
           </Select>
+          <FieldError errors={errors?.assigned_employee_id} />
         </div>
 
         <div className="grid gap-2 sm:col-span-2">
@@ -511,7 +527,9 @@ function EventFormFields({
             name="location"
             defaultValue={event?.location ?? ""}
             placeholder={t("locationPlaceholder")}
+            aria-invalid={Boolean(errors?.location?.[0])}
           />
+          <FieldError errors={errors?.location} />
         </div>
 
         <div className="grid gap-2 sm:col-span-2">
@@ -521,7 +539,9 @@ function EventFormFields({
             name="notes"
             defaultValue={event?.notes ?? ""}
             placeholder={t("notesPlaceholder")}
+            aria-invalid={Boolean(errors?.notes?.[0])}
           />
+          <FieldError errors={errors?.notes} />
         </div>
       </div>
     </>

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Attendance;
 
 use App\Support\HrFinancePermissions;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateAttendanceViolationRuleRequest extends FormRequest
 {
@@ -15,7 +16,14 @@ class UpdateAttendanceViolationRuleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:160'],
+            'name' => ['sometimes', 'required', 'string', Rule::in([
+                'Late more than 15 minutes',
+                'Late more than 30 minutes',
+                'Late more than 60 minutes',
+                'Absence without approval',
+                'Leaving before shift end',
+                'Attendance outside assigned shift',
+            ])],
             'description' => ['nullable', 'string', 'max:2000'],
             'threshold_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
             'deduction_days' => ['sometimes', 'required', 'numeric', 'min:0', 'max:30'],

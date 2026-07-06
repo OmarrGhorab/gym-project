@@ -116,6 +116,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
             <div className="flex items-center gap-2">
               <Input
                 className="h-7 w-44 md:w-52"
+                aria-label={t("searchMembers")}
                 placeholder={t("searchMembers")}
                 value={searchQuery}
                 onChange={(event) => {

@@ -55,6 +55,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
@@ -765,6 +766,7 @@ function CreateTaskDialog({
 }) {
   const t = useTranslations("Dashboard.tasks");
   const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<Partial<Record<string, string[]>>>({});
   const [selectedEmployeeId, setSelectedEmployeeId] = React.useState("none");
   const [dueDate, setDueDate] = React.useState<Date | undefined>();
   const selectedEmployee = employees.find((employee) => String(employee.id) === selectedEmployeeId);
@@ -776,6 +778,8 @@ function CreateTaskDialog({
 
     startTransition(async () => {
       const result = await createGymTask(formData);
+
+      setErrors(result.errors ?? {});
 
       if (result.ok) {
         if (result.task) {
@@ -803,18 +807,42 @@ function CreateTaskDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="task-title">{t("titleField")}</Label>
-              <Input id="task-title" name="title" required placeholder={t("titlePlaceholder")} />
+              <Input
+                id="task-title"
+                name="title"
+                required
+                placeholder={t("titlePlaceholder")}
+                aria-invalid={Boolean(errors.title?.[0])}
+              />
+              <FieldError errors={errors.title} />
             </div>
             <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="task-description">{t("descriptionField")}</Label>
-              <Textarea id="task-description" name="description" placeholder={t("descriptionPlaceholder")} />
+              <Textarea
+                id="task-description"
+                name="description"
+                placeholder={t("descriptionPlaceholder")}
+                aria-invalid={Boolean(errors.description?.[0])}
+              />
+              <FieldError errors={errors.description} />
             </div>
-            <TaskSelect name="status" label={t("status")} options={getStatusOptions(t)} />
-            <TaskSelect name="priority" label={t("priority")} options={getPriorityOptions(t)} />
-            <TaskSelect name="category" label={t("category")} options={getCategoryOptions(t)} />
+            <TaskSelect name="status" error={errors.status?.[0]} label={t("status")} options={getStatusOptions(t)} />
+            <TaskSelect
+              name="priority"
+              error={errors.priority?.[0]}
+              label={t("priority")}
+              options={getPriorityOptions(t)}
+            />
+            <TaskSelect
+              name="category"
+              error={errors.category?.[0]}
+              label={t("category")}
+              options={getCategoryOptions(t)}
+            />
             <div className="grid gap-2">
               <Label>{t("dueDate")}</Label>
               <input name="due_date" type="hidden" value={dueDateValue} />
+              <FieldError errors={errors.due_date} />
               <Popover>
                 <PopoverTrigger
                   render={<Button type="button" variant="outline" className="justify-start text-left font-normal" />}
@@ -834,7 +862,11 @@ function CreateTaskDialog({
                 onValueChange={(value) => value && setSelectedEmployeeId(value)}
                 name="assigned_employee_id"
               >
-                <SelectTrigger id="task-employee" className="w-full">
+                <SelectTrigger
+                  id="task-employee"
+                  className="w-full"
+                  aria-invalid={Boolean(errors.assigned_employee_id?.[0])}
+                >
                   <span className="truncate">{selectedEmployee ? selectedEmployee.name : t("noEmployee")}</span>
                 </SelectTrigger>
                 <SelectContent>
@@ -848,6 +880,7 @@ function CreateTaskDialog({
                   </SelectGroup>
                 </SelectContent>
               </Select>
+              <FieldError errors={errors.assigned_employee_id} />
             </div>
           </div>
           <DialogFooter>
@@ -865,10 +898,12 @@ function CreateTaskDialog({
 }
 
 function TaskSelect({
+  error,
   label,
   name,
   options,
 }: {
+  error?: string;
   label: string;
   name: string;
   options: readonly { label: string; value: string }[];
@@ -877,7 +912,7 @@ function TaskSelect({
     <div className="grid gap-2">
       <Label htmlFor={`task-${name}`}>{label}</Label>
       <Select defaultValue={options[0]?.value} name={name}>
-        <SelectTrigger id={`task-${name}`} className="w-full">
+        <SelectTrigger id={`task-${name}`} className="w-full" aria-invalid={Boolean(error)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -890,6 +925,7 @@ function TaskSelect({
           </SelectGroup>
         </SelectContent>
       </Select>
+      <FieldError errors={error ? [error] : undefined} />
     </div>
   );
 }

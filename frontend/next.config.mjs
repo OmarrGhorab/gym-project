@@ -11,7 +11,7 @@ const nextConfig = {
         pathname: "/api/media/products/**",
       },
       {
-        pathname: "/authentication-img.jpeg",
+        pathname: "/authentication-img.png",
       },
       {
         pathname: "/logo-noBG.png",

@@ -13,10 +13,12 @@ export type PosActionResult =
   | {
       ok: true;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
     }
   | {
       ok: false;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
     };
 
 const optionalNumberInput = z.preprocess((value) => {
@@ -162,6 +164,7 @@ function revalidatePos() {
 function invalidActionResult(error: z.ZodError): PosActionResult {
   return {
     ok: false,
+    errors: error.flatten().fieldErrors,
     message: error.issues[0]?.message ?? "Please check the form fields.",
   };
 }

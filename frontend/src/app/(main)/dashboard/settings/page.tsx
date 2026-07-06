@@ -1,6 +1,6 @@
 import type * as React from "react";
 
-import { Clock3, MapPinned, Palette, ShieldAlert } from "lucide-react";
+import { Clock3, MapPinned, ShieldAlert } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
 import { deactivateShift, saveShift, updateSettings, updateViolationRule } from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
+import { SettingsActionButton, SettingsActionForm } from "./_components/settings-action-form";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.settings");
@@ -37,33 +39,7 @@ export default async function Page() {
         </Badge>
       </div>
 
-      <form action={updateSettings} className="grid grid-cols-1 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-normal">
-              <Palette className="size-4" />
-              {t("gymProfile")}
-            </CardTitle>
-            <CardDescription>{t("gymProfileDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <Field label={t("gymName")} name="gym.name" defaultValue={settings.gym.name} />
-            <Field label={t("currency")} name="currency" defaultValue={settings.currency} />
-            <Field label={t("primaryColor")} name="gym.colors.primary" defaultValue={settings.gym.colors.primary} />
-            <Field
-              label={t("secondaryColor")}
-              name="gym.colors.secondary"
-              defaultValue={settings.gym.colors.secondary}
-            />
-            <Field label={t("reminderDays")} name="reminder_days" type="number" defaultValue={settings.reminder_days} />
-            <Field label={t("vatRate")} name="vat_rate" type="number" step="0.01" defaultValue={settings.vat_rate} />
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="receipt_template">{t("receiptTemplate")}</Label>
-              <Textarea id="receipt_template" name="receipt_template" defaultValue={settings.receipt_template} />
-            </div>
-          </CardContent>
-        </Card>
-
+      <SettingsActionForm action={updateSettings} className="grid grid-cols-1 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
@@ -99,12 +75,13 @@ export default async function Page() {
               type="number"
               defaultValue={settings.attendance.default_grace_minutes}
             />
+            <Field label={t("reminderDays")} name="reminder_days" type="number" defaultValue={settings.reminder_days} />
             <Button type="submit" className="w-full">
               {t("saveSettings")}
             </Button>
           </CardContent>
         </Card>
-      </form>
+      </SettingsActionForm>
 
       <div className="grid grid-cols-1 gap-4">
         <Card>
@@ -122,6 +99,8 @@ export default async function Page() {
                   <TableHead>{t("name")}</TableHead>
                   <TableHead>{t("time")}</TableHead>
                   <TableHead>{t("grace")}</TableHead>
+                  <TableHead>{t("offDays")}</TableHead>
+                  <TableHead>{t("offDayBonus")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -131,6 +110,10 @@ export default async function Page() {
                     <TableCell className="font-medium">{shift.name}</TableCell>
                     <TableCell>{formatShiftTimeRange(shift.starts_at, shift.ends_at)}</TableCell>
                     <TableCell>{t("minutesShort", { count: shift.grace_minutes })}</TableCell>
+                    <TableCell>{formatOffDays(shift.off_days, t)}</TableCell>
+                    <TableCell>
+                      {shift.off_day_bonus_enabled ? `EGP ${shift.off_day_bonus_amount}` : t("none")}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{shift.is_active ? t("active") : t("inactive")}</Badge>
                     </TableCell>
@@ -138,7 +121,7 @@ export default async function Page() {
                 ))}
                 {shifts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       {t("noShifts")}
                     </TableCell>
                   </TableRow>
@@ -147,9 +130,9 @@ export default async function Page() {
             </Table>
             <div className="mt-4 grid gap-3 rounded-lg border p-3">
               <p className="text-muted-foreground text-xs">{t("shiftFormHint")}</p>
-              <form
+              <SettingsActionForm
                 action={saveShift}
-                className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(15rem,1.4fr)_minmax(15rem,1.4fr)_minmax(9rem,1fr)_minmax(6rem,auto)]"
+                className="grid items-end gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(14rem,1.15fr)_minmax(10rem,1fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
               >
                 <input type="hidden" name="id" value="0" />
                 <CompactField label={t("shiftName")}>
@@ -169,19 +152,22 @@ export default async function Page() {
                     defaultValue={settings.attendance.default_grace_minutes}
                   />
                 </CompactField>
+                <ShiftPolicyFields offDays={[]} bonusEnabled={false} bonusAmount="0.00" t={t} />
                 <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
                   <Checkbox id="new-shift-active" name="is_active" defaultChecked />
                   <Label htmlFor="new-shift-active">{t("active")}</Label>
                 </div>
-                <Button type="submit" className="lg:col-span-2 2xl:col-span-5">
-                  {t("createShift")}
-                </Button>
-              </form>
+                <div className="flex justify-end lg:col-span-2 2xl:col-span-1">
+                  <Button type="submit" className="min-w-24">
+                    {t("createShift")}
+                  </Button>
+                </div>
+              </SettingsActionForm>
               {shifts.map((shift) => (
-                <form
+                <SettingsActionForm
                   key={`edit-${shift.id}`}
                   action={saveShift}
-                  className="grid gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(15rem,1.4fr)_minmax(15rem,1.4fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(6rem,auto)]"
+                  className="grid items-end gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(14rem,1.15fr)_minmax(10rem,1fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
                 >
                   <input type="hidden" name="id" value={shift.id} />
                   <CompactField label={t("shiftName")}>
@@ -196,6 +182,13 @@ export default async function Page() {
                   <CompactField label={t("graceMinutes")}>
                     <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
                   </CompactField>
+                  <ShiftPolicyFields
+                    offDays={shift.off_days}
+                    bonusEnabled={shift.off_day_bonus_enabled}
+                    bonusAmount={shift.off_day_bonus_amount}
+                    t={t}
+                    shiftId={shift.id}
+                  />
                   <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
                     <Checkbox id={`shift-${shift.id}-active`} name="is_active" defaultChecked={shift.is_active} />
                     <Label htmlFor={`shift-${shift.id}-active`}>{t("active")}</Label>
@@ -204,11 +197,11 @@ export default async function Page() {
                     <Button type="submit" size="sm" className="min-w-16">
                       {t("save")}
                     </Button>
-                    <Button formAction={deactivateShift} type="submit" size="sm" variant="outline" className="min-w-24">
+                    <SettingsActionButton action={deactivateShift} formData={{ id: String(shift.id) }}>
                       {t("deactivate")}
-                    </Button>
+                    </SettingsActionButton>
                   </div>
-                </form>
+                </SettingsActionForm>
               ))}
             </div>
           </CardContent>
@@ -257,10 +250,14 @@ export default async function Page() {
             </Table>
             <div className="mt-4 grid gap-3">
               {rules.map((rule) => (
-                <form key={`rule-${rule.id}`} action={updateViolationRule} className="grid gap-3 rounded-lg border p-3">
+                <SettingsActionForm
+                  key={`rule-${rule.id}`}
+                  action={updateViolationRule}
+                  className="grid gap-3 rounded-lg border p-3"
+                >
                   <input type="hidden" name="id" value={rule.id} />
                   <div className="grid gap-3 md:grid-cols-2">
-                    <Field label={t("ruleName")} name="name" defaultValue={rule.name} />
+                    <RuleNameSelect defaultValue={rule.name} label={t("ruleName")} />
                     <Field
                       label={t("threshold")}
                       name="threshold_minutes"
@@ -305,7 +302,7 @@ export default async function Page() {
                   <Button type="submit" size="sm">
                     {t("saveRule")}
                   </Button>
-                </form>
+                </SettingsActionForm>
               ))}
             </div>
           </CardContent>
@@ -322,6 +319,116 @@ function CompactField({ children, label }: { children: React.ReactNode; label: s
       {children}
     </div>
   );
+}
+
+function RuleNameSelect({ defaultValue, label }: { defaultValue: string; label: string }) {
+  const value = attendanceRuleOptions.includes(defaultValue as (typeof attendanceRuleOptions)[number])
+    ? defaultValue
+    : attendanceRuleOptions[0];
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Select name="name" defaultValue={value}>
+        <SelectTrigger>
+          <SelectValue placeholder={label} />
+        </SelectTrigger>
+        <SelectContent align="start" alignItemWithTrigger={false} collisionAvoidance={{ side: "none" }} side="bottom">
+          <SelectGroup>
+            {attendanceRuleOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+const weekDays = [
+  { labelKey: "weekdays.sun", value: 0 },
+  { labelKey: "weekdays.mon", value: 1 },
+  { labelKey: "weekdays.tue", value: 2 },
+  { labelKey: "weekdays.wed", value: 3 },
+  { labelKey: "weekdays.thu", value: 4 },
+  { labelKey: "weekdays.fri", value: 5 },
+  { labelKey: "weekdays.sat", value: 6 },
+] as const;
+
+const attendanceRuleOptions = [
+  "Late more than 15 minutes",
+  "Late more than 30 minutes",
+  "Late more than 60 minutes",
+  "Absence without approval",
+  "Leaving before shift end",
+  "Attendance outside assigned shift",
+] as const;
+
+function ShiftPolicyFields({
+  bonusAmount,
+  bonusEnabled,
+  offDays,
+  shiftId = "new",
+  t,
+}: {
+  bonusAmount: string;
+  bonusEnabled: boolean;
+  offDays: number[];
+  shiftId?: number | "new";
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <>
+      <CompactField label={t("offDays")}>
+        <div className="flex min-h-9 flex-wrap gap-2 rounded-md border px-2 py-1.5">
+          {weekDays.map((day) => {
+            const id = `shift-${shiftId}-off-day-${day.value}`;
+
+            return (
+              <label className="flex cursor-pointer items-center gap-1 text-xs" htmlFor={id} key={day.value}>
+                <Checkbox
+                  id={id}
+                  name="off_days"
+                  value={String(day.value)}
+                  defaultChecked={offDays.includes(day.value)}
+                />
+                <span>{t(day.labelKey)}</span>
+              </label>
+            );
+          })}
+        </div>
+      </CompactField>
+      <CompactField label={t("offDayBonus")}>
+        <div className="grid gap-2">
+          <label
+            htmlFor={`shift-${shiftId}-off-day-bonus-enabled`}
+            className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm"
+          >
+            <Checkbox
+              id={`shift-${shiftId}-off-day-bonus-enabled`}
+              name="off_day_bonus_enabled"
+              defaultChecked={bonusEnabled}
+            />
+            <span>{t("bonusIfAttendOffDay")}</span>
+          </label>
+          <Input name="off_day_bonus_amount" type="number" min={0} step="0.01" defaultValue={bonusAmount} />
+        </div>
+      </CompactField>
+    </>
+  );
+}
+
+function formatOffDays(days: number[], t: Awaited<ReturnType<typeof getTranslations>>) {
+  if (days.length === 0) {
+    return t("none");
+  }
+
+  return weekDays
+    .filter((day) => days.includes(day.value))
+    .map((day) => t(day.labelKey))
+    .join(", ");
 }
 
 function formatShiftTimeRange(startsAt: string, endsAt: string) {

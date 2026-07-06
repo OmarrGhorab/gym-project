@@ -28,6 +28,28 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
         return QueryBuilder::for($query, $customRequest)
             ->allowedFilters(
                 AllowedFilter::exact('status'),
+                AllowedFilter::callback('subscription_status', function ($query, string $value): void {
+                    if ($value === 'none') {
+                        $query->whereDoesntHave('subscriptions');
+
+                        return;
+                    }
+
+                    $query->whereHas('subscriptions', function ($subscriptionQuery) use ($value): void {
+                        $subscriptionQuery->where('status', $value);
+                    });
+                }),
+                AllowedFilter::callback('qr', function ($query, string $value): void {
+                    if ($value === 'ready') {
+                        $query->whereNotNull('attendance_code');
+
+                        return;
+                    }
+
+                    if ($value === 'missing') {
+                        $query->whereNull('attendance_code');
+                    }
+                }),
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
                     $query->where(function ($q) use ($value): void {

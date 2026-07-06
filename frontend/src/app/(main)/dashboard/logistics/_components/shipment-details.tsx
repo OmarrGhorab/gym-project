@@ -324,6 +324,7 @@ function Activity({ data, order }: { data: InventoryLogisticsData; order: Purcha
         <div className="relative max-w-sm flex-1">
           <Input
             className="h-8 pl-8 text-xs"
+            aria-label={t("searchActivity")}
             placeholder={t("searchActivity")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useActionState } from "react";
 
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -27,9 +28,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FieldError } from "@/components/ui/field";
 import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { PlanRow } from "../../plans/_components/data";
@@ -44,6 +46,19 @@ import {
 } from "./actions";
 import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
 import { MemberDetailsDialog } from "./member-details-dialog";
+
+type MemberFormState = {
+  errors: Partial<Record<string, string[]>>;
+  message?: string;
+  ok: boolean;
+  values: Record<string, string>;
+};
+
+const initialMemberFormState: MemberFormState = {
+  errors: {},
+  ok: false,
+  values: {},
+};
 
 type ActionResult = {
   label: string;
@@ -80,10 +95,6 @@ export function AddMemberDialog() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [open, setOpen] = React.useState(false);
-  const { pending, submit } = useActionSubmit(
-    { label: t("createMember"), run: createMember, success: t("memberCreated") },
-    () => setOpen(false),
-  );
   const shouldOpenFromQuery = searchParams.get("create") === "member";
 
   React.useEffect(() => {
@@ -110,11 +121,11 @@ export function AddMemberDialog() {
         {t("addMember")}
       </DialogTrigger>
       <MemberFormContent
+        action={createMember}
         description={t("addMemberDescription")}
-        pending={pending}
-        submit={submit}
         submitLabel={t("createMember")}
         title={t("addMemberTitle")}
+        onSuccess={() => setOpen(false)}
       />
     </Dialog>
   );
@@ -123,21 +134,17 @@ export function AddMemberDialog() {
 export function EditMemberDialog({ member }: { member: MemberRow }) {
   const t = useTranslations("Dashboard.membersPage");
   const [open, setOpen] = React.useState(false);
-  const { pending, submit } = useActionSubmit(
-    { label: t("updateMember"), run: updateMember, success: t("memberUpdated") },
-    () => setOpen(false),
-  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button type="button" className="sr-only" />}>{t("editMember")}</DialogTrigger>
       <MemberFormContent
+        action={updateMember}
         description={t("editMemberDescription")}
         member={member}
-        pending={pending}
-        submit={submit}
         submitLabel={t("saveChanges")}
         title={t("editMember")}
+        onSuccess={() => setOpen(false)}
       />
     </Dialog>
   );
@@ -286,20 +293,16 @@ function EditMemberControlledDialog({
   open: boolean;
 }) {
   const t = useTranslations("Dashboard.membersPage");
-  const { pending, submit } = useActionSubmit(
-    { label: t("updateMember"), run: updateMember, success: t("memberUpdated") },
-    () => onOpenChange(false),
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <MemberFormContent
+        action={updateMember}
         description={t("editMemberDescription")}
         member={member}
-        pending={pending}
-        submit={submit}
         submitLabel={t("saveChanges")}
         title={t("editMember")}
+        onSuccess={() => onOpenChange(false)}
       />
     </Dialog>
   );
@@ -358,101 +361,18 @@ function MemberSubscriptionDialog({
   plans: PlanRow[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
-  const initialPlan = plans[0];
-  const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
-  const [startDate, setStartDate] = React.useState("");
-  const [discount, setDiscount] = React.useState("0");
-  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
-  const endDate = selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
-  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, discount) : "";
-  const { pending, submit } = useActionSubmit(
-    { label: t("addSubscription"), run: createMemberSubscription, success: t("subscriptionAdded") },
-    () => {
-      onOpenChange(false);
-      setStartDate("");
-      setDiscount("0");
-    },
-  );
-
-  React.useEffect(() => {
-    if (!open) {
-      setSelectedPlanId(initialPlan ? String(initialPlan.id) : "");
-      setStartDate("");
-      setDiscount("0");
-    }
-  }, [initialPlan, open]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{t("addSubscription")}</DialogTitle>
-          <DialogDescription>{t("addSubscriptionDescription", { name: member.name })}</DialogDescription>
-        </DialogHeader>
-        <form action={submit} className="grid gap-4">
-          <input type="hidden" name="member_id" value={member.id} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2 sm:col-span-2">
-              <span className="font-medium text-sm">{t("plan")}</span>
-              <FormSelect
-                name="plan_id"
-                defaultValue={selectedPlanId}
-                onValueChange={setSelectedPlanId}
-                required
-                placeholder={t("selectPlan")}
-                options={plans.map((plan) => ({
-                  value: String(plan.id),
-                  label: `${plan.name} - ${plan.price} EGP`,
-                }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <span className="font-medium text-sm">{t("startDate")}</span>
-              <FormDatePicker name="start_date" placeholder={t("selectDate")} required onValueChange={setStartDate} />
-            </div>
-            <div className="grid gap-2">
-              <span className="font-medium text-sm">{t("endDate")}</span>
-              <input type="hidden" name="end_date" value={endDate} />
-              <Input value={endDate || t("selectDate")} readOnly aria-readonly="true" />
-            </div>
-            <Field
-              label={t("paymentAmount")}
-              name="payment_amount"
-              required
-              type="number"
-              value={paymentAmount}
-              readOnly
-            />
-            <div className="grid gap-2">
-              <span className="font-medium text-sm">{t("paymentMethod")}</span>
-              <FormSelect
-                name="payment_method"
-                defaultValue="cash"
-                options={[
-                  { value: "cash", label: t("cash") },
-                  { value: "card", label: t("card") },
-                  { value: "bank_transfer", label: t("bankTransfer") },
-                ]}
-              />
-            </div>
-            <Field
-              label={t("discount")}
-              name="discount"
-              type="number"
-              value={discount}
-              onChange={(event) => setDiscount(event.currentTarget.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("cancel")}
-            </Button>
-            <Button type="submit" disabled={pending || plans.length === 0}>
-              {pending ? t("saving") : t("addSubscription")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+      <SubscriptionFormContent
+        action={createMemberSubscription}
+        member={member}
+        onCancel={() => onOpenChange(false)}
+        plans={plans}
+        submitLabel={t("addSubscription")}
+        title={t("addSubscription")}
+        description={t("addSubscriptionDescription", { name: member.name })}
+        kind="create"
+      />
     </Dialog>
   );
 }
@@ -469,104 +389,183 @@ function MemberChangePlanDialog({
   plans: PlanRow[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
-  const initialPlan = plans[0];
-  const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
-  const [discount, setDiscount] = React.useState("0");
-  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
-  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, discount) : "";
-  const currentSubscription = member.latest_subscription;
-  const { pending, submit } = useActionSubmit(
-    { label: t("changePlan"), run: changeMemberPlan, success: t("planChanged") },
-    () => {
-      onOpenChange(false);
-      setDiscount("0");
-    },
-  );
-
-  React.useEffect(() => {
-    if (!open) {
-      setSelectedPlanId(initialPlan ? String(initialPlan.id) : "");
-      setDiscount("0");
-    }
-  }, [initialPlan, open]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{t("changePlan")}</DialogTitle>
-          <DialogDescription>
-            {t("changePlanDescription", {
-              name: member.name,
-              plan: member.latest_subscription?.plan_name ?? t("noActivePlan"),
-            })}
-          </DialogDescription>
-        </DialogHeader>
-        <form action={submit} className="grid gap-4">
+      <SubscriptionFormContent
+        action={changeMemberPlan}
+        member={member}
+        onCancel={() => onOpenChange(false)}
+        plans={plans}
+        submitLabel={t("changePlan")}
+        title={t("changePlan")}
+        description={t("changePlanDescription", {
+          name: member.name,
+          plan: member.latest_subscription?.plan_name ?? t("noActivePlan"),
+        })}
+        kind="change"
+      />
+    </Dialog>
+  );
+}
+
+function SubscriptionFormContent({
+  action,
+  description,
+  kind,
+  member,
+  onCancel,
+  plans,
+  submitLabel,
+  title,
+}: {
+  action: (state: MemberFormState, formData: FormData) => Promise<MemberFormState>;
+  description: string;
+  kind: "create" | "change";
+  member: MemberRow;
+  onCancel: () => void;
+  plans: PlanRow[];
+  submitLabel: string;
+  title: string;
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+  const router = useRouter();
+  const initialPlan = plans[0];
+  const currentSubscription = member.latest_subscription;
+  const [state, submit, pending] = useActionState(action, initialMemberFormState);
+  const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
+  const [startDate, setStartDate] = React.useState("");
+  const [discount, setDiscount] = React.useState("0");
+  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
+  const endDate = kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
+  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, discount) : "";
+
+  React.useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
+
+    toast.success(state.message ?? submitLabel);
+    onCancel();
+    router.refresh();
+  }, [onCancel, router, state.message, state.ok, submitLabel]);
+
+  React.useEffect(() => {
+    if (!initialPlan) {
+      return;
+    }
+
+    setSelectedPlanId(String(initialPlan.id));
+  }, [initialPlan]);
+
+  return (
+    <DialogContent className="sm:max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <form action={submit} className="grid gap-4">
+        <input type="hidden" name="member_id" value={member.id} />
+        {kind === "change" ? (
           <input
             type="hidden"
             name="subscription_id"
             value={currentSubscription ? String(currentSubscription.id) : ""}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2 sm:col-span-2">
-              <span className="font-medium text-sm">{t("newPlan")}</span>
-              <FormSelect
-                name="plan_id"
-                defaultValue={selectedPlanId}
-                onValueChange={setSelectedPlanId}
-                required
-                placeholder={t("selectPlan")}
-                options={plans.map((plan) => ({
-                  value: String(plan.id),
-                  label: `${plan.name} - ${plan.price} EGP`,
-                }))}
-              />
-            </div>
-            <Field
-              label={t("paymentAmount")}
-              name="payment_amount"
+        ) : null}
+        {state.message ? (
+          <div
+            className={
+              state.ok
+                ? "rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-600 text-sm"
+                : "rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm"
+            }
+          >
+            {state.message}
+          </div>
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2 sm:col-span-2">
+            <Label htmlFor="plan_id">{kind === "create" ? t("plan") : t("newPlan")}</Label>
+            <FormSelect
+              id="plan_id"
+              name="plan_id"
+              defaultValue={selectedPlanId}
+              onValueChange={setSelectedPlanId}
               required
-              type="number"
-              value={paymentAmount}
-              readOnly
-            />
-            <div className="grid gap-2">
-              <span className="font-medium text-sm">{t("paymentMethod")}</span>
-              <FormSelect
-                name="payment_method"
-                defaultValue="cash"
-                options={[
-                  { value: "cash", label: t("cash") },
-                  { value: "card", label: t("card") },
-                  { value: "bank_transfer", label: t("bankTransfer") },
-                ]}
-              />
-            </div>
-            <Field
-              label={t("discount")}
-              name="discount"
-              type="number"
-              value={discount}
-              onChange={(event) => setDiscount(event.currentTarget.value)}
+              placeholder={t("selectPlan")}
+              error={fieldError(state, "plan_id")}
+              options={plans.map((plan) => ({
+                value: String(plan.id),
+                label: `${plan.name} - ${plan.price} EGP`,
+              }))}
             />
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {t("cancel")}
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                pending || plans.length === 0 || !currentSubscription || currentSubscription.status !== "active"
-              }
-            >
-              {pending ? t("saving") : t("changePlan")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          {kind === "create" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="start_date">{t("startDate")}</Label>
+              <FormDatePicker
+                id="start_date"
+                name="start_date"
+                placeholder={t("selectDate")}
+                required
+                error={fieldError(state, "start_date")}
+                onValueChange={setStartDate}
+              />
+            </div>
+          ) : null}
+          {kind === "create" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="end_date">{t("endDate")}</Label>
+              <input type="hidden" name="end_date" value={endDate} />
+              <Input value={endDate || t("selectDate")} readOnly aria-readonly="true" id="end_date" />
+              <FieldError errors={state.errors.end_date} />
+            </div>
+          ) : null}
+          <Field
+            error={fieldError(state, "payment_amount")}
+            label={t("paymentAmount")}
+            name="payment_amount"
+            required
+            type="number"
+            value={paymentAmount}
+            readOnly
+          />
+          <div className="grid gap-2">
+            <Label htmlFor="payment_method">{t("paymentMethod")}</Label>
+            <FormSelect
+              id="payment_method"
+              name="payment_method"
+              defaultValue="cash"
+              error={fieldError(state, "payment_method")}
+              options={[
+                { value: "cash", label: t("cash") },
+                { value: "card", label: t("card") },
+                { value: "bank_transfer", label: t("bankTransfer") },
+              ]}
+            />
+          </div>
+          <Field
+            error={fieldError(state, "discount")}
+            label={t("discount")}
+            name="discount"
+            type="number"
+            value={discount}
+            onChange={(event) => setDiscount(event.currentTarget.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            {t("cancel")}
+          </Button>
+          <Button
+            type="submit"
+            disabled={pending || plans.length === 0 || (kind === "change" && currentSubscription?.status !== "active")}
+          >
+            {pending ? t("saving") : submitLabel}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }
 function PhotoDialogContent({
@@ -736,21 +735,33 @@ function addMonthsNoOverflow(date: Date, months: number) {
 }
 
 function MemberFormContent({
+  action,
   description,
   member,
-  pending,
-  submit,
   submitLabel,
   title,
+  onSuccess,
 }: {
+  action: (state: MemberFormState, formData: FormData) => Promise<MemberFormState>;
   description: string;
   member?: MemberRow;
-  pending: boolean;
-  submit: (formData: FormData) => void;
   submitLabel: string;
   title: string;
+  onSuccess?: () => void;
 }) {
   const t = useTranslations("Dashboard.membersPage");
+  const router = useRouter();
+  const [state, submit, pending] = useActionState(action, initialMemberFormState);
+
+  React.useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
+
+    toast.success(state.message ?? submitLabel);
+    onSuccess?.();
+    router.refresh();
+  }, [onSuccess, router, state.message, state.ok, submitLabel]);
 
   return (
     <DialogContent className="sm:max-w-3xl">
@@ -760,45 +771,85 @@ function MemberFormContent({
       </DialogHeader>
       <form action={submit} className="grid gap-4">
         {member ? <input type="hidden" name="id" value={member.id} /> : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t("nameField")} name="name" defaultValue={member?.name} required />
-          <Field label={t("phone")} name="phone" defaultValue={member?.phone} required />
-          <Field label={t("email")} name="email" type="email" defaultValue={member?.email ?? ""} />
-          <div className="grid gap-2">
-            <span className="font-medium text-sm">{t("gender")}</span>
-            <Select name="gender" defaultValue={member?.gender ?? ""}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("selectGender")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="male">{t("male")}</SelectItem>
-                  <SelectItem value="female">{t("female")}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+        {state.message ? (
+          <div
+            className={
+              state.ok
+                ? "rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-600 text-sm"
+                : "rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm"
+            }
+          >
+            {state.message}
           </div>
-          <DateField label={t("joinDate")} name="join_date" defaultValue={member?.join_date ?? ""} />
-          <DateField label={t("birthDate")} name="birth_date" defaultValue={member?.birth_date ?? ""} />
-          <Field label={t("nationalId")} name="national_id" defaultValue="" />
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            error={fieldError(state, "name")}
+            label={t("nameField")}
+            name="name"
+            defaultValue={member?.name}
+            required
+          />
+          <Field
+            error={fieldError(state, "phone")}
+            label={t("phone")}
+            name="phone"
+            defaultValue={member?.phone}
+            required
+          />
+          <Field
+            error={fieldError(state, "email")}
+            label={t("email")}
+            name="email"
+            type="email"
+            defaultValue={member?.email ?? ""}
+          />
           <div className="grid gap-2">
-            <span className="font-medium text-sm">{t("status")}</span>
-            <Select name="status" defaultValue={member?.status ?? "active"}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("selectStatus")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="active">{t("active")}</SelectItem>
-                  <SelectItem value="inactive">{t("inactive")}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="member-gender">{t("gender")}</Label>
+            <FormSelect
+              id="member-gender"
+              name="gender"
+              defaultValue={member?.gender ?? ""}
+              placeholder={t("selectGender")}
+              error={fieldError(state, "gender")}
+              options={[
+                { value: "male", label: t("male") },
+                { value: "female", label: t("female") },
+              ]}
+            />
+          </div>
+          <DateField
+            error={fieldError(state, "join_date")}
+            label={t("joinDate")}
+            name="join_date"
+            defaultValue={state.values.join_date ?? member?.join_date ?? ""}
+          />
+          <DateField
+            error={fieldError(state, "birth_date")}
+            label={t("birthDate")}
+            name="birth_date"
+            defaultValue={state.values.birth_date ?? member?.birth_date ?? ""}
+          />
+          <Field error={fieldError(state, "national_id")} label={t("nationalId")} name="national_id" defaultValue="" />
+          <div className="grid gap-2">
+            <Label htmlFor="member-status">{t("status")}</Label>
+            <FormSelect
+              id="member-status"
+              name="status"
+              defaultValue={member?.status ?? "active"}
+              placeholder={t("selectStatus")}
+              error={fieldError(state, "status")}
+              options={[
+                { value: "active", label: t("active") },
+                { value: "inactive", label: t("inactive") },
+              ]}
+            />
           </div>
         </div>
         <div className="grid gap-2">
-          <span className="font-medium text-sm">{t("notes")}</span>
-          <Textarea name="notes" defaultValue={member?.notes ?? ""} />
+          <Label htmlFor="member-notes">{t("notes")}</Label>
+          <Textarea id="member-notes" name="notes" defaultValue={member?.notes ?? ""} />
+          <FieldError errors={state.errors.notes} />
         </div>
         <DialogFooter>
           <Button type="submit" disabled={pending}>
@@ -810,8 +861,13 @@ function MemberFormContent({
   );
 }
 
+function fieldError(state: MemberFormState, name: string) {
+  return state.errors[name]?.[0];
+}
+
 function Field({
   defaultValue,
+  error,
   label,
   name,
   onChange,
@@ -821,6 +877,7 @@ function Field({
   value,
 }: {
   defaultValue?: string | null;
+  error?: string;
   label: string;
   name: string;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
@@ -831,8 +888,9 @@ function Field({
 }) {
   return (
     <div className="grid gap-2">
-      <span className="font-medium text-sm">{label}</span>
+      <Label htmlFor={name}>{label}</Label>
       <Input
+        id={name}
         name={name}
         type={type}
         defaultValue={value === undefined ? (defaultValue ?? "") : undefined}
@@ -840,16 +898,28 @@ function Field({
         onChange={onChange}
         readOnly={readOnly}
         required={required}
+        aria-invalid={Boolean(error)}
       />
+      <FieldError errors={error ? [{ message: error }] : undefined} />
     </div>
   );
 }
 
-function DateField({ defaultValue, label, name }: { defaultValue?: string | null; label: string; name: string }) {
+function DateField({
+  defaultValue,
+  error,
+  label,
+  name,
+}: {
+  defaultValue?: string | null;
+  error?: string;
+  label: string;
+  name: string;
+}) {
   return (
     <div className="grid gap-2">
-      <span className="font-medium text-sm">{label}</span>
-      <FormDatePicker name={name} defaultValue={defaultValue ?? ""} placeholder={label} />
+      <Label htmlFor={name}>{label}</Label>
+      <FormDatePicker id={name} name={name} defaultValue={defaultValue ?? ""} placeholder={label} error={error} />
     </div>
   );
 }

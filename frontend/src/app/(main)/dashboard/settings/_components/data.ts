@@ -27,6 +27,9 @@ export type EmployeeShift = {
   starts_at: string;
   ends_at: string;
   grace_minutes: number;
+  off_days: number[];
+  off_day_bonus_enabled: boolean;
+  off_day_bonus_amount: string;
   is_active: boolean;
 };
 
@@ -57,7 +60,7 @@ const emptySettings: DashboardSettings = {
       secondary: "#ffffff",
     },
     logo: null,
-    name: "Power Gym",
+    name: "ATP Gym",
   },
   receipt_template: "default",
   reminder_days: 7,

@@ -20,9 +20,11 @@ export type PayrollRow = {
   paid_at: string | null;
 };
 
-export async function getPayrollPageData() {
+export async function getPayrollPageData(month: string) {
   try {
-    const result = await serverApiFetch<PayrollRow[] | PaginatedData<PayrollRow>>("/payroll?sort=-created_at&page=1");
+    const result = await serverApiFetch<PayrollRow[] | PaginatedData<PayrollRow>>(
+      `/payroll?month=${encodeURIComponent(month)}&sort=-created_at&page=1`,
+    );
 
     return unwrapList(result.data);
   } catch {

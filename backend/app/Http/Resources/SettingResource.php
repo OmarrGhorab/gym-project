@@ -21,7 +21,7 @@ class SettingResource extends JsonResource
 
         return [
             'gym' => [
-                'name' => $settings['gym.name'] ?? 'Power Gym',
+                'name' => $settings['gym.name'] ?? 'ATP Gym',
                 'colors' => [
                     'primary' => $gymColors['primary'] ?? '#000000',
                     'secondary' => $gymColors['secondary'] ?? '#ffffff',

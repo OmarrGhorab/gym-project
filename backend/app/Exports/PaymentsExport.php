@@ -44,9 +44,9 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping
         $customRequest = new Request(['filter' => $this->filters]);
 
         return QueryBuilder::for($query, $customRequest)
-            ->allowedFilters([
+            ->allowedFilters(
                 AllowedFilter::exact('status'),
-            ])
+            )
             ->latest();
     }
 

@@ -2,55 +2,174 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
-export async function saveEmployee(input: FormData): Promise<void> {
-  const id = Number(input.get("id"));
+export type AcademyActionResult = {
+  ok: boolean;
+  message: string;
+  errors?: Partial<Record<string, string[]>>;
+};
+
+const nullablePositiveInt = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim();
+  return normalized.length > 0 ? normalized : null;
+}, z.coerce.number().int().positive().nullable());
+
+const optionalDate = z.preprocess(
+  (value) => {
+    const normalized = String(value ?? "").trim();
+    return normalized.length > 0 ? normalized : null;
+  },
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date.")
+    .nullable(),
+);
+
+const employeeSchema = z.object({
+  base_salary: z.coerce.number().min(0, "Base salary cannot be negative."),
+  commission_rate: z.coerce.number().min(0, "Commission cannot be negative.").max(9.9999, "Commission is too high."),
+  hire_date: optionalDate,
+  id: z.coerce.number().int().min(0),
+  name: z.string().trim().min(2, "Name must be at least 2 characters.").max(120, "Name is too long."),
+  phone: z.string().trim().max(40, "Phone is too long.").optional(),
+  role: z.string().trim().min(1, "Role is required.").max(80, "Role is too long."),
+  shift_id: nullablePositiveInt,
+  status: z.enum(["active", "inactive"], { error: "Choose a valid status." }),
+  user_id: nullablePositiveInt,
+});
+
+const commissionBackfillSchema = z
+  .object({
+    dry_run: z.boolean(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid from date."),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid to date."),
+  })
+  .refine((value) => value.to >= value.from, {
+    message: "To date cannot be before from date.",
+    path: ["to"],
+  });
+
+export async function saveEmployee(input: FormData): Promise<AcademyActionResult> {
+  const parsed = employeeSchema.safeParse({
+    base_salary: input.get("base_salary") || "0",
+    commission_rate: input.get("commission_rate") || "0",
+    hire_date: input.get("hire_date"),
+    id: input.get("id") || "0",
+    name: input.get("name") || "",
+    phone: input.get("phone") || "",
+    role: input.get("role") || "employee",
+    shift_id: input.get("shift_id"),
+    status: input.get("status") || "active",
+    user_id: input.get("user_id"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Please fix the highlighted employee fields.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const id = parsed.data.id;
   const payload = {
-    base_salary: String(input.get("base_salary") || "0"),
-    commission_rate: String(input.get("commission_rate") || "0"),
-    hire_date: nullableString(input.get("hire_date")),
-    name: String(input.get("name") || ""),
-    phone: nullableString(input.get("phone")),
-    role: String(input.get("role") || "employee"),
-    shift_id: nullableNumber(input.get("shift_id")),
-    status: String(input.get("status") || "active"),
-    user_id: nullableNumber(input.get("user_id")),
+    base_salary: String(parsed.data.base_salary),
+    commission_rate: String(parsed.data.commission_rate),
+    hire_date: parsed.data.hire_date,
+    name: parsed.data.name,
+    phone: nullableString(parsed.data.phone),
+    role: parsed.data.role,
+    shift_id: parsed.data.shift_id,
+    status: parsed.data.status,
+    user_id: parsed.data.user_id,
   };
 
-  await serverApiFetch(id > 0 ? `/employees/${id}` : "/employees", {
-    body: JSON.stringify(payload),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: id > 0 ? "PUT" : "POST",
-  });
+  try {
+    await serverApiFetch(id > 0 ? `/employees/${id}` : "/employees", {
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: id > 0 ? "PUT" : "POST",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not save employee.",
+      errors: {},
+    };
+  }
 
   revalidateStaff();
+
+  return { ok: true, message: id > 0 ? "Employee saved." : "Employee created.", errors: {} };
 }
 
-export async function deleteEmployee(input: FormData): Promise<void> {
-  await serverApiFetch(`/employees/${Number(input.get("id"))}`, {
-    method: "DELETE",
-  });
+export async function deleteEmployee(input: FormData): Promise<AcademyActionResult> {
+  const id = z.coerce.number().int().positive("Employee is required.").safeParse(input.get("id"));
+
+  if (!id.success) {
+    return { ok: false, message: "Employee is required.", errors: { id: ["Employee is required."] } };
+  }
+
+  try {
+    await serverApiFetch(`/employees/${id.data}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not delete employee.",
+      errors: {},
+    };
+  }
 
   revalidateStaff();
+
+  return { ok: true, message: "Employee deleted.", errors: {} };
 }
 
-export async function backfillCommissions(input: FormData): Promise<void> {
-  await serverApiFetch("/commissions/backfill", {
-    body: JSON.stringify({
-      dry_run: input.get("dry_run") === "on",
-      from: String(input.get("from") || ""),
-      to: String(input.get("to") || ""),
-    }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
+export async function backfillCommissions(input: FormData): Promise<AcademyActionResult> {
+  const parsed = commissionBackfillSchema.safeParse({
+    dry_run: input.get("dry_run") === "on",
+    from: String(input.get("from") || ""),
+    to: String(input.get("to") || ""),
   });
 
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Please fix the highlighted commission fields.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await serverApiFetch("/commissions/backfill", {
+      body: JSON.stringify(parsed.data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not backfill commissions.",
+      errors: {},
+    };
+  }
+
   revalidateStaff();
+
+  return {
+    ok: true,
+    message: parsed.data.dry_run ? "Commission dry run completed." : "Commissions backfilled.",
+    errors: {},
+  };
 }
 
 function revalidateStaff() {
@@ -60,16 +179,8 @@ function revalidateStaff() {
   revalidatePath("/dashboard/settings");
 }
 
-function nullableString(value: FormDataEntryValue | null) {
+function nullableString(value: FormDataEntryValue | string | null | undefined) {
   const normalized = String(value ?? "").trim();
 
   return normalized.length > 0 ? normalized : null;
-}
-
-function nullableNumber(value: FormDataEntryValue | null) {
-  if (value === null || String(value).trim() === "") {
-    return null;
-  }
-
-  return Number(value);
 }

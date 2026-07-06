@@ -25,11 +25,11 @@ class PayrollExport implements FromQuery, WithHeadings, WithMapping
         $customRequest = new Request(['filter' => $this->filters]);
 
         return QueryBuilder::for($query, $customRequest)
-            ->allowedFilters([
+            ->allowedFilters(
                 AllowedFilter::exact('month'),
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('employee_id'),
-            ])
+            )
             ->latest();
     }
 

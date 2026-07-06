@@ -18,6 +18,9 @@ class EmployeeShiftResource extends JsonResource
             'starts_at' => $this->starts_at?->format('H:i'),
             'ends_at' => $this->ends_at?->format('H:i'),
             'grace_minutes' => (int) $this->grace_minutes,
+            'off_days' => array_map('intval', $this->off_days ?? []),
+            'off_day_bonus_enabled' => (bool) $this->off_day_bonus_enabled,
+            'off_day_bonus_amount' => number_format((float) $this->off_day_bonus_amount, 2, '.', ''),
             'is_active' => (bool) $this->is_active,
         ];
     }

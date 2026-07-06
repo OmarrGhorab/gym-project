@@ -1,16 +1,21 @@
 "use client";
 
+import * as React from "react";
+
 import { ShieldCheck, UserCog, UsersRound } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FieldError } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getInitials } from "@/lib/utils";
 
-import { syncUserRoles } from "./actions";
+import { syncUserRoles, type UserRoleActionResult } from "./actions";
 import type { AccessRole, AccessUser } from "./data";
 
 export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser[] }) {
@@ -75,28 +80,7 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
                   <TableCell>{user.permissions.length}</TableCell>
                   <TableCell>
                     {roles.length > 0 ? (
-                      <form action={syncUserRoles} className="flex flex-col gap-3">
-                        <input type="hidden" name="user_id" value={user.id} />
-                        <div className="grid grid-cols-2 gap-2">
-                          {roles.map((role) => (
-                            <div
-                              key={role.id}
-                              className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm"
-                            >
-                              <Checkbox
-                                name="roles"
-                                value={role.name}
-                                defaultChecked={user.roles.includes(role.name)}
-                                aria-label={t("assignRoleToUser", { role: role.name, user: user.name })}
-                              />
-                              <span className="truncate">{role.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <Button type="submit" size="sm" variant="outline">
-                          {t("saveRoles")}
-                        </Button>
-                      </form>
+                      <UserRoleForm roles={roles} user={user} />
                     ) : (
                       <div className="rounded-md border bg-muted/40 px-3 py-2 text-muted-foreground text-sm">
                         {t("noRolesAvailable")}
@@ -117,6 +101,57 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function UserRoleForm({ roles, user }: { roles: AccessRole[]; user: AccessUser }) {
+  const t = useTranslations("Dashboard.users");
+  const [pending, startTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<UserRoleActionResult["errors"]>({});
+
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const result = await syncUserRoles(formData);
+      setErrors(result.errors ?? {});
+
+      if (result.ok) {
+        toast.success(result.message);
+        return;
+      }
+
+      toast.error(result.message);
+    });
+  }
+
+  return (
+    <form action={submit} className="flex flex-col gap-3">
+      <input type="hidden" name="user_id" value={user.id} />
+      <FieldError errors={errors?.user_id} />
+      <div className="grid grid-cols-2 gap-2">
+        {roles.map((role) => {
+          const id = `user-${user.id}-role-${role.id}`;
+
+          return (
+            <div key={role.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm">
+              <Checkbox
+                id={id}
+                name="roles"
+                value={role.name}
+                defaultChecked={user.roles.includes(role.name)}
+                aria-label={t("assignRoleToUser", { role: role.name, user: user.name })}
+              />
+              <Label htmlFor={id} className="min-w-0 truncate font-normal">
+                {role.name}
+              </Label>
+            </div>
+          );
+        })}
+      </div>
+      <FieldError errors={errors?.roles} />
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>
+        {t("saveRoles")}
+      </Button>
+    </form>
   );
 }
 

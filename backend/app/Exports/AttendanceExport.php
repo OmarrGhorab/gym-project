@@ -21,14 +21,14 @@ class AttendanceExport implements FromQuery, WithHeadings, WithMapping
         $customRequest = new Request(['filter' => $this->normalizedFilters()]);
 
         return QueryBuilder::for($query, $customRequest)
-            ->allowedFilters([
+            ->allowedFilters(
                 AllowedFilter::exact('employee_id'),
                 AllowedFilter::exact('date'),
                 AllowedFilter::exact('status'),
                 AllowedFilter::callback('month', function ($query, string $value): void {
                     $query->whereBetween('date', ["{$value}-01", Carbon::parse("{$value}-01")->endOfMonth()->toDateString()]);
                 }),
-            ])
+            )
             ->allowedSorts('date', 'check_in', 'created_at')
             ->defaultSort('date');
     }

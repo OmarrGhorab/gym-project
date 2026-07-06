@@ -116,11 +116,13 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
       />
 
       <div className="space-y-2">
-        <Label>{t("type")}</Label>
+        <Label htmlFor="type">{t("type")}</Label>
         <FormSelect
+          id="type"
           name="type"
           defaultValue={planType}
           onValueChange={(value) => setPlanType(value || "membership")}
+          error={fieldError(state, "type")}
           options={[
             { value: "membership", label: t("planTypes.membership") },
             { value: "offer", label: t("planTypes.offer") },
@@ -129,10 +131,12 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label>{t("category")}</Label>
+        <Label htmlFor="category">{t("category")}</Label>
         <FormSelect
+          id="category"
           name="category"
           defaultValue={valueOrPlan(state, plan, "category") || "gym_access"}
+          error={fieldError(state, "category")}
           options={[
             { value: "gym_access", label: t("categories.gym_access") },
             { value: "personal_training", label: t("categories.personal_training") },
@@ -175,11 +179,13 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
         </>
       ) : (
         <div className="space-y-2">
-          <Label>{t("durationType")}</Label>
+          <Label htmlFor="duration_basis">{t("durationType")}</Label>
           <FormSelect
+            id="duration_basis"
             name="duration_basis"
             defaultValue={durationBasis}
             onValueChange={(value) => setDurationBasis(value)}
+            error={fieldError(state, "duration_basis")}
             options={[
               { value: "days", label: t("durationTypeDays") },
               { value: "months", label: t("durationTypeMonths") },
@@ -274,6 +280,7 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
       </div>
 
       <TimeField
+        error={fieldError(state, "access_starts_at")}
         label={t("accessStartsAt")}
         name="access_starts_at"
         defaultValue={valueOrPlan(state, plan, "access_starts_at")}
@@ -388,9 +395,15 @@ function DateField({
 }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
-      <FormDatePicker name={name} placeholder={placeholder} defaultValue={defaultValue} onValueChange={onValueChange} />
-      {error ? <p className="text-destructive text-xs">{error}</p> : null}
+      <Label htmlFor={name}>{label}</Label>
+      <FormDatePicker
+        id={name}
+        name={name}
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        onValueChange={onValueChange}
+        error={error}
+      />
     </div>
   );
 }
@@ -408,9 +421,8 @@ function TimeField({
 }) {
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
-      <FormTimePicker name={name} defaultValue={defaultValue} />
-      {error ? <p className="text-destructive text-xs">{error}</p> : null}
+      <Label htmlFor={name}>{label}</Label>
+      <FormTimePicker id={name} name={name} defaultValue={defaultValue} error={error} />
     </div>
   );
 }

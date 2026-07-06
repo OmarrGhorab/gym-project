@@ -2,11 +2,14 @@
 
 namespace App\Actions\Attendance;
 
+use App\Actions\Payroll\ApplyAttendanceBonuses;
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
+use App\Models\Payroll;
 use App\Models\User;
 use App\Support\Geofence;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 final class CheckInEmployeeAttendance
 {
@@ -14,6 +17,7 @@ final class CheckInEmployeeAttendance
         private readonly ResolveAttendanceIdentity $identity,
         private readonly Geofence $geofence,
         private readonly CreateAttendanceViolation $violations,
+        private readonly ApplyAttendanceBonuses $attendanceBonuses,
     ) {}
 
     public function handle(array $data, User $user): Attendance
@@ -23,10 +27,22 @@ final class CheckInEmployeeAttendance
         $date = $checkIn->toDateString();
         $shift = $employee->shift;
         $location = $this->geofence->evaluate($data);
-        $lateMinutes = $this->lateMinutes($shift, $checkIn);
+        $isOffDay = $this->isOffDay($shift, $checkIn);
+        $lateMinutes = $isOffDay ? 0 : $this->lateMinutes($shift, $checkIn);
         $scheduleStatus = $this->scheduleStatus($shift, $checkIn, $lateMinutes);
         $approvalStatus = $scheduleStatus === 'off_shift' ? 'pending' : 'approved';
         $status = $lateMinutes > 0 ? 'late' : 'present';
+        $offDayBonusAmount = $isOffDay && $shift?->off_day_bonus_enabled ? (string) $shift->off_day_bonus_amount : '0.00';
+        $existingAttendance = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('date', $date)
+            ->first();
+
+        if ($existingAttendance?->check_in !== null) {
+            throw ValidationException::withMessages([
+                'employee_id' => 'This employee already checked in today. Check them out or correct the existing attendance record.',
+            ]);
+        }
 
         $attendance = Attendance::query()->updateOrCreate(
             [
@@ -46,6 +62,7 @@ final class CheckInEmployeeAttendance
                 'schedule_status' => $scheduleStatus,
                 'approval_status' => $approvalStatus,
                 'late_minutes' => $lateMinutes,
+                'off_day_bonus_amount' => $offDayBonusAmount,
                 'notes' => $data['notes'] ?? null,
             ]
         );
@@ -57,6 +74,8 @@ final class CheckInEmployeeAttendance
         if ($scheduleStatus === 'off_shift') {
             $this->violations->handle($attendance, 'off_shift', null, 'Employee checked in outside the assigned shift.');
         }
+
+        $this->syncPendingPayrollBonus($attendance);
 
         return $attendance->load(['employee.shift', 'shift']);
     }
@@ -79,13 +98,17 @@ final class CheckInEmployeeAttendance
             return 'unassigned';
         }
 
+        if ($this->isOffDay($shift, $checkIn)) {
+            return 'off_day';
+        }
+
         $start = Carbon::parse($checkIn->toDateString().' '.$shift->starts_at->format('H:i'));
         $end = Carbon::parse($checkIn->toDateString().' '.$shift->ends_at->format('H:i'));
         if ($end->lessThanOrEqualTo($start)) {
             $end->addDay();
         }
 
-        $windowStart = $start->copy()->subHours(2);
+        $windowStart = $start->copy()->subHours(6);
         $windowEnd = $end->copy()->addHours(2);
 
         if ($checkIn->lessThan($windowStart) || $checkIn->greaterThan($windowEnd)) {
@@ -93,5 +116,34 @@ final class CheckInEmployeeAttendance
         }
 
         return $lateMinutes > 0 ? 'late' : 'on_shift';
+    }
+
+    private function isOffDay(?EmployeeShift $shift, Carbon $date): bool
+    {
+        if (! $shift || empty($shift->off_days)) {
+            return false;
+        }
+
+        return in_array((int) $date->dayOfWeek, array_map('intval', $shift->off_days), true);
+    }
+
+    private function syncPendingPayrollBonus(Attendance $attendance): void
+    {
+        if (bccomp((string) $attendance->off_day_bonus_amount, '0.00', 2) !== 1) {
+            return;
+        }
+
+        $month = Carbon::parse($attendance->date)->format('Y-m');
+        $payroll = Payroll::query()
+            ->where('employee_id', $attendance->employee_id)
+            ->where('month', $month)
+            ->where('status', 'pending')
+            ->first();
+
+        if (! $payroll) {
+            return;
+        }
+
+        $this->attendanceBonuses->execute($payroll);
     }
 }

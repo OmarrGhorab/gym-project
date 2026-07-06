@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { ArrowRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -34,8 +36,13 @@ export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">{t("staffShiftSchedule")}</CardTitle>
-        <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          {t("shiftSettings")} <ArrowRight className="size-4" />
+        <CardAction>
+          <Link
+            href="/dashboard/settings"
+            className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+          >
+            {t("shiftSettings")} <ArrowRight className="size-4" />
+          </Link>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-0">

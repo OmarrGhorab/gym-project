@@ -76,6 +76,7 @@ test('accountant can view staff academy summary', function (): void {
         ->assertJsonPath('data.warning_status.0.pending', 1)
         ->assertJsonPath('data.performance_highlights.0.name', 'Coach Ahmed')
         ->assertJsonFragment(['title' => 'Staff training'])
+        ->assertJsonFragment(['title' => 'Coach Ahmed salary receipt'])
         ->assertJsonStructure([
             'data' => [
                 'generated_at',

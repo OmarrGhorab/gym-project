@@ -18,12 +18,18 @@ class EmployeeShift extends Model
         'starts_at',
         'ends_at',
         'grace_minutes',
+        'off_days',
+        'off_day_bonus_enabled',
+        'off_day_bonus_amount',
         'is_active',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime:H:i',
         'ends_at' => 'datetime:H:i',
+        'off_days' => 'array',
+        'off_day_bonus_enabled' => 'boolean',
+        'off_day_bonus_amount' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
@@ -62,8 +64,13 @@ export function AssignmentStatus({ warnings }: { warnings: StaffAcademyWarningSt
     <Card className="h-full">
       <CardHeader>
         <CardTitle className="text-sm">{t("warningStatus")}</CardTitle>
-        <CardAction className="flex items-center gap-1 text-muted-foreground text-xs">
-          {t("reviewWarnings")} <ArrowRight className="size-4" />
+        <CardAction>
+          <Link
+            href="/dashboard/attendance"
+            className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+          >
+            {t("reviewWarnings")} <ArrowRight className="size-4" />
+          </Link>
         </CardAction>
       </CardHeader>
       <CardContent>

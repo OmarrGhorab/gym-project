@@ -84,7 +84,7 @@ const planInputSchema = z
 export type PlanFormState = {
   ok: boolean;
   message?: string;
-  errors: Record<string, string[]>;
+  errors: Partial<Record<string, string[]>>;
   values: Record<string, string>;
 };
 

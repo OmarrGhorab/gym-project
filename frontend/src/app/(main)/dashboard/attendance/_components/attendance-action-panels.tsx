@@ -3,7 +3,7 @@
 import { type ReactNode, useActionState, useCallback, useEffect, useRef, useState } from "react";
 
 import { format, parseISO } from "date-fns";
-import { AlertTriangle, CalendarIcon, CheckCircle2, Clock3, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
+import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -28,16 +28,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import {
-  type AttendanceActionResult,
-  createManualAttendance,
-  reviewAttendanceViolation,
-  scanMemberVisit,
-  scanStaffAttendance,
-} from "./actions";
-import type { AttendanceRecord, AttendanceViolation, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
+import { type AttendanceActionResult, createManualAttendance, scanMemberVisit, scanStaffAttendance } from "./actions";
+import type { AttendanceRecord, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
 
-const initialState: AttendanceActionResult = { ok: true, message: "" };
+const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
 const fixedTopSelectCollision = {
   align: "shift",
   fallbackAxisSide: "none",
@@ -50,17 +44,9 @@ type Props = {
   employees: EmployeeOption[];
   members: MemberLookupOption[];
   shifts: EmployeeShift[];
-  violations: AttendanceViolation[];
 };
 
-export function AttendanceActionPanels({
-  correctionRecord,
-  defaultAttendanceDate,
-  employees,
-  members,
-  shifts,
-  violations,
-}: Props) {
+export function AttendanceActionPanels({ correctionRecord, defaultAttendanceDate, employees, members, shifts }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <MemberScanCard members={members} />
@@ -71,7 +57,6 @@ export function AttendanceActionPanels({
         employees={employees}
         shifts={shifts}
       />
-      <ViolationReviewCard violations={violations} />
     </div>
   );
 }
@@ -363,7 +348,7 @@ function ManualAttendanceCard({
   const isCorrection = Boolean(correctionRecord);
 
   return (
-    <Card id="manual-correction" className="scroll-mt-4 xl:col-span-7">
+    <Card id="manual-correction" className="scroll-mt-4 xl:col-span-12">
       <CardHeader>
         <CardTitle className="font-normal">
           {isCorrection ? t("manualAttendanceCorrection") : t("manualAttendance")}
@@ -491,144 +476,6 @@ function ManualAttendanceCard({
   );
 }
 
-function ViolationReviewCard({ violations }: { violations: AttendanceViolation[] }) {
-  const t = useTranslations("Dashboard.attendance");
-  const [state, action, pending] = useActionState(reviewAttendanceViolation, initialState);
-  const firstViolation = violations[0];
-  const [selectedViolationId, setSelectedViolationId] = useState(firstViolation?.id ? String(firstViolation.id) : "");
-  const selectedViolation =
-    violations.find((violation) => String(violation.id) === selectedViolationId) ?? firstViolation ?? null;
-
-  return (
-    <Card className="xl:col-span-5">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="font-normal">{t("reviewWarnings")}</CardTitle>
-            <CardDescription>{t("reviewWarningsDescription")}</CardDescription>
-          </div>
-          <Badge variant="outline" className="shrink-0">
-            {t("warningCount", { count: violations.length })}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form action={action} className="grid gap-4">
-          {violations.length > 0 ? (
-            <>
-              <div className="grid gap-2">
-                <FieldLabel htmlFor="attendance-warning-id" label={t("warningToReview")} meta={t("requiredField")} />
-                <Select
-                  name="id"
-                  required
-                  value={selectedViolationId}
-                  onValueChange={(value) => setSelectedViolationId(value ?? "")}
-                >
-                  <SelectTrigger id="attendance-warning-id" className="w-full">
-                    <SelectValue placeholder={t("selectWarning")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {violations.map((violation) => (
-                        <SelectItem key={violation.id} value={String(violation.id)}>
-                          {violation.employee?.name ?? t("staff")} - {formatViolationType(violation.type)} -{" "}
-                          {violation.violation_date}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              {selectedViolation ? (
-                <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-sm">{selectedViolation.employee?.name ?? t("staff")}</p>
-                      <p className="text-muted-foreground text-xs">{selectedViolation.employee?.role ?? t("staff")}</p>
-                    </div>
-                    <Badge variant="outline">{formatViolationType(selectedViolation.type)}</Badge>
-                  </div>
-                  <div className="grid gap-2 text-sm sm:grid-cols-3">
-                    <WarningMeta
-                      icon={<CalendarIcon className="size-3.5" />}
-                      label={t("warningDate")}
-                      value={selectedViolation.violation_date}
-                    />
-                    <WarningMeta
-                      icon={<Clock3 className="size-3.5" />}
-                      label={t("warningMinutes")}
-                      value={
-                        selectedViolation.minutes === null
-                          ? t("notAvailable")
-                          : t("minutesValue", { count: selectedViolation.minutes })
-                      }
-                    />
-                    <WarningMeta
-                      icon={<AlertTriangle className="size-3.5" />}
-                      label={t("suggestedDeduction")}
-                      value={`EGP ${selectedViolation.deduction_amount}`}
-                    />
-                  </div>
-                </div>
-              ) : null}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <FieldLabel
-                    htmlFor="attendance-warning-status"
-                    label={t("reviewDecision")}
-                    meta={t("requiredField")}
-                  />
-                  <Select name="status" defaultValue="approved">
-                    <SelectTrigger id="attendance-warning-status" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
-                        <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <FieldLabel
-                    htmlFor="attendance-deduction-amount"
-                    label={t("deductionAmount")}
-                    meta={t("optionalField")}
-                  />
-                  <Input
-                    id="attendance-deduction-amount"
-                    name="deduction_amount"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                  />
-                  <FieldHelp>{t("deductionAmountHelp")}</FieldHelp>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <FieldLabel htmlFor="attendance-deduction-days" label={t("deductionDays")} meta={t("optionalField")} />
-                <Input id="attendance-deduction-days" name="deduction_days" inputMode="decimal" placeholder="0" />
-                <FieldHelp>{t("deductionDaysHelp")}</FieldHelp>
-              </div>
-              <div className="grid gap-2">
-                <FieldLabel htmlFor="attendance-review-notes" label={t("reviewNotesLabel")} meta={t("optionalField")} />
-                <Textarea id="attendance-review-notes" name="notes" placeholder={t("reviewNotes")} />
-                <FieldHelp>{t("reviewNotesHelp")}</FieldHelp>
-              </div>
-            </>
-          ) : (
-            <div className="rounded-lg border border-dashed p-4 text-center">
-              <p className="font-medium text-sm">{t("noWarnings")}</p>
-              <p className="text-muted-foreground text-xs">{t("noWarningsReviewHelp")}</p>
-            </div>
-          )}
-          <PanelFooter state={state} pending={pending} label={t("reviewWarning")} disabled={!firstViolation} />
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-
 function FieldGroup({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={["grid gap-2", className].filter(Boolean).join(" ")}>{children}</div>;
 }
@@ -640,29 +487,6 @@ function FieldLabel({ htmlFor, label, meta }: { htmlFor: string; label: string; 
       <span className="font-normal text-muted-foreground text-xs">{meta}</span>
     </Label>
   );
-}
-
-function FieldHelp({ children }: { children: ReactNode }) {
-  return <p className="text-muted-foreground text-xs leading-relaxed">{children}</p>;
-}
-
-function WarningMeta({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div className="grid gap-1 rounded-md bg-background/60 p-2">
-      <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
-        {icon}
-        {label}
-      </span>
-      <span className="font-medium text-sm">{value}</span>
-    </div>
-  );
-}
-
-function formatViolationType(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 function ScanDirectionSelect({ id }: { id: string }) {

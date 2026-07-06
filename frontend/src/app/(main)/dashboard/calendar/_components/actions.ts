@@ -2,17 +2,56 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
 export type CalendarActionResult =
   | {
       ok: true;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
     }
   | {
       ok: false;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
     };
+
+const calendarEventSchema = z
+  .object({
+    assigned_employee_id: z.union([z.coerce.number().int().positive(), z.literal("none"), z.literal("")]).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
+    end_time: z.string().optional(),
+    location: z.string().trim().max(120, "Location is too long.").optional(),
+    notes: z.string().trim().max(1000, "Notes are too long.").optional(),
+    start_time: z.string().optional(),
+    status: z.enum(["scheduled", "done", "delayed", "cancelled"], {
+      error: "Choose a valid status.",
+    }),
+    title: z.string().trim().min(2, "Title must be at least 2 characters.").max(120, "Title is too long."),
+    type: z.enum(
+      [
+        "shift",
+        "class",
+        "pt_session",
+        "renewal",
+        "payroll",
+        "attendance",
+        "inventory",
+        "maintenance",
+        "finance",
+        "manual",
+      ],
+      {
+        error: "Choose a valid event type.",
+      },
+    ),
+  })
+  .refine((value) => !value.end_time || !value.start_time || value.end_time >= value.start_time, {
+    message: "End time cannot be before start time.",
+    path: ["end_time"],
+  });
 
 export async function createCalendarEvent(input: FormData): Promise<CalendarActionResult> {
   return mutateCalendarEvent("/reports/operations-calendar-events", "POST", input, "Calendar event created.");
@@ -49,21 +88,41 @@ async function mutateCalendarEvent(
   successMessage: string,
 ): Promise<CalendarActionResult> {
   const date = String(input.get("date") ?? "");
-  const startsAt = buildDateTime(date, String(input.get("start_time") ?? ""));
-  const endsAt = buildDateTime(date, String(input.get("end_time") ?? ""));
+  const parsed = calendarEventSchema.safeParse({
+    assigned_employee_id: String(input.get("assigned_employee_id") ?? ""),
+    date,
+    end_time: String(input.get("end_time") ?? ""),
+    location: String(input.get("location") ?? ""),
+    notes: String(input.get("notes") ?? ""),
+    start_time: String(input.get("start_time") ?? ""),
+    status: String(input.get("status") ?? "scheduled"),
+    title: String(input.get("title") ?? ""),
+    type: String(input.get("type") ?? "manual"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Please fix the highlighted calendar fields.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const startsAt = buildDateTime(parsed.data.date, parsed.data.start_time ?? "");
+  const endsAt = buildDateTime(parsed.data.date, parsed.data.end_time ?? "");
   const assignedEmployeeId = String(input.get("assigned_employee_id") ?? "");
 
   const payload = {
-    date,
+    date: parsed.data.date,
     starts_at: startsAt,
     ends_at: endsAt,
     all_day: !startsAt,
-    title: String(input.get("title") ?? ""),
-    type: String(input.get("type") ?? "manual"),
-    status: String(input.get("status") ?? "scheduled"),
+    title: parsed.data.title,
+    type: parsed.data.type,
+    status: parsed.data.status,
     assigned_employee_id: assignedEmployeeId && assignedEmployeeId !== "none" ? Number(assignedEmployeeId) : null,
-    location: String(input.get("location") ?? ""),
-    notes: String(input.get("notes") ?? ""),
+    location: parsed.data.location ?? "",
+    notes: parsed.data.notes ?? "",
   };
 
   try {

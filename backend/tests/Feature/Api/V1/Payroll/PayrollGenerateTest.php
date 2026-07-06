@@ -84,7 +84,50 @@ test('generating payroll is idempotent on re-run', function (): void {
     // Run 2
     $response = $this->postJson('/api/v1/payroll/generate?month=2026-06')
         ->assertStatus(201)
-        ->assertJsonPath('meta.skipped_existing', 1);
+        ->assertJsonPath('meta.refreshed', 1)
+        ->assertJsonPath('meta.skipped_existing', 0);
+
+    expect(Payroll::count())->toBe(1);
+});
+
+test('generating payroll refreshes approved deductions on existing pending payroll', function (): void {
+    $adminUser = User::factory()->create();
+    $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($adminUser);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '3000.00',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertStatus(201)
+        ->assertJsonPath('data.0.attendance_deductions', '0.00');
+
+    $rule = AttendanceViolationRule::factory()->create([
+        'code' => 'late_refresh_test',
+        'deduction_days' => '1.00',
+        'auto_apply_if_unreviewed' => false,
+    ]);
+    $attendance = Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-06-10',
+        'status' => 'late',
+    ]);
+    AttendanceViolation::factory()->create([
+        'employee_id' => $employee->id,
+        'attendance_id' => $attendance->id,
+        'attendance_violation_rule_id' => $rule->id,
+        'violation_date' => '2026-06-10',
+        'deduction_days' => '1.00',
+        'deduction_amount' => '100.00',
+        'status' => 'approved',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertStatus(201)
+        ->assertJsonPath('meta.refreshed', 1)
+        ->assertJsonPath('data.0.attendance_deductions', '100.00')
+        ->assertJsonPath('data.0.net_salary', '2900.00');
 
     expect(Payroll::count())->toBe(1);
 });
@@ -134,6 +177,127 @@ test('generating payroll applies unreviewed attendance deductions', function ():
         ->assertJsonPath('data.0.net_salary', '2950.00');
 
     expect(AttendanceViolation::first()->fresh()->status)->toBe('auto_applied');
+});
+
+test('generating payroll includes off day attendance bonuses', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '3000.00',
+    ]);
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-06-26',
+        'status' => 'present',
+        'schedule_status' => 'off_day',
+        'off_day_bonus_amount' => '200.00',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertCreated()
+        ->assertJsonPath('data.0.bonuses', '200.00')
+        ->assertJsonPath('data.0.net_salary', '3200.00');
+});
+
+test('generating payroll refreshes off day bonuses on existing pending payroll', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '3000.00',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertCreated()
+        ->assertJsonPath('data.0.bonuses', '0.00')
+        ->assertJsonPath('data.0.net_salary', '3000.00');
+
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-06-26',
+        'status' => 'present',
+        'schedule_status' => 'off_day',
+        'off_day_bonus_amount' => '700.00',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertCreated()
+        ->assertJsonPath('meta.refreshed', 1)
+        ->assertJsonPath('data.0.bonuses', '700.00')
+        ->assertJsonPath('data.0.net_salary', '3700.00');
+
+    expect(Payroll::first()->fresh())
+        ->bonuses->toBe('700.00')
+        ->net_salary->toBe('3700.00');
+});
+
+test('payroll index refreshes stale off day bonuses on pending payroll', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '3000.00',
+    ]);
+    Payroll::factory()->create([
+        'employee_id' => $employee->id,
+        'month' => '2026-07',
+        'base_salary' => '3000.00',
+        'commissions_total' => '0.00',
+        'bonuses' => '0.00',
+        'deductions' => '0.00',
+        'attendance_deductions' => '0.00',
+        'net_salary' => '3000.00',
+        'status' => 'pending',
+    ]);
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-07-06',
+        'status' => 'present',
+        'schedule_status' => 'off_day',
+        'off_day_bonus_amount' => '700.00',
+    ]);
+
+    $this->getJson('/api/v1/payroll?month=2026-07')
+        ->assertOk()
+        ->assertJsonPath('data.0.bonuses', '700.00')
+        ->assertJsonPath('data.0.net_salary', '3700.00');
+});
+
+test('payslip includes dismissed attendance warnings for the payroll month', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '3000.00',
+    ]);
+    $payroll = Payroll::factory()->create([
+        'employee_id' => $employee->id,
+        'month' => '2026-06',
+        'base_salary' => '3000.00',
+        'net_salary' => '3000.00',
+        'status' => 'pending',
+    ]);
+    AttendanceViolation::factory()->create([
+        'employee_id' => $employee->id,
+        'payroll_id' => null,
+        'violation_date' => '2026-06-12',
+        'type' => 'early_leave',
+        'deduction_days' => '0.00',
+        'deduction_amount' => '0.00',
+        'status' => 'dismissed',
+    ]);
+
+    $this->getJson("/api/v1/payroll/{$payroll->id}/payslip", [
+        'Accept' => 'application/json',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.attendance_violations.0.status', 'dismissed')
+        ->assertJsonPath('data.attendance_violations.0.type', 'early_leave');
 });
 
 test('accountant cannot trigger payroll generation and receives 403', function (): void {

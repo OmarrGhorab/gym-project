@@ -3,15 +3,12 @@
 import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormSelect } from "@/components/ui/form-controls";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { recordPaymentForm } from "./actions";
 import type { FinanceDue, FinanceExpense, FinancePayment } from "./data";
+import { DuePaymentForm } from "./due-payment-form";
 import { ExpenseRowActions } from "./expense-row-actions";
 
 export function LedgerTab({
@@ -128,32 +125,10 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
               </TableCell>
               <TableCell>
                 {due.subscription_id ? (
-                  <form action={recordPaymentForm} className="flex justify-end gap-2">
-                    <input type="hidden" name="subscription_id" value={due.subscription_id} />
-                    <Input
-                      className="h-8 w-24"
-                      name="amount"
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      defaultValue={due.outstanding_balance ?? due.amount_due ?? ""}
-                      aria-label={t("amount")}
-                    />
-                    <FormSelect
-                      className="w-28"
-                      name="method"
-                      defaultValue="cash"
-                      size="sm"
-                      options={[
-                        { value: "cash", label: t("paymentMethods.cash") },
-                        { value: "card", label: t("paymentMethods.card") },
-                        { value: "bank_transfer", label: t("paymentMethods.bank_transfer") },
-                      ]}
-                    />
-                    <Button type="submit" size="sm">
-                      {t("collect")}
-                    </Button>
-                  </form>
+                  <DuePaymentForm
+                    subscriptionId={due.subscription_id}
+                    amount={due.outstanding_balance ?? due.amount_due ?? ""}
+                  />
                 ) : (
                   <span className="text-muted-foreground text-xs">{t("notAvailable")}</span>
                 )}

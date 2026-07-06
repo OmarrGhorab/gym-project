@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Payroll\ApplyAttendanceBonuses;
 use App\Actions\Payroll\GeneratePayroll;
 use App\Actions\Payroll\GeneratePayslip;
 use App\Actions\Payroll\MarkPayrollPaid;
@@ -17,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 final class PayrollController extends ApiController
 {
-    public function index(IndexPayrollRequest $request): JsonResponse
+    public function index(IndexPayrollRequest $request, ApplyAttendanceBonuses $attendanceBonuses): JsonResponse
     {
         $query = Payroll::query()->with('employee');
 
@@ -34,6 +35,11 @@ final class PayrollController extends ApiController
         $payroll = $query->latest()
             ->paginate(15)
             ->withQueryString();
+        $payroll->getCollection()->each(function (Payroll $row) use ($attendanceBonuses): void {
+            if ($row->status === 'pending') {
+                $attendanceBonuses->execute($row);
+            }
+        });
 
         return $this->success(
             data: PayrollResource::collection($payroll->getCollection())->resolve(),
@@ -58,6 +64,7 @@ final class PayrollController extends ApiController
             meta: [
                 'month' => $month,
                 'generated' => $result['generated_count'],
+                'refreshed' => $result['refreshed_count'],
                 'skipped_existing' => $result['skipped_count'],
             ]
         )->setStatusCode(201);

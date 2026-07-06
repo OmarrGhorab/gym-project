@@ -50,17 +50,20 @@ function Button({
   asChild,
   children,
   className,
+  nativeButton,
   variant = "default",
   size = "default",
   render,
   ...props
 }: ButtonProps) {
   const childRender = asChild && isValidElement(children) ? children : render
+  const resolvedNativeButton = nativeButton ?? !childRender
 
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      nativeButton={resolvedNativeButton}
       render={childRender}
       {...props}
     >

@@ -18,12 +18,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createSale, searchPosMembers } from "./actions";
+import { createSale, type PosActionResult, searchPosMembers } from "./actions";
 import type { PosMemberOption, PosProductOption } from "./data";
 
 export function PosCheckoutClient({ members, products }: { members: PosMemberOption[]; products: PosProductOption[] }) {
@@ -33,6 +33,7 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
   const [memberOptions, setMemberOptions] = React.useState(members);
   const [memberSearchPending, startMemberSearch] = React.useTransition();
   const [salePending, startSaleTransition] = React.useTransition();
+  const [errors, setErrors] = React.useState<PosActionResult["errors"]>({});
   const searchRequestId = React.useRef(0);
 
   const handleMemberSearch = React.useCallback(
@@ -60,6 +61,8 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
   function submit(formData: FormData) {
     startSaleTransition(async () => {
       const result = await createSale(formData);
+
+      setErrors(result.errors ?? {});
 
       if (result.ok) {
         toast.success(result.message);
@@ -95,15 +98,39 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
               value: String(product.id),
               label: `${product.name} - ${product.price} EGP - ${t("left", { count: product.stock_quantity })}`,
             }))}
+            error={errors?.product_id?.[0]}
           />
           <div className="grid gap-3 sm:grid-cols-3">
             <Field className="gap-1">
-              <FieldLabel className="text-xs">{t("quantity")}</FieldLabel>
-              <Input name="quantity" type="number" min="1" defaultValue="1" placeholder={t("quantity")} />
+              <FieldLabel htmlFor="pos-quantity" className="text-xs">
+                {t("quantity")}
+              </FieldLabel>
+              <Input
+                id="pos-quantity"
+                name="quantity"
+                type="number"
+                min="1"
+                defaultValue="1"
+                placeholder={t("quantity")}
+                aria-invalid={Boolean(errors?.quantity?.[0])}
+              />
+              <FieldError errors={errors?.quantity} />
             </Field>
             <Field className="gap-1">
-              <FieldLabel className="text-xs">{t("discount")}</FieldLabel>
-              <Input name="discount" type="number" min="0" step="0.01" defaultValue="0" placeholder={t("discount")} />
+              <FieldLabel htmlFor="pos-discount" className="text-xs">
+                {t("discount")}
+              </FieldLabel>
+              <Input
+                id="pos-discount"
+                name="discount"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue="0"
+                placeholder={t("discount")}
+                aria-invalid={Boolean(errors?.discount?.[0])}
+              />
+              <FieldError errors={errors?.discount} />
             </Field>
             <Field className="gap-1">
               <FieldLabel className="text-xs">{t("paymentMethod")}</FieldLabel>
@@ -115,6 +142,7 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
                   { value: "card", label: t("paymentMethodsShort.card") },
                   { value: "bank_transfer", label: t("paymentMethodsShort.bank_transfer") },
                 ]}
+                error={errors?.payment_method?.[0]}
               />
             </Field>
           </div>
@@ -128,8 +156,15 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
               label: `${member.name}${member.phone ? ` - ${member.phone}` : ""}`,
             }))}
             onSearchChange={handleMemberSearch}
+            error={errors?.member_id?.[0]}
           />
-          <Textarea name="notes" placeholder={t("notes")} />
+          <Field className="gap-1">
+            <FieldLabel htmlFor="pos-notes" className="text-xs">
+              {t("notes")}
+            </FieldLabel>
+            <Textarea id="pos-notes" name="notes" placeholder={t("notes")} aria-invalid={Boolean(errors?.notes?.[0])} />
+            <FieldError errors={errors?.notes} />
+          </Field>
           <DialogFooter>
             <Button type="submit" disabled={salePending}>
               {salePending ? t("creatingSale") : t("createSale")}

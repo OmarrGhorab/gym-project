@@ -12,10 +12,14 @@ export type LogisticsActionResult =
   | {
       ok: true;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
+      values?: Record<string, string>;
     }
   | {
       ok: false;
       message: string;
+      errors?: Partial<Record<string, string[]>>;
+      values?: Record<string, string>;
     };
 
 const optionalTextInput = (max: number) =>
@@ -75,6 +79,7 @@ const receivePurchaseOrderInputSchema = z
   });
 
 export async function createProduct(input: FormData): Promise<LogisticsActionResult> {
+  const values = getFormValues(input);
   const parsed = productInputSchema.safeParse({
     category: input.get("category"),
     cost: input.get("cost") ?? "0",
@@ -86,7 +91,7 @@ export async function createProduct(input: FormData): Promise<LogisticsActionRes
   });
 
   if (!parsed.success) {
-    return invalidActionResult(parsed.error);
+    return invalidActionResult(parsed.error, values);
   }
 
   const payload = new FormData();
@@ -122,6 +127,7 @@ export async function createProduct(input: FormData): Promise<LogisticsActionRes
 }
 
 export async function createPurchaseOrder(input: FormData): Promise<LogisticsActionResult> {
+  const values = getFormValues(input);
   const parsed = purchaseOrderInputSchema.safeParse({
     expected_at: input.get("expected_at"),
     notes: input.get("notes"),
@@ -133,7 +139,7 @@ export async function createPurchaseOrder(input: FormData): Promise<LogisticsAct
   });
 
   if (!parsed.success) {
-    return invalidActionResult(parsed.error);
+    return invalidActionResult(parsed.error, values);
   }
 
   const data = parsed.data;
@@ -186,11 +192,11 @@ export async function updateProduct(input: FormData): Promise<LogisticsActionRes
   });
 
   if (!id.success) {
-    return invalidActionResult(id.error);
+    return invalidActionResult(id.error, getFormValues(input));
   }
 
   if (!parsed.success) {
-    return invalidActionResult(parsed.error);
+    return invalidActionResult(parsed.error, getFormValues(input));
   }
 
   const payload = new FormData();
@@ -225,7 +231,7 @@ export async function toggleProduct(input: FormData): Promise<LogisticsActionRes
   const id = productIdSchema.safeParse(input.get("id"));
 
   if (!id.success) {
-    return invalidActionResult(id.error);
+    return invalidActionResult(id.error, getFormValues(input));
   }
 
   return mutateSimple(`/products/${id.data}/toggle`, "PATCH", "Product status updated.");
@@ -235,7 +241,7 @@ export async function deleteProduct(input: FormData): Promise<LogisticsActionRes
   const id = productIdSchema.safeParse(input.get("id"));
 
   if (!id.success) {
-    return invalidActionResult(id.error);
+    return invalidActionResult(id.error, getFormValues(input));
   }
 
   return mutateSimple(`/products/${id.data}`, "DELETE", "Product deleted.");
@@ -250,7 +256,7 @@ export async function adjustProductStock(input: FormData): Promise<LogisticsActi
   });
 
   if (!parsed.success) {
-    return invalidActionResult(parsed.error);
+    return invalidActionResult(parsed.error, getFormValues(input));
   }
 
   const { id, ...payload } = parsed.data;
@@ -266,7 +272,7 @@ export async function receivePurchaseOrder(input: FormData): Promise<LogisticsAc
   });
 
   if (!parsed.success) {
-    return invalidActionResult(parsed.error);
+    return invalidActionResult(parsed.error, getFormValues(input));
   }
 
   const items = parseReceiveItems(parsed.data.items).map((item) => ({
@@ -371,11 +377,19 @@ function revalidateInventory() {
   revalidatePath("/dashboard/finance");
 }
 
-function invalidActionResult(error: z.ZodError): LogisticsActionResult {
+function invalidActionResult(error: z.ZodError, values: Record<string, string>): LogisticsActionResult {
   return {
     ok: false,
+    errors: error.flatten().fieldErrors,
     message: error.issues[0]?.message ?? "Please check the form fields.",
+    values,
   };
+}
+
+function getFormValues(input: FormData): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(input.entries()).map(([key, value]) => [key, typeof value === "string" ? value : ""]),
+  );
 }
 
 function parseReceiveItems(value: string) {
