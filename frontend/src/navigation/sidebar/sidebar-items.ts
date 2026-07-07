@@ -14,7 +14,6 @@ import {
   Mail,
   MapPinned,
   PackageCheck,
-  ReceiptText,
   Settings,
   ShoppingBag,
   Users,
@@ -146,12 +145,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Tasks",
         url: "/dashboard/tasks",
         icon: CheckSquare,
-      },
-      {
-        id: "invoice",
-        title: "Documents",
-        url: "/dashboard/invoice",
-        icon: ReceiptText,
       },
       {
         id: "payroll",

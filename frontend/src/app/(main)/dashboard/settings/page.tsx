@@ -296,65 +296,84 @@ export default async function Page() {
             </Table>
             <div className="mt-4 grid gap-3">
               {rules.map((rule) => (
-                <SettingsActionForm
-                  key={`rule-${rule.id}`}
-                  action={updateViolationRule}
-                  className="grid gap-3 rounded-lg border p-3"
-                >
-                  <input type="hidden" name="id" value={rule.id} />
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <RuleNameSelect defaultValue={rule.name} label={t("ruleName")} />
-                    <Field
-                      label={t("threshold")}
-                      name="threshold_minutes"
-                      type="number"
-                      defaultValue={rule.threshold_minutes ?? ""}
-                    />
-                    <Field
-                      label={t("warningCount")}
-                      name="warning_count_before_deduction"
-                      type="number"
-                      defaultValue={rule.warning_count_before_deduction}
-                    />
-                    <Field
-                      label={t("deductionDays")}
-                      name="deduction_days"
-                      type="number"
-                      step="0.01"
-                      defaultValue={rule.deduction_days}
-                    />
-                    <div className="flex flex-wrap items-center gap-4 pt-7 text-sm">
-                      <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
-                        <Checkbox
-                          id={`rule-${rule.id}-requires-approval`}
-                          name="requires_admin_approval"
-                          defaultChecked={rule.requires_admin_approval}
-                        />
-                        <Label htmlFor={`rule-${rule.id}-requires-approval`}>{t("requiresApproval")}</Label>
+                <details key={`rule-${rule.id}`} className="group rounded-lg border bg-background">
+                  <summary className="grid cursor-pointer list-none gap-3 rounded-lg p-3 transition-colors hover:bg-muted/40 md:grid-cols-[minmax(12rem,1fr)_auto] md:items-center [&::-webkit-details-marker]:hidden">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-sm">{rule.name}</span>
+                        <Badge variant="outline">{rule.is_active ? t("active") : t("inactive")}</Badge>
                       </div>
-                      <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
-                        <Checkbox
-                          id={`rule-${rule.id}-auto-apply`}
-                          name="auto_apply_if_unreviewed"
-                          defaultChecked={rule.auto_apply_if_unreviewed}
-                        />
-                        <Label htmlFor={`rule-${rule.id}-auto-apply`}>{t("autoApply")}</Label>
-                      </div>
-                      <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
-                        <Checkbox id={`rule-${rule.id}-active`} name="is_active" defaultChecked={rule.is_active} />
-                        <Label htmlFor={`rule-${rule.id}-active`}>{t("active")}</Label>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground text-xs">
+                        <span>
+                          {t("threshold")}: {t("minutesShort", { count: rule.threshold_minutes ?? 0 })}
+                        </span>
+                        <span>
+                          {t("warningCount")}: {rule.warning_count_before_deduction}
+                        </span>
+                        <span>
+                          {t("deduction")}: {t("days", { count: rule.deduction_days })}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                  <Textarea
-                    name="description"
-                    defaultValue={rule.description ?? ""}
-                    placeholder={t("ruleDescription")}
-                  />
-                  <Button type="submit" size="sm">
-                    {t("saveRule")}
-                  </Button>
-                </SettingsActionForm>
+                    <span className="text-muted-foreground text-xs group-open:hidden">{t("show")}</span>
+                    <span className="hidden text-muted-foreground text-xs group-open:inline">{t("hide")}</span>
+                  </summary>
+                  <SettingsActionForm action={updateViolationRule} className="grid gap-3 border-t p-3">
+                    <input type="hidden" name="id" value={rule.id} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <RuleNameSelect defaultValue={rule.name} label={t("ruleName")} />
+                      <Field
+                        label={t("threshold")}
+                        name="threshold_minutes"
+                        type="number"
+                        defaultValue={rule.threshold_minutes ?? ""}
+                      />
+                      <Field
+                        label={t("warningCount")}
+                        name="warning_count_before_deduction"
+                        type="number"
+                        defaultValue={rule.warning_count_before_deduction}
+                      />
+                      <Field
+                        label={t("deductionDays")}
+                        name="deduction_days"
+                        type="number"
+                        step="0.01"
+                        defaultValue={rule.deduction_days}
+                      />
+                      <div className="flex flex-wrap items-center gap-4 pt-7 text-sm">
+                        <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                          <Checkbox
+                            id={`rule-${rule.id}-requires-approval`}
+                            name="requires_admin_approval"
+                            defaultChecked={rule.requires_admin_approval}
+                          />
+                          <Label htmlFor={`rule-${rule.id}-requires-approval`}>{t("requiresApproval")}</Label>
+                        </div>
+                        <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                          <Checkbox
+                            id={`rule-${rule.id}-auto-apply`}
+                            name="auto_apply_if_unreviewed"
+                            defaultChecked={rule.auto_apply_if_unreviewed}
+                          />
+                          <Label htmlFor={`rule-${rule.id}-auto-apply`}>{t("autoApply")}</Label>
+                        </div>
+                        <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                          <Checkbox id={`rule-${rule.id}-active`} name="is_active" defaultChecked={rule.is_active} />
+                          <Label htmlFor={`rule-${rule.id}-active`}>{t("active")}</Label>
+                        </div>
+                      </div>
+                    </div>
+                    <Textarea
+                      name="description"
+                      defaultValue={rule.description ?? ""}
+                      placeholder={t("ruleDescription")}
+                    />
+                    <Button type="submit" size="sm">
+                      {t("saveRule")}
+                    </Button>
+                  </SettingsActionForm>
+                </details>
               ))}
             </div>
           </CardContent>

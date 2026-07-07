@@ -1226,7 +1226,9 @@
       "requiresApproval": "تحتاج موافقة",
       "autoApply": "تطبيق تلقائيًا إذا لم تراجع",
       "ruleDescription": "وصف القاعدة",
-      "saveRule": "حفظ القاعدة"
+      "saveRule": "حفظ القاعدة",
+      "show": "عرض",
+      "hide": "إخفاء"
     },
     "roles": {
       "title": "الأدوار والصلاحيات",

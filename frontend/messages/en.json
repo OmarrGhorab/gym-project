@@ -1226,7 +1226,9 @@
       "requiresApproval": "Requires approval",
       "autoApply": "Auto apply if unreviewed",
       "ruleDescription": "Rule description",
-      "saveRule": "Save rule"
+      "saveRule": "Save rule",
+      "show": "Show",
+      "hide": "Hide"
     },
     "roles": {
       "title": "Roles & Permissions",
