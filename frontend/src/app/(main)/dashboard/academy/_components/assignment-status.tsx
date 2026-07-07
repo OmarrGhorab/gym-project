@@ -22,6 +22,10 @@ function ApprovedLegendIcon() {
   return <span className="block size-2 rounded-[2px] bg-chart-3" />;
 }
 
+function WarningLegendIcon() {
+  return <span className="block size-2 rounded-[2px] bg-muted-foreground" />;
+}
+
 function PendingLegendIcon() {
   return <span className="block size-2 rounded-[2px] bg-chart-2" />;
 }
@@ -47,6 +51,11 @@ export function AssignmentStatus({ warnings }: { warnings: StaffAcademyWarningSt
       label: t("approved"),
       color: "var(--chart-3)",
       icon: ApprovedLegendIcon,
+    },
+    warning: {
+      label: t("warning"),
+      color: "var(--muted-foreground)",
+      icon: WarningLegendIcon,
     },
     pending: {
       label: t("pending"),
@@ -77,6 +86,7 @@ export function AssignmentStatus({ warnings }: { warnings: StaffAcademyWarningSt
         <ChartContainer config={chartConfig} className="h-70 w-full">
           <BarChart accessibilityLayer data={warnings} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
             <defs>
+              <WarningDotPattern color="var(--color-warning)" id="warning-warning-pattern" />
               <WarningDotPattern color="var(--color-approved)" id="warning-approved-pattern" />
               <WarningDotPattern color="var(--color-pending)" id="warning-pending-pattern" />
               <WarningDotPattern color="var(--color-auto_applied)" id="warning-auto-applied-pattern" />
@@ -85,6 +95,14 @@ export function AssignmentStatus({ warnings }: { warnings: StaffAcademyWarningSt
             <XAxis axisLine={false} dataKey="label" tickLine={false} tickMargin={10} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
             <ChartLegend content={<ChartLegendContent className="justify-start" />} verticalAlign="top" />
+            <Bar
+              dataKey="warning"
+              fill="url(#warning-warning-pattern)"
+              radius={4}
+              stroke="var(--color-warning)"
+              strokeOpacity={0.45}
+              strokeWidth={0.5}
+            />
             <Bar
               dataKey="approved"
               fill="url(#warning-approved-pattern)"

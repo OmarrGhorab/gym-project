@@ -3,7 +3,7 @@
 import Image from "next/image";
 
 import { Copy, QrCode } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 
 import type { StaffAcademyPageData } from "./data";
+import { formatTime12Hour } from "./time-format";
 
 export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData["employeeRows"] }) {
   const t = useTranslations("Dashboard.academy");
+  const locale = useLocale();
 
   return (
     <Card id="employee-performance">
@@ -59,7 +61,9 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                     <TableCell>
                       <div>{row.employee.shift?.name ?? t("noShift")}</div>
                       <div className="text-muted-foreground text-xs">
-                        {row.employee.shift ? `${row.employee.shift.starts_at} - ${row.employee.shift.ends_at}` : "-"}
+                        {row.employee.shift
+                          ? `${formatTime12Hour(row.employee.shift.starts_at, locale)} - ${formatTime12Hour(row.employee.shift.ends_at, locale)}`
+                          : "-"}
                       </div>
                     </TableCell>
                     <TableCell>{row.performance?.attendance_count ?? 0}</TableCell>

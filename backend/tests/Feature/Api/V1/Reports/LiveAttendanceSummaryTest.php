@@ -143,3 +143,32 @@ test('live attendance summary supports chart filters', function (): void {
     $this->getJson('/api/v1/reports/live-attendance?hours=99')
         ->assertUnprocessable();
 });
+
+test('live attendance summary includes staff currently checked in without member visits', function (): void {
+    Carbon::setTestNow('2026-07-07 17:10:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $employee = Employee::factory()->create(['name' => 'Sara Mounir', 'role' => 'coach']);
+
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-07-07',
+        'check_in' => '17:01',
+        'check_out' => null,
+        'status' => 'late',
+        'scan_method' => 'manual',
+        'late_minutes' => 406,
+    ]);
+
+    $this->getJson('/api/v1/reports/live-attendance?date=2026-07-07&hours=24&audience=all&metric=occupancy')
+        ->assertOk()
+        ->assertJsonPath('data.currently_inside.total', 1)
+        ->assertJsonPath('data.currently_inside.staff', 1)
+        ->assertJsonPath('data.today.staff_checkins', 1)
+        ->assertJsonPath('data.scan_methods.0.method', 'manual')
+        ->assertJsonPath('data.scan_methods.0.count', 1)
+        ->assertJsonFragment(['name' => 'Sara Mounir']);
+});

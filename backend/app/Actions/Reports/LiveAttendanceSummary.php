@@ -217,9 +217,10 @@ final class LiveAttendanceSummary
      */
     private function scanMethods(Collection $memberVisits, Collection $staffAttendance): array
     {
-        return $memberVisits
+        return collect($memberVisits
             ->map(fn (MemberVisit $visit): string => $visit->scan_method ?: 'manual')
-            ->merge($staffAttendance->map(fn (Attendance $attendance): string => $attendance->scan_method ?: 'manual'))
+            ->all())
+            ->merge($staffAttendance->map(fn (Attendance $attendance): string => $attendance->scan_method ?: 'manual')->all())
             ->countBy()
             ->map(fn (int $count, string $method): array => [
                 'method' => $method,

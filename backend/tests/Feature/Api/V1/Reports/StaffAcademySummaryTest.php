@@ -101,3 +101,27 @@ test('users without reports permission cannot view staff academy summary', funct
     $this->getJson('/api/v1/reports/staff-academy')
         ->assertForbidden();
 });
+
+test('staff academy warning chart counts late attendance without a violation row', function (): void {
+    Carbon::setTestNow('2026-07-07 17:15:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $employee = Employee::factory()->create(['status' => 'active']);
+
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-07-07',
+        'status' => 'late',
+        'schedule_status' => 'late',
+        'approval_status' => 'approved',
+        'late_minutes' => 25,
+    ]);
+
+    $this->getJson('/api/v1/reports/staff-academy?from=2026-07-01&to=2026-07-31')
+        ->assertOk()
+        ->assertJsonPath('data.warning_status.0.label', 'Late')
+        ->assertJsonPath('data.warning_status.0.warning', 1);
+});

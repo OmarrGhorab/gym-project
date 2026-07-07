@@ -93,6 +93,7 @@ final class StaffAcademySummary
     private function shiftSchedule(CarbonImmutable $now): array
     {
         return EmployeeShift::query()
+            ->with(['employees' => fn ($query) => $query->active()->orderBy('name')->select('id', 'name', 'role', 'shift_id')])
             ->withCount(['employees' => fn ($query) => $query->active()])
             ->where('is_active', true)
             ->orderBy('starts_at')
@@ -115,6 +116,10 @@ final class StaffAcademySummary
                     'time' => $startsAt->format('H:i').' - '.$endsAt->format('H:i'),
                     'date' => $now->toDateString(),
                     'staff_count' => $shift->employees_count,
+                    'staff_names' => $shift->employees
+                        ->map(fn (Employee $employee): string => "{$employee->name} ({$employee->role})")
+                        ->values()
+                        ->all(),
                     'grace_minutes' => $shift->grace_minutes,
                     'status' => $status,
                 ];
@@ -124,33 +129,96 @@ final class StaffAcademySummary
     }
 
     /**
-     * @return array<int, array{label: string, approved: int, pending: int, auto_applied: int}>
+     * @return array<int, array{label: string, warning: int, approved: int, pending: int, auto_applied: int}>
      */
     private function warningStatus(string $from, string $to): array
     {
-        $statuses = AttendanceViolation::query()
+        $rows = [
+            'late' => ['label' => 'Late', 'warning' => 0, 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
+            'absence' => ['label' => 'Absence', 'warning' => 0, 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
+            'off_shift' => ['label' => 'Off shift', 'warning' => 0, 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
+        ];
+
+        $violations = AttendanceViolation::query()
             ->whereBetween('violation_date', [$from, $to])
-            ->selectRaw("type, SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count")
+            ->selectRaw('type')
+            ->selectRaw("SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warning_count")
+            ->selectRaw("SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count")
             ->selectRaw("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count")
             ->selectRaw("SUM(CASE WHEN status = 'auto_applied' THEN 1 ELSE 0 END) as auto_applied_count")
             ->groupBy('type')
             ->orderBy('type')
             ->get();
 
-        if ($statuses->isEmpty()) {
-            return [
-                ['label' => 'Late', 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
-                ['label' => 'Absence', 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
-                ['label' => 'Off shift', 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
-            ];
+        foreach ($violations as $violation) {
+            $type = (string) $violation->type;
+
+            if (! isset($rows[$type])) {
+                $rows[$type] = [
+                    'label' => str($type)->replace('_', ' ')->headline()->toString(),
+                    'warning' => 0,
+                    'approved' => 0,
+                    'pending' => 0,
+                    'auto_applied' => 0,
+                ];
+            }
+
+            $rows[$type]['warning'] += (int) $violation->warning_count;
+            $rows[$type]['approved'] += (int) $violation->approved_count;
+            $rows[$type]['pending'] += (int) $violation->pending_count;
+            $rows[$type]['auto_applied'] += (int) $violation->auto_applied_count;
         }
 
-        return $statuses->map(fn ($row): array => [
-            'label' => str((string) $row->type)->replace('_', ' ')->headline()->toString(),
-            'approved' => (int) $row->approved_count,
-            'pending' => (int) $row->pending_count,
-            'auto_applied' => (int) $row->auto_applied_count,
-        ])->values()->all();
+        $existingViolationKeys = AttendanceViolation::query()
+            ->whereBetween('violation_date', [$from, $to])
+            ->whereNotNull('attendance_id')
+            ->get(['attendance_id', 'type'])
+            ->mapWithKeys(fn (AttendanceViolation $violation): array => [
+                $violation->attendance_id.'|'.$violation->type => true,
+            ]);
+
+        Attendance::query()
+            ->whereBetween('date', [$from, $to])
+            ->where(function ($query): void {
+                $query->where('status', 'late')
+                    ->orWhere('status', 'absent')
+                    ->orWhere('schedule_status', 'off_shift');
+            })
+            ->get(['id', 'status', 'schedule_status', 'approval_status'])
+            ->each(function (Attendance $attendance) use (&$rows, $existingViolationKeys): void {
+                foreach ($this->attendanceWarningTypes($attendance) as $type) {
+                    if ($existingViolationKeys->has($attendance->id.'|'.$type)) {
+                        continue;
+                    }
+
+                    $status = $attendance->approval_status === 'pending' ? 'pending' : 'warning';
+                    $rows[$type][$status]++;
+                }
+            });
+
+        return array_values($rows);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function attendanceWarningTypes(Attendance $attendance): array
+    {
+        $types = [];
+
+        if ($attendance->status === 'late') {
+            $types[] = 'late';
+        }
+
+        if ($attendance->status === 'absent') {
+            $types[] = 'absence';
+        }
+
+        if ($attendance->schedule_status === 'off_shift') {
+            $types[] = 'off_shift';
+        }
+
+        return $types;
     }
 
     /**

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { StaffAcademyShift } from "./data";
+import { formatTimeRange12Hour } from "./time-format";
 
 function statusClass(status: StaffAcademyShift["status"]) {
   if (status === "in_progress") {
@@ -60,7 +61,7 @@ export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
                 <div className="flex gap-2">
                   <div className={`w-1 shrink-0 rounded-md ${statusBarClass(shift.status)}`} />
                   <div className="text-nowrap text-xs">
-                    <div className="font-medium text-foreground">{shift.time}</div>
+                    <div className="font-medium text-foreground">{formatTimeRange12Hour(shift.time, locale)}</div>
                     <div className="text-muted-foreground">{today}</div>
                   </div>
                 </div>
@@ -69,6 +70,21 @@ export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
                   <div className="truncate font-medium text-foreground text-sm leading-none">{shift.name}</div>
                   <div className="truncate text-muted-foreground text-xs leading-none">
                     {t("assignedGrace", { minutes: shift.grace_minutes, staff: shift.staff_count })}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {shift.staff_names.length > 0 ? (
+                      shift.staff_names.map((name) => (
+                        <Badge
+                          className="max-w-full truncate rounded-md px-2 py-0.5 font-normal text-[10px]"
+                          key={`${shift.id}-${name}`}
+                          variant="outline"
+                        >
+                          {name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground text-xs">{t("noAssignedStaff")}</span>
+                    )}
                   </div>
                 </div>
 
