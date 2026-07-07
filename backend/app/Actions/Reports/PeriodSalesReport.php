@@ -2,7 +2,9 @@
 
 namespace App\Actions\Reports;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 class PeriodSalesReport
 {
@@ -101,26 +103,7 @@ class PeriodSalesReport
                 ')
                 ->orderBy('sales.sold_by_user_id');
         } else { // day
-            $query = DB::table('sales')
-                ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
-                ->where('sales.status', 'completed')
-                ->whereBetween('sales.created_at', [$from.' 00:00:00', $to.' 23:59:59']);
-
-            if ($cashierId) {
-                $query->where('sales.sold_by_user_id', $cashierId);
-            }
-            if ($productId) {
-                $query->where('sale_items.product_id', $productId);
-            }
-
-            $query->groupBy(DB::raw('DATE(sales.created_at)'))
-                ->selectRaw('
-                    DATE(sales.created_at) as date,
-                    SUM(DISTINCT sales.total) as revenue,
-                    COUNT(DISTINCT sales.id) as sales_count,
-                    CAST(SUM(sale_items.quantity) AS SIGNED) as units_sold
-                ')
-                ->orderBy('date', 'desc');
+            return $this->dailyChartRows($from, $to, $productId, $cashierId);
         }
 
         $formatRow = function ($item) {
@@ -148,5 +131,52 @@ class PeriodSalesReport
         }
 
         return $query->get()->map($formatRow)->values();
+    }
+
+    private function dailyChartRows(string $from, string $to, mixed $productId, mixed $cashierId)
+    {
+        $salesRows = DB::table('sales')
+            ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
+            ->where('sales.status', 'completed')
+            ->whereBetween('sales.created_at', [$from.' 00:00:00', $to.' 23:59:59'])
+            ->when($cashierId, fn ($query) => $query->where('sales.sold_by_user_id', $cashierId))
+            ->when($productId, fn ($query) => $query->where('sale_items.product_id', $productId))
+            ->groupBy(DB::raw('DATE(sales.created_at)'))
+            ->selectRaw('
+                DATE(sales.created_at) as date,
+                SUM(DISTINCT sales.total) as revenue,
+                COUNT(DISTINCT sales.id) as sales_count,
+                CAST(SUM(sale_items.quantity) AS SIGNED) as units_sold
+            ')
+            ->get()
+            ->keyBy('date');
+
+        $subscriptionRows = DB::table('subscriptions')
+            ->whereBetween('created_at', [$from.' 00:00:00', $to.' 23:59:59'])
+            ->when($cashierId, fn ($query) => $query->where('sold_by_user_id', $cashierId))
+            ->when($productId, fn ($query) => $query->whereRaw('1 = 0'))
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as membership_subscriptions')
+            ->pluck('membership_subscriptions', 'date');
+
+        $rows = collect();
+        $current = CarbonImmutable::parse($to);
+        $start = CarbonImmutable::parse($from);
+
+        while ($current->greaterThanOrEqualTo($start)) {
+            $date = $current->toDateString();
+            $sales = $salesRows->get($date);
+            $row = new stdClass();
+            $row->date = $date;
+            $row->revenue = number_format((float) ($sales->revenue ?? 0), 2, '.', '');
+            $row->sales_count = (int) ($sales->sales_count ?? 0);
+            $row->units_sold = (int) ($sales->units_sold ?? 0);
+            $row->membership_subscriptions = (int) ($subscriptionRows[$date] ?? 0);
+            $rows->push($row);
+
+            $current = $current->subDay();
+        }
+
+        return $rows->values();
     }
 }

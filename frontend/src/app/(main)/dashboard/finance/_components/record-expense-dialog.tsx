@@ -25,6 +25,15 @@ import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createExpense, type ExpenseFormState } from "./actions";
@@ -34,6 +43,21 @@ const initialExpenseFormState: ExpenseFormState = {
   ok: false,
   values: {},
 };
+
+const customExpenseCategory = "__custom__";
+
+const expenseCategoryOptions = [
+  { value: "Rent", labelKey: "expenseCategories.rent" },
+  { value: "Utilities", labelKey: "expenseCategories.utilities" },
+  { value: "Maintenance", labelKey: "expenseCategories.maintenance" },
+  { value: "Equipment", labelKey: "expenseCategories.equipment" },
+  { value: "Inventory", labelKey: "expenseCategories.inventory" },
+  { value: "Cleaning", labelKey: "expenseCategories.cleaning" },
+  { value: "Marketing", labelKey: "expenseCategories.marketing" },
+  { value: "Software", labelKey: "expenseCategories.software" },
+  { value: "Taxes", labelKey: "expenseCategories.taxes" },
+  { value: customExpenseCategory, labelKey: "expenseCategories.other" },
+] as const;
 
 function formatDateString(date: Date) {
   return format(date, "yyyy-MM-dd");
@@ -49,10 +73,10 @@ function parseDateString(value: string) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function DatePickerField({ error, name }: { error?: string; name: string }) {
+function DatePickerField({ defaultValue, error, name }: { defaultValue?: string; error?: string; name: string }) {
   const t = useTranslations("Dashboard.finance");
   const locale = useLocale();
-  const [value, setValue] = React.useState(formatDateString(new Date()));
+  const [value, setValue] = React.useState(defaultValue ?? formatDateString(new Date()));
   const selectedDate = parseDateString(value);
   const errorId = React.useId();
 
@@ -105,16 +129,29 @@ export function RecordExpenseDialog() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [state, submit, pending] = useActionState(createExpense, initialExpenseFormState);
+  const handledSuccessStateRef = React.useRef<ExpenseFormState | null>(null);
+  const previousCategory = state.values.category ?? "";
+  const previousCategoryIsPreset = expenseCategoryOptions.some((option) => option.value === previousCategory);
+  const [category, setCategory] = React.useState(
+    previousCategory && previousCategoryIsPreset ? previousCategory : expenseCategoryOptions[0].value,
+  );
+  const [customCategory, setCustomCategory] = React.useState(previousCategoryIsPreset ? "" : previousCategory);
+  const submittedCategory = category === customExpenseCategory ? customCategory : category;
 
   React.useEffect(() => {
     if (!state.ok) {
       return;
     }
 
+    if (handledSuccessStateRef.current === state) {
+      return;
+    }
+
+    handledSuccessStateRef.current = state;
     toast.success(state.message ?? t("saveExpense"));
     setOpen(false);
     router.refresh();
-  }, [router, state.message, state.ok, t]);
+  }, [router, state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -122,7 +159,7 @@ export function RecordExpenseDialog() {
         <ReceiptText data-icon="inline-start" />
         {t("actions.recordExpense")}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("actions.recordExpense")}</DialogTitle>
           <DialogDescription>{t("recordExpenseDescription")}</DialogDescription>
@@ -133,38 +170,62 @@ export function RecordExpenseDialog() {
               {state.message}
             </div>
           ) : null}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="expense-category" className="font-medium text-sm">
                 {t("category")}
               </Label>
-              <Input
-                id="expense-category"
-                name="category"
-                required
-                placeholder={t("categoryPlaceholder")}
-                aria-invalid={Boolean(state.errors.category?.[0])}
-              />
+              <input name="category" type="hidden" value={submittedCategory} />
+              <Select value={category} onValueChange={(value) => setCategory(value || expenseCategoryOptions[0].value)}>
+                <SelectTrigger id="expense-category" aria-invalid={Boolean(state.errors.category?.[0])}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>{t("expenseCategoryGroup")}</SelectLabel>
+                    {expenseCategoryOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {t(option.labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {category === customExpenseCategory ? (
+                <Input
+                  value={customCategory}
+                  onChange={(event) => {
+                    const nextValue = event.currentTarget.value;
+
+                    setCustomCategory(nextValue);
+                  }}
+                  placeholder={t("customCategoryPlaceholder")}
+                  aria-invalid={Boolean(state.errors.category?.[0])}
+                />
+              ) : null}
               <FieldError errors={state.errors.category} />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="expense-amount" className="font-medium text-sm">
-                {t("amount")}
-              </Label>
-              <Input
-                id="expense-amount"
-                name="amount"
-                required
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="1500"
-                aria-invalid={Boolean(state.errors.amount?.[0])}
-              />
-              <FieldError errors={state.errors.amount} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="expense-amount" className="font-medium text-sm">
+                  {t("amount")}
+                </Label>
+                <Input
+                  id="expense-amount"
+                  name="amount"
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="1500"
+                  defaultValue={state.values.amount}
+                  aria-invalid={Boolean(state.errors.amount?.[0])}
+                />
+                <FieldError errors={state.errors.amount} />
+              </div>
+              <DatePickerField defaultValue={state.values.date} error={state.errors.date?.[0]} name="date" />
             </div>
           </div>
-          <DatePickerField error={state.errors.date?.[0]} name="date" />
           <div className="grid gap-2">
             <Label htmlFor="expense-description" className="font-medium text-sm">
               {t("description")}
@@ -172,6 +233,7 @@ export function RecordExpenseDialog() {
             <Textarea
               id="expense-description"
               name="description"
+              defaultValue={state.values.description}
               placeholder={t("descriptionPlaceholder")}
               aria-invalid={Boolean(state.errors.description?.[0])}
             />

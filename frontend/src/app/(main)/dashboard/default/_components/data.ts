@@ -73,6 +73,7 @@ type PaginatedData<T> = {
 
 type SalesReportDay = {
   date: string;
+  membership_subscriptions?: number;
   revenue: string;
   sales_count: number;
   units_sold: number;
@@ -288,6 +289,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
 function mapSalesDay(day: SalesReportDay): SalesChartPoint {
   return {
     date: day.date,
+    memberships: Number(day.membership_subscriptions ?? 0),
     revenue: Number(day.revenue),
     sales: day.sales_count,
     units: day.units_sold,

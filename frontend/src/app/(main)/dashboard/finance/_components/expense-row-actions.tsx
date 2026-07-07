@@ -31,6 +31,7 @@ export function ExpenseRowActions({
   const t = useTranslations("Dashboard.finance");
   const router = useRouter();
   const [pendingAction, setPendingAction] = React.useState<"delete" | "save" | null>(null);
+  const isPayrollExpense = category.trim().toLowerCase() === "payroll";
 
   async function save(formData: FormData) {
     setPendingAction("save");
@@ -58,6 +59,15 @@ export function ExpenseRowActions({
     }
 
     toast.error(t("expenseNotDeleted"), { description: result.message });
+  }
+
+  if (isPayrollExpense) {
+    return (
+      <div className="flex min-w-[18rem] flex-col items-end gap-1 text-end">
+        <span className="rounded-md border px-2 py-1 text-muted-foreground text-xs">{t("payrollExpenseLocked")}</span>
+        <span className="max-w-64 text-muted-foreground text-xs">{t("payrollExpenseLockedDescription")}</span>
+      </div>
+    );
   }
 
   return (

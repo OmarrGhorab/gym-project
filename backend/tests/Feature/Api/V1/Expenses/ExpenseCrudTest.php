@@ -155,6 +155,33 @@ test('manager can delete expense and receives 204', function (): void {
     expect(Expense::find($expense->id))->toBeNull();
 });
 
+test('payroll payout expenses cannot be updated or deleted from expense endpoints', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $expense = Expense::factory()->create([
+        'category' => 'payroll',
+        'amount' => '9000.00',
+        'description' => 'Salary payout for Coach - Month: 2026-07',
+        'date' => '2026-07-07',
+    ]);
+
+    $this->putJson("/api/v1/expenses/{$expense->id}", [
+        'category' => 'payroll',
+        'amount' => '1.00',
+        'description' => 'Changed payout',
+        'date' => '2026-07-08',
+    ])->assertStatus(403);
+
+    $this->deleteJson("/api/v1/expenses/{$expense->id}")
+        ->assertStatus(403);
+
+    expect($expense->refresh())
+        ->amount->toBe('9000.00')
+        ->description->toBe('Salary payout for Coach - Month: 2026-07');
+});
+
 test('user without expenses.create permission cannot create expense', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);

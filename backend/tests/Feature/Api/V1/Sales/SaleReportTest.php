@@ -2,6 +2,7 @@
 
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -61,6 +62,26 @@ test('manager can run report grouped by day', function (): void {
     expect($response->json('data.data'))->not->toBeEmpty();
     expect($response->json('data.data.0.revenue'))->toBe('150.00');
     expect($response->json('data.data.0.units_sold'))->toBe(3);
+});
+
+test('day report includes membership subscriptions even without pos sales', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($user);
+
+    Subscription::factory()->create([
+        'created_at' => '2026-07-07 10:00:00',
+        'sold_by_user_id' => $user->id,
+    ]);
+
+    $response = $this->getJson('/api/v1/sales/report?from=2026-07-07&to=2026-07-07&group_by=day')
+        ->assertStatus(200);
+
+    expect($response->json('data.data.0.date'))->toBe('2026-07-07');
+    expect($response->json('data.data.0.revenue'))->toBe('0.00');
+    expect($response->json('data.data.0.sales_count'))->toBe(0);
+    expect($response->json('data.data.0.units_sold'))->toBe(0);
+    expect($response->json('data.data.0.membership_subscriptions'))->toBe(1);
 });
 
 test('manager can run report grouped by cashier', function (): void {

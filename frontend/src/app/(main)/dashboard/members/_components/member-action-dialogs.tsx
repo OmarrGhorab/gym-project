@@ -872,7 +872,11 @@ function SubscriptionFormContent({
                   min="0"
                   step="0.01"
                   value={discountValue}
-                  onChange={(event) => setDiscountValue(event.currentTarget.value)}
+                  onChange={(event) => {
+                    const nextValue = event.currentTarget.value;
+
+                    setDiscountValue(nextValue);
+                  }}
                   aria-invalid={Boolean(fieldError(state, "discount"))}
                   className="pe-14"
                 />
@@ -969,13 +973,15 @@ function SubscriptionFormContent({
                         min="0"
                         step="0.01"
                         value={addon.discountValue}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          const nextValue = event.currentTarget.value;
+
                           setAddons((current) =>
                             current.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, discountValue: event.currentTarget.value } : item,
+                              itemIndex === index ? { ...item, discountValue: nextValue } : item,
                             ),
-                          )
-                        }
+                          );
+                        }}
                       />
                     </div>
                   </div>

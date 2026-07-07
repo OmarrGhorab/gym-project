@@ -6,11 +6,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
-import { CollectionsTab } from "./_components/collections-tab";
 import { getFinanceDashboardData } from "./_components/data";
 import { FinanceNotification } from "./_components/finance-notification";
 import { FinanceToolbarActions } from "./_components/finance-toolbar-actions";
-import { FinancialReportsTab } from "./_components/financial-reports-tab";
 import { IncomeBreakdown } from "./_components/income-breakdown";
 import { LedgerTab } from "./_components/ledger-tab";
 import { OverviewKpis } from "./_components/overview-kpis";
@@ -52,8 +50,6 @@ export default async function Page({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <TabsList variant="line">
             <TabsTrigger value="30-days">{t("tabs.dashboard")}</TabsTrigger>
-            <TabsTrigger value="12-months">{t("tabs.reports")}</TabsTrigger>
-            <TabsTrigger value="custom">{t("tabs.collections")}</TabsTrigger>
             <TabsTrigger value="ledger">{t("tabs.ledger")}</TabsTrigger>
           </TabsList>
 
@@ -96,14 +92,6 @@ export default async function Page({
               <QuickActions />
             </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="12-months">
-          <FinancialReportsTab chart={data.chart} totals={data.totals} />
-        </TabsContent>
-
-        <TabsContent value="custom">
-          <CollectionsTab totals={data.totals} upcoming={data.upcoming} />
         </TabsContent>
 
         <TabsContent value="ledger">
