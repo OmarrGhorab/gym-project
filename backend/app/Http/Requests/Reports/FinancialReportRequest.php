@@ -5,6 +5,7 @@ namespace App\Http\Requests\Reports;
 use App\Support\PosPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class FinancialReportRequest extends FormRequest
 {
@@ -32,6 +33,7 @@ class FinancialReportRequest extends FormRequest
             'from' => ['required', 'date_format:Y-m-d'],
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
             'group_by' => ['required', 'string', 'in:day,month'],
+            'revenue_source' => ['nullable', 'string', Rule::in(['all', 'subscriptions', 'sales'])],
         ];
     }
 }

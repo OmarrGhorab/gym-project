@@ -1,5 +1,7 @@
 import { serverApiFetch } from "@/lib/api/server";
 
+import type { StaffOption } from "../../members/_components/data";
+import type { PlanRow } from "../../plans/_components/data";
 import type { SalesChartPoint } from "./performance-overview";
 import type { RecentCustomerRow } from "./recent-customers-table/schema";
 
@@ -28,17 +30,37 @@ type MemberResource = {
   name: string;
   email?: string | null;
   phone?: string | null;
+  gender?: string | null;
+  attendance_code?: string | null;
+  attendance_qr?: string | null;
+  birth_date?: string | null;
   status?: string | null;
   membership_status?: string | null;
   billing_status?: string | null;
   join_date?: string | null;
   created_at?: string | null;
   total_paid?: string | null;
+  notes?: string | null;
+  has_photo?: boolean;
+  updated_at?: string | null;
   latest_subscription?: {
+    id?: number;
     plan_name?: string | null;
+    start_date?: string | null;
     status?: string | null;
     end_date?: string | null;
   } | null;
+};
+
+type DueResource = {
+  subscription_id: number;
+  member_id?: number | null;
+  member_name?: string | null;
+  subscription_status?: string | null;
+  end_date?: string | null;
+  balance?: string | null;
+  paid_total?: string | null;
+  price_paid?: string | null;
 };
 
 type PaginatedData<T> = {
@@ -59,6 +81,9 @@ export type DefaultDashboardData = {
   membersTotal: number;
   membersMeta: MembersMeta;
   salesChart: SalesChartPoint[];
+  memberDues: Record<number, RecentCustomerRow["due"]>;
+  memberPlans: PlanRow[];
+  memberStaff: StaffOption[];
 };
 
 export type MemberSort = "newest" | "oldest" | "name-asc" | "name-desc";
@@ -104,6 +129,9 @@ export async function getDefaultDashboardData(
     expiringSoonResult,
     salesTodayResult,
     topProductsResult,
+    duesResult,
+    plansResult,
+    staffResult,
   ] = await Promise.all([
     serverApiFetch<DashboardSummary>("/dashboard/summary"),
     serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(`/members?${memberParams.toString()}`),
@@ -112,10 +140,17 @@ export async function getDefaultDashboardData(
     safeFetch<unknown>("/dashboard/expiring-soon?per_page=5", null),
     safeFetch<{ count: number; revenue: string }>("/dashboard/sales-today", { count: 0, revenue: "0.00" }),
     safeFetch<unknown[]>("/dashboard/top-products?period=month&limit=5", []),
+    safeFetch<DueResource[] | PaginatedData<DueResource>>("/payments/dues?per_page=100", []),
+    safeFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100", []),
+    safeFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100", []),
   ]);
 
   const members = unwrapList(membersResult.data);
   const salesReport = unwrapList(salesReportResult.data);
+  const dues = unwrapList(duesResult.data);
+  const memberDues = mapMemberDues(dues);
+  const memberPlans = unwrapList(plansResult.data);
+  const memberStaff = unwrapList(staffResult.data);
   const membersMeta = getPaginationMeta(membersResult.meta, members.length);
 
   return {
@@ -126,10 +161,13 @@ export async function getDefaultDashboardData(
       sales_today_detail: salesTodayResult.data,
       top_products_detail: topProductsResult.data,
     },
-    members: members.map(mapMemberToRow),
+    members: members.map((member) => mapMemberToRow(member, memberDues[member.id] ?? null)),
     membersTotal: membersMeta.total,
     membersMeta,
     salesChart: salesReport.map(mapSalesDay).reverse(),
+    memberDues,
+    memberPlans,
+    memberStaff,
   };
 }
 
@@ -207,7 +245,7 @@ function unwrapList<T>(value: T[] | PaginatedData<T>): T[] {
   return Array.isArray(value.data) ? value.data : [];
 }
 
-function mapMemberToRow(member: MemberResource): RecentCustomerRow {
+function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): RecentCustomerRow {
   const subscription = member.latest_subscription;
 
   return {
@@ -215,12 +253,29 @@ function mapMemberToRow(member: MemberResource): RecentCustomerRow {
     name: member.name,
     email: member.email ?? "",
     phone: member.phone ?? "",
+    gender: member.gender ?? null,
+    attendance_code: member.attendance_code ?? null,
+    attendance_qr: member.attendance_qr ?? null,
+    birth_date: member.birth_date ?? null,
     plan: subscription?.plan_name ?? null,
     planEndsAt: subscription?.end_date ?? null,
     status: member.membership_status ?? null,
     billing: member.billing_status ?? "unknown",
     totalPaid: member.total_paid ?? "0.00",
     joined: member.join_date ?? member.created_at?.slice(0, 10) ?? null,
+    notes: member.notes ?? null,
+    has_photo: member.has_photo ?? false,
+    updated_at: member.updated_at ?? null,
+    latest_subscription: subscription?.id
+      ? {
+          id: subscription.id,
+          plan_name: subscription.plan_name ?? null,
+          start_date: subscription.start_date ?? null,
+          end_date: subscription.end_date ?? null,
+          status: subscription.status ?? "unknown",
+        }
+      : null,
+    due,
   };
 }
 
@@ -256,4 +311,27 @@ function getMetaNumber(meta: Record<string, unknown> | undefined, key: string, f
 
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function mapMemberDues(dues: DueResource[]) {
+  const result: Record<number, RecentCustomerRow["due"]> = {};
+
+  for (const due of dues) {
+    if (typeof due.member_id !== "number" || due.member_id <= 0) {
+      continue;
+    }
+
+    result[due.member_id] = {
+      subscription_id: due.subscription_id,
+      member_id: due.member_id,
+      member_name: due.member_name ?? null,
+      subscription_status: due.subscription_status ?? "unknown",
+      end_date: due.end_date ?? null,
+      balance: due.balance ?? "0",
+      paid_total: due.paid_total ?? "0",
+      price_paid: due.price_paid ?? "0",
+    };
+  }
+
+  return result;
 }

@@ -32,6 +32,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+import { MemberActionsMenu } from "../../../members/_components/member-action-dialogs";
+import type { StaffOption } from "../../../members/_components/data";
+import type { PlanRow } from "../../../plans/_components/data";
 import type { MembersMeta, MembersQuery } from "../data";
 import { createRecentCustomersColumns } from "./columns";
 import type { RecentCustomerRow } from "./schema";
@@ -49,11 +52,15 @@ const pageSizeItems = [10, 20, 30, 40, 50].map((pageSize) => ({
 export function RecentCustomersTable({
   data,
   meta,
+  plans,
   query,
+  staff,
 }: {
   data: RecentCustomerRow[];
   meta: MembersMeta;
+  plans: PlanRow[];
   query: MembersQuery;
+  staff: StaffOption[];
 }) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
@@ -143,6 +150,7 @@ export function RecentCustomersTable({
     () =>
       createRecentCustomersColumns({
         labels: {
+          actions: t("actions"),
           billing: t("billing"),
           billingStatuses: Object.fromEntries(
             billingValues.filter((value) => value !== "all").map((value) => [value, t(`billingStatuses.${value}`)]),
@@ -163,8 +171,57 @@ export function RecentCustomersTable({
           ),
         },
         locale,
+        renderActions: (row) => (
+          <MemberActionsMenu
+            member={{
+              id: Number(row.id),
+              name: row.name,
+              phone: row.phone,
+              email: row.email || null,
+              gender: row.gender ?? null,
+              attendance_code: row.attendance_code ?? null,
+              attendance_qr: row.attendance_qr ?? null,
+              birth_date: row.birth_date ?? null,
+              join_date: row.joined ?? null,
+              expiry_date: row.planEndsAt ?? null,
+              status: row.status ?? "inactive",
+              notes: row.notes ?? null,
+              has_photo: row.has_photo ?? false,
+              total_paid: row.totalPaid,
+              updated_at: row.updated_at ?? null,
+              latest_subscription: row.latest_subscription ?? null,
+            }}
+            plans={plans}
+            staff={staff}
+            due={row.due ?? null}
+            labels={{
+              actionsFor: (values) => t("actionOpenMenu", values),
+              addPayment: t("actionAddPayment"),
+              addPaymentDescription: (values) => t("actionAddPaymentDescription", values),
+              addSubscription: t("actionAddSubscription"),
+              bankTransfer: t("paymentMethods.bankTransfer"),
+              cancel: t("actionCancel"),
+              card: t("paymentMethods.card"),
+              cash: t("paymentMethods.cash"),
+              changePlan: t("actionChangePlan"),
+              changePlanDescription: (values) => t("actionChangePlanDescription", values),
+              editMember: t("actionEditMember"),
+              member: t("member"),
+              noActivePlan: t("noPlan"),
+              outstanding: t("outstanding"),
+              paymentAmount: t("actionPaymentAmount"),
+              paymentMethod: t("actionPaymentMethod"),
+              pleaseTryAgain: t("actionFailed"),
+              selectPaymentMethod: t("actionSelectPaymentMethod"),
+              subscription: t("subscription"),
+              uploadPhoto: t("actionUploadPhoto"),
+              viewDetails: t("actionViewDetails"),
+              working: t("actionWorking"),
+            }}
+          />
+        ),
       }),
-    [locale, t],
+    [locale, plans, staff, t],
   );
 
   const table = useReactTable({

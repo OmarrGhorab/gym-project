@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { RecentCustomerRow } from "./schema";
 
 type RecentCustomersColumnLabels = {
+  actions: string;
   billing: string;
   billingStatuses: Record<string, string>;
   contactMissing: string;
@@ -77,9 +78,11 @@ function billingBadgeClassName(billing: string) {
 export function createRecentCustomersColumns({
   labels,
   locale,
+  renderActions,
 }: {
   labels: RecentCustomersColumnLabels;
   locale: string;
+  renderActions: (row: RecentCustomerRow) => React.ReactNode;
 }): ColumnDef<RecentCustomerRow>[] {
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     day: "numeric",
@@ -213,6 +216,12 @@ export function createRecentCustomersColumns({
           </div>
         );
       },
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right">{labels.actions}</div>,
+      cell: ({ row }) => <div className="flex justify-end">{renderActions(row.original)}</div>,
+      enableHiding: false,
     },
   ];
 }

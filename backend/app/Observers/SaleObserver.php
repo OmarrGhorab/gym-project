@@ -14,6 +14,7 @@ class SaleObserver
         DB::afterCommit(function () use ($sale) {
             CalculateCommissionJob::dispatch(Sale::class, $sale->id);
             Cache::forget('dashboard:summary:v1');
+            Cache::forget('dashboard:summary:v2');
         });
     }
 
@@ -21,6 +22,7 @@ class SaleObserver
     {
         DB::afterCommit(function () {
             Cache::forget('dashboard:summary:v1');
+            Cache::forget('dashboard:summary:v2');
         });
     }
 
@@ -28,6 +30,7 @@ class SaleObserver
     {
         DB::afterCommit(function () {
             Cache::forget('dashboard:summary:v1');
+            Cache::forget('dashboard:summary:v2');
         });
     }
 }

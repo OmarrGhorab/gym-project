@@ -3,6 +3,8 @@
 namespace App\Actions\Reports;
 
 use Carbon\Carbon;
+use App\Models\Sale;
+use App\Models\Subscription;
 use Illuminate\Support\Facades\DB;
 
 class FinancialReport
@@ -10,7 +12,7 @@ class FinancialReport
     /**
      * Generate the financial report.
      *
-     * @param  array{from: string, to: string, group_by: string}  $params
+     * @param  array{from: string, to: string, group_by: string, revenue_source?: string|null}  $params
      * @return array{data: array<int, array{period: string, revenue: string, expenses: string, net_profit: string}>, meta: array{from: string, to: string, group_by: string, totals: array{revenue: string, expenses: string, net_profit: string}}}
      */
     public function execute(array $params): array
@@ -18,6 +20,7 @@ class FinancialReport
         $from = $params['from'];
         $to = $params['to'];
         $groupBy = $params['group_by'];
+        $revenueSource = $params['revenue_source'] ?? null;
 
         $startDate = Carbon::parse($from)->startOfDay()->toDateTimeString();
         $endDate = Carbon::parse($to)->endOfDay()->toDateTimeString();
@@ -34,8 +37,10 @@ class FinancialReport
 
         // Aggregate revenue (paid payments)
         $revenueQuery = DB::table('payments')
-            ->where('status', 'paid')
+            ->whereIn('status', ['paid', 'partial'])
             ->whereBetween('paid_at', [$startDate, $endDate])
+            ->when($revenueSource === 'subscriptions', fn ($query) => $query->where('payable_type', Subscription::class))
+            ->when($revenueSource === 'sales', fn ($query) => $query->where('payable_type', Sale::class))
             ->groupBy(DB::raw($paymentGroup))
             ->selectRaw(DB::raw($paymentGroup.' as period'))
             ->selectRaw('SUM(amount) as total_revenue')
@@ -104,6 +109,7 @@ class FinancialReport
                 'from' => $from,
                 'to' => $to,
                 'group_by' => $groupBy,
+                'revenue_source' => $revenueSource,
                 'totals' => $totals,
             ],
         ];

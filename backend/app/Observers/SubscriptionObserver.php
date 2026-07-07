@@ -14,6 +14,7 @@ class SubscriptionObserver
         DB::afterCommit(function () use ($subscription) {
             CalculateCommissionJob::dispatch(Subscription::class, $subscription->id);
             Cache::forget('dashboard:summary:v1');
+            Cache::forget('dashboard:summary:v2');
         });
     }
 
@@ -21,6 +22,7 @@ class SubscriptionObserver
     {
         DB::afterCommit(function () {
             Cache::forget('dashboard:summary:v1');
+            Cache::forget('dashboard:summary:v2');
         });
     }
 
@@ -28,6 +30,7 @@ class SubscriptionObserver
     {
         DB::afterCommit(function () {
             Cache::forget('dashboard:summary:v1');
+            Cache::forget('dashboard:summary:v2');
         });
     }
 }

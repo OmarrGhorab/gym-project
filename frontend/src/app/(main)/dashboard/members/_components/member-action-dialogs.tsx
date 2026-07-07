@@ -6,7 +6,7 @@ import { useActionState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { ImageUp, MoreHorizontal, UserPlus } from "lucide-react";
+import { CreditCard, ImageUp, MoreHorizontal, Receipt, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { PlanRow } from "../../plans/_components/data";
+import { recordMembershipPayment } from "../../crm/_components/actions";
 import {
   changeMemberPlan,
   createMember,
@@ -44,7 +45,14 @@ import {
   updateMember,
   uploadMemberPhoto,
 } from "./actions";
-import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
+import type {
+  MemberDueRow,
+  MemberPaymentHistory,
+  MemberPaymentRow,
+  MemberRow,
+  MemberVisitRow,
+  StaffOption,
+} from "./data";
 import { MemberDetailsDialog } from "./member-details-dialog";
 
 type MemberFormState = {
@@ -64,6 +72,31 @@ type ActionResult = {
   label: string;
   run: (formData: FormData) => Promise<void>;
   success: string;
+};
+
+type MemberActionsLabels = {
+  actionsFor: (values: { name: string }) => string;
+  addPayment: string;
+  addPaymentDescription: (values: { balance: string }) => string;
+  addSubscription: string;
+  bankTransfer: string;
+  cancel: string;
+  card: string;
+  cash: string;
+  changePlan: string;
+  changePlanDescription: (values: { name: string; plan: string }) => string;
+  editMember: string;
+  member: string;
+  noActivePlan: string;
+  outstanding: string;
+  paymentMethod: string;
+  paymentAmount: string;
+  pleaseTryAgain: string;
+  selectPaymentMethod: string;
+  subscription: string;
+  uploadPhoto: string;
+  viewDetails: string;
+  working: string;
 };
 
 function useActionSubmit({ label, run, success }: ActionResult, close?: () => void) {
@@ -186,20 +219,53 @@ export function MemberPhotoDialog({ member }: { member: MemberRow }) {
 }
 
 export function MemberActionsMenu({
+  due,
   member,
   plans,
   staff,
+  labels,
 }: {
+  due: MemberDueRow | null;
   member: MemberRow;
   plans: PlanRow[];
   staff: StaffOption[];
+  labels?: MemberActionsLabels;
 }) {
   const t = useTranslations("Dashboard.membersPage");
+  const resolvedLabels = React.useMemo<MemberActionsLabels>(
+    () =>
+      labels ?? {
+        actionsFor: (values) => t("actionsFor", values),
+        addPayment: t("addPayment"),
+        addPaymentDescription: (values) => t("addPaymentDescription", values),
+        addSubscription: t("addSubscription"),
+        bankTransfer: t("bankTransfer"),
+        cancel: t("cancel"),
+        card: t("card"),
+        cash: t("cash"),
+        changePlan: t("changePlan"),
+        changePlanDescription: (values) => t("changePlanDescription", values),
+        editMember: t("editMember"),
+        member: t("member"),
+        noActivePlan: t("noActivePlan"),
+        outstanding: t("outstanding"),
+        paymentMethod: t("paymentMethod"),
+        paymentAmount: t("paymentAmount"),
+        pleaseTryAgain: t("pleaseTryAgain"),
+        selectPaymentMethod: t("selectPaymentMethod"),
+        subscription: t("subscription"),
+        uploadPhoto: t("uploadPhoto"),
+        viewDetails: t("viewDetails"),
+        working: t("working"),
+      },
+    [labels, t],
+  );
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = React.useState(false);
   const [changePlanOpen, setChangePlanOpen] = React.useState(false);
+  const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
   const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
   const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
@@ -222,7 +288,7 @@ export function MemberActionsMenu({
         })
         .catch((error) => {
           if (!cancelled) {
-            toast.error(t("pleaseTryAgain"), {
+            toast.error(resolvedLabels.pleaseTryAgain, {
               description: error instanceof Error ? error.message : undefined,
             });
           }
@@ -232,35 +298,72 @@ export function MemberActionsMenu({
     return () => {
       cancelled = true;
     };
-  }, [detailsOpen, member.id, t]);
+  }, [detailsOpen, member.id, resolvedLabels]);
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button size="icon-sm" variant="ghost" aria-label={t("actionsFor", { name: member.name })} />}
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (member.latest_subscription) {
+              setChangePlanOpen(true);
+              return;
+            }
+
+            setSubscriptionOpen(true);
+          }}
         >
-          <MoreHorizontal />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{t("viewDetails")}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setEditOpen(true)}>{t("editMember")}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{t("uploadPhoto")}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>{t("addSubscription")}</DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={member.latest_subscription?.status !== "active"}
-              onClick={() => setChangePlanOpen(true)}
-            >
-              {t("changePlan")}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DeactivateMemberItem member={member} />
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <CreditCard data-icon="inline-start" />
+          {member.latest_subscription ? resolvedLabels.changePlan : resolvedLabels.addSubscription}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!due && !member.latest_subscription}
+          onClick={() => setPaymentOpen(true)}
+        >
+          <Receipt data-icon="inline-start" />
+          {resolvedLabels.addPayment}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={resolvedLabels.actionsFor({ name: member.name })}
+              />
+            }
+          >
+            <MoreHorizontal />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{resolvedLabels.viewDetails}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setEditOpen(true)}>{resolvedLabels.editMember}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{resolvedLabels.uploadPhoto}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>{resolvedLabels.addSubscription}</DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!member.latest_subscription}
+                onClick={() => setChangePlanOpen(true)}
+              >
+                {resolvedLabels.changePlan}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!due && !member.latest_subscription} onClick={() => setPaymentOpen(true)}>
+                {resolvedLabels.addPayment}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DeactivateMemberItem member={member} />
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <MemberDetailsDialog
         history={history}
         member={member}
@@ -279,6 +382,13 @@ export function MemberActionsMenu({
         onOpenChange={setSubscriptionOpen}
       />
       <MemberChangePlanDialog member={member} plans={plans} open={changePlanOpen} onOpenChange={setChangePlanOpen} />
+      <MemberPaymentDialog
+        due={due}
+        member={member}
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        labels={resolvedLabels}
+      />
     </>
   );
 }
@@ -367,6 +477,7 @@ function MemberSubscriptionDialog({
         action={createMemberSubscription}
         member={member}
         onCancel={() => onOpenChange(false)}
+        open={open}
         plans={plans}
         submitLabel={t("addSubscription")}
         title={t("addSubscription")}
@@ -395,6 +506,7 @@ function MemberChangePlanDialog({
         action={changeMemberPlan}
         member={member}
         onCancel={() => onOpenChange(false)}
+        open={open}
         plans={plans}
         submitLabel={t("changePlan")}
         title={t("changePlan")}
@@ -408,12 +520,127 @@ function MemberChangePlanDialog({
   );
 }
 
+function MemberPaymentDialog({
+  due,
+  labels,
+  member,
+  onOpenChange,
+  open,
+}: {
+  due: MemberDueRow | null;
+  labels: MemberActionsLabels;
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const activeSubscriptionId = due?.subscription_id ?? member.latest_subscription?.id ?? null;
+  const [amount, setAmount] = React.useState(due?.balance ?? "");
+  const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card" | "bank_transfer">("cash");
+
+  React.useEffect(() => {
+    if (open) {
+      setAmount(due?.balance ?? "");
+      setPaymentMethod("cash");
+    }
+  }, [due?.balance, open]);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!activeSubscriptionId) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await recordMembershipPayment({
+        subscription_id: activeSubscriptionId,
+        amount,
+        method: paymentMethod,
+      });
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(result.message);
+      onOpenChange(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{labels.addPayment}</DialogTitle>
+          <DialogDescription>
+            {labels.addPaymentDescription({
+              balance: amount || due?.balance || "0",
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <form className="grid gap-4" onSubmit={submit}>
+          <div className="grid gap-3 rounded-lg border bg-muted/20 p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{labels.member}</span>
+              <span className="font-medium">{member.name}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{labels.subscription}</span>
+              <span className="font-medium">#{activeSubscriptionId ?? "-"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{labels.outstanding}</span>
+              <span className="font-medium">{due?.balance ?? "0"}</span>
+            </div>
+          </div>
+          <Field
+            label={labels.paymentAmount}
+            name="payment_amount"
+            type="number"
+            required
+            value={amount}
+            onChange={(event) => setAmount(event.currentTarget.value)}
+          />
+          <div className="grid gap-2">
+            <Label htmlFor="member-payment-method">{labels.paymentMethod}</Label>
+            <FormSelect
+              id="member-payment-method"
+              name="payment_method"
+              value={paymentMethod}
+              onValueChange={(value) => setPaymentMethod((value as "cash" | "card" | "bank_transfer") || "cash")}
+              placeholder={labels.selectPaymentMethod}
+              options={[
+                { value: "cash", label: labels.cash },
+                { value: "card", label: labels.card },
+                { value: "bank_transfer", label: labels.bankTransfer },
+              ]}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {labels.cancel}
+            </Button>
+            <Button type="submit" disabled={pending || !activeSubscriptionId}>
+              {pending ? labels.working : labels.addPayment}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SubscriptionFormContent({
   action,
   description,
   kind,
   member,
   onCancel,
+  open,
   plans,
   submitLabel,
   title,
@@ -423,6 +650,7 @@ function SubscriptionFormContent({
   kind: "create" | "change";
   member: MemberRow;
   onCancel: () => void;
+  open: boolean;
   plans: PlanRow[];
   submitLabel: string;
   title: string;
@@ -431,13 +659,16 @@ function SubscriptionFormContent({
   const router = useRouter();
   const initialPlan = plans[0];
   const currentSubscription = member.latest_subscription;
+  const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);
   const [state, submit, pending] = useActionState(action, initialMemberFormState);
   const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
-  const [startDate, setStartDate] = React.useState("");
-  const [discount, setDiscount] = React.useState("0");
+  const [startDate, setStartDate] = React.useState(defaultStartDate);
+  const [discountType, setDiscountType] = React.useState<"fixed" | "percent">("fixed");
+  const [discountValue, setDiscountValue] = React.useState("0");
   const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
   const endDate = kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
-  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, discount) : "";
+  const normalizedDiscount = selectedPlan ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType) : "0";
+  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, normalizedDiscount) : "";
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -456,6 +687,17 @@ function SubscriptionFormContent({
 
     setSelectedPlanId(String(initialPlan.id));
   }, [initialPlan]);
+
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setSelectedPlanId(initialPlan ? String(initialPlan.id) : "");
+    setStartDate(defaultStartDate);
+    setDiscountType("fixed");
+    setDiscountValue("0");
+  }, [defaultStartDate, initialPlan, open]);
 
   return (
     <DialogContent className="sm:max-w-2xl">
@@ -504,8 +746,10 @@ function SubscriptionFormContent({
             <div className="grid gap-2">
               <Label htmlFor="start_date">{t("startDate")}</Label>
               <FormDatePicker
+                key={`${member.id}-${kind}-${open ? "open" : "closed"}-${startDate}`}
                 id="start_date"
                 name="start_date"
+                defaultValue={startDate}
                 placeholder={t("selectDate")}
                 required
                 error={fieldError(state, "start_date")}
@@ -544,14 +788,38 @@ function SubscriptionFormContent({
               ]}
             />
           </div>
-          <Field
-            error={fieldError(state, "discount")}
-            label={t("discount")}
-            name="discount"
-            type="number"
-            value={discount}
-            onChange={(event) => setDiscount(event.currentTarget.value)}
-          />
+          <div className="grid gap-2 sm:col-span-2">
+            <Label htmlFor="discount_value">{t("discount")}</Label>
+            <input type="hidden" name="discount" value={normalizedDiscount} />
+            <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+              <FormSelect
+                id="discount_type"
+                name="discount_type"
+                value={discountType}
+                onValueChange={(value) => setDiscountType((value as "fixed" | "percent") || "fixed")}
+                options={[
+                  { value: "fixed", label: t("fixedAmount") },
+                  { value: "percent", label: t("percent") },
+                ]}
+              />
+              <div className="relative">
+                <Input
+                  id="discount_value"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={discountValue}
+                  onChange={(event) => setDiscountValue(event.currentTarget.value)}
+                  aria-invalid={Boolean(fieldError(state, "discount"))}
+                  className="pe-14"
+                />
+                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  {discountType === "fixed" ? "EGP" : "%"}
+                </span>
+              </div>
+            </div>
+            <FieldError errors={state.errors.discount} />
+          </div>
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
@@ -695,6 +963,23 @@ function calculatePaymentAmount(price: string, discount: string) {
   const amount = Math.max(0, Number(price || 0) - Number(discount || 0));
 
   return Number.isFinite(amount) ? amount.toFixed(2) : "";
+}
+
+function calculateDiscountAmount(price: string, discountValue: string, discountType: "fixed" | "percent") {
+  const normalizedPrice = Number(price || 0);
+  const normalizedDiscount = Math.max(0, Number(discountValue || 0));
+
+  if (!Number.isFinite(normalizedPrice) || !Number.isFinite(normalizedDiscount)) {
+    return "0";
+  }
+
+  if (discountType === "percent") {
+    const amount = normalizedPrice * (Math.min(normalizedDiscount, 100) / 100);
+
+    return amount.toFixed(2);
+  }
+
+  return normalizedDiscount.toFixed(2);
 }
 
 function parseDateOnly(value: string) {

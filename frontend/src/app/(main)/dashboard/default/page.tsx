@@ -70,6 +70,8 @@ export default async function Page({
         total={data.membersTotal}
         meta={data.membersMeta}
         query={membersQuery}
+        plans={data.memberPlans}
+        staff={data.memberStaff}
       />
     </div>
   );

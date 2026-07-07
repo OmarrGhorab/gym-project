@@ -124,10 +124,11 @@ type DueResource = {
 };
 
 type SalesReportDay = {
-  date: string;
+  period?: string;
+  date?: string;
   revenue: string;
-  sales_count: number;
-  units_sold: number;
+  sales_count?: number;
+  units_sold?: number;
 };
 
 export async function getMembershipDashboardData(): Promise<MembershipDashboardData> {
@@ -136,7 +137,8 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const salesParams = new URLSearchParams({
     from: formatDate(from),
     to: formatDate(to),
-    group_by: "day",
+    group_by: "month",
+    revenue_source: "subscriptions",
   });
 
   const [dashboard, subscriptionSummary, expiringSoon, dues, subscriptions, salesReport, plans] = await Promise.all([
@@ -145,7 +147,7 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
     safeApiFetch<SubscriptionResource[]>("/dashboard/expiring-soon"),
     safeApiFetch<DueResource[]>("/payments/dues"),
     safeApiFetch<SubscriptionResource[]>("/subscriptions?sort=-end_date&page=1&per_page=100"),
-    safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${salesParams.toString()}`),
+    safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/reports/financial?${salesParams.toString()}`),
     safeApiFetch<PlanResource[] | PaginatedData<PlanResource>>("/plans?filter[is_active]=1&sort=name&per_page=100"),
   ]);
 
@@ -226,7 +228,7 @@ function mapSalesToMonthlyChart(rows: SalesReportDay[]): MembershipChartPoint[] 
   }
 
   for (const row of rows) {
-    const key = row.date.slice(0, 7);
+    const key = (row.period ?? row.date ?? "").slice(0, 7);
     const point = monthly.get(key);
 
     if (!point) {
@@ -234,8 +236,8 @@ function mapSalesToMonthlyChart(rows: SalesReportDay[]): MembershipChartPoint[] 
     }
 
     point.revenue += Number(row.revenue);
-    point.sales += Number(row.sales_count);
-    point.units += Number(row.units_sold);
+    point.sales += Number(row.sales_count ?? 0);
+    point.units += Number(row.units_sold ?? 0);
   }
 
   return Array.from(monthly.values());

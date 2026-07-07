@@ -23,7 +23,7 @@ export default async function Page({
   const numberFormatter = new Intl.NumberFormat(locale);
   const params = await searchParams;
   const query = normalizeQuery(params);
-  const { members, meta, plans, staff } = await getMembersPageData(query);
+  const { dues, members, meta, plans, staff } = await getMembersPageData(query);
   const active = members.filter((member) => member.status === "active").length;
   const inactive = members.length - active;
   const withQr = members.filter((member) => member.attendance_qr).length;
@@ -110,7 +110,7 @@ export default async function Page({
                   </TableCell>
                   <TableCell className="text-muted-foreground">{member.join_date ?? "-"}</TableCell>
                   <TableCell className="text-end">
-                    <MemberActionsMenu member={member} plans={plans} staff={staff} />
+                    <MemberActionsMenu member={member} plans={plans} staff={staff} due={dues[member.id] ?? null} />
                   </TableCell>
                 </TableRow>
               ))

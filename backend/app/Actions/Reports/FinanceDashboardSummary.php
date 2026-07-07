@@ -84,7 +84,7 @@ final class FinanceDashboardSummary
     private function paidPaymentsTotal(Carbon $from, Carbon $to): float
     {
         return (float) Payment::query()
-            ->where('status', 'paid')
+            ->whereIn('status', ['paid', 'partial'])
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->sum('amount');
     }
@@ -92,7 +92,7 @@ final class FinanceDashboardSummary
     private function paidPaymentsTotalForType(Carbon $from, Carbon $to, string $payableType): float
     {
         return (float) Payment::query()
-            ->where('status', 'paid')
+            ->whereIn('status', ['paid', 'partial'])
             ->where('payable_type', $payableType)
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->sum('amount');
@@ -175,7 +175,7 @@ final class FinanceDashboardSummary
     private function paymentMethods(Carbon $from, Carbon $to): array
     {
         $rows = Payment::query()
-            ->where('status', 'paid')
+            ->whereIn('status', ['paid', 'partial'])
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->selectRaw('method, SUM(amount) as total')
             ->groupBy('method')

@@ -31,12 +31,12 @@ class DashboardSummary
             $startOfMonth = $now->copy()->startOfMonth()->toDateTimeString();
             $endOfToday = Carbon::now()->endOfDay()->toDateTimeString();
             $revenueMtd = DB::table('payments')
-                ->where('status', 'paid')
+                ->whereIn('status', ['paid', 'partial'])
                 ->whereBetween('paid_at', [$startOfMonth, $endOfToday])
                 ->sum('amount');
             $revenueMtdStr = number_format((float) $revenueMtd, 2, '.', '');
             $previousRevenue = DB::table('payments')
-                ->where('status', 'paid')
+                ->whereIn('status', ['paid', 'partial'])
                 ->whereBetween('paid_at', [
                     $now->copy()->subMonthNoOverflow()->startOfMonth()->toDateTimeString(),
                     $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString(),

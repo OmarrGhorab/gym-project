@@ -84,6 +84,17 @@ export type MemberPaymentRow = {
   created_by: number | null;
 };
 
+export type MemberDueRow = {
+  subscription_id: number;
+  member_id: number | null;
+  member_name: string | null;
+  subscription_status: string;
+  end_date: string | null;
+  balance: string;
+  paid_total: string;
+  price_paid: string;
+};
+
 export type MemberVisitRow = {
   id: number;
   member_id: number;
@@ -100,6 +111,7 @@ export type MemberVisitRow = {
 };
 
 export type MembersPageData = {
+  dues: Record<number, MemberDueRow>;
   histories: Record<number, MemberPaymentHistory | null>;
   members: MemberRow[];
   meta: {
@@ -147,7 +159,7 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
       params.set("filter[qr]", query.qr);
     }
 
-    const [result, plansResult, staffResult] = await Promise.all([
+    const [result, plansResult, staffResult, duesResult] = await Promise.all([
       serverApiFetch<MemberRow[] | PaginatedData<MemberRow>>(`/members?${params.toString()}`),
       serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100").catch(
         () => ({ data: [] as PlanRow[] }),
@@ -155,12 +167,17 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
       serverApiFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100").catch(
         () => ({ data: [] as StaffOption[] }),
       ),
+      serverApiFetch<MemberDueRow[] | PaginatedData<MemberDueRow>>("/payments/dues?per_page=100").catch(() => ({
+        data: [] as MemberDueRow[],
+      })),
     ]);
     const members = unwrapList(result.data);
     const plans = unwrapList(plansResult.data as PlanRow[] | PaginatedData<PlanRow>);
     const staff = unwrapList(staffResult.data as StaffOption[] | PaginatedData<StaffOption>);
+    const dues = unwrapList(duesResult.data as MemberDueRow[] | PaginatedData<MemberDueRow>);
 
     return {
+      dues: mapMemberDues(dues),
       histories: {},
       meta: getMeta(result),
       members,
@@ -171,7 +188,7 @@ export async function getMembersPageData(query: MembersQuery = {}): Promise<Memb
     };
   } catch (error) {
     console.error("[getMembersPageData] Failed to fetch members:", error);
-    return { histories: {}, members: [], meta: {}, payments: {}, visits: {}, plans: [], staff: [] };
+    return { dues: {}, histories: {}, members: [], meta: {}, payments: {}, visits: {}, plans: [], staff: [] };
   }
 }
 
@@ -185,4 +202,18 @@ function getMeta(result: Awaited<ReturnType<typeof serverApiFetch<MemberRow[] | 
   }
 
   return {};
+}
+
+function mapMemberDues(dues: MemberDueRow[]) {
+  const result: Record<number, MemberDueRow> = {};
+
+  for (const due of dues) {
+    if (typeof due.member_id !== "number" || due.member_id <= 0) {
+      continue;
+    }
+
+    result[due.member_id] = due;
+  }
+
+  return result;
 }

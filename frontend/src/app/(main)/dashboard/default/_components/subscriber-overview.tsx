@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { MembersMeta, MembersQuery } from "./data";
+import type { StaffOption } from "../../members/_components/data";
+import type { PlanRow } from "../../plans/_components/data";
 import type { RecentCustomerRow } from "./recent-customers-table/schema";
 import { RecentCustomersTable } from "./recent-customers-table/table";
 
@@ -15,9 +17,11 @@ type SubscriberOverviewProps = {
   total: number;
   meta: MembersMeta;
   query: MembersQuery;
+  plans: PlanRow[];
+  staff: StaffOption[];
 };
 
-export function SubscriberOverview({ members, total, meta, query }: SubscriberOverviewProps) {
+export function SubscriberOverview({ members, total, meta, query, plans, staff }: SubscriberOverviewProps) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
 
@@ -37,7 +41,7 @@ export function SubscriberOverview({ members, total, meta, query }: SubscriberOv
       </CardHeader>
 
       <CardContent className="pt-0">
-        <RecentCustomersTable data={members} meta={meta} query={query} />
+        <RecentCustomersTable data={members} meta={meta} query={query} plans={plans} staff={staff} />
       </CardContent>
     </Card>
   );
