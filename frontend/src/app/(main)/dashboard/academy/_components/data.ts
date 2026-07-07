@@ -34,6 +34,8 @@ export type StaffAcademyPerformance = {
   score: number;
   attendance_count: number;
   commissions_total: string;
+  coached_services_count?: number;
+  coached_services_revenue?: string;
   warnings_count: number;
 };
 
@@ -47,6 +49,10 @@ export type StaffAcademyEvent = {
 
 export type StaffAcademyData = {
   generated_at: string;
+  period?: {
+    from: string;
+    to: string;
+  };
   kpis: StaffAcademyKpi[];
   shift_schedule: StaffAcademyShift[];
   warning_status: StaffAcademyWarningStatus[];
@@ -118,9 +124,13 @@ export type AcademyPerformanceDetail = {
   subscriptions_sold?: number;
   pos_sales_volume?: string;
   commissions_total?: string;
+  coached_services_count?: number;
+  coached_services_revenue?: string;
   attendance_count?: number;
   previous_period?: {
     subscriptions_sold?: number;
+    coached_services_count?: number;
+    coached_services_revenue?: string;
     pos_sales_volume?: string;
     commissions_total?: string;
     attendance_count?: number;
@@ -160,9 +170,21 @@ export type StaffAcademyPageData = StaffAcademyData & {
   roles: AccessRole[];
 };
 
-export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
+export async function getStaffAcademyData(params: { from?: string; to?: string } = {}): Promise<StaffAcademyPageData> {
+  const periodParams = new URLSearchParams();
+
+  if (params.from) {
+    periodParams.set("from", params.from);
+  }
+
+  if (params.to) {
+    periodParams.set("to", params.to);
+  }
+
+  const periodQuery = periodParams.toString();
+  const suffix = periodQuery ? `?${periodQuery}` : "";
   const [reportResult, employeesResult, shiftsResult, usersResult, rolesResult, plansResult] = await Promise.all([
-    serverApiFetch<StaffAcademyData>("/reports/staff-academy"),
+    serverApiFetch<StaffAcademyData>(`/reports/staff-academy${suffix}`),
     safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=100", []),
     safeFetch<StaffAcademyPageData["shifts"]>("/attendance/shifts", []),
     safeFetch<AccessUser[] | PaginatedData<AccessUser>>("/users?sort=name&per_page=100", []),
@@ -176,9 +198,9 @@ export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
   const employeeRows = await Promise.all(
     employees.map(async (employee) => {
       const [performanceResult, commissionsResult] = await Promise.all([
-        safeFetch<AcademyPerformanceDetail | null>(`/employees/${employee.id}/performance`, null),
+        safeFetch<AcademyPerformanceDetail | null>(`/employees/${employee.id}/performance${suffix}`, null),
         safeFetch<AcademyCommission[] | PaginatedData<AcademyCommission>>(
-          `/employees/${employee.id}/commissions?per_page=5`,
+          `/employees/${employee.id}/commissions?per_page=5${periodQuery ? `&${periodQuery}` : ""}`,
           [],
         ),
       ]);

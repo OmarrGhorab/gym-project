@@ -2,9 +2,11 @@
 
 use App\Models\Commission;
 use App\Models\Employee;
+use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -60,6 +62,22 @@ test('employee performance reports are accurate and attributed correctly', funct
         'sold_by_user_id' => $employeeUser->id,
         'created_at' => '2026-06-10 12:00:00',
     ]);
+    $servicePlan = Plan::factory()->create(['category' => 'personal_training']);
+    $member = Member::factory()->active()->create();
+    $addon = SubscriptionAddon::create([
+        'subscription_id' => $sub->id,
+        'member_id' => $member->id,
+        'plan_id' => $servicePlan->id,
+        'coach_id' => $employee->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
+        'status' => 'active',
+        'price_paid' => '900.00',
+    ]);
+    $addon->forceFill([
+        'created_at' => '2026-06-12 12:00:00',
+        'updated_at' => '2026-06-12 12:00:00',
+    ])->save();
     $sale = Sale::factory()->create([
         'sold_by_user_id' => $employeeUser->id,
         'total' => '100.00',
@@ -91,6 +109,8 @@ test('employee performance reports are accurate and attributed correctly', funct
     expect($jackData)->not->toBeNull();
     expect($jackData['sales_count'])->toBe(1);
     expect($jackData['subscriptions_count'])->toBe(1);
+    expect($jackData['coached_services_count'])->toBe(1);
+    expect($jackData['coached_services_revenue'])->toBe('900.00');
     expect($jackData['commissions_earned'])->toBe('50.00');
 });
 

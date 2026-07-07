@@ -4,6 +4,7 @@ import { ClipboardCheck, QrCode, ReceiptText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 import { AssignmentStatus } from "./_components/assignment-status";
 import { ClassSchedule } from "./_components/class-schedule";
@@ -14,9 +15,24 @@ import { PerformanceHighlights } from "./_components/performance-highlights";
 import { StaffManagement } from "./_components/staff-management";
 import { UpcomingEvents } from "./_components/upcoming-events";
 
-export default async function Page() {
+type PageProps = {
+  searchParams?: Promise<{
+    from?: string;
+    to?: string;
+  }>;
+};
+
+type AcademyPeriod = {
+  from: string;
+  to: string;
+};
+
+export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.academy");
-  const data = await getStaffAcademyData();
+  const resolvedSearchParams = await searchParams;
+  const period = getAcademyPeriod(resolvedSearchParams);
+  const data = await getStaffAcademyData(period);
+  const shortcutRanges = getShortcutRanges(period);
 
   return (
     <div className="flex flex-col gap-4">
@@ -26,19 +42,74 @@ export default async function Page() {
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:w-fit">
-          <Button size="sm" nativeButton={false} render={<Link href="/dashboard/attendance" />}>
-            <QrCode />
-            {t("staffScan")}
-          </Button>
-          <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/dashboard/attendance" />}>
-            <ClipboardCheck />
-            {t("reviewWarnings")}
-          </Button>
-          <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/dashboard/payroll" />}>
-            <ReceiptText />
-            {t("payrollReceipts")}
-          </Button>
+        <div className="flex flex-col gap-2 lg:items-end">
+          <div className="flex flex-wrap items-end justify-start gap-2 lg:justify-end">
+            <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy">
+              <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-from-date">
+                {t("fromDate")}
+                <Input
+                  className="h-8 w-[8.5rem] min-w-0"
+                  id="academy-from-date"
+                  name="from"
+                  type="date"
+                  defaultValue={period.from}
+                />
+              </label>
+              <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-to-date">
+                {t("toDate")}
+                <Input
+                  className="h-8 w-[8.5rem] min-w-0"
+                  id="academy-to-date"
+                  name="to"
+                  type="date"
+                  defaultValue={period.to}
+                />
+              </label>
+              <Button className="h-8" size="sm" type="submit" variant="secondary">
+                {t("applyFilter")}
+              </Button>
+            </form>
+            <div className="flex flex-wrap items-center gap-1">
+              {shortcutRanges.map((shortcut) => (
+                <Button
+                  className="h-8 px-2"
+                  key={shortcut.key}
+                  nativeButton={false}
+                  render={<Link href={shortcut.href} />}
+                  size="sm"
+                  variant={shortcut.active ? "secondary" : "outline"}
+                >
+                  {t(shortcut.key)}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+            <Button className="h-8" size="sm" nativeButton={false} render={<Link href="/dashboard/attendance" />}>
+              <QrCode />
+              {t("staffScan")}
+            </Button>
+            <Button
+              className="h-8"
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/dashboard/attendance" />}
+            >
+              <ClipboardCheck />
+              {t("reviewWarnings")}
+            </Button>
+            <Button
+              className="h-8"
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/dashboard/payroll" />}
+            >
+              <ReceiptText />
+              {t("payrollReceipts")}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -68,4 +139,63 @@ export default async function Page() {
       />
     </div>
   );
+}
+
+function getAcademyPeriod(searchParams: Awaited<PageProps["searchParams"]> = {}): AcademyPeriod {
+  const today = new Date();
+  const from = isDateInput(searchParams?.from)
+    ? searchParams.from
+    : new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const to = isDateInput(searchParams?.to) ? searchParams.to : today.toISOString().slice(0, 10);
+
+  return from <= to ? { from, to } : { from: to, to: from };
+}
+
+function isDateInput(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function getShortcutRanges(currentPeriod: AcademyPeriod) {
+  const today = new Date();
+  const currentMonthStart = dateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+  const todayInput = dateInput(today);
+  const shortcuts = [
+    {
+      key: "last24Hours",
+      from: dateInput(addDays(today, -1)),
+      to: todayInput,
+    },
+    {
+      key: "last7Days",
+      from: dateInput(addDays(today, -6)),
+      to: todayInput,
+    },
+    {
+      key: "thisMonth",
+      from: currentMonthStart,
+      to: todayInput,
+    },
+    {
+      key: "lastMonth",
+      from: dateInput(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+      to: dateInput(new Date(today.getFullYear(), today.getMonth(), 0)),
+    },
+  ] as const;
+
+  return shortcuts.map((shortcut) => ({
+    key: shortcut.key,
+    href: `/dashboard/academy?from=${shortcut.from}&to=${shortcut.to}`,
+    active: currentPeriod.from === shortcut.from && currentPeriod.to === shortcut.to,
+  }));
+}
+
+function addDays(date: Date, days: number): Date {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+
+  return nextDate;
+}
+
+function dateInput(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }

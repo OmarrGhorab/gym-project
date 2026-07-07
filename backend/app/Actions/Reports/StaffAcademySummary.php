@@ -16,12 +16,16 @@ final class StaffAcademySummary
     /**
      * @return array<string, mixed>
      */
-    public function execute(): array
+    /**
+     * @param  array{from?: string|null, to?: string|null}  $params
+     * @return array<string, mixed>
+     */
+    public function execute(array $params = []): array
     {
         $now = CarbonImmutable::now();
         $today = $now->toDateString();
-        $monthStart = $now->startOfMonth()->toDateString();
-        $monthEnd = $now->endOfMonth()->toDateString();
+        $monthStart = CarbonImmutable::parse($params['from'] ?? $now->startOfMonth())->toDateString();
+        $monthEnd = CarbonImmutable::parse($params['to'] ?? $now->endOfMonth())->toDateString();
 
         $activeEmployees = Employee::query()->active()->count();
         $monthlyAttendance = Attendance::query()
@@ -40,6 +44,10 @@ final class StaffAcademySummary
 
         return [
             'generated_at' => $now->toIso8601String(),
+            'period' => [
+                'from' => $monthStart,
+                'to' => $monthEnd,
+            ],
             'kpis' => [
                 [
                     'label' => 'Active Staff',
@@ -150,6 +158,8 @@ final class StaffAcademySummary
      */
     private function performanceHighlights(string $from, string $to): array
     {
+        $fromDateTime = CarbonImmutable::parse($from)->startOfDay();
+        $toDateTime = CarbonImmutable::parse($to)->endOfDay();
         $rows = DB::table('employees')
             ->leftJoinSub(
                 DB::table('attendance')
@@ -165,12 +175,22 @@ final class StaffAcademySummary
             ->leftJoinSub(
                 DB::table('commissions')
                     ->select('employee_id', DB::raw('SUM(amount) as commissions_total'))
-                    ->whereBetween('created_at', [CarbonImmutable::parse($from)->startOfDay(), CarbonImmutable::parse($to)->endOfDay()])
+                    ->whereBetween('created_at', [$fromDateTime, $toDateTime])
                     ->groupBy('employee_id'),
                 'c',
                 'employees.id',
                 '=',
                 'c.employee_id'
+            )
+            ->leftJoinSub(
+                DB::table('subscription_addons')
+                    ->select('coach_id', DB::raw('COUNT(*) as coached_services_count'), DB::raw('SUM(price_paid) as coached_services_revenue'))
+                    ->whereBetween('created_at', [$fromDateTime, $toDateTime])
+                    ->groupBy('coach_id'),
+                'sa',
+                'employees.id',
+                '=',
+                'sa.coach_id'
             )
             ->leftJoinSub(
                 DB::table('attendance_violations')
@@ -189,14 +209,21 @@ final class StaffAcademySummary
                 'employees.role',
                 DB::raw('COALESCE(a.attendance_count, 0) as attendance_count'),
                 DB::raw('COALESCE(c.commissions_total, 0) as commissions_total'),
+                DB::raw('COALESCE(sa.coached_services_count, 0) as coached_services_count'),
+                DB::raw('COALESCE(sa.coached_services_revenue, 0) as coached_services_revenue'),
                 DB::raw('COALESCE(v.warnings_count, 0) as warnings_count'),
             ])
-            ->orderByDesc('attendance_count')
+            ->orderByDesc('coached_services_count')
             ->orderByDesc('commissions_total')
+            ->orderByDesc('attendance_count')
             ->get();
 
         return $rows->map(function ($row): array {
-            $score = min(100, max(0, ((int) $row->attendance_count * 6) + min(35, ((float) $row->commissions_total / 100)) - ((int) $row->warnings_count * 6)));
+            $attendanceScore = min(35, (int) $row->attendance_count * 4);
+            $serviceScore = min(35, (int) $row->coached_services_count * 18);
+            $commissionScore = min(25, ((float) $row->commissions_total / 20));
+            $warningPenalty = (int) $row->warnings_count * 12;
+            $score = min(100, max(0, $attendanceScore + $serviceScore + $commissionScore - $warningPenalty));
 
             return [
                 'employee_id' => (int) $row->id,
@@ -206,6 +233,8 @@ final class StaffAcademySummary
                 'score' => (int) round($score),
                 'attendance_count' => (int) $row->attendance_count,
                 'commissions_total' => number_format((float) $row->commissions_total, 2, '.', ''),
+                'coached_services_count' => (int) $row->coached_services_count,
+                'coached_services_revenue' => number_format((float) $row->coached_services_revenue, 2, '.', ''),
                 'warnings_count' => (int) $row->warnings_count,
             ];
         })->values()->all();

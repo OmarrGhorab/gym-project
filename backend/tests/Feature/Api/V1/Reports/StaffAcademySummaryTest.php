@@ -68,8 +68,10 @@ test('accountant can view staff academy summary', function (): void {
         'type' => 'training',
     ]);
 
-    $this->getJson('/api/v1/reports/staff-academy')
+    $this->getJson('/api/v1/reports/staff-academy?from=2026-06-01&to=2026-06-30')
         ->assertOk()
+        ->assertJsonPath('data.period.from', '2026-06-01')
+        ->assertJsonPath('data.period.to', '2026-06-30')
         ->assertJsonPath('data.kpis.0.value', 1)
         ->assertJsonPath('data.kpis.2.value', 1)
         ->assertJsonPath('data.shift_schedule.0.name', 'Morning 9-5')
@@ -80,6 +82,7 @@ test('accountant can view staff academy summary', function (): void {
         ->assertJsonStructure([
             'data' => [
                 'generated_at',
+                'period' => ['from', 'to'],
                 'kpis',
                 'shift_schedule',
                 'warning_status',

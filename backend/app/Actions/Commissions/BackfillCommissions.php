@@ -6,6 +6,7 @@ use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 
 final class BackfillCommissions
 {
@@ -50,11 +51,52 @@ final class BackfillCommissions
                     }
 
                     if ($dryRun) {
-                        $created++;
                         continue;
                     }
 
                     $created += $action->forSource($subscription);
+                    break;
+                }
+            }
+        });
+
+        $addonQuery = SubscriptionAddon::query();
+        if ($from) {
+            $addonQuery->whereDate('created_at', '>=', $from);
+        }
+        if ($to) {
+            $addonQuery->whereDate('created_at', '<=', $to);
+        }
+
+        $addonQuery->chunkById(100, function ($addons) use ($action, $dryRun, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {
+            foreach ($addons as $addon) {
+                $scanned++;
+                $specs = $action->resolveSpecsForSource($addon);
+
+                if ($specs === []) {
+                    $skippedUnlinked++;
+
+                    continue;
+                }
+
+                foreach ($specs as $spec) {
+                    $exists = Commission::query()
+                        ->where('source_type', SubscriptionAddon::class)
+                        ->where('source_id', $addon->id)
+                        ->where('employee_id', $spec['employee']->id)
+                        ->where('commission_type', $spec['commission_type'])
+                        ->exists();
+
+                    if ($exists) {
+                        $alreadyPresent++;
+                        continue;
+                    }
+
+                    if ($dryRun) {
+                        continue;
+                    }
+
+                    $created += $action->forSource($addon);
                     break;
                 }
             }
@@ -94,7 +136,6 @@ final class BackfillCommissions
                     }
 
                     if ($dryRun) {
-                        $created++;
                         continue;
                     }
 

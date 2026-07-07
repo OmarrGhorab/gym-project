@@ -79,10 +79,15 @@ final class ReportController extends ApiController
         );
     }
 
-    public function staffAcademy(StaffAcademySummary $action): JsonResponse
+    public function staffAcademy(Request $request, StaffAcademySummary $action): JsonResponse
     {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
         return $this->success(
-            data: $action->execute(),
+            data: $action->execute($validated),
             message: 'Staff academy summary retrieved',
         );
     }

@@ -63,7 +63,15 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                       </div>
                     </TableCell>
                     <TableCell>{row.performance?.attendance_count ?? 0}</TableCell>
-                    <TableCell>{row.performance?.subscriptions_sold ?? 0}</TableCell>
+                    <TableCell>
+                      <div>{row.performance?.coached_services_count ?? row.performance?.subscriptions_sold ?? 0}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {formatCurrency(Number(row.performance?.coached_services_revenue ?? 0), {
+                          currency: "EGP",
+                          noDecimals: true,
+                        })}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {formatCurrency(Number(row.performance?.pos_sales_volume ?? 0), {
                         currency: "EGP",

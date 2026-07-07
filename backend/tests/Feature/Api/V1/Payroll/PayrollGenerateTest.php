@@ -5,7 +5,12 @@ use App\Models\AttendanceViolation;
 use App\Models\AttendanceViolationRule;
 use App\Models\Commission;
 use App\Models\Employee;
+use App\Models\EmployeePlanCommissionRule;
+use App\Models\Member;
 use App\Models\Payroll;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -199,6 +204,65 @@ test('generating payroll includes off day attendance bonuses', function (): void
         ->assertCreated()
         ->assertJsonPath('data.0.bonuses', '200.00')
         ->assertJsonPath('data.0.net_salary', '3200.00');
+});
+
+test('generating payroll includes dynamic clean attendance and coach performance bonuses', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $coach = Employee::factory()->create([
+        'base_salary' => '5000.00',
+        'role' => 'coach',
+    ]);
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $servicePlan = Plan::factory()->active()->create(['category' => 'personal_training']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+        'created_at' => '2026-06-10 10:00:00',
+    ]);
+    $addon = SubscriptionAddon::create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $servicePlan->id,
+        'coach_id' => $coach->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
+        'status' => 'active',
+        'price_paid' => '1000.00',
+    ]);
+    $addon->forceFill([
+        'created_at' => '2026-06-10 10:00:00',
+        'updated_at' => '2026-06-10 10:00:00',
+    ])->save();
+    EmployeePlanCommissionRule::create([
+        'employee_id' => $coach->id,
+        'plan_id' => $servicePlan->id,
+        'calculation_type' => 'percentage',
+        'value' => '20.0000',
+        'is_active' => true,
+    ]);
+    Commission::factory()->create([
+        'employee_id' => $coach->id,
+        'source_type' => SubscriptionAddon::class,
+        'source_id' => $addon->id,
+        'amount' => '200.00',
+        'month' => '2026-06',
+        'status' => 'pending',
+    ]);
+    Attendance::factory()->create([
+        'employee_id' => $coach->id,
+        'date' => '2026-06-10',
+        'status' => 'present',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertCreated()
+        ->assertJsonPath('data.0.commissions_total', '200.00')
+        ->assertJsonPath('data.0.bonuses', '250.00')
+        ->assertJsonPath('data.0.net_salary', '5450.00');
 });
 
 test('generating payroll refreshes off day bonuses on existing pending payroll', function (): void {

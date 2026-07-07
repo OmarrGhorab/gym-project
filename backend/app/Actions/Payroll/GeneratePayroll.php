@@ -92,8 +92,10 @@ final class GeneratePayroll
 
             $payroll = $this->attendanceDeductions->execute($payroll);
             $payroll->net_salary = bcsub((string) $payroll->net_salary, (string) $payroll->attendance_deductions, 2);
+            $payroll = $this->attendanceBonuses->execute($payroll);
             $payroll->save();
             $this->attendanceDeductions->execute($payroll);
+            $this->attendanceBonuses->execute($payroll);
             $payroll->save();
 
             $generated[] = $payroll;
@@ -109,10 +111,26 @@ final class GeneratePayroll
         ];
     }
 
-    private function refreshPendingPayroll(Payroll $payroll): void
+    public function refreshPendingPayroll(Payroll $payroll): void
     {
+        if ($payroll->status !== 'pending') {
+            return;
+        }
+
+        $payroll->commissions_total = $this->commissionTotal($payroll->employee_id, $payroll->month);
         $payroll = $this->attendanceDeductions->execute($payroll);
         $this->attendanceBonuses->execute($payroll);
+    }
+
+    private function commissionTotal(int $employeeId, string $month): string
+    {
+        $total = Commission::query()
+            ->where('employee_id', $employeeId)
+            ->where('month', $month)
+            ->where('status', 'pending')
+            ->sum('amount');
+
+        return $this->formatMoney($total);
     }
 
     private function formatMoney(mixed $value): string

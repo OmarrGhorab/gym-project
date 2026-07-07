@@ -2,7 +2,7 @@
 
 namespace App\Observers;
 
-use App\Jobs\CalculateCommissionJob;
+use App\Actions\Commissions\CalculateCommission;
 use App\Models\SubscriptionAddon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,9 @@ class SubscriptionAddonObserver
     public function created(SubscriptionAddon $subscriptionAddon): void
     {
         DB::afterCommit(function () use ($subscriptionAddon): void {
-            CalculateCommissionJob::dispatch(SubscriptionAddon::class, $subscriptionAddon->id);
+            app(CalculateCommission::class)->forSource(
+                $subscriptionAddon->fresh(['plan', 'coach.planCommissionRules']) ?? $subscriptionAddon,
+            );
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');
         });
