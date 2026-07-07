@@ -39,6 +39,7 @@ export type ViolationRule = {
   name: string;
   description: string | null;
   threshold_minutes: number | null;
+  warning_count_before_deduction: number;
   deduction_days: string;
   requires_admin_approval: boolean;
   auto_apply_if_unreviewed: boolean;

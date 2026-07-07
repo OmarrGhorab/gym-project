@@ -21,6 +21,17 @@ final class CreateAttendanceViolation
             return null;
         }
 
+        $priorViolations = AttendanceViolation::query()
+            ->where('employee_id', $attendance->employee_id)
+            ->where('attendance_violation_rule_id', $rule->id)
+            ->where('violation_date', '<', Carbon::parse($attendance->date)->toDateString())
+            ->count();
+
+        $warningCount = max(0, (int) $rule->warning_count_before_deduction);
+        $warningPhase = $priorViolations < $warningCount;
+        $status = $warningPhase ? 'warning' : ($rule->requires_admin_approval ? 'pending' : 'approved');
+        $deductionDays = $warningPhase ? '0.00' : (string) $rule->deduction_days;
+
         return AttendanceViolation::query()->updateOrCreate(
             [
                 'attendance_id' => $attendance->id,
@@ -31,9 +42,9 @@ final class CreateAttendanceViolation
                 'attendance_violation_rule_id' => $rule->id,
                 'violation_date' => Carbon::parse($attendance->date)->toDateString(),
                 'minutes' => $minutes,
-                'deduction_days' => $rule->deduction_days,
+                'deduction_days' => $deductionDays,
                 'deduction_amount' => '0.00',
-                'status' => $rule->requires_admin_approval ? 'pending' : 'approved',
+                'status' => $status,
                 'notes' => $notes,
             ]
         );

@@ -32,8 +32,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import { MemberActionsMenu } from "../../../members/_components/member-action-dialogs";
 import type { StaffOption } from "../../../members/_components/data";
+import { MemberActionsMenu } from "../../../members/_components/member-action-dialogs";
 import type { PlanRow } from "../../../plans/_components/data";
 import type { MembersMeta, MembersQuery } from "../data";
 import { createRecentCustomersColumns } from "./columns";

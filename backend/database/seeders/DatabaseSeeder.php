@@ -7,9 +7,8 @@ use Illuminate\Database\Seeder;
 /**
  * Root database seeder.
  *
- * Seeds the access matrix, stable login users, default staff shifts, baseline
- * gym employees, and the default gym catalog (membership plans and retail
- * products). Larger business/demo datasets remain in dedicated seeders.
+ * Seeds the essential access setup, stable login users, membership plans,
+ * realistic staff accounts, and attendance rules.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -26,10 +25,8 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleUserSeeder::class);
         $this->call(EmployeeShiftSeeder::class);
         $this->call(AttendanceRulesSeeder::class);
-        $this->call(GymStaffSeeder::class);
         $this->call(PlanSeeder::class);
-        $this->call(MembershipDemoSeeder::class);
-        $this->call(ProductSeeder::class);
-        $this->call(PostmanScenarioSeeder::class);
+        $this->call(GymStaffSeeder::class);
+        $this->call(PlanEmployeeCommissionSeeder::class);
     }
 }

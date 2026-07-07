@@ -4,6 +4,7 @@ namespace App\Actions\Payments;
 
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,30 +14,35 @@ class RecordPayment
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(Subscription $subscription, array $data, ?User $creator = null): Payment
+    public function handle(Subscription|SubscriptionAddon $payable, array $data, ?User $creator = null): Payment
     {
-        return DB::transaction(function () use ($subscription, $data, $creator): Payment {
-            $lockedSubscription = Subscription::query()
+        return DB::transaction(function () use ($payable, $data, $creator): Payment {
+            $lockedPayable = $payable instanceof Subscription
+                ? Subscription::query()
                 ->lockForUpdate()
                 ->with('plan')
-                ->findOrFail($subscription->id);
+                ->findOrFail($payable->id)
+                : SubscriptionAddon::query()
+                    ->lockForUpdate()
+                    ->with('plan')
+                    ->findOrFail($payable->id);
 
-            $paidSoFar = bcadd((string) $lockedSubscription->payments()->sum('amount'), '0.00', 2);
+            $paidSoFar = bcadd((string) $lockedPayable->payments()->sum('amount'), '0.00', 2);
 
             $amount = bcadd((string) $data['amount'], '0.00', 2);
             $newTotal = bcadd($paidSoFar, $amount, 2);
-            $owed = (string) $lockedSubscription->price_paid;
+            $owed = (string) $lockedPayable->price_paid;
 
             if (bccomp($newTotal, $owed, 2) === 1) {
-                $this->extendSubscriptionForOverpayment($lockedSubscription, bcsub($newTotal, $owed, 2));
+                $this->extendSubscriptionForOverpayment($lockedPayable, bcsub($newTotal, $owed, 2));
             }
 
             $remaining = bccomp($newTotal, $owed, 2) === 1 ? '0.00' : bcsub($owed, $newTotal, 2);
             $status = bccomp($remaining, '0.00', 2) === 0 ? 'paid' : 'partial';
 
             return Payment::create([
-                'payable_type' => Subscription::class,
-                'payable_id' => $lockedSubscription->id,
+                'payable_type' => $lockedPayable::class,
+                'payable_id' => $lockedPayable->id,
                 'amount' => $amount,
                 'method' => $data['method'],
                 'status' => $status,
@@ -47,7 +53,7 @@ class RecordPayment
         });
     }
 
-    private function extendSubscriptionForOverpayment(Subscription $subscription, string $extraAmount): void
+    private function extendSubscriptionForOverpayment(Subscription|SubscriptionAddon $subscription, string $extraAmount): void
     {
         if (bccomp($extraAmount, '0.00', 2) <= 0) {
             return;

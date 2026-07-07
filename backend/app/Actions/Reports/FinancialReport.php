@@ -5,6 +5,7 @@ namespace App\Actions\Reports;
 use Carbon\Carbon;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Illuminate\Support\Facades\DB;
 
 class FinancialReport
@@ -39,7 +40,10 @@ class FinancialReport
         $revenueQuery = DB::table('payments')
             ->whereIn('status', ['paid', 'partial'])
             ->whereBetween('paid_at', [$startDate, $endDate])
-            ->when($revenueSource === 'subscriptions', fn ($query) => $query->where('payable_type', Subscription::class))
+            ->when(
+                $revenueSource === 'subscriptions',
+                fn ($query) => $query->whereIn('payable_type', [Subscription::class, SubscriptionAddon::class])
+            )
             ->when($revenueSource === 'sales', fn ($query) => $query->where('payable_type', Sale::class))
             ->groupBy(DB::raw($paymentGroup))
             ->selectRaw(DB::raw($paymentGroup.' as period'))

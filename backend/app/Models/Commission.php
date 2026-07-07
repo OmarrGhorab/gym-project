@@ -20,14 +20,19 @@ class Commission extends Model
         'employee_id',
         'source_type',
         'source_id',
+        'commission_type',
+        'calculation_type',
         'rate',
+        'rule_value',
         'amount',
         'month',
         'status',
+        'employee_plan_commission_rule_id',
     ];
 
     protected $casts = [
         'rate' => 'decimal:4',
+        'rule_value' => 'decimal:4',
         'amount' => 'decimal:2',
     ];
 
@@ -47,5 +52,10 @@ class Commission extends Model
     public function source(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function employeePlanCommissionRule(): BelongsTo
+    {
+        return $this->belongsTo(EmployeePlanCommissionRule::class);
     }
 }

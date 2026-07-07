@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createPlan, type PlanFormState, updatePlan } from "./actions";
-import type { PlanRow } from "./data";
+import type { PlanEmployeeOption, PlanRow } from "./data";
 
 const initialPlanFormState: PlanFormState = {
   ok: false,
@@ -23,11 +23,53 @@ const initialPlanFormState: PlanFormState = {
 };
 
 type PlanFormProps = {
+  employees: PlanEmployeeOption[];
   mode?: "create" | "edit";
   plan?: PlanRow;
 };
 
-export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
+type PlanEmployeeCommissionDraft = {
+  _key: string;
+  calculation_type: "fixed" | "percentage";
+  employee_id: string;
+  id: number;
+  is_active: boolean;
+  value: string;
+};
+
+const planCategoryOptions = ["gym_access", "personal_training", "classes", "nutrition", "recovery"] as const;
+const servicePlanCategories = new Set<string>(["personal_training", "classes", "nutrition", "recovery"]);
+
+function isPlanEmployeeCommissionDraft(value: unknown): value is Partial<PlanEmployeeCommissionDraft> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeCommissionType(value: unknown): "fixed" | "percentage" {
+  return value === "percentage" ? "percentage" : "fixed";
+}
+
+function normalizeEmployeeRule(value: unknown, index: number): PlanEmployeeCommissionDraft | null {
+  if (!isPlanEmployeeCommissionDraft(value)) {
+    return null;
+  }
+
+  const employeeId =
+    typeof value.employee_id === "string" || typeof value.employee_id === "number" ? String(value.employee_id) : "";
+
+  return {
+    _key:
+      typeof value._key === "string" && value._key.length > 0
+        ? value._key
+        : `parsed-${index}-${typeof value.id === "number" ? value.id : "new"}`,
+    calculation_type: normalizeCommissionType(value.calculation_type),
+    employee_id: employeeId,
+    id: typeof value.id === "number" ? value.id : 0,
+    is_active: value.is_active !== false,
+    value: typeof value.value === "string" || typeof value.value === "number" ? String(value.value) : "0",
+  };
+}
+
+export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormProps) {
   const t = useTranslations("Dashboard.plans");
   const formRef = React.useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(mode === "edit" ? updatePlan : createPlan, initialPlanFormState);
@@ -38,17 +80,47 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
     ? state.values.freeze_requires_approval === "on"
     : Boolean(plan?.freeze_requires_approval);
   const initialPlanType = state.values.type || valueOrPlan(state, plan, "type") || "membership";
+  const initialCategory = state.values.category || valueOrPlan(state, plan, "category") || "gym_access";
   const initialDurationBasis = state.values.duration_basis || (plan?.duration_months ? "months" : "days");
   const initialDurationMonths = state.values.duration_months || valueOrPlan(state, plan, "duration_months") || "1";
   const initialValidFrom = state.values.valid_from || valueOrPlan(state, plan, "valid_from");
   const initialValidTo = state.values.valid_to || valueOrPlan(state, plan, "valid_to");
   const [planType, setPlanType] = React.useState(initialPlanType);
+  const [category, setCategory] = React.useState(initialCategory);
   const [unlimitedSessions, setUnlimitedSessions] = React.useState(initialUnlimitedSessions);
   const [freezeRequiresApproval, setFreezeRequiresApproval] = React.useState(initialFreezeRequiresApproval);
   const [durationBasis, setDurationBasis] = React.useState(initialDurationBasis);
   const [durationMonths, setDurationMonths] = React.useState(initialDurationMonths);
   const [validFrom, setValidFrom] = React.useState(initialValidFrom);
   const [validTo, setValidTo] = React.useState(initialValidTo);
+  const [planPrice, setPlanPrice] = React.useState(valueOrPlan(state, plan, "price") || "0");
+  const initialEmployeeRules = React.useMemo(
+    () => readInitialEmployeeRules(state.values.employee_commission_rules, employees, plan?.id),
+    [employees, plan?.id, state.values.employee_commission_rules],
+  );
+  const [employeeRules, setEmployeeRules] = React.useState<PlanEmployeeCommissionDraft[]>(initialEmployeeRules);
+  const employeeCommissionTotal = React.useMemo(
+    () =>
+      employeeRules.reduce((total, rule) => {
+        if (!rule.is_active) {
+          return total;
+        }
+
+        const value = Math.max(0, Number(rule.value || 0));
+        const base = Math.max(0, Number(planPrice || 0));
+
+        if (rule.calculation_type === "percentage") {
+          return total + base * (Math.min(value, 100) / 100);
+        }
+
+        return total + value;
+      }, 0),
+    [employeeRules, planPrice],
+  );
+  const planPriceNumber = Math.max(0, Number(planPrice || 0));
+  const gymNetBeforeExpenses = Math.max(0, planPriceNumber - employeeCommissionTotal);
+  const isServicePlan = servicePlanCategories.has(category);
+  const submittedEmployeeRules = isServicePlan ? employeeRules : [];
   const offerDurationDays = calculateInclusiveDays(validFrom, validTo);
 
   React.useEffect(() => {
@@ -56,12 +128,15 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
       if (mode === "create") {
         formRef.current?.reset();
         setPlanType("membership");
+        setCategory("gym_access");
         setUnlimitedSessions(false);
         setFreezeRequiresApproval(false);
         setDurationBasis("days");
         setDurationMonths("1");
         setValidFrom("");
         setValidTo("");
+        setEmployeeRules([]);
+        setPlanPrice("0");
       }
     }
   }, [mode, state.ok]);
@@ -74,20 +149,28 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
           : Boolean(plan?.freeze_requires_approval),
       );
       setPlanType(state.values.type || valueOrPlan(state, plan, "type") || "membership");
+      setCategory(state.values.category || valueOrPlan(state, plan, "category") || "gym_access");
       setDurationBasis(state.values.duration_basis || (plan?.duration_months ? "months" : "days"));
       setDurationMonths(state.values.duration_months || valueOrPlan(state, plan, "duration_months") || "1");
       setValidFrom(state.values.valid_from || valueOrPlan(state, plan, "valid_from"));
       setValidTo(state.values.valid_to || valueOrPlan(state, plan, "valid_to"));
+      setEmployeeRules(readInitialEmployeeRules(state.values.employee_commission_rules, employees, plan?.id));
+      setPlanPrice(state.values.price || valueOrPlan(state, plan, "price") || "0");
     }
   }, [
+    employees,
     plan,
     plan?.duration_months,
     plan?.freeze_requires_approval,
+    plan?.id,
     state,
     state.ok,
+    state.values.employee_commission_rules,
+    state.values.category,
     state.values.duration_basis,
     state.values.duration_months,
     state.values.freeze_requires_approval,
+    state.values.price,
     state.values.type,
     state.values.valid_from,
     state.values.valid_to,
@@ -96,6 +179,12 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
   return (
     <form ref={formRef} action={action} className="grid gap-4">
       {mode === "edit" && plan ? <input type="hidden" name="id" value={plan.id} /> : null}
+      <input type="hidden" name="employee_commission_rules" value={JSON.stringify(submittedEmployeeRules)} />
+      <input
+        type="hidden"
+        name="initial_employee_commission_rule_ids"
+        value={JSON.stringify(initialEmployeeRules.map((rule) => rule.id).filter((id) => id > 0))}
+      />
       {state.message ? (
         <div
           className={
@@ -135,25 +224,25 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
         <FormSelect
           id="category"
           name="category"
-          defaultValue={valueOrPlan(state, plan, "category") || "gym_access"}
+          value={category}
+          onValueChange={(value) => setCategory(value || "gym_access")}
           error={fieldError(state, "category")}
-          options={[
-            { value: "gym_access", label: t("categories.gym_access") },
-            { value: "personal_training", label: t("categories.personal_training") },
-            { value: "classes", label: t("categories.classes") },
-            { value: "nutrition", label: t("categories.nutrition") },
-            { value: "recovery", label: t("categories.recovery") },
-          ]}
+          options={planCategoryOptions.map((value) => ({
+            value,
+            label: t(`categories.${value}`),
+          }))}
         />
       </div>
 
       <Field
         error={fieldError(state, "price")}
-        label={t("price")}
+        help={t("basePriceHelp")}
+        label={t("basePrice")}
         name="price"
         type="number"
         step="0.01"
-        defaultValue={valueOrPlan(state, plan, "price")}
+        defaultValue={planPrice}
+        onChange={(event) => setPlanPrice(event.currentTarget.value)}
       />
       {planType === "offer" ? (
         <>
@@ -297,6 +386,47 @@ export function PlanCreateForm({ mode = "create", plan }: PlanFormProps) {
         <Textarea id="description" name="description" defaultValue={valueOrPlan(state, plan, "description")} />
       </div>
 
+      {isServicePlan ? (
+        <PlanEmployeesSection
+          employees={employees}
+          rules={employeeRules}
+          setRules={setEmployeeRules}
+          title={t("serviceCoaches")}
+          description={t("serviceCoachesDescription")}
+          addLabel={t("addServiceCoach")}
+          employeeLabel={t("employee")}
+          commissionTypeLabel={t("commissionType")}
+          commissionValueLabel={t("commissionValue")}
+          fixedLabel={t("fixedCommission")}
+          percentLabel={t("percentageCommission")}
+          activeLabel={t("active")}
+          deleteLabel={t("delete")}
+        />
+      ) : (
+        <div className="rounded-lg border border-dashed p-4 text-muted-foreground text-sm">
+          {t("basePlanCommissionHelp")}
+        </div>
+      )}
+
+      <div className="grid gap-2 rounded-lg border bg-muted/20 p-4 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground">{t("summaryMemberPays")}</span>
+          <span className="font-medium tabular-nums">{formatMoney(planPrice)}</span>
+        </div>
+        {isServicePlan ? (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t("summaryCoachCommission")}</span>
+              <span className="font-medium tabular-nums">{formatMoney(employeeCommissionTotal.toFixed(2))}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t pt-2">
+              <span className="font-medium">{t("summaryGymNet")}</span>
+              <span className="font-semibold tabular-nums">{formatMoney(gymNetBeforeExpenses.toFixed(2))}</span>
+            </div>
+          </>
+        ) : null}
+      </div>
+
       <Button type="submit" disabled={pending}>
         <PackageCheck />
         {pending ? t("saving") : t(mode === "edit" ? "savePlan" : "createPlan")}
@@ -339,6 +469,16 @@ function valueOrPlan(state: PlanFormState, plan: PlanRow | undefined, key: keyof
 
 function fieldError(state: PlanFormState, name: string) {
   return state.errors[name]?.[0];
+}
+
+function formatMoney(value: string) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number)) {
+    return "EGP 0.00";
+  }
+
+  return `EGP ${number.toFixed(2)}`;
 }
 
 function Field({
@@ -423,6 +563,204 @@ function TimeField({
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
       <FormTimePicker id={name} name={name} defaultValue={defaultValue} error={error} />
+    </div>
+  );
+}
+
+function readInitialEmployeeRules(
+  stateValue: string | undefined,
+  employees: PlanEmployeeOption[],
+  planId?: number,
+): PlanEmployeeCommissionDraft[] {
+  if (stateValue) {
+    try {
+      const parsed = JSON.parse(stateValue) as unknown;
+
+      return Array.isArray(parsed)
+        ? parsed
+            .map((rule, index) => normalizeEmployeeRule(rule, index))
+            .filter((rule): rule is PlanEmployeeCommissionDraft => rule !== null)
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (!planId) {
+    return [];
+  }
+
+  return employees.flatMap((employee) =>
+    (employee.plan_commission_rules ?? [])
+      .filter((rule) => rule.plan_id === planId)
+      .map((rule) => ({
+        _key: `existing-${rule.id}`,
+        calculation_type: rule.calculation_type,
+        employee_id: String(employee.id),
+        id: rule.id,
+        is_active: rule.is_active,
+        value: rule.value,
+      })),
+  );
+}
+
+function PlanEmployeesSection({
+  activeLabel,
+  addLabel,
+  commissionTypeLabel,
+  commissionValueLabel,
+  deleteLabel,
+  description,
+  employeeLabel,
+  employees,
+  fixedLabel,
+  percentLabel,
+  rules,
+  setRules,
+  title,
+}: {
+  activeLabel: string;
+  addLabel: string;
+  commissionTypeLabel: string;
+  commissionValueLabel: string;
+  deleteLabel: string;
+  description: string;
+  employeeLabel: string;
+  employees: PlanEmployeeOption[];
+  fixedLabel: string;
+  percentLabel: string;
+  rules: PlanEmployeeCommissionDraft[];
+  setRules: React.Dispatch<React.SetStateAction<PlanEmployeeCommissionDraft[]>>;
+  title: string;
+}) {
+  const employeeOptions = React.useMemo(() => {
+    const baseOptions = employees.map((employee) => ({
+      value: String(employee.id),
+      label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+    }));
+
+    const knownValues = new Set(baseOptions.map((option) => option.value));
+    const missingOptions = rules
+      .map((rule) => rule.employee_id)
+      .filter((employeeId) => employeeId && !knownValues.has(employeeId))
+      .map((employeeId) => ({
+        value: employeeId,
+        label: `Employee #${employeeId}`,
+      }));
+
+    return [...baseOptions, ...missingOptions];
+  }, [employees, rules]);
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-dashed p-4">
+      <div className="space-y-1">
+        <Label>{title}</Label>
+        <p className="text-muted-foreground text-xs">{description}</p>
+      </div>
+
+      {rules.map((rule, index) => (
+        <div key={rule._key} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-2 sm:col-span-2 xl:col-span-1">
+            <Label>{employeeLabel}</Label>
+            <FormSelect
+              value={rule.employee_id}
+              className="min-w-0"
+              contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
+              onValueChange={(value) =>
+                setRules((current) =>
+                  current.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, employee_id: value ?? "" } : item,
+                  ),
+                )
+              }
+              options={employeeOptions}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>{commissionTypeLabel}</Label>
+            <FormSelect
+              value={rule.calculation_type}
+              className="min-w-0"
+              contentClassName="max-w-[calc(100vw-2rem)]"
+              onValueChange={(value) =>
+                setRules((current) =>
+                  current.map((item, itemIndex) =>
+                    itemIndex === index
+                      ? { ...item, calculation_type: (value as "fixed" | "percentage") ?? "fixed" }
+                      : item,
+                  ),
+                )
+              }
+              options={[
+                { value: "fixed", label: fixedLabel },
+                { value: "percentage", label: percentLabel },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>{commissionValueLabel}</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={rule.value}
+              onChange={(event) => {
+                const nextValue = event.currentTarget.value;
+
+                setRules((current) =>
+                  current.map((item, itemIndex) => (itemIndex === index ? { ...item, value: nextValue } : item)),
+                );
+              }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 xl:col-span-1">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-2">
+              <Checkbox
+                checked={rule.is_active}
+                onCheckedChange={(checked) =>
+                  setRules((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, is_active: checked === true } : item,
+                    ),
+                  )
+                }
+              />
+              <span className="text-sm">{activeLabel}</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => setRules((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+            >
+              {deleteLabel}
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() =>
+          setRules((current) => [
+            ...current,
+            {
+              _key: `new-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
+              calculation_type: "fixed",
+              employee_id: employees[0] ? String(employees[0].id) : "",
+              id: 0,
+              is_active: true,
+              value: "0",
+            },
+          ])
+        }
+      >
+        {addLabel}
+      </Button>
     </div>
   );
 }

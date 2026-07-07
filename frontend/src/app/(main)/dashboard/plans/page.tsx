@@ -21,7 +21,7 @@ import { PlanCreateForm } from "./_components/plan-create-form";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.plans");
-  const plans = await getPlansPageData();
+  const { employees, plans } = await getPlansPageData();
   const active = plans.filter((plan) => plan.is_active).length;
   const sellable = plans.filter((plan) => plan.is_sellable).length;
 
@@ -42,7 +42,7 @@ export default async function Page() {
               <DialogTitle>{t("createPlan")}</DialogTitle>
               <DialogDescription>{t("createDescription")}</DialogDescription>
             </DialogHeader>
-            <PlanCreateForm />
+            <PlanCreateForm employees={employees} />
           </DialogContent>
         </Dialog>
       </div>
@@ -110,7 +110,7 @@ export default async function Page() {
                               <DialogTitle>{t("editPlan")}</DialogTitle>
                               <DialogDescription>{t("editDescription")}</DialogDescription>
                             </DialogHeader>
-                            <PlanCreateForm mode="edit" plan={plan} />
+                            <PlanCreateForm employees={employees} mode="edit" plan={plan} />
                           </DialogContent>
                         </Dialog>
                         <form action={deletePlan}>

@@ -127,7 +127,7 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
   }, [currentPage, pageCount]);
 
   return (
-    <Card>
+    <Card id="recent-sales">
       <CardHeader>
         <CardTitle className="font-normal text-muted-foreground text-sm">{t("recentSales")}</CardTitle>
         <CardDescription className="text-foreground text-xl tabular-nums leading-none tracking-tight">

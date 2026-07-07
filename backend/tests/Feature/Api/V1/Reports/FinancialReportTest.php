@@ -1,9 +1,12 @@
 <?php
 
 use App\Models\Expense;
+use App\Models\Member;
 use App\Models\Payment;
+use App\Models\Plan;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -73,6 +76,51 @@ test('financial report rejects invalid parameters', function (): void {
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed')
         ->assertJsonStructure(['error' => ['details' => ['from', 'group_by']]]);
+});
+
+test('subscription financial report includes add-on service payments', function (): void {
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $servicePlan = Plan::factory()->active()->create(['category' => 'nutrition']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+        'price_paid' => '480.00',
+    ]);
+    $addon = SubscriptionAddon::create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $servicePlan->id,
+        'start_date' => $subscription->start_date,
+        'end_date' => $subscription->end_date,
+        'status' => 'active',
+        'price_paid' => '600.00',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '480.00',
+        'status' => 'paid',
+        'paid_at' => '2026-06-02 10:00:00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '600.00',
+        'status' => 'paid',
+        'paid_at' => '2026-06-02 10:05:00',
+    ]);
+
+    $this->getJson('/api/v1/reports/financial?from=2026-06-01&to=2026-06-05&group_by=day&revenue_source=subscriptions')
+        ->assertOk()
+        ->assertJsonPath('data.1.period', '2026-06-02')
+        ->assertJsonPath('data.1.revenue', '1080.00')
+        ->assertJsonPath('meta.totals.revenue', '1080.00');
 });
 
 test('finance dashboard summary returns real gym finance aggregates', function (): void {

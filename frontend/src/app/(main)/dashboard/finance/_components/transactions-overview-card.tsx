@@ -96,7 +96,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
     .filter((point) => Number.isFinite(point.date));
 
   return (
-    <Card>
+    <Card id="finance-overview">
       <CardHeader>
         <CardTitle className="font-normal">{t("financeOverview")}</CardTitle>
         <CardAction className="flex items-center gap-2">

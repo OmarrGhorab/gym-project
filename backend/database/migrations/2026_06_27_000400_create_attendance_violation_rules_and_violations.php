@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('name', 160);
             $table->text('description')->nullable();
             $table->unsignedSmallInteger('threshold_minutes')->nullable();
+            $table->unsignedSmallInteger('warning_count_before_deduction')->default(0);
             $table->decimal('deduction_days', 6, 2)->default(0.00);
             $table->boolean('requires_admin_approval')->default(true);
             $table->boolean('auto_apply_if_unreviewed')->default(true);

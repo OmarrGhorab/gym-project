@@ -52,6 +52,15 @@ const commissionBackfillSchema = z
     path: ["to"],
   });
 
+const employeePlanCommissionRuleSchema = z.object({
+  calculation_type: z.enum(["fixed", "percentage"], { error: "Choose a valid commission type." }),
+  employee_id: z.coerce.number().int().positive("Employee is required."),
+  id: z.coerce.number().int().min(0),
+  is_active: z.boolean(),
+  plan_id: nullablePositiveInt,
+  value: z.coerce.number().min(0, "Commission value cannot be negative."),
+});
+
 export async function saveEmployee(input: FormData): Promise<AcademyActionResult> {
   const parsed = employeeSchema.safeParse({
     base_salary: input.get("base_salary") || "0",
@@ -168,6 +177,99 @@ export async function backfillCommissions(input: FormData): Promise<AcademyActio
   return {
     ok: true,
     message: parsed.data.dry_run ? "Commission dry run completed." : "Commissions backfilled.",
+    errors: {},
+  };
+}
+
+export async function saveEmployeePlanCommissionRule(input: FormData): Promise<AcademyActionResult> {
+  const parsed = employeePlanCommissionRuleSchema.safeParse({
+    calculation_type: input.get("calculation_type") || "fixed",
+    employee_id: input.get("employee_id") || "0",
+    id: input.get("id") || "0",
+    is_active: input.get("is_active") === "on",
+    plan_id: input.get("plan_id"),
+    value: input.get("value") || "0",
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Please fix the highlighted coach commission fields.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { employee_id, id, ...payload } = parsed.data;
+
+  try {
+    await serverApiFetch(
+      id > 0
+        ? `/employees/${employee_id}/plan-commission-rules/${id}`
+        : `/employees/${employee_id}/plan-commission-rules`,
+      {
+        body: JSON.stringify({
+          ...payload,
+          value: String(payload.value),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: id > 0 ? "PUT" : "POST",
+      },
+    );
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not save coach commission rule.",
+      errors: {},
+    };
+  }
+
+  revalidateStaff();
+
+  return {
+    ok: true,
+    message: id > 0 ? "Coach commission rule saved." : "Coach commission rule created.",
+    errors: {},
+  };
+}
+
+export async function deleteEmployeePlanCommissionRule(input: FormData): Promise<AcademyActionResult> {
+  const parsed = z
+    .object({
+      employee_id: z.coerce.number().int().positive("Employee is required."),
+      id: z.coerce.number().int().positive("Rule is required."),
+    })
+    .safeParse({
+      employee_id: input.get("employee_id") || "0",
+      id: input.get("id") || "0",
+    });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Coach commission rule is required.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await serverApiFetch(`/employees/${parsed.data.employee_id}/plan-commission-rules/${parsed.data.id}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not delete coach commission rule.",
+      errors: {},
+    };
+  }
+
+  revalidateStaff();
+
+  return {
+    ok: true,
+    message: "Coach commission rule deleted.",
     errors: {},
   };
 }

@@ -23,11 +23,17 @@ type UserOption = {
 
 export async function StaffManagement({
   employees,
+  plans,
   shifts,
   users,
   roles,
 }: {
   employees: AcademyEmployee[];
+  plans: {
+    id: number;
+    name: string;
+    price: string;
+  }[];
   shifts: ShiftOption[];
   users: UserOption[];
   roles: AccessRole[];
@@ -47,9 +53,16 @@ export async function StaffManagement({
           <CardDescription>{t("staffManagementDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <EmployeeActionForm shifts={shifts} users={users} roles={roles} />
+          <EmployeeActionForm plans={plans} shifts={shifts} users={users} roles={roles} />
           {employees.map((employee) => (
-            <EmployeeActionForm key={employee.id} employee={employee} shifts={shifts} users={users} roles={roles} />
+            <EmployeeActionForm
+              key={employee.id}
+              employee={employee}
+              plans={plans}
+              shifts={shifts}
+              users={users}
+              roles={roles}
+            />
           ))}
         </CardContent>
       </Card>

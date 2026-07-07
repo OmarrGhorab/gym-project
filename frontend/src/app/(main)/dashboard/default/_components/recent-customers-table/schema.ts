@@ -25,6 +25,9 @@ export const recentCustomersSchema = z.object({
       start_date: z.string().nullable(),
       end_date: z.string().nullable(),
       status: z.string(),
+      package_paid_total: z.string().nullable().optional(),
+      package_price_paid: z.string().nullable().optional(),
+      package_balance: z.string().nullable().optional(),
     })
     .nullable()
     .optional(),

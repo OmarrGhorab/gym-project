@@ -27,6 +27,9 @@ class EmployeeResource extends JsonResource
             'status' => $this->status,
             'user_id' => $this->user_id,
             'user' => new UserSummaryResource($this->whenLoaded('user')),
+            'plan_commission_rules' => EmployeePlanCommissionRuleResource::collection(
+                $this->whenLoaded('planCommissionRules')
+            ),
             'commissions_summary' => $this->when(isset($this->commissions_summary), $this->commissions_summary),
             'performance_summary' => $this->when(isset($this->performance_summary), $this->performance_summary),
             'created_at' => $this->created_at?->toIso8601String(),

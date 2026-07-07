@@ -71,6 +71,9 @@ type SubscriptionResource = {
   price_paid?: string | number | null;
   paid_total?: string | number | null;
   balance?: string | number | null;
+  package_price_paid?: string | number | null;
+  package_paid_total?: string | number | null;
+  package_balance?: string | number | null;
   renewal_health?: string | null;
   renewal_health_reason?: string | null;
   member?: {
@@ -121,6 +124,10 @@ type DueResource = {
   balance?: string;
   paid_total?: string;
   price_paid?: string;
+  base_price_paid?: string;
+  base_paid_total?: string;
+  addon_price_total?: string;
+  addon_paid_total?: string;
 };
 
 type SalesReportDay = {
@@ -164,6 +171,10 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const expiringCount = latestExpiringRows.length;
   const activeSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "active").length;
   const renewalTarget = Math.max(activeSubscriptions, expiringCount, 1);
+  const trackedPackageRevenue = subscriptionRows.reduce(
+    (sum, subscription) => sum + Number(subscription.package_price_paid ?? subscription.price_paid ?? 0),
+    0,
+  );
 
   return {
     summary: {
@@ -172,7 +183,8 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
       expiringSoon: expiringCount,
       newMembersThisMonth: dashboardData.new_members_this_month ?? 0,
       memberGrowthRate: Number(dashboardData.new_members_growth_rate ?? 0),
-      subscriptionRevenue: Number(subscriptionSummaryData.revenue ?? dashboardData.revenue_mtd ?? 0),
+      subscriptionRevenue:
+        trackedPackageRevenue || Number(subscriptionSummaryData.revenue ?? dashboardData.revenue_mtd ?? 0),
       outstandingDuesTotal,
       outstandingDuesCount: latestDueRows.length,
       salesTodayRevenue: Number(dashboardData.sales_today?.revenue ?? 0),
@@ -250,7 +262,7 @@ function mapRenewalFollowUp(subscription: SubscriptionResource): RenewalFollowUp
     planName: subscription.plan?.name ?? "",
     endDate: subscription.end_date ?? "",
     daysLeft: subscription.days_left ?? getDaysUntil(subscription.end_date),
-    amount: Number(subscription.price_paid ?? 0),
+    amount: Number(subscription.package_price_paid ?? subscription.price_paid ?? 0),
   };
 }
 
@@ -284,8 +296,12 @@ function mapSubscriptionToPipeline(
   plans: PlanResource[],
 ): MembershipPipelineRow {
   const matchingDue = dues.find((due) => due.subscription?.id === subscription.id);
-  const balance = Number(subscription.balance ?? matchingDue?.balance ?? 0);
+  const balance = Number(subscription.package_balance ?? matchingDue?.balance ?? subscription.balance ?? 0);
   const daysLeft = subscription.days_left ?? getDaysUntil(subscription.end_date);
+  const paidTotal = Number(subscription.package_paid_total ?? matchingDue?.paid_total ?? subscription.paid_total ?? 0);
+  const packageValue = Number(
+    subscription.package_price_paid ?? matchingDue?.price_paid ?? subscription.price_paid ?? 0,
+  );
 
   return {
     id: String(subscription.id),
@@ -307,8 +323,8 @@ function mapSubscriptionToPipeline(
     daysLeft,
     health: subscription.renewal_health ?? "active",
     healthReason: subscription.renewal_health_reason ?? "active_no_balance",
-    paidTotal: Number(subscription.paid_total ?? 0),
-    value: Number(subscription.price_paid ?? 0),
+    paidTotal,
+    value: packageValue,
     balance,
     startDate: subscription.start_date ?? null,
     endDate: subscription.end_date ?? null,

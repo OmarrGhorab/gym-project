@@ -40,6 +40,9 @@ Route::prefix('attendance')->group(function (): void {
     Route::get('/violation-rules', [AttendanceController::class, 'violationRules'])
         ->middleware('permission:attendance.view');
 
+    Route::post('/violation-rules', [AttendanceController::class, 'storeViolationRule'])
+        ->middleware(['permission:attendance.update', 'throttle:api']);
+
     Route::put('/violation-rules/{attendanceViolationRule}', [AttendanceController::class, 'updateViolationRule'])
         ->middleware(['permission:attendance.update', 'throttle:api']);
 

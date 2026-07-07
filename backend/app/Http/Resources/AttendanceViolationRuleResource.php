@@ -18,6 +18,7 @@ class AttendanceViolationRuleResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'threshold_minutes' => $this->threshold_minutes,
+            'warning_count_before_deduction' => (int) $this->warning_count_before_deduction,
             'deduction_days' => number_format((float) $this->deduction_days, 2, '.', ''),
             'requires_admin_approval' => (bool) $this->requires_admin_approval,
             'auto_apply_if_unreviewed' => (bool) $this->auto_apply_if_unreviewed,

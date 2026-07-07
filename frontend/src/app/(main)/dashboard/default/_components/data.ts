@@ -49,6 +49,9 @@ type MemberResource = {
     start_date?: string | null;
     status?: string | null;
     end_date?: string | null;
+    package_paid_total?: string | null;
+    package_price_paid?: string | null;
+    package_balance?: string | null;
   } | null;
 };
 
@@ -261,7 +264,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     planEndsAt: subscription?.end_date ?? null,
     status: member.membership_status ?? null,
     billing: member.billing_status ?? "unknown",
-    totalPaid: member.total_paid ?? "0.00",
+    totalPaid: subscription?.package_paid_total ?? member.total_paid ?? "0.00",
     joined: member.join_date ?? member.created_at?.slice(0, 10) ?? null,
     notes: member.notes ?? null,
     has_photo: member.has_photo ?? false,
@@ -273,6 +276,9 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
           start_date: subscription.start_date ?? null,
           end_date: subscription.end_date ?? null,
           status: subscription.status ?? "unknown",
+          package_paid_total: subscription.package_paid_total ?? null,
+          package_price_paid: subscription.package_price_paid ?? null,
+          package_balance: subscription.package_balance ?? null,
         }
       : null,
     due,

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\CommissionController;
 use App\Http\Controllers\Api\V1\EmployeeController;
+use App\Http\Controllers\Api\V1\EmployeePlanCommissionRuleController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,4 +32,13 @@ Route::prefix('employees')->group(function (): void {
 
     Route::get('/{employee}/performance', [EmployeeController::class, 'performance'])
         ->middleware('permission:reports.view');
+
+    Route::post('/{employee}/plan-commission-rules', [EmployeePlanCommissionRuleController::class, 'store'])
+        ->middleware(['permission:employees.update', 'throttle:api']);
+
+    Route::put('/{employee}/plan-commission-rules/{employeePlanCommissionRule}', [EmployeePlanCommissionRuleController::class, 'update'])
+        ->middleware(['permission:employees.update', 'throttle:api']);
+
+    Route::delete('/{employee}/plan-commission-rules/{employeePlanCommissionRule}', [EmployeePlanCommissionRuleController::class, 'destroy'])
+        ->middleware(['permission:employees.update', 'throttle:api']);
 });

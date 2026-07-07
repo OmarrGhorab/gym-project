@@ -27,7 +27,8 @@ class GenerateExportJob implements ShouldQueue
         protected string $resource,
         protected string $format,
         protected array $filters,
-        protected int $userId
+        protected int $userId,
+        protected string $locale = 'en'
     ) {
         $this->onQueue('exports');
     }
@@ -39,18 +40,23 @@ class GenerateExportJob implements ShouldQueue
 
         try {
             $builder = new BuildExport;
-            $exportClass = $builder->getExportClass($this->resource, $this->filters);
+            $exportClass = $builder->getExportClass($this->resource, $this->filters, $this->locale);
             $writerType = $builder->getWriterType($this->format);
 
             $filename = "exports/{$this->exportId}.{$this->format}";
             $disk = Config::get('export.disk', 'local');
 
-            Excel::store($exportClass, $filename, $disk, $writerType);
+            if ($this->resource === 'members' && $this->format === 'pdf' && $exportClass instanceof \App\Exports\MembersExport) {
+                $builder->storeMembersPdf($exportClass, $filename);
+            } else {
+                Excel::store($exportClass, $filename, $disk, $writerType);
+            }
 
             Cache::put($cacheKey, [
                 'id' => $this->exportId,
                 'resource' => $this->resource,
                 'format' => $this->format,
+                'locale' => $this->locale,
                 'status' => 'completed',
                 'user_id' => $this->userId,
                 'filename' => $filename,
@@ -70,6 +76,7 @@ class GenerateExportJob implements ShouldQueue
                 'id' => $this->exportId,
                 'resource' => $this->resource,
                 'format' => $this->format,
+                'locale' => $this->locale,
                 'status' => 'failed',
                 'user_id' => $this->userId,
                 'error' => $e->getMessage(),

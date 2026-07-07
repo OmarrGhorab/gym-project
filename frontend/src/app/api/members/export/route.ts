@@ -4,6 +4,7 @@ import { API_BASE_URL } from "@/app/api/auth/_lib";
 import { getAuthToken } from "@/lib/session";
 
 const formats = new Set(["xlsx", "pdf"]);
+const locales = new Set(["en", "ar"]);
 
 export async function GET(request: Request) {
   const token = await getAuthToken();
@@ -14,12 +15,17 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const format = url.searchParams.get("format") ?? "xlsx";
+  const locale = url.searchParams.get("locale") ?? "en";
 
   if (!formats.has(format)) {
     return NextResponse.json({ error: { message: "Invalid export format." } }, { status: 422 });
   }
 
-  const params = new URLSearchParams({ format });
+  if (!locales.has(locale)) {
+    return NextResponse.json({ error: { message: "Invalid export locale." } }, { status: 422 });
+  }
+
+  const params = new URLSearchParams({ format, locale });
   const search = url.searchParams;
   const filterMap: Array<[string, string]> = [
     ["q", "filter[search]"],

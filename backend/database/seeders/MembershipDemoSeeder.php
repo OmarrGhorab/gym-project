@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Member;
 use App\Models\Payment;
+use App\Models\Employee;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionFreeze;
@@ -26,6 +27,7 @@ class MembershipDemoSeeder extends Seeder
     public function run(): void
     {
         $seller = $this->seller();
+        $coaches = $this->coaches();
         $plans = $this->plans();
 
         if ($plans->isEmpty()) {
@@ -40,7 +42,7 @@ class MembershipDemoSeeder extends Seeder
         $this->clearExistingDemoSubscriptions();
 
         for ($index = 1; $index <= self::MEMBER_COUNT; $index++) {
-            $member = $this->member($index, $seller);
+            $member = $this->member($index, $seller, $coaches);
             $plan = $plans[($index - 1) % $plans->count()];
             $subscription = $this->subscription($member, $plan, $seller, $index);
 
@@ -68,6 +70,18 @@ class MembershipDemoSeeder extends Seeder
         }
 
         return $user;
+    }
+
+    /**
+     * @return Collection<int, Employee>
+     */
+    private function coaches(): Collection
+    {
+        return Employee::query()
+            ->where('status', 'active')
+            ->whereIn('role', ['coach', 'captain'])
+            ->orderBy('id')
+            ->get();
     }
 
     /**
@@ -108,12 +122,13 @@ class MembershipDemoSeeder extends Seeder
         }
     }
 
-    private function member(int $index, User $seller): Member
+    private function member(int $index, User $seller, Collection $coaches): Member
     {
         $padded = str_pad((string) $index, 3, '0', STR_PAD_LEFT);
         $joinDate = Carbon::today()
             ->subMonthsNoOverflow(($index - 1) % 10)
             ->subDays(($index * 2) % 21);
+        $coachId = $coaches->isNotEmpty() ? $coaches[$index % $coaches->count()]->id : null;
 
         return Member::query()->updateOrCreate(
             ['email' => "demo.seed.member.{$padded}@gym.test"],
@@ -130,6 +145,7 @@ class MembershipDemoSeeder extends Seeder
                 'injuries' => $index % 13 === 0 ? 'Old shoulder injury' : null,
                 'medical_notes' => $index % 17 === 0 ? 'Needs low-impact cardio.' : null,
                 'tags' => [$index % 2 === 0 ? 'evening' : 'morning', $index % 5 === 0 ? 'vip' : 'standard'],
+                'coach_id' => $coachId,
                 'created_by' => $seller->id,
             ],
         );

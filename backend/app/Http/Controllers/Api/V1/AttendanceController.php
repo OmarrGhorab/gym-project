@@ -8,6 +8,7 @@ use App\Actions\Attendance\StoreAttendance;
 use App\Actions\Attendance\UpdateAttendance;
 use App\Http\Requests\Attendance\ReviewAttendanceViolationRequest;
 use App\Http\Requests\Attendance\ScanAttendanceRequest;
+use App\Http\Requests\Attendance\StoreAttendanceViolationRuleRequest;
 use App\Http\Requests\Attendance\StoreAttendanceRequest;
 use App\Http\Requests\Attendance\StoreEmployeeShiftRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
@@ -25,6 +26,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -163,6 +165,22 @@ final class AttendanceController extends ApiController
             ->withMessage('Attendance violation rule updated')
             ->response()
             ->setStatusCode(200);
+    }
+
+    public function storeViolationRule(StoreAttendanceViolationRuleRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $code = Str::slug($data['name'], '_');
+
+        $attendanceViolationRule = AttendanceViolationRule::query()->updateOrCreate(
+            ['code' => $code],
+            $data + ['code' => $code],
+        );
+
+        return (new AttendanceViolationRuleResource($attendanceViolationRule->fresh()))
+            ->withMessage('Attendance violation rule created')
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function reviewViolation(ReviewAttendanceViolationRequest $request, AttendanceViolation $attendanceViolation): JsonResponse

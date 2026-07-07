@@ -8,22 +8,22 @@ This repo contains a Laravel API backend and a Next.js dashboard frontend.
 - `backend/routes/api/*.php`: versioned API route modules.
 - `backend/app/Http/Controllers/Api/V1`: API controllers; keep them thin.
 - `backend/app/Actions`: business logic for mutations.
-- `client/`: Next.js 16 App Router frontend.
-- `client/src/app/[locale]`: localized routes.
-- `client/src/components`: reusable and feature-specific UI.
-- `client/src/lib/api`: typed API fetch helpers.
-- `client/src/lib/actions`: Server Actions for mutations.
-- `client/messages`: `en.json` and `ar.json` translations.
+- `frontend/`: Next.js 16 App Router frontend.
+- `frontend/src/app/`: app routes, layouts, route handlers, and dashboard pages.
+- `frontend/src/components`: reusable and feature-specific UI.
+- `frontend/src/lib/api`: typed API fetch helpers.
+- `frontend/src/app/(main)/dashboard/*/_components/actions.ts`: Server Actions for dashboard mutations.
+- `frontend/messages`: `en.json` and `ar.json` translations.
 
 ## Build, Test, and Development Commands
 
-Frontend commands run from `client/`:
+Frontend commands run from `frontend/`:
 
 - `npm run dev`: start Next.js dev server.
-- `npm run typecheck`: run TypeScript checks.
-- `npm run lint`: run ESLint.
+- `npm run check`: run Biome checks.
+- `npm run lint`: run Biome lint.
 - `npm run build`: production build.
-- `npm test`: currently aliases `typecheck`.
+- `npm run format`: format code with Biome.
 
 Backend commands run from `backend/`:
 
@@ -41,7 +41,7 @@ Use kebab-case for frontend files, PascalCase for React components, and descript
 
 ## Testing Guidelines
 
-Backend tests live in `backend/tests` and use Pest. Add feature tests for API behavior and validation, especially for new endpoints. Frontend currently relies on `typecheck`, `lint`, and `build`; run all before shipping UI changes.
+Backend tests live in `backend/tests` and use Pest. Add feature tests for API behavior and validation, especially for new endpoints. Frontend currently relies on `check`, `lint`, and `build`; run the relevant validation before shipping UI changes.
 
 ## Commit & Pull Request Guidelines
 
@@ -55,4 +55,4 @@ Never expose backend tokens in Client Components. Keep authenticated dashboard f
 
 ## Agent-Specific Instructions
 
-Do not revert unrelated user changes. Use existing patterns before adding new abstractions. For frontend work, update localization, run `typecheck`, `lint`, and `build`, and verify Server Action cache invalidation for affected pages.
+Do not revert unrelated user changes. Use existing patterns before adding new abstractions. For frontend work, update localization, use `frontend/` instead of `client/`, run the relevant frontend validation commands, and verify Server Action cache invalidation for affected pages.

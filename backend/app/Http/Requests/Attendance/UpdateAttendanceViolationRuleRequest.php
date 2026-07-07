@@ -26,6 +26,7 @@ class UpdateAttendanceViolationRuleRequest extends FormRequest
             ])],
             'description' => ['nullable', 'string', 'max:2000'],
             'threshold_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            'warning_count_before_deduction' => ['sometimes', 'integer', 'min:0', 'max:365'],
             'deduction_days' => ['sometimes', 'required', 'numeric', 'min:0', 'max:30'],
             'requires_admin_approval' => ['sometimes', 'boolean'],
             'auto_apply_if_unreviewed' => ['sometimes', 'boolean'],

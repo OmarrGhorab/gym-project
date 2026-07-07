@@ -15,9 +15,10 @@ class ExportController extends ApiController
     {
         $resource = $request->validated('resource');
         $format = strtolower($request->validated('format'));
+        $locale = strtolower($request->validated('locale') ?? 'en');
         $filters = $request->input('filter', []);
 
-        $result = $action->handle($resource, $format, $filters, $request->user());
+        $result = $action->handle($resource, $format, $filters, $request->user(), $locale);
 
         if (! empty($result['error'])) {
             return $this->error(

@@ -17,10 +17,7 @@ final class BackfillCommissions
         $alreadyPresent = 0;
         $scanned = 0;
 
-        $employeesByUserId = Employee::whereNotNull('user_id')->get()->keyBy('user_id');
-        $linkedUserIds = $employeesByUserId->keys()->all();
-
-        $subQuery = Subscription::query()->whereIn('sold_by_user_id', $linkedUserIds);
+        $subQuery = Subscription::query();
         if ($from) {
             $subQuery->whereDate('created_at', '>=', $from);
         }
@@ -28,37 +25,42 @@ final class BackfillCommissions
             $subQuery->whereDate('created_at', '<=', $to);
         }
 
-        $subQuery->chunkById(100, function ($subscriptions) use ($action, $dryRun, $employeesByUserId, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {
-            $existing = Commission::where('source_type', Subscription::class)
-                ->whereIn('source_id', $subscriptions->modelKeys())
-                ->pluck('source_id')
-                ->flip();
-
+        $subQuery->chunkById(100, function ($subscriptions) use ($action, $dryRun, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {
             foreach ($subscriptions as $subscription) {
                 $scanned++;
+                $specs = $action->resolveSpecsForSource($subscription);
 
-                if ($existing->has($subscription->id)) {
-                    $alreadyPresent++;
+                if ($specs === []) {
+                    $skippedUnlinked++;
 
                     continue;
                 }
 
-                if ($dryRun) {
-                    $employee = $employeesByUserId->get($subscription->sold_by_user_id);
-                    $rate = '0.0000';
-                    if ($employee && $employee->status === 'active') {
-                        $plan = $subscription->plan;
-                        $rate = ($plan && $plan->commission_rate !== null) ? (string) $plan->commission_rate : (string) $employee->commission_rate;
+                foreach ($specs as $spec) {
+                    $exists = Commission::query()
+                        ->where('source_type', Subscription::class)
+                        ->where('source_id', $subscription->id)
+                        ->where('employee_id', $spec['employee']->id)
+                        ->where('commission_type', $spec['commission_type'])
+                        ->exists();
+
+                    if ($exists) {
+                        $alreadyPresent++;
+                        continue;
                     }
-                    $employee && bccomp($rate, '0.0000', 4) > 0 ? null : $skippedUnlinked++;
-                } else {
-                    $action->forSource($subscription) ? $created++ : $skippedUnlinked++;
+
+                    if ($dryRun) {
+                        $created++;
+                        continue;
+                    }
+
+                    $created += $action->forSource($subscription);
+                    break;
                 }
             }
         });
 
         $saleQuery = Sale::query()
-            ->whereIn('sold_by_user_id', $linkedUserIds)
             ->where('status', 'completed');
         if ($from) {
             $saleQuery->whereDate('created_at', '>=', $from);
@@ -67,27 +69,37 @@ final class BackfillCommissions
             $saleQuery->whereDate('created_at', '<=', $to);
         }
 
-        $saleQuery->chunkById(100, function ($sales) use ($action, $dryRun, $employeesByUserId, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {
-            $existing = Commission::where('source_type', Sale::class)
-                ->whereIn('source_id', $sales->modelKeys())
-                ->pluck('source_id')
-                ->flip();
-
+        $saleQuery->chunkById(100, function ($sales) use ($action, $dryRun, &$created, &$skippedUnlinked, &$alreadyPresent, &$scanned): void {
             foreach ($sales as $sale) {
                 $scanned++;
+                $specs = $action->resolveSpecsForSource($sale);
 
-                if ($existing->has($sale->id)) {
-                    $alreadyPresent++;
+                if ($specs === []) {
+                    $skippedUnlinked++;
 
                     continue;
                 }
 
-                if ($dryRun) {
-                    $employee = $employeesByUserId->get($sale->sold_by_user_id);
-                    $rate = ($employee && $employee->status === 'active') ? (string) $employee->commission_rate : '0.0000';
-                    $employee && bccomp($rate, '0.0000', 4) > 0 ? null : $skippedUnlinked++;
-                } else {
-                    $action->forSource($sale) ? $created++ : $skippedUnlinked++;
+                foreach ($specs as $spec) {
+                    $exists = Commission::query()
+                        ->where('source_type', Sale::class)
+                        ->where('source_id', $sale->id)
+                        ->where('employee_id', $spec['employee']->id)
+                        ->where('commission_type', $spec['commission_type'])
+                        ->exists();
+
+                    if ($exists) {
+                        $alreadyPresent++;
+                        continue;
+                    }
+
+                    if ($dryRun) {
+                        $created++;
+                        continue;
+                    }
+
+                    $created += $action->forSource($sale);
+                    break;
                 }
             }
         });

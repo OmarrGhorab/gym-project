@@ -233,6 +233,7 @@ type FormDatePickerProps = {
   onValueChange?: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  value?: string | null;
 };
 
 export function FormDatePicker({
@@ -244,10 +245,13 @@ export function FormDatePicker({
   onValueChange,
   placeholder = "Select date",
   required = false,
+  value: controlledValue,
 }: FormDatePickerProps) {
   const errorId = React.useId();
   const locale = useLocale();
-  const [value, setValue] = React.useState(defaultValue ?? "");
+  const isControlled = controlledValue !== undefined;
+  const [internalValue, setInternalValue] = React.useState(defaultValue ?? "");
+  const value = isControlled ? (controlledValue ?? "") : internalValue;
   const selectedDate = parseDateString(value);
 
   return (
@@ -280,7 +284,9 @@ export function FormDatePicker({
             onSelect={(date) => {
               if (date) {
                 const nextValue = format(date, "yyyy-MM-dd");
-                setValue(nextValue);
+                if (!isControlled) {
+                  setInternalValue(nextValue);
+                }
                 onValueChange?.(nextValue);
               }
             }}

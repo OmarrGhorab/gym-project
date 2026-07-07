@@ -13,8 +13,10 @@ class SubscriptionResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $this->loadMissing(['payments', 'plan']);
+        $this->loadMissing(['payments', 'plan', 'addons.plan', 'addons.coach', 'addons.payments']);
         $balance = $this->balanceDue();
+        $packageBalance = $this->packageBalanceDue();
+        $packagePaidTotal = $this->packagePaidTotal();
         $daysLeft = $this->daysLeft();
         $status = $this->effectiveStatus();
 
@@ -26,11 +28,14 @@ class SubscriptionResource extends JsonResource
             'freeze' => $this->freezeSnapshot(),
             'price_paid' => $this->price_paid,
             'paid_total' => $this->paidTotal(),
+            'package_price_paid' => $this->packagePricePaid(),
+            'package_paid_total' => $packagePaidTotal,
+            'package_balance' => $packageBalance,
             'balance' => $balance,
-            'billing_status' => $this->billingStatus(),
+            'billing_status' => $this->billingStatus($packagePaidTotal, $packageBalance),
             'days_left' => $daysLeft,
-            'renewal_health' => $this->renewalHealth($status, $daysLeft, $balance),
-            'renewal_health_reason' => $this->renewalHealthReason($status, $daysLeft, $balance),
+            'renewal_health' => $this->renewalHealth($status, $daysLeft, $packageBalance),
+            'renewal_health_reason' => $this->renewalHealthReason($status, $daysLeft, $packageBalance),
             'discount' => $this->discount,
             'sessions_total' => $this->sessions_total,
             'sessions_remaining' => $this->sessions_remaining,
@@ -40,6 +45,7 @@ class SubscriptionResource extends JsonResource
             'upgraded_from' => $this->whenLoaded('upgradedFrom', fn () => (new self($this->upgradedFrom))->toArray($request)),
             'sold_by' => $this->whenLoaded('soldBy', fn () => (new UserSummaryResource($this->soldBy))->toArray($request)),
             'payments' => $this->whenLoaded('payments', fn () => PaymentResource::collection($this->payments)->resolve()),
+            'addons' => $this->whenLoaded('addons', fn () => SubscriptionAddonResource::collection($this->addons)->resolve()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
@@ -53,6 +59,41 @@ class SubscriptionResource extends JsonResource
                 fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
                 '0.00',
             );
+    }
+
+    private function addonPriceTotal(): string
+    {
+        return $this->addons->reduce(
+            fn (string $carry, $addon): string => bcadd($carry, (string) ($addon->price_paid ?? '0.00'), 2),
+            '0.00',
+        );
+    }
+
+    private function addonPaidTotal(): string
+    {
+        return $this->addons->reduce(
+            fn (string $carry, $addon): string => bcadd(
+                $carry,
+                $addon->payments
+                    ->filter(fn ($payment): bool => in_array($payment->status, ['paid', 'partial'], true))
+                    ->reduce(
+                        fn (string $paymentCarry, $payment): string => bcadd($paymentCarry, (string) $payment->amount, 2),
+                        '0.00',
+                    ),
+                2,
+            ),
+            '0.00',
+        );
+    }
+
+    private function packagePricePaid(): string
+    {
+        return bcadd((string) ($this->price_paid ?? '0.00'), $this->addonPriceTotal(), 2);
+    }
+
+    private function packagePaidTotal(): string
+    {
+        return bcadd($this->paidTotal(), $this->addonPaidTotal(), 2);
     }
 
     /**
@@ -89,9 +130,16 @@ class SubscriptionResource extends JsonResource
         return bccomp($balance, '0.00', 2) === 1 ? $balance : '0.00';
     }
 
-    private function billingStatus(): string
+    private function packageBalanceDue(): string
     {
-        if (bccomp($this->paidTotal(), '0.00', 2) === 1) {
+        $balance = bcsub($this->packagePricePaid(), $this->packagePaidTotal(), 2);
+
+        return bccomp($balance, '0.00', 2) === 1 ? $balance : '0.00';
+    }
+
+    private function billingStatus(string $packagePaidTotal, string $packageBalance): string
+    {
+        if (bccomp($packageBalance, '0.00', 2) === 0 && bccomp($packagePaidTotal, '0.00', 2) === 1) {
             return 'paid';
         }
 

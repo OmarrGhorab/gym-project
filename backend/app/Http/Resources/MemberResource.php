@@ -14,7 +14,9 @@ final class MemberResource extends JsonResource
     public function toArray(Request $request): array
     {
         $latestSubscription = $this->latestSubscription;
-        $latestSubscription?->loadMissing('payments');
+        $latestSubscription?->loadMissing(['payments', 'addons.plan', 'addons.coach', 'addons.payments']);
+        $latestSubscriptionResource = $latestSubscription ? new SubscriptionResource($latestSubscription) : null;
+        $latestSubscriptionData = $latestSubscriptionResource?->toArray($request);
 
         return [
             'id' => $this->id,
@@ -56,6 +58,13 @@ final class MemberResource extends JsonResource
                 'start_date' => $latestSubscription->start_date?->toDateString(),
                 'end_date' => $latestSubscription->end_date?->toDateString(),
                 'status' => $latestSubscription->status,
+                'price_paid' => $latestSubscriptionData['price_paid'] ?? '0.00',
+                'paid_total' => $latestSubscriptionData['paid_total'] ?? '0.00',
+                'balance' => $latestSubscriptionData['balance'] ?? '0.00',
+                'package_price_paid' => $latestSubscriptionData['package_price_paid'] ?? '0.00',
+                'package_paid_total' => $latestSubscriptionData['package_paid_total'] ?? '0.00',
+                'package_balance' => $latestSubscriptionData['package_balance'] ?? '0.00',
+                'addons' => $latestSubscriptionData['addons'] ?? [],
             ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

@@ -50,10 +50,12 @@ const rowsOptions: Option[] = [
 
 export function MembersHeaderActions() {
   const t = useTranslations("Dashboard.membersPage");
+  const locale = useLocale();
   const router = useQueryRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
-  const exportUrl = React.useMemo(() => buildMembersExportUrl(searchParams), [searchParams]);
+  const exportUrl = React.useMemo(() => buildMembersExportUrl(searchParams, locale), [locale, searchParams]);
+  const [exporting, setExporting] = React.useState(false);
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,11 +91,21 @@ export function MembersHeaderActions() {
           <ChevronDownIcon data-icon="inline-end" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem onSelect={() => window.location.assign(exportUrl("xlsx"))}>
+          <DropdownMenuItem
+            disabled={exporting}
+            onClick={() => {
+              void startExportDownload(exportUrl("xlsx"), setExporting);
+            }}
+          >
             <FileSpreadsheet data-icon="inline-start" />
             {t("exportMembersXlsx")}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => window.location.assign(exportUrl("pdf"))}>
+          <DropdownMenuItem
+            disabled={exporting}
+            onClick={() => {
+              void startExportDownload(exportUrl("pdf"), setExporting);
+            }}
+          >
             <FileText data-icon="inline-start" />
             {t("exportMembersPdf")}
           </DropdownMenuItem>
@@ -285,10 +297,11 @@ function useQueryRouter() {
   };
 }
 
-function buildMembersExportUrl(searchParams: ReturnType<typeof useSearchParams>) {
+function buildMembersExportUrl(searchParams: ReturnType<typeof useSearchParams>, locale: string) {
   return (format: "xlsx" | "pdf") => {
     const params = new URLSearchParams();
     params.set("format", format);
+    params.set("locale", locale === "ar" ? "ar" : "en");
 
     const q = searchParams.get("q")?.trim();
     const status = searchParams.get("status");
@@ -313,4 +326,58 @@ function buildMembersExportUrl(searchParams: ReturnType<typeof useSearchParams>)
 
     return `/api/members/export?${params.toString()}`;
   };
+}
+
+async function startExportDownload(url: string, setExporting: (value: boolean) => void) {
+  setExporting(true);
+
+  try {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      redirect: "follow",
+    });
+
+    if (!response.ok) {
+      window.location.assign(url);
+      return;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      const payload = (await response.json().catch(() => null)) as { data?: { download_url?: string } } | null;
+
+      if (payload?.data?.download_url) {
+        window.location.assign(payload.data.download_url);
+      } else {
+        window.location.assign(url);
+      }
+
+      return;
+    }
+
+    const blob = await response.blob();
+    const filename = getFilenameFromDisposition(response.headers.get("content-disposition")) ?? "members-export";
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = objectUrl;
+    link.download = filename;
+    link.rel = "noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  } finally {
+    setExporting(false);
+  }
+}
+
+function getFilenameFromDisposition(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const match = /filename="?([^"]+)"?/i.exec(value);
+  return match?.[1] ?? null;
 }

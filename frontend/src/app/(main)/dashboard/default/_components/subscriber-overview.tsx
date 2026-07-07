@@ -6,9 +6,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import type { MembersMeta, MembersQuery } from "./data";
 import type { StaffOption } from "../../members/_components/data";
 import type { PlanRow } from "../../plans/_components/data";
+import type { MembersMeta, MembersQuery } from "./data";
 import type { RecentCustomerRow } from "./recent-customers-table/schema";
 import { RecentCustomersTable } from "./recent-customers-table/table";
 

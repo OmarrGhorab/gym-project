@@ -36,6 +36,9 @@ final class PlanResource extends JsonResource
             'min_freeze_days' => $this->min_freeze_days,
             'freeze_requires_approval' => $this->freeze_requires_approval,
             'is_sellable' => $this->isSellable(),
+            'employee_commission_rules' => EmployeePlanCommissionRuleResource::collection(
+                $this->whenLoaded('employeeCommissionRules')
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

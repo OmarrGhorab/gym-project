@@ -78,7 +78,7 @@ class GymStaffSeeder extends Seeder
     {
         return [
             [
-                'name' => 'Gym Operations Manager',
+                'name' => 'Omar El-Sayed',
                 'email' => 'operations.manager@gym.test',
                 'access_role' => FoundationPermissions::ROLE_MANAGER,
                 'employee_role' => 'manager',
@@ -89,7 +89,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-01-05',
             ],
             [
-                'name' => 'Front Desk Receptionist',
+                'name' => 'Mona Hassan',
                 'email' => 'frontdesk@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CASHIER,
                 'employee_role' => 'employee',
@@ -100,7 +100,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-01-12',
             ],
             [
-                'name' => 'Membership Sales Advisor',
+                'name' => 'Youssef Adel',
                 'email' => 'membership.advisor@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CASHIER,
                 'employee_role' => 'employee',
@@ -111,10 +111,10 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-02-01',
             ],
             [
-                'name' => 'Head Fitness Captain',
+                'name' => 'Ahmed Nabil',
                 'email' => 'head.captain@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CAPTAIN,
-                'employee_role' => 'captain',
+                'employee_role' => 'coach',
                 'phone' => '+201011110004',
                 'shift' => 'Midday Shift',
                 'base_salary' => 9000.00,
@@ -122,10 +122,10 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-01-20',
             ],
             [
-                'name' => 'Personal Trainer',
+                'name' => 'Heba Farouk',
                 'email' => 'personal.trainer@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CAPTAIN,
-                'employee_role' => 'captain',
+                'employee_role' => 'coach',
                 'phone' => '+201011110005',
                 'shift' => 'Evening Shift',
                 'base_salary' => 7600.00,
@@ -133,10 +133,10 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-02-10',
             ],
             [
-                'name' => 'Nutrition Coach',
+                'name' => 'Sara Mounir',
                 'email' => 'nutrition.coach@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CAPTAIN,
-                'employee_role' => 'captain',
+                'employee_role' => 'coach',
                 'phone' => '+201011110006',
                 'shift' => 'Midday Shift',
                 'base_salary' => 7800.00,
@@ -144,10 +144,10 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-02-18',
             ],
             [
-                'name' => 'Group Class Instructor',
+                'name' => 'Lina Mostafa',
                 'email' => 'group.instructor@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CAPTAIN,
-                'employee_role' => 'captain',
+                'employee_role' => 'coach',
                 'phone' => '+201011110007',
                 'shift' => 'Weekend Shift',
                 'base_salary' => 6800.00,
@@ -155,7 +155,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-03-01',
             ],
             [
-                'name' => 'Gym Accountant',
+                'name' => 'Tarek Salah',
                 'email' => 'gym.accountant@gym.test',
                 'access_role' => FoundationPermissions::ROLE_ACCOUNTANT,
                 'employee_role' => 'employee',
@@ -166,7 +166,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-01-15',
             ],
             [
-                'name' => 'Payroll Officer',
+                'name' => 'Dina Fathy',
                 'email' => 'payroll.officer@gym.test',
                 'access_role' => FoundationPermissions::ROLE_ACCOUNTANT,
                 'employee_role' => 'employee',
@@ -177,7 +177,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-03-05',
             ],
             [
-                'name' => 'Inventory Coordinator',
+                'name' => 'Karim Zaki',
                 'email' => 'inventory.coordinator@gym.test',
                 'access_role' => FoundationPermissions::ROLE_CASHIER,
                 'employee_role' => 'employee',
@@ -188,7 +188,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-03-10',
             ],
             [
-                'name' => 'Maintenance Technician',
+                'name' => 'Hossam Yassin',
                 'email' => null,
                 'access_role' => null,
                 'employee_role' => 'employee',
@@ -199,7 +199,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-04-01',
             ],
             [
-                'name' => 'Cleaning Attendant',
+                'name' => 'Nadia Soliman',
                 'email' => null,
                 'access_role' => null,
                 'employee_role' => 'employee',
@@ -210,7 +210,7 @@ class GymStaffSeeder extends Seeder
                 'hire_date' => '2026-04-08',
             ],
             [
-                'name' => 'Night Security Officer',
+                'name' => 'Sherif Hamed',
                 'email' => null,
                 'access_role' => null,
                 'employee_role' => 'employee',

@@ -35,7 +35,7 @@ class UpdateMemberRequest extends FormRequest
             'emergency_contact_name' => ['nullable', 'string', 'max:150'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
             'birth_date' => ['nullable', 'date', 'before:today'],
-            'join_date' => ['nullable', 'date'],
+            'join_date' => ['nullable', 'date', 'before_or_equal:today'],
             'notes' => ['nullable', 'string'],
             'goals' => ['nullable', 'string', 'max:2000'],
             'injuries' => ['nullable', 'string', 'max:2000'],

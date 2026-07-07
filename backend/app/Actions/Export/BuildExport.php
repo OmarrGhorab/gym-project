@@ -11,16 +11,19 @@ use App\Exports\ReportExport;
 use App\Exports\SalesExport;
 use App\Exports\SubscriptionsExport;
 use App\Jobs\GenerateExportJob;
+use ArPHP\I18N\Arabic;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
 class BuildExport
 {
-    public function handle(string $resource, string $format, array $filters, $user): array
+    public function handle(string $resource, string $format, array $filters, $user, string $locale = 'en'): array
     {
-        $exportClass = $this->getExportClass($resource, $filters);
+        $exportClass = $this->getExportClass($resource, $filters, $locale);
         $totalRows = $this->getExportCount($exportClass);
         $threshold = Config::get('export.sync_threshold', 5000);
 
@@ -34,12 +37,13 @@ class BuildExport
                 'id' => $exportId,
                 'resource' => $resource,
                 'format' => $format,
+                'locale' => $locale,
                 'status' => 'processing',
                 'user_id' => $user->id,
             ], now()->addHours(Config::get('export.retention_hours', 24)));
 
             // Dispatch job
-            GenerateExportJob::dispatch($exportId, $resource, $format, $filters, $user->id);
+            GenerateExportJob::dispatch($exportId, $resource, $format, $filters, $user->id, $locale);
 
             return [
                 'queued' => true,
@@ -54,7 +58,14 @@ class BuildExport
             ->log("Exported {$resource} in {$format} format");
 
         try {
-            $response = Excel::download($exportClass, "{$resource}.{$format}", $writerType);
+            if ($resource === 'members' && $format === 'pdf' && $exportClass instanceof MembersExport) {
+                $response = response($this->buildMembersPdf($exportClass), 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="members.pdf"',
+                ]);
+            } else {
+                $response = Excel::download($exportClass, "{$resource}.{$format}", $writerType);
+            }
         } catch (\Throwable $e) {
             return [
                 'queued' => false,
@@ -69,12 +80,12 @@ class BuildExport
         ];
     }
 
-    public function getExportClass(string $resource, array $filters)
+    public function getExportClass(string $resource, array $filters, string $locale = 'en')
     {
         return match ($resource) {
             'attendance' => new AttendanceExport($filters),
             'member-visits' => new MemberVisitsExport($filters),
-            'members' => new MembersExport($filters),
+            'members' => new MembersExport($filters, $locale),
             'subscriptions' => new SubscriptionsExport($filters),
             'sales' => new SalesExport($filters),
             'payments' => new PaymentsExport($filters),
@@ -104,5 +115,31 @@ class BuildExport
             'pdf' => \Maatwebsite\Excel\Excel::DOMPDF,
             default => throw new \InvalidArgumentException("Invalid format: {$format}"),
         };
+    }
+
+    public function storeMembersPdf(MembersExport $export, string $filename): void
+    {
+        $disk = config('export.disk', 'local');
+        Storage::disk($disk)->put($filename, $this->buildMembersPdf($export));
+    }
+
+    private function buildMembersPdf(MembersExport $export): string
+    {
+        $arabic = new Arabic;
+
+        $pdf = Pdf::loadView('exports.members-pdf', [
+            'columns' => $export->headings(),
+            'isRtl' => $export->isRtl(),
+            'pdfArabic' => static fn (mixed $value): string => match (true) {
+                is_string($value) && $value !== '' => $arabic->utf8Glyphs($value, 120, false, true),
+                is_numeric($value) => (string) $value,
+                default => '',
+            },
+            'rows' => $export->exportRows(),
+        ])->setPaper('a4', 'landscape')
+            ->setOption('defaultFont', 'DejaVu Sans')
+            ->setOption('isHtml5ParserEnabled', true);
+
+        return $pdf->output();
     }
 }

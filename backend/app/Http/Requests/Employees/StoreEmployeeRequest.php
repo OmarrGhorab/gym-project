@@ -17,7 +17,7 @@ class StoreEmployeeRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'role' => ['required', 'string', 'in:employee,captain,manager'],
+            'role' => ['required', 'string', 'in:employee,captain,manager,coach'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:9.9999'],
             'shift_id' => ['nullable', 'integer', 'exists:employee_shifts,id'],

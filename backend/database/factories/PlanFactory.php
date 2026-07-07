@@ -23,7 +23,7 @@ final class PlanFactory extends Factory
             'sessions_count' => $this->faker->optional()->numberBetween(4, 50),
             'is_unlimited_sessions' => false,
             'type' => $this->faker->randomElement(['membership', 'offer']),
-            'category' => $this->faker->randomElement(['gym_access', 'personal_training', 'classes']),
+            'category' => 'gym_access',
             'is_active' => true,
             'valid_from' => null,
             'valid_to' => null,

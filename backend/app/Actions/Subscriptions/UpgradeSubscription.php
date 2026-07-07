@@ -66,11 +66,12 @@ class UpgradeSubscription
 
             $lockedSubscription->update(['status' => 'stopped']);
 
+            $startDate = Carbon::today();
             $newSubscription = $this->createSubscription->handle([
                 'member_id' => $lockedSubscription->member_id,
                 'plan_id' => $newPlan->id,
-                'start_date' => Carbon::today()->toDateString(),
-                'end_date' => Carbon::today()->addDays(max(1, (int) $newPlan->duration_days))->toDateString(),
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $newPlan->endDateFrom($startDate)->toDateString(),
                 'discount' => $totalDiscount,
                 'payment' => [
                     'amount' => $paymentAmount,

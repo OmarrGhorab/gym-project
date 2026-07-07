@@ -25,6 +25,7 @@ class ExportRequest extends FormRequest
         return [
             'resource' => ['required', 'string', Rule::in(array_keys(SystemPermissions::EXPORT_PERMISSION_MAP))],
             'format' => ['required', 'string', Rule::in(['xlsx', 'csv', 'pdf'])],
+            'locale' => ['sometimes', 'string', Rule::in(['en', 'ar'])],
         ];
     }
 }

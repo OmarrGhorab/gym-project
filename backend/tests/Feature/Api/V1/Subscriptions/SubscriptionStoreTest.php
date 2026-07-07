@@ -3,7 +3,10 @@
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Employee;
+use App\Models\EmployeePlanCommissionRule;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -56,6 +59,169 @@ test('admin can create a subscription and receives 201', function (): void {
     expect(Subscription::count())->toBe(1);
 });
 
+test('admin can create a base subscription with a coached service add-on', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create([
+        'category' => 'gym_access',
+        'price' => '480.00',
+        'duration_days' => 30,
+    ]);
+    $servicePlan = Plan::factory()->active()->create([
+        'category' => 'nutrition',
+        'price' => '600.00',
+        'duration_days' => 30,
+    ]);
+    $coach = Employee::factory()->create(['role' => 'coach']);
+
+    EmployeePlanCommissionRule::create([
+        'employee_id' => $coach->id,
+        'plan_id' => $servicePlan->id,
+        'calculation_type' => 'percentage',
+        'value' => '20.0000',
+        'is_active' => true,
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+        'start_date' => '2026-07-07',
+        'payment' => [
+            'amount' => '480.00',
+            'method' => 'cash',
+        ],
+        'addons' => [
+            [
+                'plan_id' => $servicePlan->id,
+                'coach_id' => $coach->id,
+                'discount' => '0.00',
+                'payment' => [
+                    'amount' => '600.00',
+                    'method' => 'card',
+                ],
+            ],
+        ],
+    ])->assertStatus(201);
+
+    expect(Subscription::count())->toBe(1)
+        ->and(SubscriptionAddon::count())->toBe(1)
+        ->and(SubscriptionAddon::first()?->coach_id)->toBe($coach->id)
+        ->and(SubscriptionAddon::first()?->price_paid)->toBe('600.00');
+
+    $this->getJson("/api/v1/members?filter[search]={$member->id}")
+        ->assertOk()
+        ->assertJsonPath('data.0.total_paid', '1080.00')
+        ->assertJsonPath('data.0.latest_subscription.price_paid', '480.00')
+        ->assertJsonPath('data.0.latest_subscription.package_paid_total', '1080.00')
+        ->assertJsonPath('data.0.latest_subscription.package_price_paid', '1080.00');
+});
+
+test('calendar month plans charge one cycle from same day to next month', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'category' => 'gym_access',
+        'duration_days' => 30,
+        'duration_months' => 1,
+        'price' => '650.00',
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-07-07',
+        'end_date' => '2026-08-07',
+        'payment' => [
+            'amount' => '650.00',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.price_paid', '650.00')
+        ->assertJsonPath('data.package_price_paid', '650.00')
+        ->assertJsonPath('data.package_paid_total', '650.00')
+        ->assertJsonPath('data.package_balance', '0.00')
+        ->assertJsonPath('data.billing_status', 'paid');
+});
+
+test('subscription create rejects gym access plans as add-ons', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $addonPlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $coach = Employee::factory()->create(['role' => 'coach']);
+
+    EmployeePlanCommissionRule::create([
+        'employee_id' => $coach->id,
+        'plan_id' => $addonPlan->id,
+        'calculation_type' => 'fixed',
+        'value' => '100.0000',
+        'is_active' => true,
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+        'start_date' => '2026-07-07',
+        'payment' => [
+            'amount' => '100.00',
+            'method' => 'cash',
+        ],
+        'addons' => [
+            [
+                'plan_id' => $addonPlan->id,
+                'coach_id' => $coach->id,
+                'payment' => [
+                    'amount' => '100.00',
+                    'method' => 'cash',
+                ],
+            ],
+        ],
+    ])->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});
+
+test('subscription create rejects add-on coaches not assigned to the service plan', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $servicePlan = Plan::factory()->active()->create(['category' => 'recovery']);
+    $coach = Employee::factory()->create(['role' => 'coach']);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+        'start_date' => '2026-07-07',
+        'payment' => [
+            'amount' => '100.00',
+            'method' => 'cash',
+        ],
+        'addons' => [
+            [
+                'plan_id' => $servicePlan->id,
+                'coach_id' => $coach->id,
+                'payment' => [
+                    'amount' => '100.00',
+                    'method' => 'cash',
+                ],
+            ],
+        ],
+    ])->assertStatus(422)
+        ->assertJsonPath('error.code', 'validation_failed');
+});
+
 test('admin can list subscriptions', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
@@ -103,7 +269,7 @@ test('subscription list includes payment balance and renewal health fields', fun
         ->assertStatus(200)
         ->assertJsonPath('data.0.paid_total', '150.00')
         ->assertJsonPath('data.0.balance', '300.00')
-        ->assertJsonPath('data.0.billing_status', 'paid')
+        ->assertJsonPath('data.0.billing_status', 'pending')
         ->assertJsonPath('data.0.days_left', 5)
         ->assertJsonPath('data.0.renewal_health', 'needs_action')
         ->assertJsonPath('data.0.renewal_health_reason', 'has_balance');
@@ -177,11 +343,21 @@ test('admin can view subscription summary', function (): void {
     $member = Member::factory()->active()->create();
     $plan = Plan::factory()->active()->create();
 
-    Subscription::factory()->active()->create([
+    $activeSubscription = Subscription::factory()->active()->create([
         'member_id' => $member->id,
         'plan_id' => $plan->id,
         'end_date' => now()->addDays(3)->toDateString(),
         'price_paid' => '100.00',
+    ]);
+    $addonPlan = Plan::factory()->active()->create(['category' => 'nutrition']);
+    SubscriptionAddon::create([
+        'subscription_id' => $activeSubscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $addonPlan->id,
+        'start_date' => $activeSubscription->start_date,
+        'end_date' => $activeSubscription->end_date,
+        'status' => 'active',
+        'price_paid' => '75.00',
     ]);
     Subscription::factory()->expired()->create([
         'member_id' => $member->id,
@@ -201,7 +377,7 @@ test('admin can view subscription summary', function (): void {
         ->assertJsonPath('data.expired', 1)
         ->assertJsonPath('data.stopped', 1)
         ->assertJsonPath('data.expiring_soon', 1)
-        ->assertJsonPath('data.revenue', '350.00');
+        ->assertJsonPath('data.revenue', '425.00');
 });
 
 test('subscription summary can filter by status', function (): void {

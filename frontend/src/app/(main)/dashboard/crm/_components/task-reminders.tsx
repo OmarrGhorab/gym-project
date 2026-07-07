@@ -25,7 +25,7 @@ export function TaskReminders({
   }));
 
   return (
-    <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+    <section id="renewal-follow-ups" className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <Card className="xl:col-span-8">
         <CardHeader>
           <CardTitle>{t("renewalFollowUps")}</CardTitle>

@@ -14,7 +14,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 
-import { deactivateShift, saveShift, updateSettings, updateViolationRule } from "./_components/actions";
+import {
+  createViolationRule,
+  deactivateShift,
+  saveShift,
+  updateSettings,
+  updateViolationRule,
+} from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
 import { SettingsActionButton, SettingsActionForm } from "./_components/settings-action-form";
 
@@ -216,6 +222,46 @@ export default async function Page() {
             <CardDescription>{t("attendanceRulesDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid gap-3 rounded-lg border p-3">
+              <div>
+                <p className="font-medium text-sm">{t("createRule")}</p>
+                <p className="text-muted-foreground text-xs">{t("createRuleDescription")}</p>
+              </div>
+              <SettingsActionForm
+                action={createViolationRule}
+                className="grid gap-3 rounded-md border bg-background p-3"
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  <RuleNameSelect defaultValue={attendanceRuleOptions[0]} label={t("ruleName")} />
+                  <Field label={t("threshold")} name="threshold_minutes" type="number" defaultValue="" />
+                  <Field
+                    label={t("warningCount")}
+                    name="warning_count_before_deduction"
+                    type="number"
+                    defaultValue="0"
+                  />
+                  <Field label={t("deductionDays")} name="deduction_days" type="number" step="0.01" defaultValue="0" />
+                  <div className="flex flex-wrap items-center gap-4 pt-7 text-sm">
+                    <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                      <Checkbox id="new-rule-requires-approval" name="requires_admin_approval" defaultChecked />
+                      <Label htmlFor="new-rule-requires-approval">{t("requiresApproval")}</Label>
+                    </div>
+                    <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                      <Checkbox id="new-rule-auto-apply" name="auto_apply_if_unreviewed" defaultChecked />
+                      <Label htmlFor="new-rule-auto-apply">{t("autoApply")}</Label>
+                    </div>
+                    <div className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted">
+                      <Checkbox id="new-rule-active" name="is_active" defaultChecked />
+                      <Label htmlFor="new-rule-active">{t("active")}</Label>
+                    </div>
+                  </div>
+                </div>
+                <Textarea name="description" placeholder={t("ruleDescription")} />
+                <Button type="submit" size="sm" className="w-fit">
+                  {t("createRule")}
+                </Button>
+              </SettingsActionForm>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -263,6 +309,12 @@ export default async function Page() {
                       name="threshold_minutes"
                       type="number"
                       defaultValue={rule.threshold_minutes ?? ""}
+                    />
+                    <Field
+                      label={t("warningCount")}
+                      name="warning_count_before_deduction"
+                      type="number"
+                      defaultValue={rule.warning_count_before_deduction}
                     />
                     <Field
                       label={t("deductionDays")}
@@ -388,12 +440,7 @@ function ShiftPolicyFields({
 
             return (
               <label className="flex cursor-pointer items-center gap-1 text-xs" htmlFor={id} key={day.value}>
-                <Checkbox
-                  id={id}
-                  name="off_days"
-                  value={String(day.value)}
-                  defaultChecked={offDays.includes(day.value)}
-                />
+                <Checkbox id={id} name="off_days" value={String(day.value)} checked={offDays.includes(day.value)} />
                 <span>{t(day.labelKey)}</span>
               </label>
             );

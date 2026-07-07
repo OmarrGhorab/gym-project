@@ -6,6 +6,14 @@ import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
 
+const planEmployeeRuleSchema = z.object({
+  calculation_type: z.enum(["fixed", "percentage"]),
+  employee_id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().min(0).optional(),
+  is_active: z.boolean().default(true),
+  value: z.coerce.number().min(0),
+});
+
 const planInputSchema = z
   .object({
     access_ends_at: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
@@ -111,6 +119,7 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
   });
 
   const values = getFormValues(input);
+  const commissionRules = parsePlanEmployeeRules(input);
 
   if (!parsed.success) {
     return {
@@ -122,12 +131,15 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
   }
 
   try {
-    await mutate("/plans", "POST", {
+    const planResult = await mutate<{
+      id: number;
+    }>("/plans", "POST", {
       ...parsed.data,
       description: parsed.data.description ?? "",
       duration_months: parsed.data.duration_basis === "months" ? parsed.data.duration_months : null,
       price: String(parsed.data.price),
     });
+    await syncPlanEmployeeRules(planResult.data.id, [], commissionRules);
   } catch (error) {
     return {
       ok: false,
@@ -169,6 +181,8 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
   });
 
   const values = getFormValues(input);
+  const commissionRules = parsePlanEmployeeRules(input);
+  const initialRuleIds = parseInitialRuleIds(input);
 
   if (!Number.isInteger(id) || id <= 0) {
     return {
@@ -195,6 +209,7 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
       duration_months: parsed.data.duration_basis === "months" ? parsed.data.duration_months : null,
       price: String(parsed.data.price),
     });
+    await syncPlanEmployeeRules(id, initialRuleIds, commissionRules);
   } catch (error) {
     return {
       ok: false,
@@ -226,7 +241,7 @@ export async function deletePlan(input: FormData): Promise<void> {
 }
 
 async function mutate(path: string, method: string, body?: Record<string, unknown>) {
-  await serverApiFetch(path, {
+  const response = await serverApiFetch(path, {
     ...(body
       ? {
           body: JSON.stringify(body),
@@ -238,4 +253,86 @@ async function mutate(path: string, method: string, body?: Record<string, unknow
 
   revalidatePath("/dashboard/plans");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/academy");
+
+  return response;
+}
+
+function parsePlanEmployeeRules(input: FormData) {
+  const raw = String(input.get("employee_commission_rules") ?? "[]");
+  const parsed = z.array(planEmployeeRuleSchema).safeParse(JSON.parse(raw));
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Invalid employee commission rules.");
+  }
+
+  return parsed.data;
+}
+
+function parseInitialRuleIds(input: FormData) {
+  const raw = String(input.get("initial_employee_commission_rule_ids") ?? "[]");
+  const parsed = z.array(z.coerce.number().int().positive()).safeParse(JSON.parse(raw));
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  return parsed.data;
+}
+
+async function syncPlanEmployeeRules(
+  planId: number,
+  initialRuleIds: number[],
+  rules: Array<z.infer<typeof planEmployeeRuleSchema>>,
+) {
+  const currentRuleIds = rules.flatMap((rule) => (rule.id && rule.id > 0 ? [rule.id] : []));
+  const deletedRuleIds = initialRuleIds.filter((ruleId) => !currentRuleIds.includes(ruleId));
+
+  for (const rule of rules) {
+    const path =
+      rule.id && rule.id > 0
+        ? `/employees/${rule.employee_id}/plan-commission-rules/${rule.id}`
+        : `/employees/${rule.employee_id}/plan-commission-rules`;
+
+    await serverApiFetch(path, {
+      body: JSON.stringify({
+        calculation_type: rule.calculation_type,
+        is_active: rule.is_active,
+        plan_id: planId,
+        value: String(rule.value),
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: rule.id && rule.id > 0 ? "PUT" : "POST",
+    });
+  }
+
+  if (deletedRuleIds.length > 0) {
+    await deleteRemovedRules(planId, deletedRuleIds);
+  }
+}
+
+async function deleteRemovedRules(planId: number, ruleIds: number[]) {
+  const employeesResponse = await serverApiFetch<
+    Array<{
+      id: number;
+      plan_commission_rules?: Array<{
+        id: number;
+        plan_id: number | null;
+      }>;
+    }>
+  >("/employees?filter[status]=active&per_page=100");
+
+  for (const employee of employeesResponse.data) {
+    for (const rule of employee.plan_commission_rules ?? []) {
+      if (rule.plan_id !== planId || !ruleIds.includes(rule.id)) {
+        continue;
+      }
+
+      await serverApiFetch(`/employees/${employee.id}/plan-commission-rules/${rule.id}`, {
+        method: "DELETE",
+      });
+    }
+  }
 }

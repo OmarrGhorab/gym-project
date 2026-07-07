@@ -132,6 +132,11 @@ class Member extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    public function subscriptionAddons(): HasMany
+    {
+        return $this->hasMany(SubscriptionAddon::class);
+    }
+
     /**
      * @return HasOne<Subscription, $this>
      */
@@ -165,11 +170,31 @@ class Member extends Model
             ->selectSub(
                 Payment::query()
                     ->selectRaw('COALESCE(SUM(payments.amount), 0)')
-                    ->join('subscriptions', function ($join): void {
-                        $join->on('subscriptions.id', '=', 'payments.payable_id')
-                            ->where('payments.payable_type', '=', Subscription::class);
+                    ->whereIn('payments.status', ['paid', 'partial'])
+                    ->where(function ($query): void {
+                        $query
+                            ->where(function ($query): void {
+                                $query
+                                    ->where('payments.payable_type', Subscription::class)
+                                    ->whereIn(
+                                        'payments.payable_id',
+                                        Subscription::query()
+                                            ->select('id')
+                                            ->whereColumn('subscriptions.member_id', 'members.id'),
+                                    );
+                            })
+                            ->orWhere(function ($query): void {
+                                $query
+                                    ->where('payments.payable_type', SubscriptionAddon::class)
+                                    ->whereIn(
+                                        'payments.payable_id',
+                                        SubscriptionAddon::query()
+                                            ->select('id')
+                                            ->whereColumn('subscription_addons.member_id', 'members.id'),
+                                    );
+                            });
                     })
-                    ->whereColumn('subscriptions.member_id', 'members.id'),
+                ,
                 'total_paid',
             );
     }

@@ -4,6 +4,7 @@ use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -58,6 +59,49 @@ test('dues list returns subscriptions with outstanding balances only', function 
 
     expect($ids)->toContain($dueSubscription->id)
         ->not->toContain($paidSubscription->id);
+});
+
+test('dues list includes unpaid add-on service balances in the package total', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create(['price' => '480.00']);
+    $servicePlan = Plan::factory()->active()->create(['price' => '600.00', 'category' => 'nutrition']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+        'price_paid' => '480.00',
+    ]);
+    $addon = SubscriptionAddon::create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $servicePlan->id,
+        'start_date' => $subscription->start_date,
+        'end_date' => $subscription->end_date,
+        'status' => 'active',
+        'price_paid' => '600.00',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '480.00',
+        'status' => 'paid',
+    ]);
+    Payment::factory()->partial()->create([
+        'payable_type' => SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '200.00',
+    ]);
+
+    $this->getJson('/api/v1/payments/dues')
+        ->assertOk()
+        ->assertJsonPath('data.0.subscription.id', $subscription->id)
+        ->assertJsonPath('data.0.price_paid', '1080.00')
+        ->assertJsonPath('data.0.paid_total', '680.00')
+        ->assertJsonPath('data.0.balance', '400.00');
 });
 
 test('payment index filters by payment status when status is not due', function (): void {

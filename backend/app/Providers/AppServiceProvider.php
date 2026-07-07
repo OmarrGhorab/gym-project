@@ -5,9 +5,11 @@ namespace App\Providers;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Observers\PaymentObserver;
 use App\Observers\SaleObserver;
 use App\Observers\SubscriptionObserver;
+use App\Observers\SubscriptionAddonObserver;
 use App\Policies\AuditLogPolicy;
 use App\Policies\RolePolicy;
 use App\Support\SystemPermissions;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiters();
 
         Subscription::observe(SubscriptionObserver::class);
+        SubscriptionAddon::observe(SubscriptionAddonObserver::class);
         Sale::observe(SaleObserver::class);
         Payment::observe(PaymentObserver::class);
 

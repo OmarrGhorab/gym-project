@@ -21,6 +21,7 @@ use App\Models\MemberWorkoutPlan;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,7 +42,14 @@ final class MemberController extends ApiController
 
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
-        $members = QueryBuilder::for(Member::withTotalPaid()->with(['latestSubscription.plan', 'latestSubscription.payments', 'coach']))
+        $members = QueryBuilder::for(Member::withTotalPaid()->with([
+            'latestSubscription.plan',
+            'latestSubscription.payments',
+            'latestSubscription.addons.plan',
+            'latestSubscription.addons.coach',
+            'latestSubscription.addons.payments',
+            'coach',
+        ]))
             ->allowedFilters(
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('gender'),
@@ -169,7 +177,14 @@ final class MemberController extends ApiController
         $this->authorize('view', $member);
 
         $member = Member::withTotalPaid()
-            ->with(['latestSubscription.plan', 'latestSubscription.payments', 'coach'])
+            ->with([
+                'latestSubscription.plan',
+                'latestSubscription.payments',
+                'latestSubscription.addons.plan',
+                'latestSubscription.addons.coach',
+                'latestSubscription.addons.payments',
+                'coach',
+            ])
             ->whereKey($member->id)
             ->firstOrFail();
 
@@ -268,7 +283,7 @@ final class MemberController extends ApiController
         $this->authorize('view', $member);
 
         $subscriptions = Subscription::query()
-            ->with(['plan', 'payments'])
+            ->with(['plan', 'payments', 'addons.plan', 'addons.payments'])
             ->where('member_id', $member->id)
             ->latest()
             ->get();
@@ -280,16 +295,27 @@ final class MemberController extends ApiController
             ->get();
 
         $subscriptionPayments = $subscriptions
-            ->flatMap(fn (Subscription $subscription) => $subscription->payments->map(fn (Payment $payment) => [
-                'id' => $payment->id,
-                'subscription_id' => $subscription->id,
-                'plan_name' => $subscription->plan?->name,
-                'amount' => number_format((float) $payment->amount, 2, '.', ''),
-                'method' => $payment->method,
-                'status' => $payment->status,
-                'paid_at' => $payment->paid_at?->toIso8601String(),
-                'due_date' => $payment->due_date?->toDateString(),
-            ]))
+            ->flatMap(fn (Subscription $subscription) => $subscription->payments
+                ->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'subscription_id' => $subscription->id,
+                    'plan_name' => $subscription->plan?->name,
+                    'amount' => number_format((float) $payment->amount, 2, '.', ''),
+                    'method' => $payment->method,
+                    'status' => $payment->status,
+                    'paid_at' => $payment->paid_at?->toIso8601String(),
+                    'due_date' => $payment->due_date?->toDateString(),
+                ])
+                ->merge($subscription->addons->flatMap(fn (SubscriptionAddon $addon) => $addon->payments->map(fn (Payment $payment) => [
+                    'id' => $payment->id,
+                    'subscription_id' => $subscription->id,
+                    'plan_name' => $addon->plan?->name,
+                    'amount' => number_format((float) $payment->amount, 2, '.', ''),
+                    'method' => $payment->method,
+                    'status' => $payment->status,
+                    'paid_at' => $payment->paid_at?->toIso8601String(),
+                    'due_date' => $payment->due_date?->toDateString(),
+                ]))))
             ->values();
 
         $productPurchases = $sales->map(fn (Sale $sale) => [
@@ -309,7 +335,14 @@ final class MemberController extends ApiController
         ])->values();
 
         $subscriptionTotal = $subscriptions->reduce(
-            fn (string $carry, Subscription $subscription) => bcadd($carry, (string) $subscription->price_paid, 2),
+            fn (string $carry, Subscription $subscription) => bcadd(
+                bcadd($carry, (string) $subscription->price_paid, 2),
+                $subscription->addons->reduce(
+                    fn (string $addonCarry, SubscriptionAddon $addon): string => bcadd($addonCarry, (string) $addon->price_paid, 2),
+                    '0.00',
+                ),
+                2,
+            ),
             '0.00'
         );
         $subscriptionPaid = $subscriptionPayments->reduce(
@@ -546,7 +579,14 @@ final class MemberController extends ApiController
         $this->authorize('view', $member);
 
         $member = Member::withTotalPaid()
-            ->with(['latestSubscription.plan', 'latestSubscription.payments', 'coach'])
+            ->with([
+                'latestSubscription.plan',
+                'latestSubscription.payments',
+                'latestSubscription.addons.plan',
+                'latestSubscription.addons.coach',
+                'latestSubscription.addons.payments',
+                'coach',
+            ])
             ->whereKey($member->id)
             ->firstOrFail();
 
@@ -571,7 +611,10 @@ final class MemberController extends ApiController
         $totalVisits = $member->visits()->count();
         $blockedVisits = $member->visits()->where('status', 'blocked')->count();
         $paidTotal = Payment::query()
-            ->whereHasMorph('payable', [Subscription::class], fn ($q) => $q->where('member_id', $member->id))
+            ->where(function ($query) use ($member): void {
+                $query->whereHasMorph('payable', [Subscription::class], fn ($q) => $q->where('member_id', $member->id))
+                    ->orWhereHasMorph('payable', [SubscriptionAddon::class], fn ($q) => $q->where('member_id', $member->id));
+            })
             ->whereIn('status', ['paid', 'partial'])
             ->sum('amount');
 

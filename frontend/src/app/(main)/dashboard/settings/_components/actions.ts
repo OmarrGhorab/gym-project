@@ -32,7 +32,7 @@ const shiftSchema = z.object({
   starts_at: z.string().regex(/^\d{2}:\d{2}$/, "Choose a valid start time."),
 });
 
-const violationRuleSchema = z.object({
+const violationRuleUpdateSchema = z.object({
   auto_apply_if_unreviewed: z.boolean(),
   deduction_days: z.coerce.number().min(0, "Deduction days cannot be negative."),
   description: z.string().trim().max(1000, "Description is too long.").nullable(),
@@ -48,7 +48,10 @@ const violationRuleSchema = z.object({
   ]),
   requires_admin_approval: z.boolean(),
   threshold_minutes: z.coerce.number().int().min(0, "Threshold cannot be negative.").nullable(),
+  warning_count_before_deduction: z.coerce.number().int().min(0, "Warning count cannot be negative."),
 });
+
+const violationRuleCreateSchema = violationRuleUpdateSchema.omit({ id: true });
 
 export async function updateSettings(input: FormData): Promise<SettingsActionResult> {
   const parsed = settingsSchema.safeParse({
@@ -160,7 +163,7 @@ export async function deactivateShift(input: FormData): Promise<SettingsActionRe
 }
 
 export async function updateViolationRule(input: FormData): Promise<SettingsActionResult> {
-  const parsed = violationRuleSchema.safeParse({
+  const parsed = violationRuleUpdateSchema.safeParse({
     auto_apply_if_unreviewed: input.get("auto_apply_if_unreviewed") === "on",
     deduction_days: input.get("deduction_days") || "0",
     description: nullableString(input.get("description")),
@@ -169,6 +172,7 @@ export async function updateViolationRule(input: FormData): Promise<SettingsActi
     name: input.get("name") || "",
     requires_admin_approval: input.get("requires_admin_approval") === "on",
     threshold_minutes: nullableNumber(input.get("threshold_minutes")),
+    warning_count_before_deduction: input.get("warning_count_before_deduction") || "0",
   });
 
   if (!parsed.success) {
@@ -183,6 +187,7 @@ export async function updateViolationRule(input: FormData): Promise<SettingsActi
     name: parsed.data.name,
     requires_admin_approval: parsed.data.requires_admin_approval,
     threshold_minutes: parsed.data.threshold_minutes,
+    warning_count_before_deduction: parsed.data.warning_count_before_deduction,
   };
 
   try {
@@ -202,6 +207,52 @@ export async function updateViolationRule(input: FormData): Promise<SettingsActi
   revalidatePath("/dashboard/payroll");
 
   return { ok: true, message: "Attendance rule saved.", errors: {} };
+}
+
+export async function createViolationRule(input: FormData): Promise<SettingsActionResult> {
+  const parsed = violationRuleCreateSchema.safeParse({
+    auto_apply_if_unreviewed: input.get("auto_apply_if_unreviewed") === "on",
+    deduction_days: input.get("deduction_days") || "0",
+    description: nullableString(input.get("description")),
+    is_active: input.get("is_active") === "on",
+    name: input.get("name") || "",
+    requires_admin_approval: input.get("requires_admin_approval") === "on",
+    threshold_minutes: nullableNumber(input.get("threshold_minutes")),
+    warning_count_before_deduction: input.get("warning_count_before_deduction") || "0",
+  });
+
+  if (!parsed.success) {
+    return invalidResult("Please fix the highlighted rule fields.", parsed.error);
+  }
+
+  const payload = {
+    auto_apply_if_unreviewed: parsed.data.auto_apply_if_unreviewed,
+    deduction_days: String(parsed.data.deduction_days),
+    description: parsed.data.description,
+    is_active: parsed.data.is_active,
+    name: parsed.data.name,
+    requires_admin_approval: parsed.data.requires_admin_approval,
+    threshold_minutes: parsed.data.threshold_minutes,
+    warning_count_before_deduction: parsed.data.warning_count_before_deduction,
+  };
+
+  try {
+    await serverApiFetch("/attendance/violation-rules", {
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    return errorResult(error, "Could not create attendance rule.");
+  }
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/attendance");
+  revalidatePath("/dashboard/payroll");
+
+  return { ok: true, message: "Attendance rule created.", errors: {} };
 }
 
 function nullableNumber(value: FormDataEntryValue | null) {

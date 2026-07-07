@@ -79,6 +79,21 @@ export type AcademyEmployee = {
     grace_minutes: number;
   } | null;
   status: string;
+  plan_commission_rules?: AcademyEmployeePlanCommissionRule[];
+};
+
+export type AcademyEmployeePlanCommissionRule = {
+  id: number;
+  employee_id: number;
+  plan_id: number | null;
+  plan?: {
+    id: number | null;
+    name: string | null;
+    price: string | null;
+  } | null;
+  calculation_type: "fixed" | "percentage";
+  value: string;
+  is_active: boolean;
 };
 
 export type AcademyCommission = {
@@ -136,17 +151,26 @@ export type StaffAcademyPageData = StaffAcademyData & {
     starts_at: string;
     ends_at: string;
   }[];
+  plans: {
+    id: number;
+    name: string;
+    price: string;
+  }[];
   users: AccessUser[];
   roles: AccessRole[];
 };
 
 export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
-  const [reportResult, employeesResult, shiftsResult, usersResult, rolesResult] = await Promise.all([
+  const [reportResult, employeesResult, shiftsResult, usersResult, rolesResult, plansResult] = await Promise.all([
     serverApiFetch<StaffAcademyData>("/reports/staff-academy"),
     safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?status=active&per_page=100", []),
     safeFetch<StaffAcademyPageData["shifts"]>("/attendance/shifts", []),
     safeFetch<AccessUser[] | PaginatedData<AccessUser>>("/users?sort=name&per_page=100", []),
     safeFetch<AccessRole[]>("/roles", []),
+    safeFetch<StaffAcademyPageData["plans"] | PaginatedData<StaffAcademyPageData["plans"][number]>>(
+      "/plans?filter[is_active]=1&sort=name&per_page=100",
+      [],
+    ),
   ]);
   const employees = unwrapList(employeesResult.data);
   const employeeRows = await Promise.all(
@@ -170,6 +194,7 @@ export async function getStaffAcademyData(): Promise<StaffAcademyPageData> {
   return {
     ...reportResult.data,
     employeeRows,
+    plans: unwrapList(plansResult.data),
     shifts: shiftsResult.data,
     users: unwrapList(usersResult.data),
     roles: rolesResult.data,

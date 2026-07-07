@@ -61,6 +61,7 @@ export default async function Page() {
 
       <StaffManagement
         employees={data.employeeRows.map((row) => row.employee)}
+        plans={data.plans}
         shifts={data.shifts}
         users={data.users}
         roles={data.roles}

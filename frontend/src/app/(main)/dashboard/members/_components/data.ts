@@ -31,6 +31,13 @@ export type MemberRow = {
     start_date: string | null;
     end_date: string | null;
     status: string;
+    price_paid?: string;
+    paid_total?: string;
+    balance?: string;
+    package_price_paid?: string;
+    package_paid_total?: string;
+    package_balance?: string;
+    addons?: unknown[];
   } | null;
 };
 

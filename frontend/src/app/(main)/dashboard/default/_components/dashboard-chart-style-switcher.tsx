@@ -2,6 +2,8 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
+import Link from "next/link";
+
 import { parseISO } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, Clock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -536,26 +538,31 @@ function GymActionItems({ items }: { items: GymActionItem[] }) {
       <CardContent>
         <ul className="space-y-2.5">
           {items.map((item) => (
-            <li key={item.id} className="space-y-2 rounded-md border px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Checkbox checked={item.checked} readOnly />
-                <span className="font-medium text-sm">{item.title}</span>
-                <span
-                  className={cn(
-                    "w-fit rounded-md px-2 py-1 font-medium text-xs",
-                    item.priority === "High" && "bg-destructive/20 text-destructive",
-                    item.priority === "Medium" && "bg-yellow-500/20 text-yellow-500",
-                    item.priority === "Low" && "bg-green-500/20 text-green-500",
-                  )}
-                >
-                  {item.priorityLabel}
-                </span>
-              </div>
-              <div className="font-medium text-muted-foreground text-xs">{item.description}</div>
-              <div className="flex items-center gap-1">
-                <Clock className="size-3 text-muted-foreground" />
-                <span className="font-medium text-muted-foreground text-xs">{item.due}</span>
-              </div>
+            <li key={item.id}>
+              <Link
+                className="block space-y-2 rounded-md border px-3 py-2 transition-colors hover:bg-muted/30"
+                href={item.href}
+              >
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={item.checked} readOnly />
+                  <span className="font-medium text-sm">{item.title}</span>
+                  <span
+                    className={cn(
+                      "w-fit rounded-md px-2 py-1 font-medium text-xs",
+                      item.priority === "High" && "bg-destructive/20 text-destructive",
+                      item.priority === "Medium" && "bg-yellow-500/20 text-yellow-500",
+                      item.priority === "Low" && "bg-green-500/20 text-green-500",
+                    )}
+                  >
+                    {item.priorityLabel}
+                  </span>
+                </div>
+                <div className="font-medium text-muted-foreground text-xs">{item.description}</div>
+                <div className="flex items-center gap-1">
+                  <Clock className="size-3 text-muted-foreground" />
+                  <span className="font-medium text-muted-foreground text-xs">{item.due}</span>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
@@ -694,6 +701,7 @@ type GymActionItem = {
   checked: boolean;
   description: string;
   due: string;
+  href: string;
   id: string;
   priority: "High" | "Medium" | "Low";
   priorityLabel: string;
@@ -899,6 +907,7 @@ function toGymActionItems(summary: DashboardSummary, t: ChartTranslator): GymAct
       checked: summary.expiring_soon === 0,
       description: t("subscriptionsCloseToExpiry", { count: summary.expiring_soon }),
       due: summary.expiring_soon > 0 ? t("dueToday") : t("noUrgentRenewals"),
+      href: "/dashboard/crm#renewal-follow-ups",
       id: "renewals",
       priority: renewalPriority,
       priorityLabel: priorityLabel(renewalPriority, t),
@@ -908,6 +917,7 @@ function toGymActionItems(summary: DashboardSummary, t: ChartTranslator): GymAct
       checked: dueToday > 0,
       description: t("posTransactionsToday", { count: dueToday }),
       due: dueToday > 0 ? t("updatedToday") : t("waitingForSales"),
+      href: "/dashboard/ecommerce#recent-sales",
       id: "sales",
       priority: dueToday > 0 ? "Low" : "Medium",
       priorityLabel: priorityLabel(dueToday > 0 ? "Low" : "Medium", t),
@@ -917,6 +927,7 @@ function toGymActionItems(summary: DashboardSummary, t: ChartTranslator): GymAct
       checked: Number(summary.revenue_growth_rate ?? 0) >= 0,
       description: t("revenueGrowthIs", { value: formatSignedPercent(Number(summary.revenue_growth_rate ?? 0)) }),
       due: t("thisMonth"),
+      href: "/dashboard/finance?group_by=month#finance-overview",
       id: "growth",
       priority: Number(summary.revenue_growth_rate ?? 0) < 0 ? "High" : "Low",
       priorityLabel: priorityLabel(Number(summary.revenue_growth_rate ?? 0) < 0 ? "High" : "Low", t),

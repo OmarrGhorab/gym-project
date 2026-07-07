@@ -34,8 +34,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { PlanRow } from "../../plans/_components/data";
 import { recordMembershipPayment } from "../../crm/_components/actions";
+import type { PlanRow } from "../../plans/_components/data";
 import {
   changeMemberPlan,
   createMember,
@@ -62,6 +62,18 @@ type MemberFormState = {
   values: Record<string, string>;
 };
 
+type MemberFormValues = {
+  birth_date: string;
+  email: string;
+  gender: string;
+  join_date: string;
+  name: string;
+  national_id: string;
+  notes: string;
+  phone: string;
+  status: string;
+};
+
 const initialMemberFormState: MemberFormState = {
   errors: {},
   ok: false,
@@ -79,6 +91,8 @@ type MemberActionsLabels = {
   addPayment: string;
   addPaymentDescription: (values: { balance: string }) => string;
   addSubscription: string;
+  addSubscriptionExtra: string;
+  addSubscriptionExtraDescription: string;
   bankTransfer: string;
   cancel: string;
   card: string;
@@ -98,6 +112,14 @@ type MemberActionsLabels = {
   viewDetails: string;
   working: string;
 };
+
+type PlanAssignedEmployee = {
+  id: number;
+  name: string;
+  role: string | null;
+};
+
+const servicePlanCategories = new Set<string>(["nutrition", "recovery", "personal_training", "classes"]);
 
 function useActionSubmit({ label, run, success }: ActionResult, close?: () => void) {
   const t = useTranslations("Dashboard.membersPage");
@@ -239,6 +261,8 @@ export function MemberActionsMenu({
         addPayment: t("addPayment"),
         addPaymentDescription: (values) => t("addPaymentDescription", values),
         addSubscription: t("addSubscription"),
+        addSubscriptionExtra: t("addSubscriptionExtra"),
+        addSubscriptionExtraDescription: t("addSubscriptionExtraDescription"),
         bankTransfer: t("bankTransfer"),
         cancel: t("cancel"),
         card: t("card"),
@@ -332,11 +356,7 @@ export function MemberActionsMenu({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={resolvedLabels.actionsFor({ name: member.name })}
-              />
+              <Button size="icon-sm" variant="ghost" aria-label={resolvedLabels.actionsFor({ name: member.name })} />
             }
           >
             <MoreHorizontal />
@@ -346,11 +366,10 @@ export function MemberActionsMenu({
               <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{resolvedLabels.viewDetails}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setEditOpen(true)}>{resolvedLabels.editMember}</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{resolvedLabels.uploadPhoto}</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>{resolvedLabels.addSubscription}</DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!member.latest_subscription}
-                onClick={() => setChangePlanOpen(true)}
-              >
+              <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>
+                {resolvedLabels.addSubscription}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!member.latest_subscription} onClick={() => setChangePlanOpen(true)}>
                 {resolvedLabels.changePlan}
               </DropdownMenuItem>
               <DropdownMenuItem disabled={!due && !member.latest_subscription} onClick={() => setPaymentOpen(true)}>
@@ -657,7 +676,12 @@ function SubscriptionFormContent({
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
-  const initialPlan = plans[0];
+  const basePlans = React.useMemo(() => plans.filter((plan) => plan.category === "gym_access"), [plans]);
+  const servicePlans = React.useMemo(
+    () => plans.filter((plan) => servicePlanCategories.has(plan.category) && getAssignedEmployees(plan).length > 0),
+    [plans],
+  );
+  const initialPlan = basePlans[0];
   const currentSubscription = member.latest_subscription;
   const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);
   const [state, submit, pending] = useActionState(action, initialMemberFormState);
@@ -665,9 +689,21 @@ function SubscriptionFormContent({
   const [startDate, setStartDate] = React.useState(defaultStartDate);
   const [discountType, setDiscountType] = React.useState<"fixed" | "percent">("fixed");
   const [discountValue, setDiscountValue] = React.useState("0");
-  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
+  const [addons, setAddons] = React.useState<
+    Array<{
+      _key: string;
+      coach_id: string;
+      discountType: "fixed" | "percent";
+      discountValue: string;
+      payment_method: "cash" | "card" | "bank_transfer";
+      plan_id: string;
+    }>
+  >([]);
+  const selectedPlan = basePlans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
   const endDate = kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
-  const normalizedDiscount = selectedPlan ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType) : "0";
+  const normalizedDiscount = selectedPlan
+    ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
+    : "0";
   const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, normalizedDiscount) : "";
 
   React.useEffect(() => {
@@ -697,6 +733,7 @@ function SubscriptionFormContent({
     setStartDate(defaultStartDate);
     setDiscountType("fixed");
     setDiscountValue("0");
+    setAddons([]);
   }, [defaultStartDate, initialPlan, open]);
 
   return (
@@ -714,6 +751,32 @@ function SubscriptionFormContent({
             value={currentSubscription ? String(currentSubscription.id) : ""}
           />
         ) : null}
+        <input
+          type="hidden"
+          name="addons"
+          value={JSON.stringify(
+            addons
+              .map((addon) => {
+                const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id);
+
+                if (!addonPlan) {
+                  return null;
+                }
+
+                return {
+                  coach_id: addon.coach_id ? Number(addon.coach_id) : null,
+                  discount: calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType),
+                  payment_amount: calculatePaymentAmount(
+                    addonPlan.price,
+                    calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType),
+                  ),
+                  payment_method: addon.payment_method,
+                  plan_id: Number(addon.plan_id),
+                };
+              })
+              .filter(Boolean),
+          )}
+        />
         {state.message ? (
           <div
             className={
@@ -736,7 +799,7 @@ function SubscriptionFormContent({
               required
               placeholder={t("selectPlan")}
               error={fieldError(state, "plan_id")}
-              options={plans.map((plan) => ({
+              options={basePlans.map((plan) => ({
                 value: String(plan.id),
                 label: `${plan.name} - ${plan.price} EGP`,
               }))}
@@ -821,13 +884,171 @@ function SubscriptionFormContent({
             <FieldError errors={state.errors.discount} />
           </div>
         </div>
+        {kind === "create" ? (
+          <div className="grid gap-3 rounded-lg border border-dashed p-4">
+            <div className="space-y-1">
+              <Label>{t("addSubscriptionExtra")}</Label>
+              <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraDescription")}</p>
+              <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraNote")}</p>
+            </div>
+            {addons.map((addon, index) => {
+              const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id) ?? servicePlans[0];
+              const coachOptions = getPlanCoachOptions(addonPlan).map((employee) => ({
+                value: String(employee.id),
+                label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+              }));
+              const addonDiscount = addonPlan
+                ? calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType)
+                : "0";
+              const addonPayment = addonPlan ? calculatePaymentAmount(addonPlan.price, addonDiscount) : "0";
+
+              return (
+                <div key={addon._key} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-2">
+                  <div className="grid gap-2 lg:col-span-2">
+                    <Label>{t("extraService")}</Label>
+                    <FormSelect
+                      value={addon.plan_id}
+                      onValueChange={(value) =>
+                        setAddons((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? {
+                                  ...item,
+                                  coach_id: getDefaultCoachIdForPlan(
+                                    servicePlans.find((plan) => String(plan.id) === value),
+                                  ),
+                                  plan_id: value ?? "",
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                      contentClassName="w-[28rem] max-w-[calc(100vw-2rem)]"
+                      options={servicePlans.map((plan) => ({
+                        value: String(plan.id),
+                        label: `${plan.name} - ${plan.price} EGP`,
+                      }))}
+                    />
+                  </div>
+                  <div className="grid gap-2 lg:col-span-2">
+                    <Label>{t("coach")}</Label>
+                    <FormSelect
+                      value={addon.coach_id}
+                      onValueChange={(value) =>
+                        setAddons((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, coach_id: value ?? "" } : item,
+                          ),
+                        )
+                      }
+                      contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
+                      options={coachOptions}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("discount")}</Label>
+                    <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                      <FormSelect
+                        value={addon.discountType}
+                        onValueChange={(value) =>
+                          setAddons((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, discountType: (value as "fixed" | "percent") ?? "fixed" }
+                                : item,
+                            ),
+                          )
+                        }
+                        options={[
+                          { value: "fixed", label: t("fixedAmount") },
+                          { value: "percent", label: t("percent") },
+                        ]}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={addon.discountValue}
+                        onChange={(event) =>
+                          setAddons((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, discountValue: event.currentTarget.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("paymentMethod")}</Label>
+                    <FormSelect
+                      value={addon.payment_method}
+                      onValueChange={(value) =>
+                        setAddons((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, payment_method: (value as "cash" | "card" | "bank_transfer") || "cash" }
+                              : item,
+                          ),
+                        )
+                      }
+                      options={[
+                        { value: "cash", label: t("cash") },
+                        { value: "card", label: t("card") },
+                        { value: "bank_transfer", label: t("bankTransfer") },
+                      ]}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("addonCharge")}</Label>
+                    <Input value={addonPayment} readOnly />
+                    <p className="text-muted-foreground text-xs">{t("addonChargeHelp")}</p>
+                  </div>
+                  <div className="flex items-end lg:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setAddons((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                    >
+                      {t("delete")}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() =>
+                setAddons((current) => [
+                  ...current,
+                  {
+                    _key: `addon-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
+                    coach_id: getDefaultCoachIdForPlan(servicePlans[0]),
+                    discountType: "fixed",
+                    discountValue: "0",
+                    payment_method: "cash",
+                    plan_id: servicePlans[0] ? String(servicePlans[0].id) : "",
+                  },
+                ])
+              }
+              disabled={servicePlans.length === 0}
+            >
+              {t("addSubscriptionExtra")}
+            </Button>
+          </div>
+        ) : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             {t("cancel")}
           </Button>
           <Button
             type="submit"
-            disabled={pending || plans.length === 0 || (kind === "change" && currentSubscription?.status !== "active")}
+            disabled={
+              pending || basePlans.length === 0 || (kind === "change" && currentSubscription?.status !== "active")
+            }
           >
             {pending ? t("saving") : submitLabel}
           </Button>
@@ -836,6 +1057,35 @@ function SubscriptionFormContent({
     </DialogContent>
   );
 }
+
+function getPlanCoachOptions(plan: PlanRow | undefined): PlanAssignedEmployee[] {
+  return getAssignedEmployees(plan);
+}
+
+function getDefaultCoachIdForPlan(plan: PlanRow | undefined): string {
+  const [firstCoach] = getPlanCoachOptions(plan);
+
+  return firstCoach ? String(firstCoach.id) : "";
+}
+
+function getAssignedEmployees(plan?: PlanRow | null): PlanAssignedEmployee[] {
+  if (!plan?.employee_commission_rules?.length) {
+    return [];
+  }
+
+  const assigned = new Map<number, PlanAssignedEmployee>();
+
+  for (const rule of plan.employee_commission_rules) {
+    if (!rule.is_active || !rule.employee) {
+      continue;
+    }
+
+    assigned.set(rule.employee.id, rule.employee);
+  }
+
+  return Array.from(assigned.values());
+}
+
 function PhotoDialogContent({
   member,
   onCancel,
@@ -1037,6 +1287,7 @@ function MemberFormContent({
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [state, submit, pending] = useActionState(action, initialMemberFormState);
+  const [values, setValues] = React.useState<MemberFormValues>(() => getMemberFormValues(member));
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -1047,6 +1298,23 @@ function MemberFormContent({
     onSuccess?.();
     router.refresh();
   }, [onSuccess, router, state.message, state.ok, submitLabel]);
+
+  React.useEffect(() => {
+    if (state.ok) {
+      if (!member) {
+        setValues(getMemberFormValues());
+      }
+
+      return;
+    }
+
+    if (Object.keys(state.values).length > 0) {
+      setValues(mergeMemberFormValues(member, state.values));
+      return;
+    }
+
+    setValues(getMemberFormValues(member));
+  }, [member, state.ok, state.values]);
 
   return (
     <DialogContent className="sm:max-w-3xl">
@@ -1072,29 +1340,45 @@ function MemberFormContent({
             error={fieldError(state, "name")}
             label={t("nameField")}
             name="name"
-            defaultValue={member?.name}
+            value={values.name}
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value;
+
+              setValues((current) => ({ ...current, name: nextValue }));
+            }}
             required
           />
           <Field
             error={fieldError(state, "phone")}
             label={t("phone")}
             name="phone"
-            defaultValue={member?.phone}
+            value={values.phone}
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value;
+
+              setValues((current) => ({ ...current, phone: nextValue }));
+            }}
             required
           />
           <Field
             error={fieldError(state, "email")}
-            label={t("email")}
+            label={`${t("email")} (${t("optionalField")})`}
             name="email"
             type="email"
-            defaultValue={member?.email ?? ""}
+            value={values.email}
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value;
+
+              setValues((current) => ({ ...current, email: nextValue }));
+            }}
           />
           <div className="grid gap-2">
-            <Label htmlFor="member-gender">{t("gender")}</Label>
+            <Label htmlFor="member-gender">{`${t("gender")} (${t("optionalField")})`}</Label>
             <FormSelect
               id="member-gender"
               name="gender"
-              defaultValue={member?.gender ?? ""}
+              value={values.gender}
+              onValueChange={(value) => setValues((current) => ({ ...current, gender: value }))}
               placeholder={t("selectGender")}
               error={fieldError(state, "gender")}
               options={[
@@ -1105,23 +1389,36 @@ function MemberFormContent({
           </div>
           <DateField
             error={fieldError(state, "join_date")}
-            label={t("joinDate")}
+            label={`${t("joinDate")} (${t("optionalField")})`}
             name="join_date"
-            defaultValue={state.values.join_date ?? member?.join_date ?? ""}
+            value={values.join_date}
+            onValueChange={(value) => setValues((current) => ({ ...current, join_date: value }))}
           />
           <DateField
             error={fieldError(state, "birth_date")}
-            label={t("birthDate")}
+            label={`${t("birthDate")} (${t("optionalField")})`}
             name="birth_date"
-            defaultValue={state.values.birth_date ?? member?.birth_date ?? ""}
+            value={values.birth_date}
+            onValueChange={(value) => setValues((current) => ({ ...current, birth_date: value }))}
           />
-          <Field error={fieldError(state, "national_id")} label={t("nationalId")} name="national_id" defaultValue="" />
+          <Field
+            error={fieldError(state, "national_id")}
+            label={`${t("nationalId")} (${t("optionalField")})`}
+            name="national_id"
+            value={values.national_id}
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value;
+
+              setValues((current) => ({ ...current, national_id: nextValue }));
+            }}
+          />
           <div className="grid gap-2">
             <Label htmlFor="member-status">{t("status")}</Label>
             <FormSelect
               id="member-status"
               name="status"
-              defaultValue={member?.status ?? "active"}
+              value={values.status}
+              onValueChange={(value) => setValues((current) => ({ ...current, status: value || "active" }))}
               placeholder={t("selectStatus")}
               error={fieldError(state, "status")}
               options={[
@@ -1132,8 +1429,17 @@ function MemberFormContent({
           </div>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="member-notes">{t("notes")}</Label>
-          <Textarea id="member-notes" name="notes" defaultValue={member?.notes ?? ""} />
+          <Label htmlFor="member-notes">{`${t("notes")} (${t("optionalField")})`}</Label>
+          <Textarea
+            id="member-notes"
+            name="notes"
+            value={values.notes}
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value;
+
+              setValues((current) => ({ ...current, notes: nextValue }));
+            }}
+          />
           <FieldError errors={state.errors.notes} />
         </div>
         <DialogFooter>
@@ -1148,6 +1454,36 @@ function MemberFormContent({
 
 function fieldError(state: MemberFormState, name: string) {
   return state.errors[name]?.[0];
+}
+
+function getMemberFormValues(member?: MemberRow): MemberFormValues {
+  return {
+    birth_date: member?.birth_date ?? "",
+    email: member?.email ?? "",
+    gender: member?.gender ?? "",
+    join_date: member?.join_date ?? "",
+    name: member?.name ?? "",
+    national_id: member?.national_id ?? "",
+    notes: member?.notes ?? "",
+    phone: member?.phone ?? "",
+    status: member?.status ?? "active",
+  };
+}
+
+function mergeMemberFormValues(member: MemberRow | undefined, values: Record<string, string>): MemberFormValues {
+  const base = getMemberFormValues(member);
+
+  return {
+    birth_date: "birth_date" in values ? values.birth_date : base.birth_date,
+    email: "email" in values ? values.email : base.email,
+    gender: "gender" in values ? values.gender : base.gender,
+    join_date: "join_date" in values ? values.join_date : base.join_date,
+    name: "name" in values ? values.name : base.name,
+    national_id: "national_id" in values ? values.national_id : base.national_id,
+    notes: "notes" in values ? values.notes : base.notes,
+    phone: "phone" in values ? values.phone : base.phone,
+    status: "status" in values ? values.status : base.status,
+  };
 }
 
 function Field({
@@ -1191,20 +1527,29 @@ function Field({
 }
 
 function DateField({
-  defaultValue,
   error,
   label,
   name,
+  onValueChange,
+  value,
 }: {
-  defaultValue?: string | null;
   error?: string;
   label: string;
   name: string;
+  onValueChange?: (value: string) => void;
+  value?: string | null;
 }) {
   return (
     <div className="grid gap-2">
       <Label htmlFor={name}>{label}</Label>
-      <FormDatePicker id={name} name={name} defaultValue={defaultValue ?? ""} placeholder={label} error={error} />
+      <FormDatePicker
+        id={name}
+        name={name}
+        value={value ?? ""}
+        onValueChange={onValueChange}
+        placeholder={label}
+        error={error}
+      />
     </div>
   );
 }

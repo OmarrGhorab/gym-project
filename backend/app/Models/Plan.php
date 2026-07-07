@@ -59,6 +59,16 @@ final class Plan extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    public function subscriptionAddons(): HasMany
+    {
+        return $this->hasMany(SubscriptionAddon::class);
+    }
+
+    public function employeeCommissionRules(): HasMany
+    {
+        return $this->hasMany(EmployeePlanCommissionRule::class);
+    }
+
     public function endDateFrom(Carbon $startDate): Carbon
     {
         if ((int) ($this->duration_months ?? 0) > 0) {

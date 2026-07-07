@@ -15,6 +15,7 @@ use App\Http\Requests\Subscriptions\UnfreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\UpgradeSubscriptionRequest;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -30,7 +31,7 @@ class SubscriptionController extends ApiController
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $subscriptions = QueryBuilder::for(Subscription::class)
-            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes'])
+            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes', 'addons.plan', 'addons.coach', 'addons.payments'])
             ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),
@@ -82,6 +83,10 @@ class SubscriptionController extends ApiController
             ->withoutLaterActiveRenewal()
             ->whereBetween('end_date', [$today->toDateString(), $today->copy()->addDays(7)->toDateString()])
             ->count();
+        $baseRevenue = (clone $baseQuery)->sum('price_paid');
+        $addonRevenue = SubscriptionAddon::query()
+            ->whereIn('subscription_id', (clone $baseQuery)->select('id'))
+            ->sum('price_paid');
 
         return $this->success(
             data: [
@@ -91,7 +96,7 @@ class SubscriptionController extends ApiController
                 'frozen' => (int) ($counts['frozen'] ?? 0),
                 'stopped' => (int) ($counts['stopped'] ?? 0),
                 'expiring_soon' => $expiringSoon,
-                'revenue' => number_format((float) (clone $baseQuery)->sum('price_paid'), 2, '.', ''),
+                'revenue' => number_format((float) $baseRevenue + (float) $addonRevenue, 2, '.', ''),
             ],
             message: 'Subscription summary retrieved',
         );
@@ -101,7 +106,7 @@ class SubscriptionController extends ApiController
     {
         $this->authorize('view', $subscription);
 
-        return (new SubscriptionResource($subscription->load(['member', 'plan', 'soldBy', 'payments', 'freezes'])))
+        return (new SubscriptionResource($subscription->load(['member', 'plan', 'soldBy', 'payments', 'freezes', 'addons.plan', 'addons.coach', 'addons.payments'])))
             ->withMessage('Subscription retrieved')
             ->response()
             ->setStatusCode(200);

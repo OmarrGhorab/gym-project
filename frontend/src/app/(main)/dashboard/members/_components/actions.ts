@@ -213,6 +213,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
   }
 
   const parsed = subscriptionInputSchema.safeParse({
+    addons: parseSubscriptionAddons(input),
     discount: input.get("discount"),
     end_date: input.get("end_date"),
     payment_amount: input.get("payment_amount"),
@@ -238,6 +239,15 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
         start_date: parsed.data.start_date,
         end_date: parsed.data.end_date,
         discount: parsed.data.discount ?? "0",
+        addons: parsed.data.addons.map((addon) => ({
+          coach_id: addon.coach_id,
+          discount: addon.discount ?? "0",
+          payment: {
+            amount: addon.payment_amount,
+            method: addon.payment_method,
+          },
+          plan_id: addon.plan_id,
+        })),
         payment: {
           amount: parsed.data.payment_amount,
           method: parsed.data.payment_method,
@@ -379,6 +389,17 @@ export async function uploadMemberPhoto(input: FormData): Promise<void> {
 }
 
 const subscriptionInputSchema = z.object({
+  addons: z
+    .array(
+      z.object({
+        coach_id: z.coerce.number().int().positive("Coach is required for extra services."),
+        discount: optionalTextInput(),
+        payment_amount: z.string().trim().min(1, "Add-on payment amount is required."),
+        payment_method: z.enum(["cash", "card", "bank_transfer"]),
+        plan_id: z.coerce.number().int().min(1, "Add-on plan is required."),
+      }),
+    )
+    .default([]),
   discount: optionalTextInput(),
   end_date: optionalDateInput,
   payment_amount: z.string().trim().min(1, "Payment amount is required."),
@@ -398,4 +419,16 @@ function getFormValues(input: FormData): Record<string, string> {
   return Object.fromEntries(
     Array.from(input.entries()).map(([key, value]) => [key, typeof value === "string" ? value : ""]),
   );
+}
+
+function parseSubscriptionAddons(input: FormData) {
+  const raw = String(input.get("addons") ?? "[]");
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }

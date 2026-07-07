@@ -89,6 +89,11 @@ class Subscription extends Model
         return $this->morphMany(Payment::class, 'payable');
     }
 
+    public function addons(): HasMany
+    {
+        return $this->hasMany(SubscriptionAddon::class);
+    }
+
     /**
      * Exclude an older active subscription when the same member already has
      * a later active renewal. Renewal attention should follow the member's
