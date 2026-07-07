@@ -125,3 +125,40 @@ test('staff academy warning chart counts late attendance without a violation row
         ->assertJsonPath('data.warning_status.0.label', 'Late')
         ->assertJsonPath('data.warning_status.0.warning', 1);
 });
+
+test('staff academy coach performance excludes non coach employees', function (): void {
+    Carbon::setTestNow('2026-07-07 17:15:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $coach = Employee::factory()->create([
+        'name' => 'Coach Lina',
+        'role' => 'coach',
+        'status' => 'active',
+    ]);
+    $employee = Employee::factory()->create([
+        'name' => 'Desk Dina',
+        'role' => 'employee',
+        'status' => 'active',
+    ]);
+
+    Commission::factory()->create([
+        'employee_id' => $coach->id,
+        'amount' => '100.00',
+        'created_at' => '2026-07-07 10:00:00',
+    ]);
+    Commission::factory()->create([
+        'employee_id' => $employee->id,
+        'amount' => '1000.00',
+        'created_at' => '2026-07-07 10:00:00',
+    ]);
+
+    $response = $this->getJson('/api/v1/reports/staff-academy?from=2026-07-01&to=2026-07-31')
+        ->assertOk();
+
+    expect(collect($response->json('data.performance_highlights'))->pluck('name')->all())
+        ->toContain('Coach Lina')
+        ->not->toContain('Desk Dina');
+});

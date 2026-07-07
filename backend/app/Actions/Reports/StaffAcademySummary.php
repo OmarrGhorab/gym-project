@@ -281,17 +281,24 @@ final class StaffAcademySummary
                 DB::raw('COALESCE(sa.coached_services_revenue, 0) as coached_services_revenue'),
                 DB::raw('COALESCE(v.warnings_count, 0) as warnings_count'),
             ])
+            ->whereIn(DB::raw('LOWER(employees.role)'), ['coach', 'captain'])
             ->orderByDesc('coached_services_count')
             ->orderByDesc('commissions_total')
             ->orderByDesc('attendance_count')
             ->get();
 
-        return $rows->map(function ($row): array {
-            $attendanceScore = min(35, (int) $row->attendance_count * 4);
-            $serviceScore = min(35, (int) $row->coached_services_count * 18);
-            $commissionScore = min(25, ((float) $row->commissions_total / 20));
-            $warningPenalty = (int) $row->warnings_count * 12;
-            $score = min(100, max(0, $attendanceScore + $serviceScore + $commissionScore - $warningPenalty));
+        $maxServices = max(1, (int) $rows->max('coached_services_count'));
+        $maxRevenue = max(1.0, (float) $rows->max('coached_services_revenue'));
+        $maxCommissions = max(1.0, (float) $rows->max('commissions_total'));
+        $maxAttendance = max(1, (int) $rows->max('attendance_count'));
+
+        return $rows->map(function ($row) use ($maxAttendance, $maxCommissions, $maxRevenue, $maxServices): array {
+            $serviceScore = ((int) $row->coached_services_count / $maxServices) * 40;
+            $revenueScore = ((float) $row->coached_services_revenue / $maxRevenue) * 25;
+            $commissionScore = ((float) $row->commissions_total / $maxCommissions) * 25;
+            $attendanceScore = ((int) $row->attendance_count / $maxAttendance) * 10;
+            $warningPenalty = (int) $row->warnings_count * 10;
+            $score = min(100, max(0, $serviceScore + $revenueScore + $commissionScore + $attendanceScore - $warningPenalty));
 
             return [
                 'employee_id' => (int) $row->id,
