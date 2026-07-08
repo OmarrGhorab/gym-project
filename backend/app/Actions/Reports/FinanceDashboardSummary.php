@@ -15,19 +15,20 @@ final class FinanceDashboardSummary
     /**
      * @return array<string, mixed>
      */
-    public function execute(): array
+    public function execute(array $params = []): array
     {
-        $now = Carbon::now();
-        $monthStart = $now->copy()->startOfMonth();
-        $monthEnd = $now->copy()->endOfDay();
-        $previousMonthStart = $now->copy()->subMonthNoOverflow()->startOfMonth();
-        $previousMonthEnd = $now->copy()->subMonthNoOverflow()->endOfMonth();
-        $yearStart = $now->copy()->subMonthsNoOverflow(11)->startOfMonth();
+        $from = Carbon::parse($params['from'] ?? now()->startOfMonth()->toDateString())->startOfDay();
+        $to = Carbon::parse($params['to'] ?? now()->toDateString())->endOfDay();
+        $groupBy = $params['group_by'] ?? 'month';
+        $rangeDays = max($from->diffInDays($to) + 1, 1);
+        $previousTo = $from->copy()->subDay()->endOfDay();
+        $previousFrom = $previousTo->copy()->subDays($rangeDays - 1)->startOfDay();
+        $chartStart = $groupBy === 'day' ? $from->copy() : $from->copy()->startOfMonth();
 
-        $monthRevenue = $this->paidPaymentsTotal($monthStart, $monthEnd);
-        $previousMonthRevenue = $this->paidPaymentsTotal($previousMonthStart, $previousMonthEnd);
-        $monthExpenses = $this->expensesTotal($monthStart, $monthEnd);
-        $previousMonthExpenses = $this->expensesTotal($previousMonthStart, $previousMonthEnd);
+        $monthRevenue = $this->paidPaymentsTotal($from, $to);
+        $previousMonthRevenue = $this->paidPaymentsTotal($previousFrom, $previousTo);
+        $monthExpenses = $this->expensesTotal($from, $to);
+        $previousMonthExpenses = $this->expensesTotal($previousFrom, $previousTo);
         $pendingPayroll = (float) Payroll::query()
             ->where('status', 'pending')
             ->sum('net_salary');
@@ -49,9 +50,9 @@ final class FinanceDashboardSummary
                 'revenue_growth_rate' => $this->growthRate($monthRevenue, $previousMonthRevenue),
                 'expense_growth_rate' => $this->growthRate($monthExpenses, $previousMonthExpenses),
             ],
-            'revenue_sources' => $this->revenueSources($monthStart, $monthEnd),
-            'payment_methods' => $this->paymentMethods($monthStart, $monthEnd),
-            'chart' => $this->monthlyChart($yearStart, $now),
+            'revenue_sources' => $this->revenueSources($from, $to),
+            'payment_methods' => $this->paymentMethods($from, $to),
+            'chart' => $this->monthlyChart($chartStart, $to, $groupBy),
             'upcoming' => [
                 'dues' => $outstandingDues['rows'],
                 'pending_payroll' => Payroll::query()
@@ -68,6 +69,7 @@ final class FinanceDashboardSummary
                     ])
                     ->values(),
                 'recent_expenses' => Expense::query()
+                    ->whereBetween('date', [$from->copy()->startOfDay()->toDateTimeString(), $to->copy()->endOfDay()->toDateTimeString()])
                     ->latest('date')
                     ->limit(3)
                     ->get()
@@ -221,15 +223,15 @@ final class FinanceDashboardSummary
             ->all();
     }
 
-    /**
-     * @return array<int, array{period: string, revenue: string, expenses: string, net_profit: string}>
+     /**
+      * @return array<int, array{period: string, revenue: string, expenses: string, net_profit: string}>
      */
-    private function monthlyChart(Carbon $from, Carbon $to): array
+    private function monthlyChart(Carbon $from, Carbon $to, string $groupBy): array
     {
         $financial = app(FinancialReport::class)->execute([
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
-            'group_by' => 'month',
+            'group_by' => $groupBy === 'day' ? 'day' : 'month',
         ]);
 
         return $financial['data'];

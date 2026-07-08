@@ -127,8 +127,14 @@ const emptyFinanceData: FinanceDashboardData = {
 
 export async function getFinanceDashboardData(from: string, to: string, groupBy: string): Promise<FinancePageData> {
   try {
+    const summaryParams = new URLSearchParams({
+      from,
+      group_by: groupBy,
+      to,
+    });
+
     const [summaryResult, chartResult, paymentsResult, duesResult, expensesResult] = await Promise.all([
-      serverApiFetch<FinanceDashboardData>("/reports/finance-summary"),
+      serverApiFetch<FinanceDashboardData>(`/reports/finance-summary?${summaryParams.toString()}`),
       serverApiFetch<FinanceChartPoint[]>(`/reports/financial?from=${from}&to=${to}&group_by=${groupBy}`),
       safeFetch<FinancePayment[] | PaginatedData<FinancePayment>>("/payments?page=1&per_page=15", []),
       safeFetch<FinanceDue[] | PaginatedData<FinanceDue>>("/payments/dues", []),

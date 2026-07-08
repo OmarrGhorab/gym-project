@@ -844,6 +844,22 @@
       "delete": "حذف",
       "payrollExpenseLocked": "مصروف راتب مقفل",
       "payrollExpenseLockedDescription": "عدله أو اعكسه من صفحة الرواتب حتى تبقى إيصالات الرواتب والمالية متطابقة.",
+      "exportTitle": "تصدير التقرير المالي",
+      "exportDescription": "اختر هل تريد تقريرًا يوميًا أو لشهر كامل أو لنطاق تاريخ مخصص قبل التصدير.",
+      "exportPeriodType": "فترة التصدير",
+      "exportDate": "التاريخ",
+      "exportMonth": "الشهر",
+      "exportFrom": "من",
+      "exportTo": "إلى",
+      "exportExcel": "تصدير Excel",
+      "exportPdf": "تصدير PDF",
+      "exportPeriods": {
+        "daily": "يومي",
+        "monthly": "شهري",
+        "range": "نطاق مخصص"
+      },
+      "filterPeriod": "فلتر المالية",
+      "applyFilter": "تطبيق",
       "paymentMethods": {
         "cash": "نقدي",
         "card": "بطاقة",

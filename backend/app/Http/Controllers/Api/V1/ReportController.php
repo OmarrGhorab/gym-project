@@ -41,10 +41,14 @@ final class ReportController extends ApiController
         );
     }
 
-    public function financeSummary(FinanceDashboardSummary $action): JsonResponse
+    public function financeSummary(Request $request, FinanceDashboardSummary $action): JsonResponse
     {
         return $this->success(
-            data: $action->execute(),
+            data: $action->execute($request->validate([
+                'from' => ['nullable', 'date_format:Y-m-d'],
+                'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+                'group_by' => ['nullable', 'string', Rule::in(['day', 'month'])],
+            ])),
             message: 'Finance dashboard summary retrieved',
         );
     }

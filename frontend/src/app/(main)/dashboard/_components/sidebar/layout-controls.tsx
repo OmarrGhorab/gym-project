@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { Settings } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ export function LayoutControls({
   children?: ReactNode;
   trigger?: React.ComponentProps<typeof Button>;
 }) {
+  const locale = useLocale();
   const t = useTranslations("Dashboard.shell.preferences");
   const themeMode = usePreferencesStore((s) => s.themeMode);
   const resolvedThemeMode = usePreferencesStore((s) => s.resolvedThemeMode);
@@ -123,7 +124,7 @@ export function LayoutControls({
   };
 
   return (
-    <Popover>
+    <Popover key={locale}>
       <PopoverTrigger render={<Button size="icon" {...trigger} />}>{children ?? <Settings />}</PopoverTrigger>
       <PopoverContent align="end">
         <div className="flex flex-col gap-5">

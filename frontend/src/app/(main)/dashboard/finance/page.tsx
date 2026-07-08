@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
 import { getFinanceDashboardData } from "./_components/data";
+import { FinanceFilters } from "./_components/finance-filters";
 import { FinanceNotification } from "./_components/finance-notification";
 import { FinanceToolbarActions } from "./_components/finance-toolbar-actions";
 import { IncomeBreakdown } from "./_components/income-breakdown";
@@ -38,7 +39,6 @@ export default async function Page({
   const groupBy = group_by === "day" ? "day" : "month";
   const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy);
   const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
-
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
@@ -53,9 +53,23 @@ export default async function Page({
             <TabsTrigger value="ledger">{t("tabs.ledger")}</TabsTrigger>
           </TabsList>
 
-          <FinanceToolbarActions
-            updatedAt={new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date())}
-          />
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+            <FinanceFilters
+              defaults={{
+                from: resolvedFrom,
+                to: resolvedTo,
+              }}
+            />
+            <FinanceToolbarActions
+              exportDefaults={{
+                from: resolvedFrom,
+                groupBy,
+                locale,
+                to: resolvedTo,
+              }}
+              updatedAt={new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date())}
+            />
+          </div>
         </div>
 
         <TabsContent value="30-days" className="flex flex-col gap-4">

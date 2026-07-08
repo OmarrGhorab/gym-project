@@ -1,18 +1,10 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { parseISO } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
-import type { DateRange } from "react-day-picker";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-import { DateRangePicker } from "@/components/date-range-picker";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceChartPoint } from "./data";
@@ -20,49 +12,6 @@ import type { FinanceChartPoint } from "./data";
 export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[] }) {
   const t = useTranslations("Dashboard.finance");
   const locale = useLocale();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const groupBy = searchParams.get("group_by") === "day" ? "day" : "month";
-
-  const dateRange: DateRange = useMemo(() => {
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-    return {
-      from: from ? parseISO(from) : undefined,
-      to: to ? parseISO(to) : undefined,
-    };
-  }, [searchParams]);
-
-  const handleDateRangeChange = useCallback(
-    (range: DateRange | undefined) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (range?.from) {
-        params.set("from", formatDate(range.from));
-      } else {
-        params.delete("from");
-      }
-      if (range?.to) {
-        params.set("to", formatDate(range.to));
-      } else {
-        params.delete("to");
-      }
-      router.push(`?${params.toString()}`);
-    },
-    [router, searchParams],
-  );
-
-  const handleGroupByChange = useCallback(
-    (value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value === "day") {
-        params.set("group_by", "day");
-      } else {
-        params.delete("group_by");
-      }
-      router.push(`?${params.toString()}`);
-    },
-    [router, searchParams],
-  );
 
   const chartConfig = {
     revenue: {
@@ -99,21 +48,6 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
     <Card id="finance-overview">
       <CardHeader>
         <CardTitle className="font-normal">{t("financeOverview")}</CardTitle>
-        <CardAction className="flex items-center gap-2">
-          <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
-
-          <Select value={groupBy} onValueChange={handleGroupByChange}>
-            <SelectTrigger className="w-28" size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="month">{t("monthly")}</SelectItem>
-                <SelectItem value="day">{t("daily")}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </CardAction>
       </CardHeader>
 
       <CardContent>
@@ -190,8 +124,4 @@ function formatDayOnly(period: string, locale: string) {
   const date = new Date(`${period}T00:00:00`);
   if (Number.isNaN(date.getTime())) return period;
   return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date);
-}
-
-function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10);
 }

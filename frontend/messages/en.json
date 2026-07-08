@@ -844,6 +844,22 @@
       "delete": "Delete",
       "payrollExpenseLocked": "Locked payroll payout",
       "payrollExpenseLockedDescription": "Edit or reverse this from Payroll so salary receipts and finance stay matched.",
+      "exportTitle": "Export finance report",
+      "exportDescription": "Choose whether you want a daily report, one month, or a custom date range before exporting.",
+      "exportPeriodType": "Export period",
+      "exportDate": "Date",
+      "exportMonth": "Month",
+      "exportFrom": "From",
+      "exportTo": "To",
+      "exportExcel": "Export Excel",
+      "exportPdf": "Export PDF",
+      "exportPeriods": {
+        "daily": "Daily",
+        "monthly": "Monthly",
+        "range": "Custom range"
+      },
+      "filterPeriod": "Finance filter",
+      "applyFilter": "Apply",
       "paymentMethods": {
         "cash": "Cash",
         "card": "Card",

@@ -2,7 +2,9 @@
 
 namespace App\Actions\Export;
 
+use App\Actions\Reports\FinanceDetailedExportData;
 use App\Exports\AttendanceExport;
+use App\Exports\FinanceDetailedWorkbookExport;
 use App\Exports\MembersExport;
 use App\Exports\MemberVisitsExport;
 use App\Exports\PaymentsExport;
@@ -23,6 +25,10 @@ class BuildExport
 {
     public function handle(string $resource, string $format, array $filters, $user, string $locale = 'en'): array
     {
+        if ($this->isDetailedFinanceExport($resource, $filters)) {
+            return $this->handleDetailedFinanceExport($format, $filters, $user, $locale);
+        }
+
         $exportClass = $this->getExportClass($resource, $filters, $locale);
         $totalRows = $this->getExportCount($exportClass);
         $threshold = Config::get('export.sync_threshold', 5000);
@@ -95,6 +101,44 @@ class BuildExport
         };
     }
 
+    private function isDetailedFinanceExport(string $resource, array $filters): bool
+    {
+        return $resource === 'reports' && ($filters['type'] ?? null) === 'financial_detailed';
+    }
+
+    private function handleDetailedFinanceExport(string $format, array $filters, $user, string $locale): array
+    {
+        activity()
+            ->causedBy($user)
+            ->log("Exported detailed finance report in {$format} format");
+
+        try {
+            if ($format === 'pdf') {
+                $response = response($this->buildFinancePdf($filters, $locale), 200, [
+                    'Content-Type' => 'application/pdf',
+                    'Content-Disposition' => 'attachment; filename="finance-report.pdf"',
+                ]);
+            } else {
+                $response = Excel::download(
+                    new FinanceDetailedWorkbookExport($filters),
+                    "finance-report.{$format}",
+                    $this->getWriterType($format)
+                );
+            }
+        } catch (\Throwable $e) {
+            return [
+                'queued' => false,
+                'error' => true,
+                'message' => $e->getMessage(),
+            ];
+        }
+
+        return [
+            'queued' => false,
+            'response' => $response,
+        ];
+    }
+
     private function getExportCount($exportClass): int
     {
         if (method_exists($exportClass, 'query')) {
@@ -136,6 +180,39 @@ class BuildExport
                 default => '',
             },
             'rows' => $export->exportRows(),
+        ])->setPaper('a4', 'landscape')
+            ->setOption('defaultFont', 'DejaVu Sans')
+            ->setOption('isHtml5ParserEnabled', true);
+
+        return $pdf->output();
+    }
+
+    private function buildFinancePdf(array $filters, string $locale): string
+    {
+        $arabic = new Arabic;
+        $report = app(FinanceDetailedExportData::class)->build($filters);
+        $isRtl = $locale === 'ar';
+
+        $pdf = Pdf::loadView('exports.finance-report-pdf', [
+            'isRtl' => $isRtl,
+            'pdfText' => static function (mixed $value) use ($arabic, $isRtl): string {
+                if ($value === null) {
+                    return '';
+                }
+
+                if (is_numeric($value)) {
+                    return number_format((float) $value, 2, '.', '');
+                }
+
+                $stringValue = (string) $value;
+
+                if (! $isRtl || $stringValue === '') {
+                    return $stringValue;
+                }
+
+                return $arabic->utf8Glyphs($stringValue, 120, false, true);
+            },
+            'report' => $report,
         ])->setPaper('a4', 'landscape')
             ->setOption('defaultFont', 'DejaVu Sans')
             ->setOption('isHtml5ParserEnabled', true);
