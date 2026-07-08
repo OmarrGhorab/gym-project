@@ -67,7 +67,29 @@ class UpdateSettingsRequest extends FormRequest
             $normalized['receipt_template'] = $this->input('receipt_template');
         }
 
-        // 8. attendance geofence/settings
+        // 8. payroll scheduling
+        $payroll = [];
+        if ($this->has('payroll.schedule_mode')) {
+            $payroll['schedule_mode'] = $this->input('payroll.schedule_mode');
+        } elseif ($this->has('payroll_schedule_mode')) {
+            $payroll['schedule_mode'] = $this->input('payroll_schedule_mode');
+        } elseif ($this->has('payroll') && is_array($this->input('payroll')) && array_key_exists('schedule_mode', $this->input('payroll'))) {
+            $payroll['schedule_mode'] = $this->input('payroll')['schedule_mode'];
+        }
+
+        if ($this->has('payroll.default_pay_day')) {
+            $payroll['default_pay_day'] = $this->input('payroll.default_pay_day');
+        } elseif ($this->has('payroll_default_pay_day')) {
+            $payroll['default_pay_day'] = $this->input('payroll_default_pay_day');
+        } elseif ($this->has('payroll') && is_array($this->input('payroll')) && array_key_exists('default_pay_day', $this->input('payroll'))) {
+            $payroll['default_pay_day'] = $this->input('payroll')['default_pay_day'];
+        }
+
+        if (! empty($payroll)) {
+            $normalized['payroll'] = $payroll;
+        }
+
+        // 9. attendance geofence/settings
         $attendance = [];
         if ($this->has('attendance.gym_latitude')) {
             $attendance['gym_latitude'] = $this->input('attendance.gym_latitude');
@@ -120,6 +142,9 @@ class UpdateSettingsRequest extends FormRequest
             'currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'receipt_template' => ['nullable', 'string', 'max:1000'],
+            'payroll' => ['nullable', 'array'],
+            'payroll.schedule_mode' => ['nullable', 'string', 'in:fixed,per_employee'],
+            'payroll.default_pay_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'attendance' => ['nullable', 'array'],
             'attendance.gym_latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'attendance.gym_longitude' => ['nullable', 'numeric', 'between:-180,180'],

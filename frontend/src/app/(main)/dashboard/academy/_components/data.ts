@@ -66,6 +66,20 @@ export type StaffAcademyData = {
   };
 };
 
+export type PayrollSettings = {
+  payroll?: {
+    default_pay_day: number;
+    schedule_mode: "fixed" | "per_employee";
+  };
+};
+
+export type AcademyEmployeePayDay = {
+  id: number;
+  name: string;
+  role: string;
+  pay_day: number | null;
+};
+
 export async function getStaffAcademyData(params: { from?: string; to?: string } = {}): Promise<StaffAcademyData> {
   const periodParams = new URLSearchParams();
 
@@ -81,4 +95,27 @@ export async function getStaffAcademyData(params: { from?: string; to?: string }
   const suffix = periodQuery ? `?${periodQuery}` : "";
 
   return (await serverApiFetch<StaffAcademyData>(`/reports/staff-academy${suffix}`)).data;
+}
+
+export async function getAcademyEmployees(): Promise<AcademyEmployeePayDay[]> {
+  try {
+    const result = await serverApiFetch<AcademyEmployeePayDay[] | { data?: AcademyEmployeePayDay[] }>(
+      "/employees?filter[status]=active&per_page=100",
+    );
+    const payload = result.data;
+
+    return Array.isArray(payload) ? payload : (payload.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getPayrollSettings(): Promise<PayrollSettings["payroll"] | null> {
+  try {
+    const result = await serverApiFetch<PayrollSettings>("/settings");
+
+    return result.data.payroll ?? null;
+  } catch {
+    return null;
+  }
 }

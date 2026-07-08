@@ -8,6 +8,7 @@ export type PayrollRow = {
     id: number;
     name: string | null;
     role: string | null;
+    pay_day: number | null;
   };
   month: string;
   base_salary: string;

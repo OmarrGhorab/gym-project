@@ -17,6 +17,7 @@ final class UpdateEmployee
             'phone' => array_key_exists('phone', $data) ? $data['phone'] : $employee->phone,
             'role' => $data['role'] ?? $employee->role,
             'base_salary' => $data['base_salary'] ?? $employee->base_salary,
+            'pay_day' => array_key_exists('pay_day', $data) ? $data['pay_day'] : $employee->pay_day,
             'commission_rate' => $data['commission_rate'] ?? $employee->commission_rate,
             'shift_id' => array_key_exists('shift_id', $data) ? $data['shift_id'] : $employee->shift_id,
             'hire_date' => array_key_exists('hire_date', $data) ? $data['hire_date'] : $employee->hire_date,

@@ -11,6 +11,7 @@ use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
 use App\Actions\Reports\StaffAcademySummary;
 use App\Actions\Reports\SystemHealthSummary;
+use App\Actions\Settings\StoreSetting;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
@@ -109,7 +110,7 @@ final class ReportController extends ApiController
         );
     }
 
-    public function operationsCalendarEvents(Request $request): JsonResponse
+    public function operationsCalendarEvents(Request $request, StoreSetting $settings): JsonResponse
     {
         $validated = $request->validate([
             'from' => ['nullable', 'date'],
@@ -123,7 +124,7 @@ final class ReportController extends ApiController
 
         $events = collect()
             ->merge($this->customCalendarEvents($from, $to))
-            ->merge($this->generatedCalendarEvents($from, $to))
+            ->merge($this->generatedCalendarEvents($from, $to, $settings))
             ->when($type, fn ($items) => $items->where('type', $type))
             ->sortBy(['start', 'title'])
             ->values()
@@ -232,8 +233,11 @@ final class ReportController extends ApiController
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function generatedCalendarEvents(CarbonImmutable $from, CarbonImmutable $to)
+    private function generatedCalendarEvents(CarbonImmutable $from, CarbonImmutable $to, StoreSetting $settings)
     {
+        $payrollScheduleMode = (string) ($settings->read('payroll.schedule_mode') ?? 'fixed');
+        $defaultPayrollPayDay = (int) ($settings->read('payroll.default_pay_day') ?? 30);
+
         $renewals = Subscription::query()
             ->with(['member:id,name', 'plan:id,name'])
             ->where('status', 'active')
@@ -261,13 +265,18 @@ final class ReportController extends ApiController
             ]);
 
         $payroll = Payroll::query()
-            ->with('employee:id,name,role')
+            ->with('employee:id,name,role,pay_day')
             ->where('status', 'pending')
             ->latest()
             ->limit(50)
             ->get()
-            ->map(function (Payroll $row): array {
-                $date = CarbonImmutable::parse($row->month.'-01')->endOfMonth()->toDateString();
+            ->map(function (Payroll $row) use ($payrollScheduleMode, $defaultPayrollPayDay): array {
+                $date = $this->resolvePayrollDueDate(
+                    $row->month,
+                    $row->employee?->pay_day,
+                    $payrollScheduleMode,
+                    $defaultPayrollPayDay,
+                );
 
                 return [
                     'id' => 'payroll-'.$row->id,
@@ -281,7 +290,10 @@ final class ReportController extends ApiController
                     'type' => 'payroll',
                     'custom_type_label' => null,
                     'status' => 'scheduled',
-                    'notes' => 'Pending payroll for '.$row->month,
+                    'notes' => trim(
+                        'Pending payroll for '.$row->month
+                        .($row->employee?->pay_day ? ' · Pay day '.$row->employee->pay_day : '')
+                    ),
                     'editable' => false,
                     'location' => null,
                     'assigned_employee' => $row->employee ? [
@@ -363,6 +375,16 @@ final class ReportController extends ApiController
             ->merge($inventory)
             ->merge($attendance)
             ->filter(fn (array $event): bool => filled($event['date']));
+    }
+
+    private function resolvePayrollDueDate(string $month, ?int $employeePayDay, string $scheduleMode, int $defaultPayDay): string
+    {
+        $day = $scheduleMode === 'per_employee' && $employeePayDay ? $employeePayDay : $defaultPayDay;
+        $day = max(1, min(31, $day));
+        $monthStart = CarbonImmutable::parse($month.'-01');
+        $lastDay = (int) $monthStart->endOfMonth()->format('j');
+
+        return $monthStart->day(min($day, $lastDay))->toDateString();
     }
 
     /**

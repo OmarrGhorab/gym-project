@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FormTimePicker } from "@/components/ui/form-controls";
+import { FormSelect, FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,6 +27,8 @@ import { SettingsActionButton, SettingsActionForm } from "./_components/settings
 export default async function Page() {
   const t = await getTranslations("Dashboard.settings");
   const { rules, settings, shifts } = await getSettingsPageData();
+  const payrollScheduleMode = settings.payroll?.schedule_mode ?? "fixed";
+  const payrollDefaultPayDay = settings.payroll?.default_pay_day ?? 30;
   const gpsReady =
     settings.attendance.gym_latitude !== null &&
     settings.attendance.gym_longitude !== null &&
@@ -82,6 +84,41 @@ export default async function Page() {
               defaultValue={settings.attendance.default_grace_minutes}
             />
             <Field label={t("reminderDays")} name="reminder_days" type="number" defaultValue={settings.reminder_days} />
+            <Button type="submit" className="w-full">
+              {t("saveSettings")}
+            </Button>
+          </CardContent>
+        </Card>
+      </SettingsActionForm>
+
+      <SettingsActionForm action={updateSettings} className="grid grid-cols-1 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-normal">{t("payrollScheduling")}</CardTitle>
+            <CardDescription>{t("payrollSchedulingDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="payroll.schedule_mode">{t("payrollScheduleMode")}</Label>
+              <FormSelect
+                id="payroll.schedule_mode"
+                name="payroll.schedule_mode"
+                defaultValue={payrollScheduleMode}
+                options={[
+                  { value: "fixed", label: t("payrollScheduleFixed") },
+                  { value: "per_employee", label: t("payrollSchedulePerEmployee") },
+                ]}
+              />
+            </div>
+            <Field
+              label={t("defaultPayDay")}
+              name="payroll.default_pay_day"
+              type="number"
+              min={1}
+              max={31}
+              defaultValue={payrollDefaultPayDay}
+            />
+            <p className="text-muted-foreground text-xs">{t("payrollSchedulingHelp")}</p>
             <Button type="submit" className="w-full">
               {t("saveSettings")}
             </Button>

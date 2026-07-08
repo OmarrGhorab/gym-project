@@ -32,6 +32,10 @@ class SettingResource extends JsonResource
             'currency' => $settings['currency'] ?? 'EGP',
             'vat_rate' => isset($settings['vat_rate']) ? (float) $settings['vat_rate'] : 14.0,
             'receipt_template' => $settings['receipt_template'] ?? 'default',
+            'payroll' => [
+                'schedule_mode' => $settings['payroll.schedule_mode'] ?? 'fixed',
+                'default_pay_day' => isset($settings['payroll.default_pay_day']) ? (int) $settings['payroll.default_pay_day'] : 30,
+            ],
             'attendance' => [
                 'gym_latitude' => isset($settings['attendance.gym_latitude']) ? (float) $settings['attendance.gym_latitude'] : null,
                 'gym_longitude' => isset($settings['attendance.gym_longitude']) ? (float) $settings['attendance.gym_longitude'] : null,

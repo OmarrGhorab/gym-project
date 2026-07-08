@@ -25,6 +25,7 @@ class Employee extends Model
         'attendance_code',
         'role',
         'base_salary',
+        'pay_day',
         'commission_rate',
         'shift_id',
         'hire_date',
@@ -33,6 +34,7 @@ class Employee extends Model
 
     protected $casts = [
         'base_salary' => 'decimal:2',
+        'pay_day' => 'integer',
         'commission_rate' => 'decimal:4',
         'hire_date' => 'date',
     ];

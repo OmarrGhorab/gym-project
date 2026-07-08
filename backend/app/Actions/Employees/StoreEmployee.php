@@ -17,6 +17,7 @@ final class StoreEmployee
             'phone' => $data['phone'] ?? null,
             'role' => $data['role'] ?? 'employee',
             'base_salary' => $data['base_salary'] ?? 0.00,
+            'pay_day' => $data['pay_day'] ?? null,
             'commission_rate' => $data['commission_rate'] ?? 0.0000,
             'shift_id' => $data['shift_id'] ?? null,
             'hire_date' => $data['hire_date'] ?? null,

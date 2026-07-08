@@ -12,6 +12,15 @@ export type AcademyActionResult = {
   errors?: Partial<Record<string, string[]>>;
 };
 
+const employeePayDaySchema = z.object({
+  id: z.coerce.number().int().positive("Employee is required."),
+  pay_day: z.coerce
+    .number()
+    .int()
+    .min(1, "Pay day must be between 1 and 31.")
+    .max(31, "Pay day must be between 1 and 31."),
+});
+
 const nullablePositiveInt = z.preprocess((value) => {
   const normalized = String(value ?? "").trim();
   return normalized.length > 0 ? normalized : null;
@@ -35,6 +44,7 @@ const employeeSchema = z.object({
   id: z.coerce.number().int().min(0),
   name: z.string().trim().min(2, "Name must be at least 2 characters.").max(120, "Name is too long."),
   phone: z.string().trim().max(40, "Phone is too long.").optional(),
+  pay_day: z.coerce.number().int().min(1).max(31).nullable(),
   role: z.string().trim().min(1, "Role is required.").max(80, "Role is too long."),
   shift_id: nullablePositiveInt,
   status: z.enum(["active", "inactive"], { error: "Choose a valid status." }),
@@ -69,6 +79,7 @@ export async function saveEmployee(input: FormData): Promise<AcademyActionResult
     id: input.get("id") || "0",
     name: input.get("name") || "",
     phone: input.get("phone") || "",
+    pay_day: nullableNumber(input.get("pay_day")),
     role: input.get("role") || "employee",
     shift_id: input.get("shift_id"),
     status: input.get("status") || "active",
@@ -90,6 +101,7 @@ export async function saveEmployee(input: FormData): Promise<AcademyActionResult
     hire_date: parsed.data.hire_date,
     name: parsed.data.name,
     phone: nullableString(parsed.data.phone),
+    pay_day: parsed.data.pay_day,
     role: parsed.data.role,
     shift_id: parsed.data.shift_id,
     status: parsed.data.status,
@@ -139,6 +151,41 @@ export async function deleteEmployee(input: FormData): Promise<AcademyActionResu
   revalidateStaff();
 
   return { ok: true, message: "Employee deleted.", errors: {} };
+}
+
+export async function updateEmployeePayDay(input: FormData): Promise<AcademyActionResult> {
+  const parsed = employeePayDaySchema.safeParse({
+    id: input.get("id") || "0",
+    pay_day: input.get("pay_day") || "0",
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Please fix the highlighted pay day field.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await serverApiFetch(`/employees/${parsed.data.id}`, {
+      body: JSON.stringify({ pay_day: parsed.data.pay_day }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not save pay day.",
+      errors: {},
+    };
+  }
+
+  revalidateStaff();
+
+  return { ok: true, message: "Pay day saved.", errors: {} };
 }
 
 export async function backfillCommissions(input: FormData): Promise<AcademyActionResult> {
@@ -285,4 +332,10 @@ function nullableString(value: FormDataEntryValue | string | null | undefined) {
   const normalized = String(value ?? "").trim();
 
   return normalized.length > 0 ? normalized : null;
+}
+
+function nullableNumber(value: FormDataEntryValue | null) {
+  const normalized = String(value ?? "").trim();
+
+  return normalized.length > 0 ? Number(normalized) : null;
 }

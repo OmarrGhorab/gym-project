@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import { format, isValid, parse } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 
@@ -18,6 +20,19 @@ function parsePayrollMonth(month: string) {
 export function PayrollMonthPicker({ defaultMonth }: { defaultMonth: string }) {
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState(() => parsePayrollMonth(defaultMonth));
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function updateMonth(nextDate: Date) {
+    setDate(nextDate);
+
+    const nextMonth = format(nextDate, "yyyy-MM");
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("month", nextMonth);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -34,13 +49,13 @@ export function PayrollMonthPicker({ defaultMonth }: { defaultMonth: string }) {
             mode="single"
             selected={date}
             month={date}
-            onMonthChange={setDate}
+            onMonthChange={updateMonth}
             onSelect={(value) => {
               if (!value) {
                 return;
               }
 
-              setDate(value);
+              updateMonth(value);
               setOpen(false);
             }}
             captionLayout="dropdown"

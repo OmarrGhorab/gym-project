@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 
 import { AssignmentStatus } from "./_components/assignment-status";
 import { ClassSchedule } from "./_components/class-schedule";
-import { getStaffAcademyData } from "./_components/data";
+import { getAcademyEmployees, getPayrollSettings, getStaffAcademyData } from "./_components/data";
 import { KpiCards } from "./_components/kpi-cards";
+import { PayDayManager } from "./_components/pay-day-manager";
 import { PerformanceHighlights } from "./_components/performance-highlights";
 
 type PageProps = {
@@ -27,7 +28,11 @@ export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.academy");
   const resolvedSearchParams = await searchParams;
   const period = getAcademyPeriod(resolvedSearchParams);
-  const data = await getStaffAcademyData(period);
+  const [data, employees, payrollSettings] = await Promise.all([
+    getStaffAcademyData(period),
+    getAcademyEmployees(),
+    getPayrollSettings(),
+  ]);
   const shortcutRanges = getShortcutRanges(period);
   const visibleKpis = data.kpis.filter((kpi) => kpi.label !== "Payroll Receipts");
 
@@ -96,6 +101,8 @@ export default async function Page({ searchParams }: PageProps) {
       </div>
 
       <PerformanceHighlights highlights={data.performance_highlights} />
+
+      <PayDayManager employees={employees} payrollSettings={payrollSettings} />
     </div>
   );
 }

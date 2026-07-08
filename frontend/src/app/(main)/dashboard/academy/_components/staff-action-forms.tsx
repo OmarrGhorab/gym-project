@@ -139,6 +139,19 @@ export function EmployeeActionForm({
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
         </FormField>
+        <FormField error={errors?.pay_day?.[0]} label={t("payDay")} name="employee-pay-day">
+          <input
+            id="employee-pay-day"
+            name="pay_day"
+            type="number"
+            min="1"
+            max="31"
+            defaultValue={employee?.pay_day ?? ""}
+            placeholder={t("payDayPlaceholder")}
+            aria-invalid={Boolean(errors?.pay_day?.[0])}
+            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          />
+        </FormField>
         <FormField label={t("shift")}>
           <FormSelect
             name="shift_id"

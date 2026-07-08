@@ -68,6 +68,7 @@ export default async function Page({ searchParams }: PageProps) {
               <TableRow>
                 <TableHead className="w-[16rem]">{t("employee")}</TableHead>
                 <TableHead className="w-[8rem]">{t("paycheckMonth")}</TableHead>
+                <TableHead className="w-[7rem]">{t("payDay")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("base")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("commissions")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("attendance")}</TableHead>
@@ -89,6 +90,9 @@ export default async function Page({ searchParams }: PageProps) {
                   <TableCell className="align-middle">
                     <div className="font-medium">{formatPayrollMonth(row.month)}</div>
                     <div className="text-muted-foreground text-xs">{row.month}</div>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <Badge variant="outline">{row.employee.pay_day ?? t("payDayUnset")}</Badge>
                   </TableCell>
                   <TableCell className="text-end align-middle">
                     {formatCurrency(Number(row.base_salary), { currency: "EGP", noDecimals: true })}
@@ -131,7 +135,7 @@ export default async function Page({ searchParams }: PageProps) {
               ))}
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
                     {t("noRecords")}
                   </TableCell>
                 </TableRow>

@@ -16,6 +16,10 @@ export type DashboardSettings = {
     logo: string | null;
     name: string;
   };
+  payroll?: {
+    default_pay_day: number;
+    schedule_mode: "fixed" | "per_employee";
+  };
   receipt_template: string;
   reminder_days: number;
   vat_rate: number;
@@ -62,6 +66,10 @@ const emptySettings: DashboardSettings = {
     },
     logo: null,
     name: "ATP Gym",
+  },
+  payroll: {
+    default_pay_day: 30,
+    schedule_mode: "fixed",
   },
   receipt_template: "default",
   reminder_days: 7,

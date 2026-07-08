@@ -18,6 +18,7 @@ class PayrollResource extends JsonResource
                 'id' => $this->employee_id,
                 'name' => $this->employee?->name,
                 'role' => $this->employee?->role,
+                'pay_day' => $this->employee?->pay_day,
             ],
             'month' => $this->month,
             'base_salary' => number_format((float) $this->base_salary, 2, '.', ''),
