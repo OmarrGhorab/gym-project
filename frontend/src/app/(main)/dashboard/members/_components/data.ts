@@ -93,6 +93,42 @@ export type MemberPaymentHistory = {
   }[];
 };
 
+export type MemberReportData = {
+  summary: {
+    blocked_visits: number;
+    days_at_gym: number | null;
+    latest_body_fat_percent: number | null;
+    latest_weight_kg: number | null;
+    subscriptions_count: number;
+    total_paid: string;
+    total_visits: number;
+    weight_change_kg: string | null;
+  };
+  progress: Array<{
+    id: number;
+    recorded_on: string | null;
+  }>;
+  workout_plans: Array<{
+    id: number;
+    title: string;
+    coach: { id: number; name: string } | null;
+  }>;
+  nutrition_plans: Array<{
+    id: number;
+    title: string;
+    coach: { id: number; name: string } | null;
+  }>;
+  bookings: Array<{
+    id: number;
+    title: string;
+    coach: { id: number; name: string } | null;
+  }>;
+  documents: Array<{
+    id: number;
+    title: string;
+  }>;
+};
+
 export type MemberPaymentRow = {
   id: number;
   amount: string;

@@ -5,6 +5,7 @@ import * as React from "react";
 
 import {
   type ColumnFiltersState,
+  type FilterFn,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -36,6 +37,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { includesNormalizedSearch } from "@/lib/arabic-search";
 
 import {
   getOpportunitiesColumns,
@@ -49,7 +51,30 @@ function preventPaginationNavigation(event: React.MouseEvent<HTMLAnchorElement>)
   event.preventDefault();
 }
 
-export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }) {
+const normalizedOpportunityFilter: FilterFn<MembershipPipelineRow> = (row, _columnId, filterValue) => {
+  const opportunity = row.original;
+  const searchableValues = [
+    opportunity.member,
+    opportunity.memberPhone,
+    opportunity.memberQr,
+    opportunity.plan,
+    opportunity.status,
+    opportunity.billingStatus,
+    opportunity.health,
+    opportunity.healthReason,
+    ...opportunity.addons.flatMap((addon) => [addon.name, addon.coach]),
+  ];
+
+  return searchableValues.some((value) => includesNormalizedSearch(value, filterValue));
+};
+
+export function OpportunitiesSection({
+  rows,
+  reminderDays,
+}: {
+  rows: MembershipPipelineRow[];
+  reminderDays: number[];
+}) {
   const t = useTranslations("Dashboard.crm");
   const locale = useLocale();
   const numberFormatter = new Intl.NumberFormat(locale);
@@ -61,7 +86,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
     pageIndex: 0,
     pageSize: 10,
   });
-  const columns = React.useMemo(() => getOpportunitiesColumns(t), [t]);
+  const columns = React.useMemo(() => getOpportunitiesColumns(t, reminderDays), [reminderDays, t]);
 
   const table = useReactTable({
     data: rows,
@@ -82,7 +107,7 @@ export function OpportunitiesSection({ rows }: { rows: MembershipPipelineRow[] }
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: "includesString",
+    globalFilterFn: normalizedOpportunityFilter,
   });
   const searchQuery = table.getState().globalFilter ?? "";
   const statusFilter = (table.getColumn("status")?.getFilterValue() as string) ?? "all";

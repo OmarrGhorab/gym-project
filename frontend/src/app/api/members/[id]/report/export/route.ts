@@ -8,7 +8,9 @@ const formats = new Set(["xlsx", "pdf"]);
 export async function GET(request: Request, context: RouteContext<"/api/members/[id]/report/export">) {
   const token = await getAuthToken();
   const { id } = await context.params;
-  const format = new URL(request.url).searchParams.get("format") ?? "xlsx";
+  const params = new URL(request.url).searchParams;
+  const format = params.get("format") ?? "xlsx";
+  const locale = params.get("locale") ?? "en";
 
   if (!token) {
     return NextResponse.json({ error: { message: "Missing authentication token." } }, { status: 401 });
@@ -18,16 +20,19 @@ export async function GET(request: Request, context: RouteContext<"/api/members/
     return NextResponse.json({ error: { message: "Invalid report export format." } }, { status: 422 });
   }
 
-  const response = await fetch(`${API_BASE_URL}/members/${encodeURIComponent(id)}/report/export?format=${format}`, {
-    headers: {
-      Accept:
-        format === "pdf"
-          ? "application/pdf, application/json"
-          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json",
-      Authorization: `Bearer ${token}`,
+  const response = await fetch(
+    `${API_BASE_URL}/members/${encodeURIComponent(id)}/report/export?format=${format}&locale=${locale}`,
+    {
+      headers: {
+        Accept:
+          format === "pdf"
+            ? "application/pdf, application/json"
+            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+  );
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);

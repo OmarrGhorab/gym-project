@@ -22,11 +22,13 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Support\ArabicSearch;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
@@ -56,9 +58,11 @@ final class MemberController extends ApiController
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
                     $attendanceCode = str_starts_with($value, 'member:') ? substr($value, 7) : $value;
+                    $normalizedNameLike = ArabicSearch::like($value, startsWith: true);
 
-                    $query->where(function ($q) use ($attendanceCode, $value): void {
+                    $query->where(function ($q) use ($attendanceCode, $normalizedNameLike, $value): void {
                         $q->where('name', 'like', "{$value}%")
+                            ->orWhereRaw(ArabicSearch::normalizedColumn('members.name').' LIKE ?', [$normalizedNameLike])
                             ->orWhere('phone', 'like', "{$value}%")
                             ->orWhere('phone', 'like', '+'.$value.'%');
 
@@ -724,11 +728,51 @@ final class MemberController extends ApiController
 
         $validated = $request->validate([
             'format' => ['nullable', 'string', 'in:xlsx,pdf'],
+            'locale' => ['nullable', 'string', 'in:en,ar'],
         ]);
         $format = strtolower((string) ($validated['format'] ?? 'xlsx'));
+        $locale = strtolower((string) ($validated['locale'] ?? 'en'));
         $writerType = $format === 'pdf' ? ExcelFormat::DOMPDF : ExcelFormat::XLSX;
         $filename = 'member-report-'.$member->id.'-'.Str::slug($member->name).'.'.$format;
 
-        return Excel::download(new MemberReportExport($member), $filename, $writerType);
+        return Excel::download(new MemberReportExport($member, $locale), $filename, $writerType);
+    }
+
+    public function shareReport(Request $request, Member $member): JsonResponse
+    {
+        $this->authorize('view', $member);
+        $validated = $request->validate([
+            'locale' => ['nullable', 'string', 'in:en,ar'],
+        ]);
+        $locale = strtolower((string) ($validated['locale'] ?? 'en'));
+
+        $url = URL::temporarySignedRoute(
+            'members.report.share.download',
+            now()->addDays(7),
+            ['member' => $member->id, 'format' => 'pdf', 'locale' => $locale]
+        );
+
+        return $this->success(
+            data: [
+                'url' => $url,
+                'expires_at' => now()->addDays(7)->toIso8601String(),
+            ],
+            message: 'Member report share link generated'
+        );
+    }
+
+    public function downloadSharedReport(Request $request, Member $member)
+    {
+        $validated = $request->validate([
+            'format' => ['nullable', 'string', 'in:pdf'],
+            'locale' => ['nullable', 'string', 'in:en,ar'],
+        ]);
+
+        $format = strtolower((string) ($validated['format'] ?? 'pdf'));
+        $locale = strtolower((string) ($validated['locale'] ?? 'en'));
+        $writerType = ExcelFormat::DOMPDF;
+        $filename = 'member-report-'.$member->id.'-'.Str::slug($member->name).'.'.$format;
+
+        return Excel::download(new MemberReportExport($member, $locale), $filename, $writerType);
     }
 }

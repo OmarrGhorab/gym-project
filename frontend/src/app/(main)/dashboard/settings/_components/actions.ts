@@ -23,7 +23,9 @@ const settingsSchema = z.object({
     .min(1, "Pay day must be between 1 and 31.")
     .max(31, "Pay day must be between 1 and 31."),
   payroll_schedule_mode: z.enum(["fixed", "per_employee"]),
-  reminder_days: z.coerce.number().int().min(0, "Reminder days cannot be negative."),
+  reminder_days: z
+    .array(z.coerce.number().int().min(0, "Reminder days cannot be negative."))
+    .min(1, "Add at least one reminder day."),
 });
 
 const shiftSchema = z.object({
@@ -59,6 +61,13 @@ const violationRuleUpdateSchema = z.object({
 
 const violationRuleCreateSchema = violationRuleUpdateSchema.omit({ id: true });
 
+function parseReminderDays(input: FormDataEntryValue | null) {
+  return String(input ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export async function updateSettings(input: FormData): Promise<SettingsActionResult> {
   const parsed = settingsSchema.safeParse({
     attendance_default_grace_minutes: input.get("attendance.default_grace_minutes") || "0",
@@ -67,7 +76,7 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
     attendance_gym_radius_meters: input.get("attendance.gym_radius_meters") || "150",
     payroll_default_pay_day: input.get("payroll.default_pay_day") || "30",
     payroll_schedule_mode: input.get("payroll.schedule_mode") || "fixed",
-    reminder_days: input.get("reminder_days") || "7",
+    reminder_days: parseReminderDays(input.get("reminder_days")),
   });
 
   if (!parsed.success) {

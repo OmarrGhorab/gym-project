@@ -12,7 +12,7 @@ export default async function Page() {
       <KpiCards summary={data.summary} />
       <PipelineActivity data={data.chart} summary={data.summary} />
       <TaskReminders followUps={data.followUps} renewalGoal={data.renewalGoal} />
-      <OpportunitiesSection rows={data.pipelineRows} />
+      <OpportunitiesSection rows={data.pipelineRows} reminderDays={data.reminderDays} />
     </div>
   );
 }

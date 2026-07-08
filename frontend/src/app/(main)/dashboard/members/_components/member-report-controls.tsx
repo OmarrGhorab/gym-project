@@ -5,7 +5,7 @@ import { useActionState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { CalendarCheck, Dumbbell, FileText, Ruler, Utensils } from "lucide-react";
+import { CalendarCheck, Dumbbell, Ruler, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -32,7 +32,6 @@ const actions: { kind: MemberReportKind; icon: React.ComponentType<{ className?:
   { kind: "workout", icon: Dumbbell },
   { kind: "nutrition", icon: Utensils },
   { kind: "booking", icon: CalendarCheck },
-  { kind: "document", icon: FileText },
 ];
 
 const initialReportFormState: MemberReportFormState = {
@@ -127,7 +126,6 @@ function MemberReportDialogContent({
         {kind === "workout" ? <WorkoutFields state={state} staff={staff} t={t} /> : null}
         {kind === "nutrition" ? <NutritionFields state={state} staff={staff} t={t} /> : null}
         {kind === "booking" ? <BookingFields state={state} staff={staff} t={t} /> : null}
-        {kind === "document" ? <DocumentFields state={state} t={t} /> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
             {t("cancel")}
@@ -247,23 +245,6 @@ function BookingFields({ state, staff, t }: FieldsProps & { state: MemberReportF
         timeError={fieldError(state, "ends_at_time")}
         timeLabel={t("time")}
       />
-      <TextField className="sm:col-span-2" error={fieldError(state, "notes")} label={t("notes")} name="notes" />
-    </div>
-  );
-}
-
-function DocumentFields({ state, t }: FieldsProps & { state: MemberReportFormState }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field error={fieldError(state, "title")} label={t("title")} name="title" required />
-      <Field error={fieldError(state, "type")} label={t("type")} name="type" required placeholder="waiver" />
-      <DateField
-        error={fieldError(state, "expires_on")}
-        label={t("expiresOn")}
-        name="expires_on"
-        placeholder={t("selectDate")}
-      />
-      <Field error={fieldError(state, "document")} label={t("documentFile")} name="document" type="file" required />
       <TextField className="sm:col-span-2" error={fieldError(state, "notes")} label={t("notes")} name="notes" />
     </div>
   );

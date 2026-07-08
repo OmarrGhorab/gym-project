@@ -7,7 +7,7 @@ import { z } from "zod";
 import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
-import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow } from "./data";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberReportData, MemberRow, MemberVisitRow } from "./data";
 
 const optionalTextInput = (max?: number) =>
   z.preprocess((value) => {
@@ -64,10 +64,13 @@ export type MemberFormState = {
   values: Record<string, string>;
 };
 
-export async function fetchMemberDetails(
-  memberId: number,
-): Promise<{ history: MemberPaymentHistory | null; payments: MemberPaymentRow[]; visits: MemberVisitRow[] }> {
-  const [historyResult, paymentsResult, visitsResult] = await Promise.all([
+export async function fetchMemberDetails(memberId: number): Promise<{
+  history: MemberPaymentHistory | null;
+  payments: MemberPaymentRow[];
+  report: MemberReportData | null;
+  visits: MemberVisitRow[];
+}> {
+  const [historyResult, paymentsResult, visitsResult, reportResult] = await Promise.all([
     serverApiFetch<MemberPaymentHistory | null>(`/members/${memberId}/payment-history`).catch(() => ({
       data: null as MemberPaymentHistory | null,
     })),
@@ -77,13 +80,28 @@ export async function fetchMemberDetails(
     serverApiFetch<MemberVisitRow[] | PaginatedData<MemberVisitRow>>(
       `/member-visits?member_id=${memberId}&sort=-check_in_at&per_page=5`,
     ).catch(() => ({ data: [] as MemberVisitRow[] })),
+    serverApiFetch<MemberReportData | null>(`/members/${memberId}/report`).catch(() => ({
+      data: null as MemberReportData | null,
+    })),
   ]);
 
   return {
     history: historyResult.data,
     payments: unwrapList(paymentsResult.data as MemberPaymentRow[] | PaginatedData<MemberPaymentRow>),
+    report: reportResult.data,
     visits: unwrapList(visitsResult.data as MemberVisitRow[] | PaginatedData<MemberVisitRow>),
   };
+}
+
+export async function createMemberReportShareLink(
+  memberId: number,
+  locale: string,
+): Promise<{ expires_at: string; url: string }> {
+  const result = await serverApiFetch<{ expires_at: string; url: string }>(
+    `/members/${memberId}/report/share?locale=${encodeURIComponent(locale)}`,
+  );
+
+  return result.data;
 }
 
 export async function createMember(_state: MemberFormState, input: FormData): Promise<MemberFormState> {

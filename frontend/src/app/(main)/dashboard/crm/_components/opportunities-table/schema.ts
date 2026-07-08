@@ -37,6 +37,7 @@ export const membershipPipelineSchema = z.object({
   balance: z.number(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
+  reminderDays: z.array(z.number()),
   maxFreezeDays: z.number(),
   minFreezeDays: z.number(),
   freeze: z

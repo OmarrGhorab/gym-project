@@ -28,6 +28,9 @@ Route::prefix('members')->group(function (): void {
     Route::get('/{member}/report/export', [MemberController::class, 'exportReport'])
         ->middleware('permission:members.view');
 
+    Route::get('/{member}/report/share', [MemberController::class, 'shareReport'])
+        ->middleware('permission:members.view');
+
     Route::get('/{member}', [MemberController::class, 'show'])
         ->middleware('permission:members.view');
 

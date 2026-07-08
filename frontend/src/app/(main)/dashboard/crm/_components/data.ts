@@ -38,6 +38,11 @@ export type MembershipDashboardData = {
     target: number;
     percentage: number;
   };
+  reminderDays: number;
+};
+
+type SettingsResponse = {
+  reminder_days?: number[];
 };
 
 type DashboardSummaryResponse = {
@@ -161,15 +166,17 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
     revenue_source: "subscriptions",
   });
 
-  const [dashboard, subscriptionSummary, expiringSoon, dues, subscriptions, salesReport, plans] = await Promise.all([
-    safeApiFetch<DashboardSummaryResponse>("/dashboard/summary"),
-    safeApiFetch<SubscriptionSummaryResponse>("/subscriptions/summary"),
-    safeApiFetch<SubscriptionResource[]>("/dashboard/expiring-soon"),
-    safeApiFetch<DueResource[]>("/payments/dues"),
-    safeApiFetch<SubscriptionResource[]>("/subscriptions?sort=-end_date&page=1&per_page=100"),
-    safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/reports/financial?${salesParams.toString()}`),
-    safeApiFetch<PlanResource[] | PaginatedData<PlanResource>>("/plans?filter[is_active]=1&sort=name&per_page=100"),
-  ]);
+  const [dashboard, subscriptionSummary, expiringSoon, dues, subscriptions, salesReport, plans, settings] =
+    await Promise.all([
+      safeApiFetch<DashboardSummaryResponse>("/dashboard/summary"),
+      safeApiFetch<SubscriptionSummaryResponse>("/subscriptions/summary"),
+      safeApiFetch<SubscriptionResource[]>("/dashboard/expiring-soon"),
+      safeApiFetch<DueResource[]>("/payments/dues"),
+      safeApiFetch<SubscriptionResource[]>("/subscriptions?sort=-end_date&page=1&per_page=100"),
+      safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/reports/financial?${salesParams.toString()}`),
+      safeApiFetch<PlanResource[] | PaginatedData<PlanResource>>("/plans?filter[is_active]=1&sort=name&per_page=100"),
+      safeApiFetch<SettingsResponse>("/settings"),
+    ]);
 
   const dashboardData = dashboard.data ?? {};
   const subscriptionSummaryData = subscriptionSummary.data ?? {};
@@ -180,6 +187,7 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const latestExpiringRows = filterLatestExpiringRows(subscriptionRows, expiringRows);
   const salesRows = unwrapList(salesReport.data ?? []);
   const planRows = unwrapList(plans.data ?? []);
+  const reminderDays = normalizeReminderDays(settings.data?.reminder_days);
   const outstandingDuesTotal = latestDueRows.reduce((sum, due) => sum + Number(due.balance ?? 0), 0);
   const expiringCount = latestExpiringRows.length;
   const activeSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "active").length;
@@ -205,14 +213,21 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
     chart: mapSalesToMonthlyChart(salesRows),
     followUps: latestExpiringRows.slice(0, 4).map(mapRenewalFollowUp),
     pipelineRows: subscriptionRows.map((subscription) =>
-      mapSubscriptionToPipeline(subscription, latestDueRows, planRows),
+      mapSubscriptionToPipeline(subscription, latestDueRows, planRows, reminderDays),
     ),
     renewalGoal: {
       expiringSoon: expiringCount,
       target: renewalTarget,
       percentage: Math.min(100, Math.round((expiringCount / renewalTarget) * 100)),
     },
+    reminderDays,
   };
+}
+
+function normalizeReminderDays(value: number[] | undefined) {
+  const days = (value ?? [7]).map((day) => Number(day)).filter((day) => Number.isFinite(day) && day >= 0);
+
+  return Array.from(new Set(days)).sort((left, right) => right - left);
 }
 
 type PaginatedData<T> = {
@@ -307,6 +322,7 @@ function mapSubscriptionToPipeline(
   subscription: SubscriptionResource,
   dues: DueResource[],
   plans: PlanResource[],
+  reminderDays: number[],
 ): MembershipPipelineRow {
   const matchingDue = dues.find((due) => due.subscription?.id === subscription.id);
   const balance = Number(subscription.package_balance ?? matchingDue?.balance ?? subscription.balance ?? 0);
@@ -350,6 +366,7 @@ function mapSubscriptionToPipeline(
     balance,
     startDate: subscription.start_date ?? null,
     endDate: subscription.end_date ?? null,
+    reminderDays,
     maxFreezeDays: Number(subscription.plan?.max_freeze_days ?? 0),
     minFreezeDays: Number(subscription.plan?.min_freeze_days ?? 0),
     freeze: subscription.freeze

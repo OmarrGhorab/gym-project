@@ -172,6 +172,22 @@ test('member list can search by name', function (): void {
         ->and($data[0]['name'])->toBe('Sara Ali');
 });
 
+test('member list normalizes arabic name variants while searching', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    Member::factory()->create(['name' => 'على حسن']);
+    Member::factory()->create(['name' => 'محمد حسن']);
+
+    $response = $this->getJson('/api/v1/members?filter[search]='.rawurlencode('علي'))
+        ->assertStatus(200);
+
+    $data = $response->json('data');
+    expect(count($data))->toBe(1)
+        ->and($data[0]['name'])->toBe('على حسن');
+});
+
 test('member list can search by phone', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

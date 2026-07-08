@@ -4,7 +4,7 @@ import type * as React from "react";
 
 import Image from "next/image";
 
-import { Copy, Download, MessageCircle, QrCode } from "lucide-react";
+import { Copy, Download, FileText, MessageCircle, QrCode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -14,7 +14,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { formatCurrency } from "@/lib/utils";
 import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 
-import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
+import type {
+  MemberPaymentHistory,
+  MemberPaymentRow,
+  MemberReportData,
+  MemberRow,
+  MemberVisitRow,
+  StaffOption,
+} from "./data";
 import { MemberReportControls } from "./member-report-controls";
 
 export function MemberDetailsDialog({
@@ -23,6 +30,8 @@ export function MemberDetailsDialog({
   onOpenChange,
   open,
   payments,
+  report,
+  requestReportShareLink,
   visits,
   staff,
 }: {
@@ -31,6 +40,8 @@ export function MemberDetailsDialog({
   onOpenChange?: (open: boolean) => void;
   open?: boolean;
   payments: MemberPaymentRow[];
+  report: MemberReportData | null | undefined;
+  requestReportShareLink: (memberId: number, locale: string) => Promise<{ expires_at: string; url: string }>;
   visits: MemberVisitRow[];
   staff: StaffOption[];
 }) {
@@ -47,6 +58,27 @@ export function MemberDetailsDialog({
     }
 
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleOpenWhatsAppReport() {
+    try {
+      const share = await requestReportShareLink(member.id, locale);
+      const url = buildWhatsAppUrl(
+        member.phone,
+        buildMemberReportWhatsAppMessage(member, report, t, locale, share.url),
+      );
+
+      if (!url) {
+        toast.error(t("whatsAppPhoneMissing"));
+        return;
+      }
+
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error(t("reportShareFailed"), {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    }
   }
 
   return (
@@ -78,18 +110,22 @@ export function MemberDetailsDialog({
               <p className="text-muted-foreground text-xs">{t("memberReportDescription")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={handleOpenWhatsAppReport}>
+                <FileText data-icon="inline-start" />
+                {t("sendWhatsAppReport")}
+              </Button>
               <Button type="button" size="sm" variant="outline" onClick={handleOpenWhatsApp}>
                 <MessageCircle data-icon="inline-start" />
                 {t("sendWhatsApp")}
               </Button>
               <Button asChild type="button" size="sm" variant="outline">
-                <a href={`/api/members/${member.id}/report/export?format=xlsx`} download>
+                <a href={`/api/members/${member.id}/report/export?format=xlsx&locale=${locale}`} download>
                   <Download data-icon="inline-start" />
                   {t("exportReportXlsx")}
                 </a>
               </Button>
               <Button asChild type="button" size="sm" variant="outline">
-                <a href={`/api/members/${member.id}/report/export?format=pdf`} download>
+                <a href={`/api/members/${member.id}/report/export?format=pdf&locale=${locale}`} download>
                   <Download data-icon="inline-start" />
                   {t("exportReportPdf")}
                 </a>
@@ -259,6 +295,63 @@ function buildMemberWhatsAppMessage(
     lines.push(t("whatsAppAddons"));
     lines.push(...addonLines);
   }
+
+  return lines.join("\n");
+}
+
+function buildMemberReportWhatsAppMessage(
+  member: MemberRow,
+  report: MemberReportData | null | undefined,
+  t: ReturnType<typeof useTranslations<"Dashboard.membersPage">>,
+  locale: string,
+  pdfUrl: string,
+) {
+  const summary = report?.summary;
+  const coachNames = Array.from(
+    new Set(
+      [
+        ...(report?.workout_plans.map((item) => item.coach?.name).filter(Boolean) ?? []),
+        ...(report?.nutrition_plans.map((item) => item.coach?.name).filter(Boolean) ?? []),
+        ...(report?.bookings.map((item) => item.coach?.name).filter(Boolean) ?? []),
+      ].map((name) => String(name)),
+    ),
+  );
+
+  const lines =
+    locale === "ar"
+      ? [
+          `مرحبًا ${member.name}`,
+          "هذا تقرير الأداء الخاص بك بصيغة PDF.",
+          `${t("member")}: ${member.name}`,
+          `${t("phone")}: ${member.phone}`,
+          `${t("reportTotalVisits")}: ${summary?.total_visits ?? 0}`,
+          `${t("reportProgressRecords")}: ${report?.progress.length ?? 0}`,
+          `${t("reportWorkoutPlans")}: ${report?.workout_plans.length ?? 0}`,
+          `${t("reportNutritionPlans")}: ${report?.nutrition_plans.length ?? 0}`,
+          `${t("reportBookings")}: ${report?.bookings.length ?? 0}`,
+          `${t("reportDocuments")}: ${report?.documents.length ?? 0}`,
+        ]
+      : [
+          `Hello ${member.name},`,
+          "here is your member performance PDF report.",
+          `${t("member")}: ${member.name}`,
+          `${t("phone")}: ${member.phone}`,
+          `${t("reportTotalVisits")}: ${summary?.total_visits ?? 0}`,
+          `${t("reportProgressRecords")}: ${report?.progress.length ?? 0}`,
+          `${t("reportWorkoutPlans")}: ${report?.workout_plans.length ?? 0}`,
+          `${t("reportNutritionPlans")}: ${report?.nutrition_plans.length ?? 0}`,
+          `${t("reportBookings")}: ${report?.bookings.length ?? 0}`,
+          `${t("reportDocuments")}: ${report?.documents.length ?? 0}`,
+        ];
+
+  if (coachNames.length > 0) {
+    lines.push("");
+    lines.push(t("reportCoaches"));
+    lines.push(...coachNames.map((name) => `- ${name}`));
+  }
+
+  lines.push("");
+  lines.push(`${t("reportPdfLink")}: ${pdfUrl}`);
 
   return lines.join("\n");
 }

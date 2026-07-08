@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Member;
+use App\Support\ArabicSearch;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -56,8 +57,11 @@ class MembersExport implements FromQuery, ShouldAutoSize, WithEvents, WithHeadin
                 }),
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
-                    $query->where(function ($q) use ($value): void {
+                    $normalizedNameLike = ArabicSearch::like($value, startsWith: true);
+
+                    $query->where(function ($q) use ($normalizedNameLike, $value): void {
                         $q->where('name', 'like', "{$value}%")
+                            ->orWhereRaw(ArabicSearch::normalizedColumn('members.name').' LIKE ?', [$normalizedNameLike])
                             ->orWhere('phone', 'like', "{$value}%")
                             ->orWhere('phone', 'like', '+'.$value.'%');
                     });

@@ -13,6 +13,7 @@ class SettingResource extends JsonResource
     public function toArray(Request $request): array
     {
         $settings = $this->resource;
+        $reminderDays = $this->normalizeReminderDays($settings['reminder_days'] ?? [7]);
 
         $gymColors = $settings['gym.colors'] ?? [
             'primary' => '#000000',
@@ -28,7 +29,7 @@ class SettingResource extends JsonResource
                 ],
                 'logo' => $settings['gym.logo'] ?? null,
             ],
-            'reminder_days' => isset($settings['reminder_days']) ? (int) $settings['reminder_days'] : 7,
+            'reminder_days' => $reminderDays,
             'currency' => $settings['currency'] ?? 'EGP',
             'vat_rate' => isset($settings['vat_rate']) ? (float) $settings['vat_rate'] : 14.0,
             'receipt_template' => $settings['receipt_template'] ?? 'default',
@@ -43,5 +44,34 @@ class SettingResource extends JsonResource
                 'default_grace_minutes' => isset($settings['attendance.default_grace_minutes']) ? (int) $settings['attendance.default_grace_minutes'] : 15,
             ],
         ];
+    }
+
+    /**
+     * @param  mixed  $value
+     * @return array<int, int>
+     */
+    private function normalizeReminderDays(mixed $value): array
+    {
+        if (is_int($value) || is_numeric($value)) {
+            return [(int) $value];
+        }
+
+        if (is_string($value)) {
+            $value = explode(',', $value);
+        }
+
+        if (! is_array($value)) {
+            return [7];
+        }
+
+        $days = collect($value)
+            ->map(static fn ($day): int => (int) $day)
+            ->filter(static fn (int $day): bool => $day >= 0)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+
+        return $days !== [] ? $days : [7];
     }
 }

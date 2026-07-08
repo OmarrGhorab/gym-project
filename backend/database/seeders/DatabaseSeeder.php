@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
         $this->call(GymStaffSeeder::class);
         $this->call(PlanEmployeeCommissionSeeder::class);
         $this->call(MemberSeeder::class);
+        $this->call(MemberReportDemoSeeder::class);
         $this->call(ProductSeeder::class);
     }
 }

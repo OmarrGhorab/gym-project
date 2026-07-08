@@ -21,7 +21,7 @@ export type DashboardSettings = {
     schedule_mode: "fixed" | "per_employee";
   };
   receipt_template: string;
-  reminder_days: number;
+  reminder_days: number[];
   vat_rate: number;
 };
 
@@ -72,7 +72,7 @@ const emptySettings: DashboardSettings = {
     schedule_mode: "fixed",
   },
   receipt_template: "default",
-  reminder_days: 7,
+  reminder_days: [7],
   vat_rate: 14,
 };
 

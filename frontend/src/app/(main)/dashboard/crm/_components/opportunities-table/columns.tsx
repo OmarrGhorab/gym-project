@@ -129,7 +129,7 @@ function getBillingBadgeClassName(status: string) {
   }
 }
 
-export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRow>[] {
+export function getOpportunitiesColumns(t: CrmT, reminderDays: number[]): ColumnDef<MembershipPipelineRow>[] {
   return [
     {
       id: "select",
@@ -260,7 +260,7 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
       header: () => <div className="text-right">{t("actions")}</div>,
       cell: ({ row }) => (
         <div className="text-right">
-          <SubscriptionActions subscription={row.original} t={t} />
+          <SubscriptionActions subscription={row.original} t={t} reminderDays={reminderDays} />
         </div>
       ),
       enableHiding: false,
@@ -268,7 +268,15 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
   ];
 }
 
-function SubscriptionActions({ subscription, t }: { subscription: MembershipPipelineRow; t: CrmT }) {
+function SubscriptionActions({
+  subscription,
+  t,
+  reminderDays,
+}: {
+  subscription: MembershipPipelineRow;
+  t: CrmT;
+  reminderDays: number[];
+}) {
   const router = useRouter();
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
@@ -304,9 +312,28 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
   const freezeDisabledReason = subscription.maxFreezeDays < 1 ? t("freezeUnavailableReason") : null;
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
   const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
+  const showRenewalReminderAction =
+    subscription.status === "active" &&
+    subscription.daysLeft !== null &&
+    subscription.daysLeft >= 0 &&
+    reminderDays.includes(subscription.daysLeft);
 
   function handleOpenWhatsApp() {
     const url = buildWhatsAppUrl(subscription.memberPhone, buildSubscriptionWhatsAppMessage(subscription, t, locale));
+
+    if (!url) {
+      toast.error(t("whatsAppPhoneMissing"));
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleOpenRenewalReminderWhatsApp() {
+    const url = buildWhatsAppUrl(
+      subscription.memberPhone,
+      buildSubscriptionReminderWhatsAppMessage(subscription, t, locale, reminderDays),
+    );
 
     if (!url) {
       toast.error(t("whatsAppPhoneMissing"));
@@ -535,6 +562,9 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
             {t("viewDetails")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleOpenWhatsApp}>{t("sendWhatsApp")}</DropdownMenuItem>
+          {showRenewalReminderAction ? (
+            <DropdownMenuItem onClick={handleOpenRenewalReminderWhatsApp}>{t("sendRenewalWhatsApp")}</DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
           {subscription.balance > 0 ? (
             <DropdownMenuItem
@@ -1017,6 +1047,53 @@ function buildSubscriptionWhatsAppMessage(subscription: MembershipPipelineRow, t
     lines.push("");
     lines.push(qrLabel);
 
+    if (qrImageUrl) {
+      lines.push(`${t("memberQrImage")}: ${qrImageUrl}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function buildSubscriptionReminderWhatsAppMessage(
+  subscription: MembershipPipelineRow,
+  t: CrmT,
+  locale: string,
+  reminderDays: number[],
+) {
+  const lines: string[] = [];
+  const memberName = subscription.member ?? t("unknownMember");
+  const qrImageUrl = buildQrImageUrl(subscription.memberQr, 320);
+
+  const nearestReminderDay =
+    subscription.daysLeft !== null && reminderDays.includes(subscription.daysLeft)
+      ? subscription.daysLeft
+      : (reminderDays[0] ?? 7);
+
+  if (locale === "ar") {
+    lines.push(`مرحبًا ${memberName}`);
+    lines.push(
+      subscription.daysLeft === 0
+        ? "تذكير: اشتراكك ينتهي اليوم."
+        : `تذكير: اشتراكك سينتهي خلال ${nearestReminderDay} يوم.`,
+    );
+    lines.push(`الخطة: ${subscription.plan ?? t("noPlan")}`);
+    lines.push(`تاريخ الانتهاء: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`برجاء التواصل معنا لتجديد الاشتراك قبل انتهاء المدة.`);
+  } else {
+    lines.push(`Hello ${memberName},`);
+    lines.push(
+      subscription.daysLeft === 0
+        ? "reminder: your membership ends today."
+        : `reminder: your membership will end in ${nearestReminderDay} day(s).`,
+    );
+    lines.push(`Plan: ${subscription.plan ?? t("noPlan")}`);
+    lines.push(`End date: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push("Please contact us to renew your membership before it expires.");
+  }
+
+  if (subscription.memberQr) {
+    lines.push(`${t("memberQr")}: ${subscription.memberQr}`);
     if (qrImageUrl) {
       lines.push(`${t("memberQrImage")}: ${qrImageUrl}`);
     }

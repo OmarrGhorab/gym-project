@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\MemberController;
 use App\Http\Controllers\Api\V1\Foundation\ProtectedSampleController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\SearchController;
@@ -74,6 +75,10 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('throttle:api');
         });
     });
+
+    Route::get('members/{member}/report/share/download', [MemberController::class, 'downloadSharedReport'])
+        ->middleware('signed')
+        ->name('members.report.share.download');
 
     // ------------------------------------------------------------------
     // US3 — Role/permission sample (protected + permission-gated)

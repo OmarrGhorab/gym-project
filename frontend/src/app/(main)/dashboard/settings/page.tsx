@@ -72,7 +72,14 @@ export default async function Page() {
               type="number"
               defaultValue={settings.attendance.default_grace_minutes}
             />
-            <Field label={t("reminderDays")} name="reminder_days" type="number" defaultValue={settings.reminder_days} />
+            <Field
+              label={t("reminderDays")}
+              name="reminder_days"
+              type="text"
+              defaultValue={settings.reminder_days.join(",")}
+              placeholder={t("reminderDaysPlaceholder")}
+              hint={t("reminderDaysHint")}
+            />
             <Button type="submit" className="w-full">
               {t("saveSettings")}
             </Button>
@@ -287,21 +294,26 @@ const attendanceRuleOptions = [
 
 function Field({
   defaultValue,
+  hint,
   label,
   name,
+  placeholder,
   step,
   type = "text",
 }: {
   defaultValue: number | string;
+  hint?: string;
   label: string;
   name: string;
+  placeholder?: string;
   step?: string;
   type?: string;
 }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} step={step} defaultValue={defaultValue} />
+      <Input id={name} name={name} type={type} step={step} defaultValue={defaultValue} placeholder={placeholder} />
+      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
     </div>
   );
 }

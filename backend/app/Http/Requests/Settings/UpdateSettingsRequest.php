@@ -49,7 +49,16 @@ class UpdateSettingsRequest extends FormRequest
 
         // 4. reminder_days
         if ($this->has('reminder_days')) {
-            $normalized['reminder_days'] = $this->input('reminder_days');
+            $reminderDays = $this->input('reminder_days');
+
+            if (is_string($reminderDays)) {
+                $reminderDays = array_values(array_filter(array_map(
+                    static fn (string $value): string => trim($value),
+                    explode(',', $reminderDays),
+                ), static fn (string $value): bool => $value !== ''));
+            }
+
+            $normalized['reminder_days'] = $reminderDays;
         }
 
         // 5. currency
@@ -138,7 +147,8 @@ class UpdateSettingsRequest extends FormRequest
             'gym.colors.primary' => ['nullable', 'string', 'regex:/^#([a-fA-F0-9]{3}){1,2}$/'],
             'gym.colors.secondary' => ['nullable', 'string', 'regex:/^#([a-fA-F0-9]{3}){1,2}$/'],
             'gym.colors.accent' => ['nullable', 'string', 'regex:/^#([a-fA-F0-9]{3}){1,2}$/'],
-            'reminder_days' => ['nullable', 'integer', 'min:0'],
+            'reminder_days' => ['nullable', 'array'],
+            'reminder_days.*' => ['integer', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'receipt_template' => ['nullable', 'string', 'max:1000'],

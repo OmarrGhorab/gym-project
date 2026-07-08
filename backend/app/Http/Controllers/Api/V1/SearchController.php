@@ -7,6 +7,7 @@ use App\Models\GymTask;
 use App\Models\Member;
 use App\Models\Product;
 use App\Models\Subscription;
+use App\Support\ArabicSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,17 +72,22 @@ final class SearchController extends ApiController
     {
         $like = $this->like($query);
         $startsWith = $this->startsWith($query);
+        $normalizedLike = ArabicSearch::like($query);
+        $normalizedStartsWith = ArabicSearch::like($query, startsWith: true);
+
+        $normalizedMemberName = ArabicSearch::normalizedColumn('members.name');
 
         return Member::query()
             ->select(['id', 'name', 'phone', 'status'])
-            ->where(function (Builder $builder) use ($like, $startsWith): void {
+            ->where(function (Builder $builder) use ($like, $normalizedLike, $normalizedMemberName, $startsWith): void {
                 $builder->where('name', 'like', $like)
+                    ->orWhereRaw($normalizedMemberName.' LIKE ?', [$normalizedLike])
                     ->orWhere('phone', 'like', $startsWith)
                     ->orWhere('phone', 'like', '+'.$startsWith)
                     ->orWhere('email', 'like', $like)
                     ->orWhere('national_id', 'like', $startsWith);
             })
-            ->orderByRaw('case when name like ? then 0 else 1 end', [$startsWith])
+            ->orderByRaw("case when name like ? or {$normalizedMemberName} like ? then 0 else 1 end", [$startsWith, $normalizedStartsWith])
             ->orderBy('name')
             ->limit($limit)
             ->get()
@@ -98,14 +104,20 @@ final class SearchController extends ApiController
     private function subscriptions(string $query, int $limit)
     {
         $like = $this->like($query);
+        $normalizedLike = ArabicSearch::like($query);
+        $normalizedMemberName = ArabicSearch::normalizedColumn('members.name');
+        $normalizedPlanName = ArabicSearch::normalizedColumn('plans.name');
 
         return Subscription::query()
             ->with(['member:id,name,phone', 'plan:id,name'])
-            ->where(function (Builder $builder) use ($like): void {
-                $builder->whereHas('member', function (Builder $memberQuery) use ($like): void {
+            ->where(function (Builder $builder) use ($like, $normalizedLike, $normalizedMemberName, $normalizedPlanName): void {
+                $builder->whereHas('member', function (Builder $memberQuery) use ($like, $normalizedLike, $normalizedMemberName): void {
                     $memberQuery->where('name', 'like', $like)
+                        ->orWhereRaw($normalizedMemberName.' LIKE ?', [$normalizedLike])
                         ->orWhere('phone', 'like', $like);
-                })->orWhereHas('plan', fn (Builder $planQuery) => $planQuery->where('name', 'like', $like));
+                })->orWhereHas('plan', fn (Builder $planQuery) => $planQuery
+                    ->where('name', 'like', $like)
+                    ->orWhereRaw($normalizedPlanName.' LIKE ?', [$normalizedLike]));
             })
             ->latest()
             ->limit($limit)
@@ -123,11 +135,14 @@ final class SearchController extends ApiController
     private function employees(string $query, int $limit)
     {
         $like = $this->like($query);
+        $normalizedLike = ArabicSearch::like($query);
+        $normalizedEmployeeName = ArabicSearch::normalizedColumn('employees.name');
 
         return Employee::query()
             ->select(['id', 'name', 'phone', 'role', 'status'])
-            ->where(function (Builder $builder) use ($like): void {
+            ->where(function (Builder $builder) use ($like, $normalizedEmployeeName, $normalizedLike): void {
                 $builder->where('name', 'like', $like)
+                    ->orWhereRaw($normalizedEmployeeName.' LIKE ?', [$normalizedLike])
                     ->orWhere('phone', 'like', $like)
                     ->orWhere('role', 'like', $like);
             })

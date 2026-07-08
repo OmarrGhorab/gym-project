@@ -39,6 +39,7 @@ import type { PlanRow } from "../../plans/_components/data";
 import {
   changeMemberPlan,
   createMember,
+  createMemberReportShareLink,
   createMemberSubscription,
   deactivateMember,
   fetchMemberDetails,
@@ -49,6 +50,7 @@ import type {
   MemberDueRow,
   MemberPaymentHistory,
   MemberPaymentRow,
+  MemberReportData,
   MemberRow,
   MemberVisitRow,
   StaffOption,
@@ -290,6 +292,7 @@ export function MemberActionsMenu({
   const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
   const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
+  const [report, setReport] = React.useState<MemberReportData | null>(null);
   const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
   const detailsLoaded = React.useRef(false);
 
@@ -306,6 +309,7 @@ export function MemberActionsMenu({
 
           setHistory(result.history);
           setPayments(result.payments);
+          setReport(result.report);
           setVisits(result.visits);
         })
         .catch((error) => {
@@ -387,6 +391,8 @@ export function MemberActionsMenu({
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
         payments={payments}
+        report={report}
+        requestReportShareLink={createMemberReportShareLink}
         visits={visits}
         staff={staff}
       />
