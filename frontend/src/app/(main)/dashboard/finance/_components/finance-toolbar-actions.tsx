@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Download, FileSpreadsheet, FileText, RotateCw } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, RotateCw, ShieldCheck, UsersRound } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,32 @@ export function FinanceToolbarActions({
           </DialogHeader>
 
           <div className="grid gap-4">
+            <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 size-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{t("exportIncludesTitle")}</p>
+                  <p className="text-muted-foreground text-xs">{t("exportIncludesDescription")}</p>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-md border bg-background/60 p-2">
+                  <div className="flex items-center gap-2 font-medium text-xs">
+                    <UsersRound className="size-3.5" />
+                    {t("exportShiftSummaryTitle")}
+                  </div>
+                  <p className="mt-1 text-muted-foreground text-xs">{t("exportShiftSummaryDescription")}</p>
+                </div>
+                <div className="rounded-md border bg-background/60 p-2">
+                  <div className="flex items-center gap-2 font-medium text-xs">
+                    <FileSpreadsheet className="size-3.5" />
+                    {t("exportShiftTransactionsTitle")}
+                  </div>
+                  <p className="mt-1 text-muted-foreground text-xs">{t("exportShiftTransactionsDescription")}</p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-1.5">
               <FieldLabel>{t("exportPeriodType")}</FieldLabel>
               <Select

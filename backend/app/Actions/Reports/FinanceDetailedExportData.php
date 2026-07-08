@@ -3,12 +3,14 @@
 namespace App\Actions\Reports;
 
 use App\Models\Employee;
+use App\Models\EmployeeShift;
 use App\Models\Expense;
 use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -25,31 +27,31 @@ class FinanceDetailedExportData
         $to = Carbon::parse($filters['to'] ?? now()->toDateString())->endOfDay();
 
         $subscriptions = Subscription::query()
-            ->with(['member:id,name', 'plan:id,name,category,type', 'soldBy:id,name', 'payments'])
+            ->with(['member:id,name', 'plan:id,name,category,type', 'soldBy.employee.shift', 'creator.employee.shift', 'payments'])
             ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->orderBy('created_at')
             ->get();
 
         $addons = SubscriptionAddon::query()
-            ->with(['member:id,name', 'plan:id,name,category,type', 'coach:id,name', 'payments'])
+            ->with(['member:id,name', 'plan:id,name,category,type', 'coach:id,name', 'soldBy.employee.shift', 'creator.employee.shift', 'payments'])
             ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->orderBy('created_at')
             ->get();
 
         $sales = Sale::query()
-            ->with(['member:id,name', 'soldBy:id,name', 'items.product:id,name', 'payment'])
+            ->with(['member:id,name', 'soldBy.employee.shift', 'items.product:id,name', 'payment'])
             ->whereBetween('created_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->orderBy('created_at')
             ->get();
 
         $payments = Payment::query()
-            ->with(['creator:id,name', 'payable'])
+            ->with(['creator.employee.shift', 'payable'])
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->orderBy('paid_at')
             ->get();
 
         $expenses = Expense::query()
-            ->with('creator:id,name')
+            ->with('creator.employee.shift')
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('date')
             ->get();
@@ -65,7 +67,25 @@ class FinanceDetailedExportData
             ->orderBy('name')
             ->get();
 
+        $shifts = EmployeeShift::query()
+            ->with(['employees' => fn ($query) => $query->active()->orderBy('name')])
+            ->where('is_active', true)
+            ->orderBy('starts_at')
+            ->get();
+
         $dues = $this->buildDuesRows($locale);
+        $shiftTransactions = $this->buildShiftTransactionRows(
+            subscriptions: $subscriptions,
+            addons: $addons,
+            sales: $sales,
+            expenses: $expenses,
+            payments: $payments,
+            shifts: $shifts,
+            from: $from,
+            to: $to,
+            locale: $locale,
+        );
+        $shiftSummary = $this->buildShiftSummaryRows($shiftTransactions, $locale);
 
         $subscriptionRevenueCollected = $this->sumPaymentsForModel($subscriptions);
         $addonRevenueCollected = $this->sumPaymentsForModel($addons);
@@ -120,6 +140,7 @@ class FinanceDetailedExportData
                 'expenses_count' => $expenses->count(),
                 'payroll_count' => $payroll->count(),
                 'employees_count' => $employees->count(),
+                'shift_transactions_count' => count($shiftTransactions),
             ],
             'subscriptions' => $subscriptions->map(function (Subscription $subscription) use ($locale): array {
                 $paymentsTotal = $subscription->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
@@ -208,6 +229,8 @@ class FinanceDetailedExportData
                 ->sortByDesc('amount')
                 ->values()
                 ->all(),
+            'shift_summary' => $shiftSummary,
+            'shift_transactions' => $shiftTransactions,
             'payroll' => $payroll->map(fn (Payroll $row): array => [
                 'month' => $row->month,
                 'payroll_id' => $row->id,
@@ -243,6 +266,257 @@ class FinanceDetailedExportData
     private function sumPaymentsForModel(Collection $rows): float
     {
         return $rows->sum(fn ($row): float => $row->payments->sum(fn (Payment $payment): float => (float) $payment->amount));
+    }
+
+    /**
+     * @param  Collection<int, Subscription>  $subscriptions
+     * @param  Collection<int, SubscriptionAddon>  $addons
+     * @param  Collection<int, Sale>  $sales
+     * @param  Collection<int, Expense>  $expenses
+     * @param  Collection<int, Payment>  $payments
+     * @param  Collection<int, EmployeeShift>  $shifts
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildShiftTransactionRows(
+        Collection $subscriptions,
+        Collection $addons,
+        Collection $sales,
+        Collection $expenses,
+        Collection $payments,
+        Collection $shifts,
+        Carbon $from,
+        Carbon $to,
+        string $locale,
+    ): array {
+        $rows = collect();
+
+        foreach ($subscriptions as $subscription) {
+            $actor = $subscription->soldBy ?? $subscription->creator;
+            $collected = $subscription->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
+            $rows->push($this->shiftTransactionRow(
+                occurredAt: Carbon::parse($subscription->created_at),
+                source: $this->t('subscription', $locale),
+                recordId: '#'.$subscription->id,
+                member: $subscription->member?->name ?? $this->t('unknown_member', $locale),
+                item: $subscription->plan?->name ?? $this->t('unknown_plan', $locale),
+                details: trim($this->normalizeLabel($subscription->status, $locale).' · '.$this->date($subscription->start_date).' - '.$this->date($subscription->end_date), ' ·-'),
+                bookedAmount: (float) $subscription->price_paid,
+                collectedAmount: $collected,
+                expenseAmount: 0.0,
+                paymentMethod: $this->paymentMethodsLabel($subscription->payments, $locale),
+                status: $this->normalizeLabel($subscription->status, $locale),
+                actor: $actor,
+                shifts: $shifts,
+                locale: $locale,
+            ));
+        }
+
+        foreach ($addons as $addon) {
+            $actor = $addon->soldBy ?? $addon->creator;
+            $collected = $addon->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
+            $rows->push($this->shiftTransactionRow(
+                occurredAt: Carbon::parse($addon->created_at),
+                source: $this->t('addon', $locale),
+                recordId: '#'.$addon->id,
+                member: $addon->member?->name ?? $this->t('unknown_member', $locale),
+                item: $addon->plan?->name ?? $this->t('unknown_addon', $locale),
+                details: trim(($addon->coach?->name ? $this->t('coach', $locale).': '.$addon->coach->name.' · ' : '').$this->normalizeLabel($addon->status, $locale), ' ·'),
+                bookedAmount: (float) $addon->price_paid,
+                collectedAmount: $collected,
+                expenseAmount: 0.0,
+                paymentMethod: $this->paymentMethodsLabel($addon->payments, $locale),
+                status: $this->normalizeLabel($addon->status, $locale),
+                actor: $actor,
+                shifts: $shifts,
+                locale: $locale,
+            ));
+        }
+
+        foreach ($sales as $sale) {
+            $saleCollected = $sale->status === 'completed' ? (float) ($sale->payment?->amount ?? $sale->total) : 0.0;
+
+            $rows->push($this->shiftTransactionRow(
+                occurredAt: Carbon::parse($sale->created_at),
+                source: $this->t('pos_sale', $locale),
+                recordId: '#'.$sale->id,
+                member: $sale->member?->name ?? $this->t('walk_in', $locale),
+                item: $sale->items->map(fn ($item): string => ($item->product?->name ?? $this->t('product', $locale)).' x'.$item->quantity)->join(', '),
+                details: trim($this->t('discount', $locale).': '.number_format((float) $sale->discount, 2, '.', '').($sale->notes ? ' · '.$sale->notes : ''), ' ·'),
+                bookedAmount: (float) $sale->total,
+                collectedAmount: $saleCollected,
+                expenseAmount: 0.0,
+                paymentMethod: $this->normalizeLabel($sale->payment_method, $locale),
+                status: $this->normalizeLabel($sale->status, $locale),
+                actor: $sale->soldBy,
+                shifts: $shifts,
+                locale: $locale,
+            ));
+        }
+
+        foreach ($expenses as $expense) {
+            $rows->push($this->shiftTransactionRow(
+                occurredAt: Carbon::parse($expense->created_at ?? $expense->date),
+                source: $this->t('expense', $locale),
+                recordId: '#'.$expense->id,
+                member: '',
+                item: $expense->category ?: $this->t('other', $locale),
+                details: $expense->description ?? '',
+                bookedAmount: 0.0,
+                collectedAmount: 0.0,
+                expenseAmount: (float) $expense->amount,
+                paymentMethod: '',
+                status: '',
+                actor: $expense->creator,
+                shifts: $shifts,
+                locale: $locale,
+            ));
+        }
+
+        foreach ($payments as $payment) {
+            $payable = $payment->payable;
+
+            if ($payable instanceof Subscription || $payable instanceof SubscriptionAddon || $payable instanceof Sale) {
+                $payableCreatedAt = $payable->created_at ? Carbon::parse($payable->created_at) : null;
+
+                if ($payableCreatedAt && $payableCreatedAt->betweenIncluded($from, $to)) {
+                    continue;
+                }
+            }
+
+            $rows->push($this->shiftTransactionRow(
+                occurredAt: Carbon::parse($payment->paid_at ?? $payment->created_at),
+                source: $this->paymentSourceLabel($payment, $locale),
+                recordId: '#'.$payment->id,
+                member: $this->paymentMemberLabel($payment, $locale),
+                item: $this->paymentItemLabel($payment, $locale),
+                details: $this->t('payment_collection', $locale),
+                bookedAmount: 0.0,
+                collectedAmount: (float) $payment->amount,
+                expenseAmount: 0.0,
+                paymentMethod: $this->normalizeLabel($payment->method, $locale),
+                status: $this->normalizeLabel($payment->status, $locale),
+                actor: $payment->creator,
+                shifts: $shifts,
+                locale: $locale,
+            ));
+        }
+
+        return $rows
+            ->sortBy(['transaction_at', 'source', 'record_id'])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $transactions
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildShiftSummaryRows(array $transactions, string $locale): array
+    {
+        return collect($transactions)
+            ->groupBy(fn (array $row): string => (string) $row['date'].'|'.(string) $row['shift'])
+            ->map(function (Collection $rows) use ($locale): array {
+                $first = $rows->first();
+                $booked = $rows->sum(fn (array $row): float => (float) $row['booked_amount']);
+                $collected = $rows->sum(fn (array $row): float => (float) $row['collected_amount']);
+                $expenses = $rows->sum(fn (array $row): float => (float) $row['expense_amount']);
+
+                return [
+                    'date' => (string) ($first['date'] ?? ''),
+                    'shift' => (string) ($first['shift'] ?? ''),
+                    'shift_time' => (string) ($first['shift_time'] ?? ''),
+                    'staff_on_shift' => (string) ($first['staff_on_shift'] ?? ''),
+                    'transactions' => $rows->count(),
+                    'booked_amount' => $booked,
+                    'collected_amount' => $collected,
+                    'expense_amount' => $expenses,
+                    'net_cash' => $collected - $expenses,
+                    'handled_by' => $rows->pluck('handled_by')->filter()->unique()->implode(', ') ?: $this->t('unknown_employee', $locale),
+                ];
+            })
+            ->sortBy(['date', 'shift'])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, EmployeeShift>  $shifts
+     * @return array<string, mixed>
+     */
+    private function shiftTransactionRow(
+        Carbon $occurredAt,
+        string $source,
+        string $recordId,
+        string $member,
+        string $item,
+        string $details,
+        float $bookedAmount,
+        float $collectedAmount,
+        float $expenseAmount,
+        string $paymentMethod,
+        string $status,
+        ?User $actor,
+        Collection $shifts,
+        string $locale,
+    ): array {
+        $shift = $this->shiftForTime($occurredAt, $shifts);
+
+        return [
+            'date' => $occurredAt->toDateString(),
+            'transaction_at' => $this->dateTime($occurredAt),
+            'shift' => $shift?->name ?? $this->t('outside_shift', $locale),
+            'shift_time' => $shift ? $this->shiftTimeLabel($shift) : '',
+            'staff_on_shift' => $shift?->employees?->pluck('name')->join(', ') ?? '',
+            'source' => $source,
+            'record_id' => $recordId,
+            'member' => $member,
+            'item' => $item,
+            'details' => $details,
+            'booked_amount' => $bookedAmount,
+            'collected_amount' => $collectedAmount,
+            'expense_amount' => $expenseAmount,
+            'net_cash' => $collectedAmount - $expenseAmount,
+            'payment_method' => $paymentMethod,
+            'status' => $status,
+            'handled_by' => $actor?->employee?->name ?? $actor?->name ?? $this->t('unknown_employee', $locale),
+            'handled_by_role' => $this->normalizeLabel($actor?->employee?->role, $locale),
+            'handled_by_shift' => $actor?->employee?->shift?->name ?? '',
+        ];
+    }
+
+    /**
+     * @param  Collection<int, EmployeeShift>  $shifts
+     */
+    private function shiftForTime(Carbon $time, Collection $shifts): ?EmployeeShift
+    {
+        $timeMinutes = ((int) $time->format('H')) * 60 + (int) $time->format('i');
+
+        return $shifts->first(function (EmployeeShift $shift) use ($timeMinutes): bool {
+            $start = $this->timeToMinutes($shift->starts_at);
+            $end = $this->timeToMinutes($shift->ends_at);
+
+            if ($start === $end) {
+                return true;
+            }
+
+            if ($start < $end) {
+                return $timeMinutes >= $start && $timeMinutes < $end;
+            }
+
+            return $timeMinutes >= $start || $timeMinutes < $end;
+        });
+    }
+
+    private function shiftTimeLabel(EmployeeShift $shift): string
+    {
+        return Carbon::parse($shift->starts_at)->format('g:i A').' - '.Carbon::parse($shift->ends_at)->format('g:i A');
+    }
+
+    private function timeToMinutes(mixed $value): int
+    {
+        $time = Carbon::parse($value);
+
+        return ((int) $time->format('H')) * 60 + (int) $time->format('i');
     }
 
     /**
@@ -318,6 +592,16 @@ class FinanceDetailedExportData
         };
     }
 
+    private function paymentMethodsLabel(Collection $payments, string $locale): string
+    {
+        return $payments
+            ->pluck('method')
+            ->filter()
+            ->unique()
+            ->map(fn (string $method): string => $this->normalizeLabel($method, $locale))
+            ->implode(', ');
+    }
+
     private function normalizeLabel(?string $value, string $locale): string
     {
         if ($value === null || $value === '') {
@@ -355,12 +639,16 @@ class FinanceDetailedExportData
                 'cash' => 'نقدي',
                 'coach' => 'مدرب',
                 'completed' => 'مكتمل',
+                'discount' => 'خصم',
                 'employee' => 'موظف',
+                'expense' => 'مصروف',
                 'manager' => 'مدير',
                 'other' => 'أخرى',
+                'outside_shift' => 'خارج الشيفت',
                 'partial' => 'جزئي',
                 'paid' => 'مدفوع',
                 'payment' => 'دفعة',
+                'payment_collection' => 'تحصيل دفعة',
                 'pending' => 'معلق',
                 'pos sale' => 'بيع نقطة البيع',
                 'pos_sale' => 'بيع نقطة البيع',
@@ -378,8 +666,12 @@ class FinanceDetailedExportData
 
         return [
             'addon' => 'Add-on',
+            'discount' => 'Discount',
+            'expense' => 'Expense',
             'other' => 'Other',
+            'outside_shift' => 'Outside shift',
             'payment' => 'Payment',
+            'payment_collection' => 'Payment collection',
             'pos_sale' => 'POS sale',
             'product' => 'Product',
             'subscription' => 'Subscription',

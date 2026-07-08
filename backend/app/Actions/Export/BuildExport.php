@@ -206,11 +206,15 @@ class BuildExport
 
                 $stringValue = (string) $value;
 
-                if (! $isRtl || $stringValue === '') {
+                if ($stringValue === '') {
                     return $stringValue;
                 }
 
-                return $arabic->utf8Glyphs($stringValue, 120, false, true);
+                if ($isRtl || preg_match('/\p{Arabic}/u', $stringValue) === 1) {
+                    return $arabic->utf8Glyphs($stringValue, 120, false, true);
+                }
+
+                return $stringValue;
             },
             'report' => $report,
         ])->setPaper('a4', 'landscape')

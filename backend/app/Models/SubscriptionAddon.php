@@ -70,6 +70,16 @@ class SubscriptionAddon extends Model
         return $this->belongsTo(Employee::class, 'coach_id');
     }
 
+    public function soldBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sold_by_user_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function payments(): MorphMany
     {
         return $this->morphMany(Payment::class, 'payable');
