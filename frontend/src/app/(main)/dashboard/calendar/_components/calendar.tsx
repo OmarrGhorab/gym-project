@@ -11,8 +11,10 @@ import timeGridPlugin from "@fullcalendar/react/timegrid";
 import { differenceInCalendarDays, endOfMonth, format, startOfMonth } from "date-fns";
 import {
   Calendar as CalendarIcon,
+  Check,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   Clock,
   MapPin,
   Pencil,
@@ -27,7 +29,6 @@ import { EventCalendarViews } from "@/components/calendar/event-calendar-views";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Calendar as DatePicker } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldError } from "@/components/ui/field";
-import { FormTimePicker } from "@/components/ui/form-controls";
+import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -60,11 +61,15 @@ const calendars = [
   { value: "shift", label: "Staff shifts" },
   { value: "class", label: "Classes" },
   { value: "pt_session", label: "PT sessions" },
+  { value: "training", label: "Training" },
+  { value: "meeting", label: "Meetings" },
+  { value: "sales", label: "Sales" },
   { value: "renewal", label: "Membership renewals" },
   { value: "payroll", label: "Payroll" },
   { value: "attendance", label: "Attendance review" },
   { value: "inventory", label: "Inventory" },
   { value: "maintenance", label: "Maintenance" },
+  { value: "cleaning", label: "Cleaning" },
   { value: "finance", label: "Finance" },
   { value: "manual", label: "Custom notes" },
 ] as const;
@@ -83,7 +88,11 @@ const typeColors: Record<CalendarEventType, string> = {
   shift: "#2563eb",
   class: "#16a34a",
   pt_session: "#059669",
+  training: "#0f766e",
+  meeting: "#4f46e5",
+  sales: "#c2410c",
   maintenance: "#d97706",
+  cleaning: "#0ea5e9",
   renewal: "#7c3aed",
   payroll: "#9333ea",
   attendance: "#dc2626",
@@ -117,6 +126,13 @@ type CalendarEventInput = {
     type: string;
     status: string;
     source: string;
+    notes?: string | null;
+    location?: string | null;
+    assignedEmployees?: Array<{
+      id: number;
+      name: string;
+      role: string | null;
+    }>;
   };
   classNames?: string;
 };
@@ -124,9 +140,11 @@ type CalendarEventInput = {
 export function Calendar({ events, employees }: CalendarProps) {
   const t = useTranslations("Dashboard.calendar");
   const locale = useLocale();
+  const isRtl = locale === "ar";
   const controller = useCalendarController();
   const [eventCount, setEventCount] = React.useState(0);
   const [selectedCalendar, setSelectedCalendar] = React.useState("all");
+  const [selectedView, setSelectedView] = React.useState(views[0].value);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit" | "view">("create");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<OperationsCalendarEvent | null>(null);
@@ -148,8 +166,46 @@ export function Calendar({ events, employees }: CalendarProps) {
   }, [events, selectedCalendar]);
 
   const calendarEvents = React.useMemo(() => filteredEvents.map(toFullCalendarEvent), [filteredEvents]);
+  const eventContent = React.useCallback(
+    (arg: {
+      event: {
+        title: string;
+        start: Date | null;
+        end: Date | null;
+        extendedProps: CalendarEventInput["extendedProps"];
+      };
+    }) => (
+      <div className={cn("flex h-full min-w-0 flex-col gap-1 overflow-hidden", isRtl && "text-right")}>
+        <div className="flex min-w-0 items-start gap-1.5">
+          <span className="min-w-0 flex-1 truncate font-medium">{arg.event.title}</span>
+        </div>
+        <div
+          className={cn(
+            "flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-tight opacity-90",
+            isRtl && "justify-end",
+          )}
+        >
+          {arg.event.extendedProps.assignedEmployees?.length ? (
+            <span className="truncate">
+              {arg.event.extendedProps.assignedEmployees.map((employee) => employee.name).join(", ")}
+            </span>
+          ) : null}
+          {arg.event.extendedProps.notes ? <span className="truncate">{arg.event.extendedProps.notes}</span> : null}
+        </div>
+      </div>
+    ),
+    [isRtl],
+  );
   const editableEvents = events.filter((event) => event.editable).length;
   const generatedEvents = events.length - editableEvents;
+  const currentView = controller.view?.type ?? selectedView;
+  const currentViewLabel = t(`views.${currentView}`);
+
+  React.useEffect(() => {
+    if (controller.view?.type && controller.view.type !== selectedView) {
+      setSelectedView(controller.view.type);
+    }
+  }, [controller.view?.type, selectedView]);
 
   function openCreate() {
     setSelectedEvent(null);
@@ -194,63 +250,132 @@ export function Calendar({ events, employees }: CalendarProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={selectedCalendar}
-              onValueChange={(value) => {
-                if (value !== null) setSelectedCalendar(value);
-              }}
-              items={calendars}
-            >
-              <SelectTrigger className="w-full sm:w-52">
-                <CalendarIcon />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start" alignItemWithTrigger={false}>
-                <SelectGroup>
-                  {calendars.map((calendar) => (
-                    <SelectItem key={calendar.value} value={calendar.value}>
-                      {getTypeLabel(calendar.value, t)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <ButtonGroup>
-              <Button size="icon" variant="outline" onClick={() => controller.prev()}>
-                <ChevronLeft />
-              </Button>
-              <Button variant="outline" onClick={() => controller.today()}>
-                {t("today")}
-              </Button>
-              <Button size="icon" variant="outline" onClick={() => controller.next()}>
-                <ChevronRight />
-              </Button>
-            </ButtonGroup>
-            <Select
-              value={controller.view?.type ?? views[0].value}
-              onValueChange={(value) => {
-                if (value !== null) controller.changeView(value);
-              }}
-              items={views}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start" alignItemWithTrigger={false}>
-                <SelectGroup>
-                  {views.map((view) => (
-                    <SelectItem key={view.value} value={view.value}>
-                      {t(`views.${view.value}`)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Button onClick={openCreate}>
-              <Plus />
-              {t("addEvent")}
-            </Button>
+          <div className={cn("flex flex-wrap items-center gap-2", isRtl && "justify-end")}>
+            {isRtl ? (
+              <>
+                <Button onClick={openCreate}>
+                  <Plus />
+                  {t("addEvent")}
+                </Button>
+                <Select
+                  value={currentView}
+                  onValueChange={(value) => {
+                    if (value !== null) {
+                      setSelectedView(value);
+                      controller.changeView(value);
+                    }
+                  }}
+                  items={views}
+                >
+                  <SelectTrigger className="w-full sm:w-40">
+                    <span className="truncate">{currentViewLabel}</span>
+                  </SelectTrigger>
+                  <SelectContent align="end" alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {views.map((view) => (
+                        <SelectItem key={view.value} value={view.value}>
+                          {t(`views.${view.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <ButtonGroup>
+                  <Button size="icon" variant="outline" onClick={() => controller.next()}>
+                    <ChevronRight />
+                  </Button>
+                  <Button variant="outline" onClick={() => controller.today()}>
+                    {t("today")}
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => controller.prev()}>
+                    <ChevronLeft />
+                  </Button>
+                </ButtonGroup>
+                <Select
+                  value={selectedCalendar}
+                  onValueChange={(value) => {
+                    if (value !== null) setSelectedCalendar(value);
+                  }}
+                  items={calendars}
+                >
+                  <SelectTrigger className="w-full sm:w-52">
+                    <CalendarIcon />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end" alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {calendars.map((calendar) => (
+                        <SelectItem key={calendar.value} value={calendar.value}>
+                          {getTypeLabel(calendar.value, t)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <>
+                <Select
+                  value={selectedCalendar}
+                  onValueChange={(value) => {
+                    if (value !== null) setSelectedCalendar(value);
+                  }}
+                  items={calendars}
+                >
+                  <SelectTrigger className="w-full sm:w-52">
+                    <CalendarIcon />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start" alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {calendars.map((calendar) => (
+                        <SelectItem key={calendar.value} value={calendar.value}>
+                          {getTypeLabel(calendar.value, t)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <ButtonGroup>
+                  <Button size="icon" variant="outline" onClick={() => controller.prev()}>
+                    <ChevronLeft />
+                  </Button>
+                  <Button variant="outline" onClick={() => controller.today()}>
+                    {t("today")}
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => controller.next()}>
+                    <ChevronRight />
+                  </Button>
+                </ButtonGroup>
+                <Select
+                  value={currentView}
+                  onValueChange={(value) => {
+                    if (value !== null) {
+                      setSelectedView(value);
+                      controller.changeView(value);
+                    }
+                  }}
+                  items={views}
+                >
+                  <SelectTrigger className="w-40">
+                    <span className="truncate">{currentViewLabel}</span>
+                  </SelectTrigger>
+                  <SelectContent align="start" alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {views.map((view) => (
+                        <SelectItem key={view.value} value={view.value}>
+                          {t(`views.${view.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Button onClick={openCreate}>
+                  <Plus />
+                  {t("addEvent")}
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -258,6 +383,7 @@ export function Calendar({ events, employees }: CalendarProps) {
           controller={controller}
           initialView={views[0].value}
           plugins={[...plugins]}
+          eventContent={eventContent}
           popoverCloseContent={() => <XIcon className="size-5 text-muted-foreground group-hover:text-foreground" />}
           events={calendarEvents}
           eventClick={handleEventClick}
@@ -405,16 +531,67 @@ function EventFormFields({
   locale: string;
 }) {
   const t = useTranslations("Dashboard.calendar");
-  const initialDate = parseDate(event?.date);
-  const [date, setDate] = React.useState<Date | undefined>(initialDate);
+  const employeeTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [title, setTitle] = React.useState(event?.title ?? "");
+  const [dateValue, setDateValue] = React.useState(event?.date ?? format(new Date(), "yyyy-MM-dd"));
+  const [selectedType, setSelectedType] = React.useState<CalendarEventType>(event?.type ?? "manual");
+  const [customTypeLabel, setCustomTypeLabel] = React.useState(event?.custom_type_label ?? "");
+  const [startTime, setStartTime] = React.useState(timeValue(event?.start));
+  const [endTime, setEndTime] = React.useState(timeValue(event?.end));
+  const [status, setStatus] = React.useState(event?.status ?? "scheduled");
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = React.useState<string[]>(
+    getAssignedEmployees(event).map((employee) => String(employee.id)),
+  );
+  const [employeeMenuWidth, setEmployeeMenuWidth] = React.useState<number | null>(null);
+  const [location, setLocation] = React.useState(event?.location ?? "");
+  const [notes, setNotes] = React.useState(event?.notes ?? "");
+
+  const selectedEmployees = React.useMemo(
+    () => employees.filter((employee) => selectedEmployeeIds.includes(String(employee.id))),
+    [employees, selectedEmployeeIds],
+  );
 
   React.useEffect(() => {
-    setDate(parseDate(event?.date));
+    setTitle(event?.title ?? "");
+    setDateValue(event?.date ?? format(new Date(), "yyyy-MM-dd"));
+    setSelectedType(event?.type ?? "manual");
+    setCustomTypeLabel(event?.custom_type_label ?? "");
+    setStartTime(timeValue(event?.start));
+    setEndTime(timeValue(event?.end));
+    setStatus(event?.status ?? "scheduled");
+    setSelectedEmployeeIds(getAssignedEmployees(event).map((employee) => String(employee.id)));
+    setLocation(event?.location ?? "");
+    setNotes(event?.notes ?? "");
   }, [event]);
+
+  React.useEffect(() => {
+    function syncEmployeeMenuWidth() {
+      setEmployeeMenuWidth(employeeTriggerRef.current?.offsetWidth ?? null);
+    }
+
+    syncEmployeeMenuWidth();
+    window.addEventListener("resize", syncEmployeeMenuWidth);
+
+    return () => {
+      window.removeEventListener("resize", syncEmployeeMenuWidth);
+    };
+  }, []);
+
+  function toggleEmployee(employeeId: string, checked: boolean) {
+    setSelectedEmployeeIds((current) => {
+      if (checked) {
+        return current.includes(employeeId) ? current : [...current, employeeId];
+      }
+
+      return current.filter((id) => id !== employeeId);
+    });
+  }
 
   return (
     <>
-      <input name="date" type="hidden" value={format(date ?? new Date(), "yyyy-MM-dd")} />
+      {selectedEmployeeIds.map((employeeId) => (
+        <input key={employeeId} name="assigned_employee_ids" type="hidden" value={employeeId} />
+      ))}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2 sm:col-span-2">
           <Label htmlFor="calendar-title">{t("title")}</Label>
@@ -422,7 +599,8 @@ function EventFormFields({
             id="calendar-title"
             name="title"
             required
-            defaultValue={event?.title ?? ""}
+            value={title}
+            onChange={(currentEvent) => setTitle(currentEvent.target.value)}
             placeholder={t("titlePlaceholder")}
             aria-invalid={Boolean(errors?.title?.[0])}
           />
@@ -431,93 +609,131 @@ function EventFormFields({
 
         <div className="grid gap-2">
           <Label>{t("date")}</Label>
-          <FieldError errors={errors?.date} />
-          <Popover>
-            <PopoverTrigger
-              render={<Button type="button" variant="outline" className="justify-start text-left font-normal" />}
-            >
-              <CalendarIcon />
-              {formatDisplayDate(date ?? new Date(), locale)}
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-2">
-              <DatePicker mode="single" selected={date} onSelect={setDate} fixedWeeks />
-            </PopoverContent>
-          </Popover>
+          <FormDatePicker
+            name="date"
+            value={dateValue}
+            onValueChange={setDateValue}
+            placeholder={formatDisplayDate(new Date(), locale)}
+            error={errors?.date?.[0]}
+          />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-type">{t("type")}</Label>
-          <Select defaultValue={event?.type ?? "manual"} name="type">
-            <SelectTrigger id="calendar-type" className="w-full" aria-invalid={Boolean(errors?.type?.[0])}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {eventTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {getTypeLabel(type.value, t)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldError errors={errors?.type} />
+          <FormSelect
+            id="calendar-type"
+            name="type"
+            value={selectedType}
+            selectedLabel={getTypeLabel(selectedType, t)}
+            options={eventTypes.map((type) => ({ value: type.value, label: getTypeLabel(type.value, t) }))}
+            onValueChange={(value) => {
+              if (value) {
+                setSelectedType(value as CalendarEventType);
+              }
+            }}
+            error={errors?.type?.[0]}
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="calendar-custom-type">{t("customTypeLabel")}</Label>
+          <Input
+            id="calendar-custom-type"
+            name="custom_type_label"
+            value={customTypeLabel}
+            onChange={(currentEvent) => setCustomTypeLabel(currentEvent.target.value)}
+            placeholder={t("customTypePlaceholder")}
+            disabled={selectedType !== "manual"}
+            aria-invalid={Boolean(errors?.custom_type_label?.[0])}
+          />
+          <FieldError errors={errors?.custom_type_label} />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-start">{t("startTime")}</Label>
-          <FormTimePicker name="start_time" defaultValue={timeValue(event?.start)} error={errors?.start_time?.[0]} />
+          <FormTimePicker
+            name="start_time"
+            value={startTime}
+            onValueChange={setStartTime}
+            error={errors?.start_time?.[0]}
+          />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-end">{t("endTime")}</Label>
-          <FormTimePicker name="end_time" defaultValue={timeValue(event?.end)} error={errors?.end_time?.[0]} />
+          <FormTimePicker name="end_time" value={endTime} onValueChange={setEndTime} error={errors?.end_time?.[0]} />
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="calendar-status">{t("status")}</Label>
-          <Select defaultValue={event?.status ?? "scheduled"} name="status">
-            <SelectTrigger id="calendar-status" className="w-full" aria-invalid={Boolean(errors?.status?.[0])}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {statuses.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {t(`statuses.${status.value}`)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldError errors={errors?.status} />
+          <FormSelect
+            id="calendar-status"
+            name="status"
+            value={status}
+            selectedLabel={getStatusLabel(status, t)}
+            options={statuses.map((item) => ({ value: item.value, label: t(`statuses.${item.value}`) }))}
+            onValueChange={(value) => setStatus(value || "scheduled")}
+            error={errors?.status?.[0]}
+          />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="calendar-employee">{t("assignedEmployee")}</Label>
-          <Select
-            defaultValue={event?.assigned_employee?.id ? String(event.assigned_employee.id) : "none"}
-            name="assigned_employee_id"
-          >
-            <SelectTrigger
-              id="calendar-employee"
-              className="w-full"
-              aria-invalid={Boolean(errors?.assigned_employee_id?.[0])}
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor="calendar-employees">{t("assignedEmployees")}</Label>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  ref={employeeTriggerRef}
+                  id="calendar-employees"
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                />
+              }
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="none">{t("noEmployee")}</SelectItem>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={String(employee.id)}>
-                    {employee.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <FieldError errors={errors?.assigned_employee_id} />
+              <span className="truncate">
+                {selectedEmployees.length > 0
+                  ? selectedEmployees.map((employee) => employee.name).join(", ")
+                  : t("noEmployee")}
+              </span>
+              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="p-1"
+              style={
+                employeeMenuWidth ? { width: `${employeeMenuWidth}px`, minWidth: `${employeeMenuWidth}px` } : undefined
+              }
+            >
+              <div className="max-h-72 overflow-y-auto">
+                {employees.map((employee) => {
+                  const checked = selectedEmployeeIds.includes(String(employee.id));
+
+                  return (
+                    <button
+                      key={employee.id}
+                      type="button"
+                      className="relative flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-hidden transition-colors hover:bg-muted focus-visible:bg-muted"
+                      onClick={() => toggleEmployee(String(employee.id), !checked)}
+                    >
+                      <span className="truncate">{employee.name}</span>
+                      <Check className={checked ? "ml-auto size-4 opacity-100" : "ml-auto size-4 opacity-0"} />
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+          {selectedEmployees.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {selectedEmployees.map((employee) => (
+                <Badge key={employee.id} variant="secondary">
+                  {employee.name}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+          <FieldError errors={errors?.assigned_employee_ids} />
         </div>
 
         <div className="grid gap-2 sm:col-span-2">
@@ -525,7 +741,8 @@ function EventFormFields({
           <Input
             id="calendar-location"
             name="location"
-            defaultValue={event?.location ?? ""}
+            value={location}
+            onChange={(currentEvent) => setLocation(currentEvent.target.value)}
             placeholder={t("locationPlaceholder")}
             aria-invalid={Boolean(errors?.location?.[0])}
           />
@@ -537,7 +754,8 @@ function EventFormFields({
           <Textarea
             id="calendar-notes"
             name="notes"
-            defaultValue={event?.notes ?? ""}
+            value={notes}
+            onChange={(currentEvent) => setNotes(currentEvent.target.value)}
             placeholder={t("notesPlaceholder")}
             aria-invalid={Boolean(errors?.notes?.[0])}
           />
@@ -550,22 +768,25 @@ function EventFormFields({
 
 function GeneratedEventDetails({ event, locale }: { event: OperationsCalendarEvent; locale: string }) {
   const t = useTranslations("Dashboard.calendar");
+  const assignedEmployees = getAssignedEmployees(event);
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">{getTypeLabel(event.type, t)}</Badge>
+        <Badge variant="secondary">{getEventTypeLabel(event, t)}</Badge>
         <Badge variant={event.status === "cancelled" ? "destructive" : "outline"}>
           {getStatusLabel(event.status, t)}
         </Badge>
       </div>
       <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm">
         <DetailLine icon={<CalendarIcon />} label={t("date")} value={formatEventDate(event, locale)} />
-        {event.assigned_employee ? (
+        {assignedEmployees.length > 0 ? (
           <DetailLine
             icon={<Pencil />}
-            label={t("employee")}
-            value={`${event.assigned_employee.name}${event.assigned_employee.role ? ` · ${event.assigned_employee.role}` : ""}`}
+            label={t("assignedEmployees")}
+            value={assignedEmployees
+              .map((employee) => `${employee.name}${employee.role ? ` · ${employee.role}` : ""}`)
+              .join(", ")}
           />
         ) : null}
         {event.location ? <DetailLine icon={<MapPin />} label={t("location")} value={event.location} /> : null}
@@ -604,6 +825,9 @@ function toFullCalendarEvent(event: OperationsCalendarEvent): CalendarEventInput
       type: event.type,
       status: event.status,
       source: event.source,
+      notes: event.notes,
+      location: event.location,
+      assignedEmployees: getAssignedEmployees(event),
     },
     classNames: cn(event.status === "cancelled" && "opacity-60"),
   };
@@ -659,6 +883,29 @@ function getTypeLabel(value: string, t: ReturnType<typeof useTranslations<"Dashb
   }
 
   return t("types.fallback");
+}
+
+function getEventTypeLabel(
+  event: Pick<OperationsCalendarEvent, "type" | "custom_type_label">,
+  t: ReturnType<typeof useTranslations<"Dashboard.calendar">>,
+) {
+  if (event.type === "manual" && event.custom_type_label?.trim()) {
+    return event.custom_type_label;
+  }
+
+  return getTypeLabel(event.type, t);
+}
+
+function getAssignedEmployees(event: OperationsCalendarEvent | null) {
+  if (!event) {
+    return [];
+  }
+
+  if (event.assigned_employees.length > 0) {
+    return event.assigned_employees;
+  }
+
+  return event.assigned_employee ? [event.assigned_employee] : [];
 }
 
 function getStatusLabel(value: string, t: ReturnType<typeof useTranslations<"Dashboard.calendar">>) {

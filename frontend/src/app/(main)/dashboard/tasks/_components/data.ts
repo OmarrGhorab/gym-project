@@ -8,11 +8,13 @@ export async function getActionQueueData(): Promise<Task[]> {
   try {
     const result = await serverApiFetch<ApiGymTask[]>("/gym-tasks");
 
-    return result.data.map((task) => ({
-      ...toTask(task),
-      status: task.status,
-      sourceLabel: sourceLabel(task.source),
-    }));
+    return result.data
+      .filter((task) => task.source !== "payroll")
+      .map((task) => ({
+        ...toTask(task),
+        status: task.status,
+        sourceLabel: sourceLabel(task.source),
+      }));
   } catch {
     return [];
   }

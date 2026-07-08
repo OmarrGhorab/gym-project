@@ -121,7 +121,7 @@ export function FormSelect({
         >
           <span
             className={cn(
-              "min-w-0 flex-1 truncate text-left",
+              "min-w-0 flex-1 truncate text-start",
               value === emptySelectValue && "text-muted-foreground",
             )}
           >
@@ -203,7 +203,7 @@ function FormSelectOptionButton({
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
       onClick={onSelect}
     >
       <span className="flex min-w-0 flex-1 truncate">{label}</span>
@@ -309,16 +309,44 @@ type FormTimePickerProps = {
   error?: string;
   id?: string;
   name: string;
+  onValueChange?: (value: string) => void;
   required?: boolean;
+  value?: string | null;
 };
 
-export function FormTimePicker({ className, defaultValue = "", error, id, name, required = false }: FormTimePickerProps) {
+export function FormTimePicker({
+  className,
+  defaultValue = "",
+  error,
+  id,
+  name,
+  onValueChange,
+  required = false,
+  value: controlledValue,
+}: FormTimePickerProps) {
   const errorId = React.useId();
-  const initial = parseTime24(defaultValue ?? "");
+  const isControlled = controlledValue !== undefined;
+  const initial = parseTime24((controlledValue ?? defaultValue) || "");
   const [hour, setHour] = React.useState<number | null>(initial?.hour ?? null);
   const [minute, setMinute] = React.useState<number | null>(initial?.minute ?? null);
   const [period, setPeriod] = React.useState<"AM" | "PM">(initial?.period ?? "AM");
   const value = hour !== null && minute !== null ? formatTime24(hour, minute, period) : "";
+
+  React.useEffect(() => {
+    if (!isControlled) {
+      return;
+    }
+
+    const parsed = parseTime24(controlledValue ?? "");
+    setHour(parsed?.hour ?? null);
+    setMinute(parsed?.minute ?? null);
+    setPeriod(parsed?.period ?? "AM");
+  }, [controlledValue, isControlled]);
+
+  function updateValue(nextHour: number | null, nextMinute: number | null, nextPeriod: "AM" | "PM") {
+    const nextValue = nextHour !== null && nextMinute !== null ? formatTime24(nextHour, nextMinute, nextPeriod) : "";
+    onValueChange?.(nextValue);
+  }
 
   return (
     <div
@@ -328,7 +356,14 @@ export function FormTimePicker({ className, defaultValue = "", error, id, name, 
       )}
     >
       <input type="hidden" name={name} value={value} required={required} />
-      <Select value={hour !== null ? String(hour) : ""} onValueChange={(next) => setHour(Number(next))}>
+      <Select
+        value={hour !== null ? String(hour) : ""}
+        onValueChange={(next) => {
+          const nextHour = Number(next);
+          setHour(nextHour);
+          updateValue(nextHour, minute, period);
+        }}
+      >
         <SelectTrigger id={id ? `${id}-hour` : undefined} className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
           <SelectValue placeholder="--" />
         </SelectTrigger>
@@ -343,7 +378,14 @@ export function FormTimePicker({ className, defaultValue = "", error, id, name, 
         </SelectContent>
       </Select>
       <span className="text-muted-foreground text-sm">:</span>
-      <Select value={minute !== null ? String(minute) : ""} onValueChange={(next) => setMinute(Number(next))}>
+      <Select
+        value={minute !== null ? String(minute) : ""}
+        onValueChange={(next) => {
+          const nextMinute = Number(next);
+          setMinute(nextMinute);
+          updateValue(hour, nextMinute, period);
+        }}
+      >
         <SelectTrigger className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
           <SelectValue placeholder="--" />
         </SelectTrigger>
@@ -357,7 +399,14 @@ export function FormTimePicker({ className, defaultValue = "", error, id, name, 
           </SelectGroup>
         </SelectContent>
       </Select>
-      <Select value={period} onValueChange={(next) => setPeriod(next as "AM" | "PM")}>
+      <Select
+        value={period}
+        onValueChange={(next) => {
+          const nextPeriod = next as "AM" | "PM";
+          setPeriod(nextPeriod);
+          updateValue(hour, minute, nextPeriod);
+        }}
+      >
         <SelectTrigger id={id ? `${id}-period` : undefined} className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
           <SelectValue />
         </SelectTrigger>

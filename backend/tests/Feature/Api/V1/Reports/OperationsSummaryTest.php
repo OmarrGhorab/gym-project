@@ -4,6 +4,7 @@ use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\Member;
 use App\Models\MemberVisit;
+use App\Models\OperationsCalendarEvent;
 use App\Models\Payroll;
 use App\Models\Plan;
 use App\Models\Product;
@@ -113,4 +114,35 @@ test('accountant can create operations calendar event', function (): void {
     $this->getJson('/api/v1/reports/operations-summary')
         ->assertOk()
         ->assertJsonFragment(['title' => 'Staff meeting']);
+});
+
+test('accountant can create operations calendar event with custom type label and multiple employees', function (): void {
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $firstEmployee = Employee::factory()->create(['name' => 'Sara Coach']);
+    $secondEmployee = Employee::factory()->create(['name' => 'Omar Coach']);
+
+    $this->postJson('/api/v1/reports/operations-calendar-events', [
+        'date' => '2026-07-06',
+        'title' => 'Coach huddle',
+        'type' => 'manual',
+        'custom_type_label' => 'Coach meeting',
+        'assigned_employee_ids' => [$firstEmployee->id, $secondEmployee->id],
+        'notes' => 'Plan studio handoff.',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.type', 'manual')
+        ->assertJsonPath('data.custom_type_label', 'Coach meeting')
+        ->assertJsonPath('data.assigned_employee.id', $firstEmployee->id)
+        ->assertJsonCount(2, 'data.assigned_employees')
+        ->assertJsonPath('data.assigned_employees.0.name', 'Sara Coach')
+        ->assertJsonPath('data.assigned_employees.1.name', 'Omar Coach');
+
+    $event = OperationsCalendarEvent::query()->latest('id')->firstOrFail();
+
+    expect($event->assigned_employee_id)->toBe($firstEmployee->id)
+        ->and($event->assigned_employee_ids)->toBe([$firstEmployee->id, $secondEmployee->id])
+        ->and($event->custom_type_label)->toBe('Coach meeting');
 });

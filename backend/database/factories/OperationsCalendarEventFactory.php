@@ -19,7 +19,9 @@ class OperationsCalendarEventFactory extends Factory
             'date' => now()->toDateString(),
             'title' => fake()->sentence(3),
             'type' => 'manual',
+            'custom_type_label' => null,
             'notes' => null,
+            'assigned_employee_ids' => null,
             'created_by' => User::factory(),
         ];
     }

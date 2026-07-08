@@ -20,7 +20,8 @@ export type CalendarActionResult =
 
 const calendarEventSchema = z
   .object({
-    assigned_employee_id: z.union([z.coerce.number().int().positive(), z.literal("none"), z.literal("")]).optional(),
+    assigned_employee_ids: z.array(z.coerce.number().int().positive()).default([]),
+    custom_type_label: z.string().trim().max(120, "Custom type is too long.").optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
     end_time: z.string().optional(),
     location: z.string().trim().max(120, "Location is too long.").optional(),
@@ -35,18 +36,26 @@ const calendarEventSchema = z
         "shift",
         "class",
         "pt_session",
+        "training",
+        "meeting",
+        "sales",
         "renewal",
         "payroll",
         "attendance",
         "inventory",
         "maintenance",
         "finance",
+        "cleaning",
         "manual",
       ],
       {
         error: "Choose a valid event type.",
       },
     ),
+  })
+  .refine((value) => value.type !== "manual" || Boolean(value.custom_type_label?.trim()), {
+    message: "Enter a custom type label.",
+    path: ["custom_type_label"],
   })
   .refine((value) => !value.end_time || !value.start_time || value.end_time >= value.start_time, {
     message: "End time cannot be before start time.",
@@ -88,8 +97,13 @@ async function mutateCalendarEvent(
   successMessage: string,
 ): Promise<CalendarActionResult> {
   const date = String(input.get("date") ?? "");
+  const assignedEmployeeIds = input
+    .getAll("assigned_employee_ids")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
   const parsed = calendarEventSchema.safeParse({
-    assigned_employee_id: String(input.get("assigned_employee_id") ?? ""),
+    assigned_employee_ids: assignedEmployeeIds,
+    custom_type_label: String(input.get("custom_type_label") ?? ""),
     date,
     end_time: String(input.get("end_time") ?? ""),
     location: String(input.get("location") ?? ""),
@@ -110,7 +124,6 @@ async function mutateCalendarEvent(
 
   const startsAt = buildDateTime(parsed.data.date, parsed.data.start_time ?? "");
   const endsAt = buildDateTime(parsed.data.date, parsed.data.end_time ?? "");
-  const assignedEmployeeId = String(input.get("assigned_employee_id") ?? "");
 
   const payload = {
     date: parsed.data.date,
@@ -119,8 +132,9 @@ async function mutateCalendarEvent(
     all_day: !startsAt,
     title: parsed.data.title,
     type: parsed.data.type,
+    custom_type_label: parsed.data.type === "manual" ? (parsed.data.custom_type_label?.trim() ?? "") : null,
     status: parsed.data.status,
-    assigned_employee_id: assignedEmployeeId && assignedEmployeeId !== "none" ? Number(assignedEmployeeId) : null,
+    assigned_employee_ids: parsed.data.assigned_employee_ids,
     location: parsed.data.location ?? "",
     notes: parsed.data.notes ?? "",
   };

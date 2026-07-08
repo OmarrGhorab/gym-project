@@ -10,6 +10,7 @@ export type OperationsCalendarEvent = {
   all_day: boolean;
   title: string;
   type: CalendarEventType;
+  custom_type_label: string | null;
   status: CalendarEventStatus;
   notes: string | null;
   editable: boolean;
@@ -19,6 +20,11 @@ export type OperationsCalendarEvent = {
     name: string;
     role: string | null;
   } | null;
+  assigned_employees: Array<{
+    id: number;
+    name: string;
+    role: string | null;
+  }>;
 };
 
 export type CalendarEventType =
@@ -26,7 +32,11 @@ export type CalendarEventType =
   | "shift"
   | "class"
   | "pt_session"
+  | "training"
+  | "meeting"
+  | "sales"
   | "maintenance"
+  | "cleaning"
   | "renewal"
   | "payroll"
   | "attendance"

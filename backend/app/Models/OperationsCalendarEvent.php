@@ -17,8 +17,10 @@ class OperationsCalendarEvent extends Model
         'all_day',
         'title',
         'type',
+        'custom_type_label',
         'status',
         'assigned_employee_id',
+        'assigned_employee_ids',
         'location',
         'notes',
         'created_by',
@@ -29,6 +31,7 @@ class OperationsCalendarEvent extends Model
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'all_day' => 'boolean',
+        'assigned_employee_ids' => 'array',
     ];
 
     public function creator(): BelongsTo

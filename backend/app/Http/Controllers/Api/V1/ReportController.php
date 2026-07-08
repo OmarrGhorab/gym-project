@@ -24,6 +24,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 
 final class ReportController extends ApiController
@@ -113,7 +114,7 @@ final class ReportController extends ApiController
         $validated = $request->validate([
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
-            'type' => ['nullable', 'string', Rule::in(['manual', 'shift', 'class', 'pt_session', 'maintenance', 'renewal', 'payroll', 'attendance', 'inventory', 'finance'])],
+            'type' => ['nullable', 'string', Rule::in(['manual', 'shift', 'class', 'pt_session', 'training', 'meeting', 'sales', 'maintenance', 'cleaning', 'renewal', 'payroll', 'attendance', 'inventory', 'finance'])],
         ]);
 
         $from = CarbonImmutable::parse($validated['from'] ?? now()->startOfMonth())->startOfDay();
@@ -141,6 +142,7 @@ final class ReportController extends ApiController
     public function storeOperationsCalendarEvent(StoreOperationsCalendarEventRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $assignedEmployeeIds = $this->normalizeAssignedEmployeeIds($validated);
 
         $event = OperationsCalendarEvent::query()->create([
             ...$validated,
@@ -148,7 +150,10 @@ final class ReportController extends ApiController
             'ends_at' => $validated['ends_at'] ?? null,
             'all_day' => $validated['all_day'] ?? true,
             'type' => $validated['type'] ?? 'manual',
+            'custom_type_label' => $this->normalizeCustomTypeLabel($validated),
             'status' => $validated['status'] ?? 'scheduled',
+            'assigned_employee_id' => $assignedEmployeeIds[0] ?? ($validated['assigned_employee_id'] ?? null),
+            'assigned_employee_ids' => $assignedEmployeeIds,
             'created_by' => $request->user()->id,
         ]);
 
@@ -164,6 +169,7 @@ final class ReportController extends ApiController
         OperationsCalendarEvent $event,
     ): JsonResponse {
         $validated = $request->validated();
+        $assignedEmployeeIds = $this->normalizeAssignedEmployeeIds($validated);
 
         $event->update([
             ...$validated,
@@ -171,7 +177,10 @@ final class ReportController extends ApiController
             'ends_at' => $validated['ends_at'] ?? null,
             'all_day' => $validated['all_day'] ?? true,
             'type' => $validated['type'] ?? 'manual',
+            'custom_type_label' => $this->normalizeCustomTypeLabel($validated),
             'status' => $validated['status'] ?? 'scheduled',
+            'assigned_employee_id' => $assignedEmployeeIds[0] ?? ($validated['assigned_employee_id'] ?? null),
+            'assigned_employee_ids' => $assignedEmployeeIds,
         ]);
 
         return $this->success(
@@ -210,12 +219,14 @@ final class ReportController extends ApiController
      */
     private function customCalendarEvents(CarbonImmutable $from, CarbonImmutable $to)
     {
-        return OperationsCalendarEvent::query()
+        $events = OperationsCalendarEvent::query()
             ->with('assignedEmployee:id,name,role')
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->orderBy('date')
-            ->get()
-            ->map(fn (OperationsCalendarEvent $event): array => $this->formatCustomCalendarEvent($event));
+            ->get();
+        $employeesById = $this->employeesByIdForCalendarEvents($events);
+
+        return $events->map(fn (OperationsCalendarEvent $event): array => $this->formatCustomCalendarEvent($event, $employeesById));
     }
 
     /**
@@ -240,11 +251,13 @@ final class ReportController extends ApiController
                 'all_day' => true,
                 'title' => ($subscription->member?->name ?? 'Member').' renewal due',
                 'type' => 'renewal',
+                'custom_type_label' => null,
                 'status' => 'scheduled',
                 'notes' => $subscription->plan?->name,
                 'editable' => false,
                 'location' => null,
                 'assigned_employee' => null,
+                'assigned_employees' => [],
             ]);
 
         $payroll = Payroll::query()
@@ -266,6 +279,7 @@ final class ReportController extends ApiController
                     'all_day' => true,
                     'title' => ($row->employee?->name ?? 'Employee').' salary receipt',
                     'type' => 'payroll',
+                    'custom_type_label' => null,
                     'status' => 'scheduled',
                     'notes' => 'Pending payroll for '.$row->month,
                     'editable' => false,
@@ -275,6 +289,11 @@ final class ReportController extends ApiController
                         'name' => $row->employee->name,
                         'role' => $row->employee->role,
                     ] : null,
+                    'assigned_employees' => $row->employee ? [[
+                        'id' => $row->employee->id,
+                        'name' => $row->employee->name,
+                        'role' => $row->employee->role,
+                    ]] : [],
                 ];
             })
             ->filter(fn (array $event): bool => $event['date'] >= $from->toDateString() && $event['date'] <= $to->toDateString());
@@ -295,11 +314,13 @@ final class ReportController extends ApiController
                 'all_day' => true,
                 'title' => 'Restock '.$product->name,
                 'type' => 'inventory',
+                'custom_type_label' => null,
                 'status' => 'scheduled',
                 'notes' => $product->stock_quantity.' left in stock',
                 'editable' => false,
                 'location' => null,
                 'assigned_employee' => null,
+                'assigned_employees' => [],
             ]);
 
         $attendance = AttendanceViolation::query()
@@ -319,6 +340,7 @@ final class ReportController extends ApiController
                 'all_day' => true,
                 'title' => 'Review '.$violation->employee?->name.' warning',
                 'type' => 'attendance',
+                'custom_type_label' => null,
                 'status' => 'scheduled',
                 'notes' => $violation->notes,
                 'editable' => false,
@@ -328,6 +350,11 @@ final class ReportController extends ApiController
                     'name' => $violation->employee->name,
                     'role' => $violation->employee->role,
                 ] : null,
+                'assigned_employees' => $violation->employee ? [[
+                    'id' => $violation->employee->id,
+                    'name' => $violation->employee->name,
+                    'role' => $violation->employee->role,
+                ]] : [],
             ]);
 
         return collect()
@@ -341,8 +368,10 @@ final class ReportController extends ApiController
     /**
      * @return array<string, mixed>
      */
-    private function formatCustomCalendarEvent(OperationsCalendarEvent $event): array
+    private function formatCustomCalendarEvent(OperationsCalendarEvent $event, ?Collection $employeesById = null): array
     {
+        $assignedEmployees = $this->formatAssignedEmployees($event, $employeesById);
+
         return [
             'id' => $event->id,
             'source_id' => $event->id,
@@ -353,15 +382,114 @@ final class ReportController extends ApiController
             'all_day' => $event->all_day,
             'title' => $event->title,
             'type' => $event->type,
+            'custom_type_label' => $event->custom_type_label,
             'status' => $event->status,
             'notes' => $event->notes,
             'editable' => true,
             'location' => $event->location,
-            'assigned_employee' => $event->assignedEmployee ? [
-                'id' => $event->assignedEmployee->id,
-                'name' => $event->assignedEmployee->name,
-                'role' => $event->assignedEmployee->role,
-            ] : null,
+            'assigned_employee' => $assignedEmployees[0] ?? null,
+            'assigned_employees' => $assignedEmployees,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return list<int>
+     */
+    private function normalizeAssignedEmployeeIds(array $validated): array
+    {
+        $ids = Arr::wrap($validated['assigned_employee_ids'] ?? []);
+
+        if ($ids === [] && isset($validated['assigned_employee_id']) && $validated['assigned_employee_id'] !== null) {
+            $ids = [$validated['assigned_employee_id']];
+        }
+
+        return collect($ids)
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function normalizeCustomTypeLabel(array $validated): ?string
+    {
+        $label = trim((string) ($validated['custom_type_label'] ?? ''));
+
+        if (($validated['type'] ?? 'manual') !== 'manual') {
+            return null;
+        }
+
+        return $label !== '' ? $label : null;
+    }
+
+    /**
+     * @param  Collection<int, OperationsCalendarEvent>  $events
+     * @return Collection<int, \App\Models\Employee>
+     */
+    private function employeesByIdForCalendarEvents(Collection $events): Collection
+    {
+        $ids = $events
+            ->flatMap(fn (OperationsCalendarEvent $event) => $event->assigned_employee_ids ?? ($event->assigned_employee_id ? [$event->assigned_employee_id] : []))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return \App\Models\Employee::query()
+            ->whereIn('id', $ids->all())
+            ->get(['id', 'name', 'role'])
+            ->keyBy('id');
+    }
+
+    /**
+     * @return list<array{id:int,name:string,role:?string}>
+     */
+    private function formatAssignedEmployees(OperationsCalendarEvent $event, ?Collection $employeesById = null): array
+    {
+        $assignedIds = collect($event->assigned_employee_ids ?? [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->values();
+
+        if ($assignedIds->isEmpty() && $event->assignedEmployee) {
+            $assignedIds = collect([$event->assignedEmployee->id]);
+        }
+
+        if (! $employeesById && $assignedIds->isNotEmpty()) {
+            $employeesById = \App\Models\Employee::query()
+                ->whereIn('id', $assignedIds->all())
+                ->get(['id', 'name', 'role'])
+                ->keyBy('id');
+        }
+
+        return $assignedIds
+            ->map(function (int $id) use ($employeesById, $event): ?array {
+                $employee = $employeesById?->get($id);
+
+                if (! $employee && $event->assignedEmployee?->id === $id) {
+                    $employee = $event->assignedEmployee;
+                }
+
+                if (! $employee) {
+                    return null;
+                }
+
+                return [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'role' => $employee->role,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 }

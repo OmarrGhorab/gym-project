@@ -93,6 +93,7 @@ export async function createGymTask(input: FormData): Promise<KanbanActionResult
   }
 
   revalidatePath("/dashboard/kanban");
+  revalidatePath("/dashboard/tasks");
 
   return {
     ok: true,
@@ -118,6 +119,7 @@ export async function updateGymTaskStatus(sourceId: number, status: ColumnId): P
   }
 
   revalidatePath("/dashboard/kanban");
+  revalidatePath("/dashboard/tasks");
 
   return {
     ok: true,
@@ -136,6 +138,7 @@ export async function updateGymTaskProgress(sourceId: number, progress: number):
     });
 
     revalidatePath("/dashboard/kanban");
+    revalidatePath("/dashboard/tasks");
 
     return {
       ok: true,
@@ -208,6 +211,7 @@ export async function createGymTaskComment(
     });
 
     revalidatePath("/dashboard/kanban");
+    revalidatePath("/dashboard/tasks");
 
     return {
       ok: true,
