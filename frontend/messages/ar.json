@@ -860,6 +860,7 @@
       },
       "filterPeriod": "فلتر المالية",
       "applyFilter": "تطبيق",
+      "updatedAt": "آخر تحديث {time}",
       "paymentMethods": {
         "cash": "نقدي",
         "card": "بطاقة",

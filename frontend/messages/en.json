@@ -860,6 +860,7 @@
       },
       "filterPeriod": "Finance filter",
       "applyFilter": "Apply",
+      "updatedAt": "Updated {time}",
       "paymentMethods": {
         "cash": "Cash",
         "card": "Card",

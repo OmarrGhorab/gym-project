@@ -120,7 +120,7 @@ class BuildExport
                 ]);
             } else {
                 $response = Excel::download(
-                    new FinanceDetailedWorkbookExport($filters),
+                    new FinanceDetailedWorkbookExport($filters, $locale),
                     "finance-report.{$format}",
                     $this->getWriterType($format)
                 );
@@ -190,7 +190,7 @@ class BuildExport
     private function buildFinancePdf(array $filters, string $locale): string
     {
         $arabic = new Arabic;
-        $report = app(FinanceDetailedExportData::class)->build($filters);
+        $report = app(FinanceDetailedExportData::class)->build($filters, $locale);
         $isRtl = $locale === 'ar';
 
         $pdf = Pdf::loadView('exports.finance-report-pdf', [

@@ -19,7 +19,7 @@ class FinanceDetailedExportData
      * @param  array{from?: string, to?: string, group_by?: string|null}  $filters
      * @return array<string, mixed>
      */
-    public function build(array $filters): array
+    public function build(array $filters, string $locale = 'en'): array
     {
         $from = Carbon::parse($filters['from'] ?? now()->startOfYear()->toDateString())->startOfDay();
         $to = Carbon::parse($filters['to'] ?? now()->toDateString())->endOfDay();
@@ -65,7 +65,7 @@ class FinanceDetailedExportData
             ->orderBy('name')
             ->get();
 
-        $dues = $this->buildDuesRows();
+        $dues = $this->buildDuesRows($locale);
 
         $subscriptionRevenueCollected = $this->sumPaymentsForModel($subscriptions);
         $addonRevenueCollected = $this->sumPaymentsForModel($addons);
@@ -96,6 +96,7 @@ class FinanceDetailedExportData
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
                 'generated_at' => now()->toDateTimeString(),
+                'locale' => $locale,
             ],
             'summary' => [
                 'collected_revenue_total' => $collectedRevenueTotal,
@@ -120,19 +121,19 @@ class FinanceDetailedExportData
                 'payroll_count' => $payroll->count(),
                 'employees_count' => $employees->count(),
             ],
-            'subscriptions' => $subscriptions->map(function (Subscription $subscription): array {
+            'subscriptions' => $subscriptions->map(function (Subscription $subscription) use ($locale): array {
                 $paymentsTotal = $subscription->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
 
                 return [
                     'sold_at' => $this->dateTime($subscription->created_at),
                     'subscription_id' => $subscription->id,
-                    'member' => $subscription->member?->name ?? 'Unknown member',
-                    'plan' => $subscription->plan?->name ?? 'Unknown plan',
-                    'category' => $this->normalizeLabel($subscription->plan?->category),
-                    'type' => $this->normalizeLabel($subscription->plan?->type),
+                    'member' => $subscription->member?->name ?? $this->t('unknown_member', $locale),
+                    'plan' => $subscription->plan?->name ?? $this->t('unknown_plan', $locale),
+                    'category' => $this->normalizeLabel($subscription->plan?->category, $locale),
+                    'type' => $this->normalizeLabel($subscription->plan?->type, $locale),
                     'start_date' => $this->date($subscription->start_date),
                     'end_date' => $this->date($subscription->end_date),
-                    'status' => $this->normalizeLabel($subscription->status),
+                    'status' => $this->normalizeLabel($subscription->status, $locale),
                     'booked_price' => (float) $subscription->price_paid,
                     'discount' => (float) $subscription->discount,
                     'collected' => $paymentsTotal,
@@ -140,51 +141,51 @@ class FinanceDetailedExportData
                     'sold_by' => $subscription->soldBy?->name ?? '',
                 ];
             })->all(),
-            'addons' => $addons->map(function (SubscriptionAddon $addon): array {
+            'addons' => $addons->map(function (SubscriptionAddon $addon) use ($locale): array {
                 $paymentsTotal = $addon->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
 
                 return [
                     'sold_at' => $this->dateTime($addon->created_at),
                     'addon_id' => $addon->id,
                     'subscription_id' => $addon->subscription_id,
-                    'member' => $addon->member?->name ?? 'Unknown member',
-                    'service' => $addon->plan?->name ?? 'Unknown add-on',
-                    'category' => $this->normalizeLabel($addon->plan?->category),
-                    'type' => $this->normalizeLabel($addon->plan?->type),
+                    'member' => $addon->member?->name ?? $this->t('unknown_member', $locale),
+                    'service' => $addon->plan?->name ?? $this->t('unknown_addon', $locale),
+                    'category' => $this->normalizeLabel($addon->plan?->category, $locale),
+                    'type' => $this->normalizeLabel($addon->plan?->type, $locale),
                     'coach' => $addon->coach?->name ?? '',
                     'start_date' => $this->date($addon->start_date),
                     'end_date' => $this->date($addon->end_date),
-                    'status' => $this->normalizeLabel($addon->status),
+                    'status' => $this->normalizeLabel($addon->status, $locale),
                     'booked_price' => (float) $addon->price_paid,
                     'discount' => (float) $addon->discount,
                     'collected' => $paymentsTotal,
                     'balance' => max((float) $addon->price_paid - $paymentsTotal, 0),
                 ];
             })->all(),
-            'sales' => $sales->map(function (Sale $sale): array {
+            'sales' => $sales->map(function (Sale $sale) use ($locale): array {
                 return [
                     'sold_at' => $this->dateTime($sale->created_at),
                     'sale_id' => $sale->id,
-                    'member' => $sale->member?->name ?? 'Walk-in',
+                    'member' => $sale->member?->name ?? $this->t('walk_in', $locale),
                     'seller' => $sale->soldBy?->name ?? '',
-                    'items' => $sale->items->map(fn ($item): string => ($item->product?->name ?? 'Product').' x'.$item->quantity)->join(', '),
+                    'items' => $sale->items->map(fn ($item): string => ($item->product?->name ?? $this->t('product', $locale)).' x'.$item->quantity)->join(', '),
                     'subtotal' => (float) $sale->subtotal,
                     'discount' => (float) $sale->discount,
                     'total' => (float) $sale->total,
-                    'payment_method' => $this->normalizeLabel($sale->payment_method),
-                    'status' => $this->normalizeLabel($sale->status),
+                    'payment_method' => $this->normalizeLabel($sale->payment_method, $locale),
+                    'status' => $this->normalizeLabel($sale->status, $locale),
                 ];
             })->all(),
-            'payments' => $payments->map(function (Payment $payment): array {
+            'payments' => $payments->map(function (Payment $payment) use ($locale): array {
                 return [
                     'paid_at' => $this->dateTime($payment->paid_at),
                     'payment_id' => $payment->id,
-                    'source' => $this->paymentSourceLabel($payment),
-                    'item' => $this->paymentItemLabel($payment),
-                    'member' => $this->paymentMemberLabel($payment),
+                    'source' => $this->paymentSourceLabel($payment, $locale),
+                    'item' => $this->paymentItemLabel($payment, $locale),
+                    'member' => $this->paymentMemberLabel($payment, $locale),
                     'amount' => (float) $payment->amount,
-                    'method' => $this->normalizeLabel($payment->method),
-                    'status' => $this->normalizeLabel($payment->status),
+                    'method' => $this->normalizeLabel($payment->method, $locale),
+                    'status' => $this->normalizeLabel($payment->status, $locale),
                     'created_by' => $payment->creator?->name ?? '',
                 ];
             })->all(),
@@ -200,7 +201,7 @@ class FinanceDetailedExportData
             'expenses_by_category' => $expenses
                 ->groupBy(fn (Expense $expense): string => $expense->category ?: 'Other')
                 ->map(fn (Collection $items, string $category): array => [
-                    'category' => $category,
+                    'category' => $category ?: $this->t('other', $locale),
                     'entries' => $items->count(),
                     'amount' => $items->sum(fn (Expense $expense): float => (float) $expense->amount),
                 ])
@@ -210,22 +211,22 @@ class FinanceDetailedExportData
             'payroll' => $payroll->map(fn (Payroll $row): array => [
                 'month' => $row->month,
                 'payroll_id' => $row->id,
-                'employee' => $row->employee?->name ?? 'Unknown employee',
-                'role' => $this->normalizeLabel($row->employee?->role),
+                'employee' => $row->employee?->name ?? $this->t('unknown_employee', $locale),
+                'role' => $this->normalizeLabel($row->employee?->role, $locale),
                 'base_salary' => (float) $row->base_salary,
                 'commissions_total' => (float) $row->commissions_total,
                 'bonuses' => (float) $row->bonuses,
                 'deductions' => (float) $row->deductions,
                 'attendance_deductions' => (float) $row->attendance_deductions,
                 'net_salary' => (float) $row->net_salary,
-                'status' => $this->normalizeLabel($row->status),
+                'status' => $this->normalizeLabel($row->status, $locale),
                 'paid_at' => $this->dateTime($row->paid_at),
             ])->all(),
             'salaries' => $employees->map(fn (Employee $employee): array => [
                 'employee_id' => $employee->id,
                 'employee' => $employee->name,
-                'role' => $this->normalizeLabel($employee->role),
-                'status' => $this->normalizeLabel($employee->status),
+                'role' => $this->normalizeLabel($employee->role, $locale),
+                'status' => $this->normalizeLabel($employee->status, $locale),
                 'base_salary' => (float) $employee->base_salary,
                 'pay_day' => $employee->pay_day ?? '',
                 'commission_rate' => (float) $employee->commission_rate,
@@ -247,7 +248,7 @@ class FinanceDetailedExportData
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function buildDuesRows(): array
+    private function buildDuesRows(string $locale): array
     {
         $subscriptions = Subscription::query()
             ->with(['member:id,name', 'plan:id,name', 'payments', 'addons.payments'])
@@ -255,7 +256,7 @@ class FinanceDetailedExportData
             ->get();
 
         return $subscriptions
-            ->map(function (Subscription $subscription): ?array {
+            ->map(function (Subscription $subscription) use ($locale): ?array {
                 $basePaid = $subscription->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
                 $addonPrice = $subscription->addons->sum(fn (SubscriptionAddon $addon): float => (float) $addon->price_paid);
                 $addonPaid = $subscription->addons->sum(fn (SubscriptionAddon $addon): float => $addon->payments->sum(fn (Payment $payment): float => (float) $payment->amount));
@@ -269,10 +270,10 @@ class FinanceDetailedExportData
 
                 return [
                     'subscription_id' => $subscription->id,
-                    'member' => $subscription->member?->name ?? 'Unknown member',
-                    'plan' => $subscription->plan?->name ?? 'Unknown plan',
+                    'member' => $subscription->member?->name ?? $this->t('unknown_member', $locale),
+                    'plan' => $subscription->plan?->name ?? $this->t('unknown_plan', $locale),
                     'end_date' => $this->date($subscription->end_date),
-                    'status' => $this->normalizeLabel($subscription->status),
+                    'status' => $this->normalizeLabel($subscription->status, $locale),
                     'booked_total' => $booked,
                     'collected' => $collected,
                     'balance' => $balance,
@@ -283,47 +284,111 @@ class FinanceDetailedExportData
             ->all();
     }
 
-    private function paymentSourceLabel(Payment $payment): string
+    private function paymentSourceLabel(Payment $payment, string $locale): string
     {
         return match ($payment->payable_type) {
-            Subscription::class => 'Subscription',
-            SubscriptionAddon::class => 'Add-on',
-            Sale::class => 'POS sale',
-            default => Str::headline(class_basename((string) $payment->payable_type)),
+            Subscription::class => $this->t('subscription', $locale),
+            SubscriptionAddon::class => $this->t('addon', $locale),
+            Sale::class => $this->t('pos_sale', $locale),
+            default => $this->normalizeLabel(class_basename((string) $payment->payable_type), $locale),
         };
     }
 
-    private function paymentItemLabel(Payment $payment): string
+    private function paymentItemLabel(Payment $payment, string $locale): string
     {
         $payable = $payment->payable;
 
         return match (true) {
-            $payable instanceof Subscription => $payable->plan?->name ?? 'Subscription #'.$payable->id,
-            $payable instanceof SubscriptionAddon => $payable->plan?->name ?? 'Add-on #'.$payable->id,
-            $payable instanceof Sale => $payable->items()->with('product:id,name')->get()->map(fn ($item): string => ($item->product?->name ?? 'Product').' x'.$item->quantity)->join(', '),
-            default => 'Payment #'.$payment->id,
+            $payable instanceof Subscription => $payable->plan?->name ?? $this->t('subscription', $locale).' #'.$payable->id,
+            $payable instanceof SubscriptionAddon => $payable->plan?->name ?? $this->t('addon', $locale).' #'.$payable->id,
+            $payable instanceof Sale => $payable->items()->with('product:id,name')->get()->map(fn ($item): string => ($item->product?->name ?? $this->t('product', $locale)).' x'.$item->quantity)->join(', '),
+            default => $this->t('payment', $locale).' #'.$payment->id,
         };
     }
 
-    private function paymentMemberLabel(Payment $payment): string
+    private function paymentMemberLabel(Payment $payment, string $locale): string
     {
         $payable = $payment->payable;
 
         return match (true) {
-            $payable instanceof Subscription => $payable->member?->name ?? 'Unknown member',
-            $payable instanceof SubscriptionAddon => $payable->member?->name ?? 'Unknown member',
-            $payable instanceof Sale => $payable->member?->name ?? 'Walk-in',
+            $payable instanceof Subscription => $payable->member?->name ?? $this->t('unknown_member', $locale),
+            $payable instanceof SubscriptionAddon => $payable->member?->name ?? $this->t('unknown_member', $locale),
+            $payable instanceof Sale => $payable->member?->name ?? $this->t('walk_in', $locale),
             default => '',
         };
     }
 
-    private function normalizeLabel(?string $value): string
+    private function normalizeLabel(?string $value, string $locale): string
     {
         if ($value === null || $value === '') {
             return '';
         }
 
+        $normalized = str_replace('_', ' ', Str::snake($value));
+        $translated = $this->translations($locale)[$normalized] ?? null;
+
+        if ($translated) {
+            return $translated;
+        }
+
         return Str::headline(str_replace('_', ' ', $value));
+    }
+
+    private function t(string $key, string $locale): string
+    {
+        return $this->translations($locale)[$key] ?? Str::headline(str_replace('_', ' ', $key));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function translations(string $locale): array
+    {
+        if ($locale === 'ar') {
+            return [
+                'active' => 'نشط',
+                'add on' => 'إضافة',
+                'addon' => 'إضافة',
+                'bank transfer' => 'تحويل بنكي',
+                'captain' => 'كابتن',
+                'card' => 'بطاقة',
+                'cash' => 'نقدي',
+                'coach' => 'مدرب',
+                'completed' => 'مكتمل',
+                'employee' => 'موظف',
+                'manager' => 'مدير',
+                'other' => 'أخرى',
+                'partial' => 'جزئي',
+                'paid' => 'مدفوع',
+                'payment' => 'دفعة',
+                'pending' => 'معلق',
+                'pos sale' => 'بيع نقطة البيع',
+                'pos_sale' => 'بيع نقطة البيع',
+                'product' => 'منتج',
+                'stopped' => 'متوقف',
+                'subscription' => 'اشتراك',
+                'unknown_addon' => 'إضافة غير معروفة',
+                'unknown_employee' => 'موظف غير معروف',
+                'unknown_member' => 'عضو غير معروف',
+                'unknown_plan' => 'خطة غير معروفة',
+                'voided' => 'ملغي',
+                'walk_in' => 'عميل عابر',
+            ];
+        }
+
+        return [
+            'addon' => 'Add-on',
+            'other' => 'Other',
+            'payment' => 'Payment',
+            'pos_sale' => 'POS sale',
+            'product' => 'Product',
+            'subscription' => 'Subscription',
+            'unknown_addon' => 'Unknown add-on',
+            'unknown_employee' => 'Unknown employee',
+            'unknown_member' => 'Unknown member',
+            'unknown_plan' => 'Unknown plan',
+            'walk_in' => 'Walk-in',
+        ];
     }
 
     private function date(mixed $value): string

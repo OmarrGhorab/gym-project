@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { Download, FileSpreadsheet, FileText, RotateCw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ export function FinanceToolbarActions({
   exportDefaults: { from: string; groupBy: "day" | "month"; locale: string; to: string };
   updatedAt: string;
 }) {
+  const locale = useLocale();
   const t = useTranslations("Dashboard.finance");
   const [open, setOpen] = React.useState(false);
   const [periodType, setPeriodType] = React.useState<"daily" | "monthly" | "range">(
@@ -66,12 +67,17 @@ export function FinanceToolbarActions({
     },
     [dailyDate, exportDefaults.groupBy, exportDefaults.locale, fromDate, monthValue, periodType, toDate],
   );
+  let updatedAtLabel = locale === "ar" ? `آخر تحديث ${updatedAt}` : `Updated ${updatedAt}`;
+
+  if (typeof t.has === "function" && t.has("updatedAt")) {
+    updatedAtLabel = t("updatedAt", { time: updatedAt });
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
         <RotateCw className="size-4" />
-        <span>Updated {updatedAt}</span>
+        <span>{updatedAtLabel}</span>
       </div>
       <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
         <Download data-icon="inline-start" />
