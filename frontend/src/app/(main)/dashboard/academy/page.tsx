@@ -46,6 +46,15 @@ export default async function Page({ searchParams }: PageProps) {
 
         <div className="flex flex-col gap-2 lg:items-end">
           <div className="flex flex-wrap items-end justify-start gap-2 lg:justify-end">
+            <Button
+              className="h-8"
+              nativeButton={false}
+              render={<Link href="/dashboard/academy/staff" />}
+              size="sm"
+              variant="outline"
+            >
+              {t("staffManagement")}
+            </Button>
             <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy">
               <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-from-date">
                 {t("fromDate")}

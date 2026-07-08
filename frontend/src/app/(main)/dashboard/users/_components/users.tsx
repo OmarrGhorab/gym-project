@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import Link from "next/link";
+
 import { ShieldCheck, UserCog, UsersRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -45,6 +47,7 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
             <TableHeader>
               <TableRow>
                 <TableHead>{t("user")}</TableHead>
+                <TableHead>{t("staffProfile")}</TableHead>
                 <TableHead>{t("currentRoles")}</TableHead>
                 <TableHead>{t("permissions")}</TableHead>
                 <TableHead className="w-[420px]">{t("assignRoles")}</TableHead>
@@ -63,6 +66,20 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
                         <div className="text-muted-foreground text-xs">{user.email}</div>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {user.linked_employee ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href={`/dashboard/academy/staff#employee-${user.linked_employee.id}`} />}
+                      >
+                        {t("editStaffProfile")}
+                      </Button>
+                    ) : (
+                      <Badge variant="outline">{t("noStaffProfile")}</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -91,7 +108,7 @@ export function Users({ roles, users }: { roles: AccessRole[]; users: AccessUser
               ))}
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                     {t("noUsers")}
                   </TableCell>
                 </TableRow>

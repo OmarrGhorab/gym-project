@@ -122,6 +122,9 @@ export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormPro
   const isServicePlan = servicePlanCategories.has(category);
   const submittedEmployeeRules = isServicePlan ? employeeRules : [];
   const offerDurationDays = calculateInclusiveDays(validFrom, validTo);
+  const showServiceCommissionEditor = isServicePlan;
+  const showServiceCommissionSummary = isServicePlan;
+  const showBasePlanCommissionHelp = !isServicePlan;
 
   React.useEffect(() => {
     if (state.ok) {
@@ -386,7 +389,7 @@ export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormPro
         <Textarea id="description" name="description" defaultValue={valueOrPlan(state, plan, "description")} />
       </div>
 
-      {isServicePlan ? (
+      {showServiceCommissionEditor ? (
         <PlanEmployeesSection
           employees={employees}
           rules={employeeRules}
@@ -402,18 +405,19 @@ export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormPro
           activeLabel={t("active")}
           deleteLabel={t("delete")}
         />
-      ) : (
+      ) : null}
+      {showBasePlanCommissionHelp ? (
         <div className="rounded-lg border border-dashed p-4 text-muted-foreground text-sm">
           {t("basePlanCommissionHelp")}
         </div>
-      )}
+      ) : null}
 
       <div className="grid gap-2 rounded-lg border bg-muted/20 p-4 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span className="text-muted-foreground">{t("summaryMemberPays")}</span>
           <span className="font-medium tabular-nums">{formatMoney(planPrice)}</span>
         </div>
-        {isServicePlan ? (
+        {showServiceCommissionSummary ? (
           <>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">{t("summaryCoachCommission")}</span>

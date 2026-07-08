@@ -18,7 +18,7 @@ class GymStaffSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function (): void {
-            foreach ($this->staff() as $staffMember) {
+            foreach (self::staffRecords() as $staffMember) {
                 $user = null;
 
                 if ($staffMember['email'] !== null) {
@@ -43,7 +43,8 @@ class GymStaffSeeder extends Seeder
                         'user_id' => $user?->id,
                         'name' => $staffMember['name'],
                         'role' => $staffMember['employee_role'],
-                        'base_salary' => $staffMember['base_salary'],
+                        'base_salary' => 0,
+                        'pay_day' => null,
                         'commission_rate' => $staffMember['commission_rate'],
                         'shift_id' => $this->shiftId($staffMember['shift']),
                         'hire_date' => $staffMember['hire_date'],
@@ -74,7 +75,7 @@ class GymStaffSeeder extends Seeder
      *     hire_date: string
      * }>
      */
-    private function staff(): array
+    public static function staffRecords(): array
     {
         return [
             [
@@ -84,7 +85,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'manager',
                 'phone' => '+201011110001',
                 'shift' => 'Flexible Admin Shift',
-                'base_salary' => 12000.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-01-05',
             ],
@@ -95,7 +96,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110002',
                 'shift' => 'Opening Shift',
-                'base_salary' => 5200.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0200,
                 'hire_date' => '2026-01-12',
             ],
@@ -106,7 +107,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110003',
                 'shift' => 'Evening Shift',
-                'base_salary' => 6000.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0500,
                 'hire_date' => '2026-02-01',
             ],
@@ -117,7 +118,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'coach',
                 'phone' => '+201011110004',
                 'shift' => 'Midday Shift',
-                'base_salary' => 9000.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.1000,
                 'hire_date' => '2026-01-20',
             ],
@@ -128,7 +129,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'coach',
                 'phone' => '+201011110005',
                 'shift' => 'Evening Shift',
-                'base_salary' => 7600.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.1200,
                 'hire_date' => '2026-02-10',
             ],
@@ -139,7 +140,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'coach',
                 'phone' => '+201011110006',
                 'shift' => 'Midday Shift',
-                'base_salary' => 7800.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0800,
                 'hire_date' => '2026-02-18',
             ],
@@ -150,7 +151,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'coach',
                 'phone' => '+201011110007',
                 'shift' => 'Weekend Shift',
-                'base_salary' => 6800.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0700,
                 'hire_date' => '2026-03-01',
             ],
@@ -161,7 +162,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110008',
                 'shift' => 'Flexible Admin Shift',
-                'base_salary' => 8500.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-01-15',
             ],
@@ -172,7 +173,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110009',
                 'shift' => 'Flexible Admin Shift',
-                'base_salary' => 7200.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-03-05',
             ],
@@ -183,7 +184,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110010',
                 'shift' => 'Opening Shift',
-                'base_salary' => 5800.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-03-10',
             ],
@@ -194,7 +195,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110011',
                 'shift' => 'Midday Shift',
-                'base_salary' => 5400.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-04-01',
             ],
@@ -205,7 +206,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110012',
                 'shift' => 'Opening Shift',
-                'base_salary' => 4300.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-04-08',
             ],
@@ -216,7 +217,7 @@ class GymStaffSeeder extends Seeder
                 'employee_role' => 'employee',
                 'phone' => '+201011110013',
                 'shift' => 'Night Security Shift',
-                'base_salary' => 5000.00,
+                'base_salary' => 0.00,
                 'commission_rate' => 0.0000,
                 'hire_date' => '2026-04-15',
             ],

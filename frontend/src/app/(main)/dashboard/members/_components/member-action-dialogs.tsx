@@ -119,8 +119,6 @@ type PlanAssignedEmployee = {
   role: string | null;
 };
 
-const servicePlanCategories = new Set<string>(["nutrition", "recovery", "personal_training", "classes"]);
-
 function useActionSubmit({ label, run, success }: ActionResult, close?: () => void) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
@@ -677,10 +675,7 @@ function SubscriptionFormContent({
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const basePlans = React.useMemo(() => plans.filter((plan) => plan.category === "gym_access"), [plans]);
-  const servicePlans = React.useMemo(
-    () => plans.filter((plan) => servicePlanCategories.has(plan.category) && getAssignedEmployees(plan).length > 0),
-    [plans],
-  );
+  const servicePlans = React.useMemo(() => plans.filter((plan) => plan.category !== "gym_access"), [plans]);
   const initialPlan = basePlans[0];
   const currentSubscription = member.latest_subscription;
   const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);

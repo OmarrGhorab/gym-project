@@ -14,6 +14,7 @@ export const routePermissions: Record<string, PermissionRequirement> = {
   "/dashboard/productivity": "reports.view",
   "/dashboard/ecommerce": "sales.view",
   "/dashboard/academy": "employees.view",
+  "/dashboard/academy/staff": "employees.view",
   "/dashboard/logistics": "products.view",
   "/dashboard/infrastructure": "audit.view",
   "/dashboard/mail": "notifications.view",

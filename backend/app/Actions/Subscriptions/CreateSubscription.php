@@ -15,8 +15,6 @@ use Illuminate\Validation\ValidationException;
 
 class CreateSubscription
 {
-    private const ADDON_CATEGORIES = ['personal_training', 'classes', 'nutrition', 'recovery'];
-
     public function __construct(
         private readonly RecordPayment $recordPayment,
     ) {}
@@ -93,7 +91,7 @@ class CreateSubscription
                     ]);
                 }
 
-                if (! in_array($addonPlan->category, self::ADDON_CATEGORIES, true)) {
+                if ($addonPlan->category === 'gym_access') {
                     throw ValidationException::withMessages([
                         'addons' => 'Add-ons must be service plans, not base gym access plans.',
                     ]);

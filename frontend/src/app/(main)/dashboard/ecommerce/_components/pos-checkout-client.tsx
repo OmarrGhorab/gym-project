@@ -35,6 +35,29 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
   const [salePending, startSaleTransition] = React.useTransition();
   const [errors, setErrors] = React.useState<PosActionResult["errors"]>({});
   const searchRequestId = React.useRef(0);
+  const [productId, setProductId] = React.useState(products[0]?.id ? String(products[0].id) : "");
+  const [quantity, setQuantity] = React.useState("1");
+  const [discount, setDiscount] = React.useState("0");
+  const [paymentMethod, setPaymentMethod] = React.useState("cash");
+  const [memberId, setMemberId] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+
+  const resetForm = React.useCallback(() => {
+    setProductId(products[0]?.id ? String(products[0].id) : "");
+    setQuantity("1");
+    setDiscount("0");
+    setPaymentMethod("cash");
+    setMemberId("");
+    setNotes("");
+    setErrors({});
+    setMemberOptions(members);
+  }, [members, products]);
+
+  React.useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open, resetForm]);
 
   const handleMemberSearch = React.useCallback(
     (query: string) => {
@@ -81,7 +104,7 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
         <ShoppingCart />
         {t("checkout")}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("checkoutTitle")}</DialogTitle>
           <DialogDescription>{t("checkoutDescription")}</DialogDescription>
@@ -91,13 +114,14 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
             name="product_id"
             required
             className="w-full"
-            defaultValue={products[0]?.id ? String(products[0].id) : ""}
+            value={productId}
             placeholder={t("selectProduct")}
             searchPlaceholder={t("searchProducts")}
             options={products.map((product) => ({
               value: String(product.id),
               label: `${product.name} - ${product.price} EGP - ${t("left", { count: product.stock_quantity })}`,
             }))}
+            onValueChange={setProductId}
             error={errors?.product_id?.[0]}
           />
           <div className="grid gap-3 sm:grid-cols-3">
@@ -110,7 +134,9 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
                 name="quantity"
                 type="number"
                 min="1"
-                defaultValue="1"
+                step="1"
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value)}
                 placeholder={t("quantity")}
                 aria-invalid={Boolean(errors?.quantity?.[0])}
               />
@@ -125,8 +151,9 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
                 name="discount"
                 type="number"
                 min="0"
-                step="0.01"
-                defaultValue="0"
+                step="1"
+                value={discount}
+                onChange={(event) => setDiscount(event.target.value)}
                 placeholder={t("discount")}
                 aria-invalid={Boolean(errors?.discount?.[0])}
               />
@@ -136,12 +163,13 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
               <FieldLabel className="text-xs">{t("paymentMethod")}</FieldLabel>
               <FormSelect
                 name="payment_method"
-                defaultValue="cash"
+                value={paymentMethod}
                 options={[
                   { value: "cash", label: t("paymentMethodsShort.cash") },
                   { value: "card", label: t("paymentMethodsShort.card") },
                   { value: "bank_transfer", label: t("paymentMethodsShort.bank_transfer") },
                 ]}
+                onValueChange={setPaymentMethod}
                 error={errors?.payment_method?.[0]}
               />
             </Field>
@@ -149,6 +177,7 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
           <FormSelect
             name="member_id"
             className="w-full"
+            value={memberId}
             placeholder={t("selectMember")}
             searchPlaceholder={memberSearchPending ? t("searchingMembers") : t("searchMembers")}
             options={memberOptions.map((member) => ({
@@ -156,13 +185,21 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
               label: `${member.name}${member.phone ? ` - ${member.phone}` : ""}`,
             }))}
             onSearchChange={handleMemberSearch}
+            onValueChange={setMemberId}
             error={errors?.member_id?.[0]}
           />
           <Field className="gap-1">
             <FieldLabel htmlFor="pos-notes" className="text-xs">
               {t("notes")}
             </FieldLabel>
-            <Textarea id="pos-notes" name="notes" placeholder={t("notes")} aria-invalid={Boolean(errors?.notes?.[0])} />
+            <Textarea
+              id="pos-notes"
+              name="notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder={t("notes")}
+              aria-invalid={Boolean(errors?.notes?.[0])}
+            />
             <FieldError errors={errors?.notes} />
           </Field>
           <DialogFooter>

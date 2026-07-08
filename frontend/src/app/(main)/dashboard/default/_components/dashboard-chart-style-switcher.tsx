@@ -2,10 +2,8 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
-import Link from "next/link";
-
 import { parseISO } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined, Clock } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChartNoAxesCombined } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   Area,
@@ -37,8 +35,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -49,7 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 import type { DashboardSummary } from "./data";
 import { PerformanceOverview, type SalesChartPoint } from "./performance-overview";
@@ -127,10 +123,7 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
   const revenueLine = useMemo(() => toMonthlyRevenueData(data, locale), [data, locale]);
   const totals = useMemo(() => getTotals(data), [data]);
   const gymBreakdown = useMemo(() => toGymBreakdown(summary, totals, t), [summary, totals, t]);
-  const targetRows = useMemo(() => toRevenueTargetRows(data, totals, locale), [data, totals, locale]);
   const pipelineRows = useMemo(() => toMembershipFunnel(summary, totals, t), [summary, totals, t]);
-  const sourceRows = useMemo(() => toGymSourceRows(summary, totals, t), [summary, totals, t]);
-  const actionItems = useMemo(() => toGymActionItems(summary, t), [summary, t]);
   const crmMiniBarConfig = useMemo(() => getCrmMiniBarConfig(t), [t]);
   const crmAreaConfig = useMemo(() => getCrmAreaConfig(t), [t]);
   const crmRevenueConfig = useMemo(() => getCrmRevenueConfig(t), [t]);
@@ -252,15 +245,9 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:shadow-xs xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:shadow-xs xl:grid-cols-2">
         <GymBreakdownDonut rows={gymBreakdown} />
-        <RevenueTargetBars rows={targetRows} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:shadow-xs xl:grid-cols-3">
         <MembershipFunnel rows={pipelineRows} summary={summary} />
-        <GymSourceBreakdown rows={sourceRows} />
-        <GymActionItems items={actionItems} />
       </div>
     </div>
   );
@@ -339,7 +326,7 @@ function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
   const total = rows.reduce((sum, row) => sum + row.value, 0);
 
   return (
-    <Card className="xl:col-span-2">
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>{t("gymMixBySource")}</CardTitle>
       </CardHeader>
@@ -401,59 +388,13 @@ function GymBreakdownDonut({ rows }: { rows: GymBreakdownRow[] }) {
   );
 }
 
-function RevenueTargetBars({ rows }: { rows: RevenueTargetRow[] }) {
-  const t = useTranslations("Dashboard.default.charts");
-  const revenueTargetConfig = useMemo(() => getRevenueTargetConfig(t), [t]);
-  const averageProgress =
-    rows.length > 0 ? Math.round(rows.reduce((sum, row) => sum + row.progress, 0) / rows.length) : 0;
-  const aboveTarget = rows.filter((row) => row.progress >= 100).length;
-
-  return (
-    <Card className="xl:col-span-3">
-      <CardHeader>
-        <CardTitle>{t("gymRevenueVsTarget")}</CardTitle>
-      </CardHeader>
-      <CardContent className="size-full max-h-56">
-        <ChartContainer config={revenueTargetConfig} className="size-full">
-          <BarChart accessibilityLayer data={rows} layout="vertical">
-            <CartesianGrid horizontal={false} />
-            <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} hide />
-            <XAxis dataKey="actual" type="number" hide />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-            <Bar stackId="a" dataKey="actual" fill="var(--color-actual)">
-              <LabelList dataKey="name" position="insideLeft" offset={8} className="fill-primary-foreground text-xs" />
-              <LabelList
-                dataKey="actual"
-                position="insideRight"
-                offset={8}
-                className="fill-primary-foreground text-xs tabular-nums"
-              />
-            </Bar>
-            <Bar stackId="a" dataKey="remaining" fill="var(--color-remaining)" radius={[0, 6, 6, 0]}>
-              <LabelList
-                dataKey="remaining"
-                position="insideRight"
-                offset={8}
-                className="fill-primary-foreground text-xs tabular-nums"
-              />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-      <CardFooter>
-        <p className="text-muted-foreground text-xs">{t("targetProgress", { averageProgress, aboveTarget })}</p>
-      </CardFooter>
-    </Card>
-  );
-}
-
 function MembershipFunnel({ rows, summary }: { rows: FunnelRow[]; summary: DashboardSummary }) {
   const t = useTranslations("Dashboard.default.charts");
   const membershipFunnelConfig = useMemo(() => getMembershipFunnelConfig(t), [t]);
   const memberGrowth = Number(summary.new_members_growth_rate ?? 0);
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>{t("membershipPipeline")}</CardTitle>
       </CardHeader>
@@ -472,101 +413,6 @@ function MembershipFunnel({ rows, summary }: { rows: FunnelRow[]; summary: Dashb
           {t("newMembersChanged", { value: formatSignedPercent(memberGrowth) })}
         </p>
       </CardFooter>
-    </Card>
-  );
-}
-
-function GymSourceBreakdown({ rows }: { rows: SourceBreakdownRow[] }) {
-  const t = useTranslations("Dashboard.default.charts");
-  const total = rows.reduce((sum, row) => sum + row.amount, 0);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("gymBreakdown")}</CardTitle>
-        <CardDescription className="font-medium tabular-nums">
-          {formatCurrency(total, { currency: "EGP", noDecimals: true })}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2.5">
-          {rows.map((row) => (
-            <div key={row.name} className="space-y-0.5">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">{row.name}</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="font-semibold text-sm tabular-nums">
-                    {formatCurrency(row.amount, { currency: "EGP", noDecimals: true })}
-                  </span>
-                  <span
-                    className={cn(
-                      "font-medium text-xs tabular-nums",
-                      row.isPositive ? "text-green-500" : "text-destructive",
-                    )}
-                  >
-                    {row.growth}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress value={row.percentage} />
-                <span className="font-medium text-muted-foreground text-xs tabular-nums">{row.percentage}%</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-      <CardFooter>
-        <div className="flex justify-between gap-1 text-muted-foreground text-xs">
-          <span>{t("signalsTracked", { count: rows.length })}</span>
-          <span>·</span>
-          <span>{t("improving", { count: rows.filter((row) => row.isPositive).length })}</span>
-        </div>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function GymActionItems({ items }: { items: GymActionItem[] }) {
-  const t = useTranslations("Dashboard.default.charts");
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("actionItems")}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul className="space-y-2.5">
-          {items.map((item) => (
-            <li key={item.id}>
-              <Link
-                className="block space-y-2 rounded-md border px-3 py-2 transition-colors hover:bg-muted/30"
-                href={item.href}
-              >
-                <div className="flex items-center gap-2">
-                  <Checkbox checked={item.checked} readOnly />
-                  <span className="font-medium text-sm">{item.title}</span>
-                  <span
-                    className={cn(
-                      "w-fit rounded-md px-2 py-1 font-medium text-xs",
-                      item.priority === "High" && "bg-destructive/20 text-destructive",
-                      item.priority === "Medium" && "bg-yellow-500/20 text-yellow-500",
-                      item.priority === "Low" && "bg-green-500/20 text-green-500",
-                    )}
-                  >
-                    {item.priorityLabel}
-                  </span>
-                </div>
-                <div className="font-medium text-muted-foreground text-xs">{item.description}</div>
-                <div className="flex items-center gap-1">
-                  <Clock className="size-3 text-muted-foreground" />
-                  <span className="font-medium text-muted-foreground text-xs">{item.due}</span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
     </Card>
   );
 }
@@ -643,19 +489,6 @@ function getGymBreakdownConfig(t: ReturnType<typeof useTranslations<"Dashboard.d
   } satisfies ChartConfig;
 }
 
-function getRevenueTargetConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
-  return {
-    actual: {
-      label: t("actual"),
-      color: "var(--chart-1)",
-    },
-    remaining: {
-      label: t("remaining"),
-      color: "var(--chart-2)",
-    },
-  } satisfies ChartConfig;
-}
-
 function getMembershipFunnelConfig(t: ReturnType<typeof useTranslations<"Dashboard.default.charts">>) {
   return {
     value: {
@@ -675,37 +508,10 @@ type GymBreakdownRow = {
   value: number;
 };
 
-type RevenueTargetRow = {
-  actual: number;
-  name: string;
-  progress: number;
-  remaining: number;
-  target: number;
-};
-
 type FunnelRow = {
   fill: string;
   stage: string;
   value: number;
-};
-
-type SourceBreakdownRow = {
-  amount: number;
-  growth: string;
-  isPositive: boolean;
-  name: string;
-  percentage: number;
-};
-
-type GymActionItem = {
-  checked: boolean;
-  description: string;
-  due: string;
-  href: string;
-  id: string;
-  priority: "High" | "Medium" | "Low";
-  priorityLabel: string;
-  title: string;
 };
 
 type ChartTranslator = ReturnType<typeof useTranslations>;
@@ -803,27 +609,6 @@ function toGymBreakdown(
   return rows.filter((row) => row.value > 0);
 }
 
-function toRevenueTargetRows(
-  data: SalesChartPoint[],
-  totals: ReturnType<typeof getTotals>,
-  locale: string,
-): RevenueTargetRow[] {
-  const monthly = toMonthlyRevenueData(data, locale).slice(-6);
-  const fallbackTarget = Math.max(1, Math.round(totals.revenue / Math.max(monthly.length, 1)));
-
-  return monthly.map((row) => {
-    const target = Math.max(fallbackTarget, Math.round(row.revenue * 1.16), 1);
-
-    return {
-      actual: Math.round(row.revenue),
-      name: row.month,
-      progress: Math.round((row.revenue / target) * 100),
-      remaining: Math.max(0, target - Math.round(row.revenue)),
-      target,
-    };
-  });
-}
-
 function toMembershipFunnel(
   summary: DashboardSummary,
   totals: ReturnType<typeof getTotals>,
@@ -842,122 +627,6 @@ function toMembershipFunnel(
     { fill: "var(--chart-4)", stage: t("newMembers"), value: Math.min(active, newMembers || Math.ceil(active * 0.35)) },
     { fill: "var(--chart-5)", stage: t("renewalRisk"), value: Math.min(active, expiring || Math.ceil(active * 0.15)) },
   ];
-}
-
-function toGymSourceRows(
-  summary: DashboardSummary,
-  totals: ReturnType<typeof getTotals>,
-  t: ChartTranslator,
-): SourceBreakdownRow[] {
-  const total = Math.max(totals.revenue, Number(summary.revenue_mtd), 1);
-  const revenueGrowth = Number(summary.revenue_growth_rate ?? 0);
-  const memberGrowth = Number(summary.new_members_growth_rate ?? 0);
-  const posRevenue = Number(summary.sales_today.revenue);
-  const activeValue = Math.round(total * 0.42);
-  const posValue = Math.max(posRevenue, Math.round(total * 0.22));
-  const newMemberValue = Math.round(total * 0.18);
-  const expiringValue = Math.round(total * 0.1);
-  const unitsValue = Math.max(0, total - activeValue - posValue - newMemberValue - expiringValue);
-
-  return [
-    {
-      amount: activeValue,
-      growth: formatSignedPercent(revenueGrowth),
-      isPositive: revenueGrowth >= 0,
-      name: t("memberships"),
-      percentage: percentage(activeValue, total),
-    },
-    {
-      amount: posValue,
-      growth: formatSignedPercent(revenueGrowth / 2),
-      isPositive: revenueGrowth >= 0,
-      name: t("gymPos"),
-      percentage: percentage(posValue, total),
-    },
-    {
-      amount: newMemberValue,
-      growth: formatSignedPercent(memberGrowth),
-      isPositive: memberGrowth >= 0,
-      name: t("newMembers"),
-      percentage: percentage(newMemberValue, total),
-    },
-    {
-      amount: expiringValue,
-      growth: summary.expiring_soon > 0 ? `- ${t("risk")}` : `+ ${t("clear")}`,
-      isPositive: summary.expiring_soon === 0,
-      name: t("renewals"),
-      percentage: percentage(expiringValue, total),
-    },
-    {
-      amount: unitsValue,
-      growth: `+ ${t("live")}`,
-      isPositive: true,
-      name: t("products"),
-      percentage: percentage(unitsValue, total),
-    },
-  ];
-}
-
-function toGymActionItems(summary: DashboardSummary, t: ChartTranslator): GymActionItem[] {
-  const dueToday = summary.sales_today.count;
-  const renewalPriority = getRenewalPriority(summary.expiring_soon);
-
-  return [
-    {
-      checked: summary.expiring_soon === 0,
-      description: t("subscriptionsCloseToExpiry", { count: summary.expiring_soon }),
-      due: summary.expiring_soon > 0 ? t("dueToday") : t("noUrgentRenewals"),
-      href: "/dashboard/crm#renewal-follow-ups",
-      id: "renewals",
-      priority: renewalPriority,
-      priorityLabel: priorityLabel(renewalPriority, t),
-      title: t("renewalFollowUps"),
-    },
-    {
-      checked: dueToday > 0,
-      description: t("posTransactionsToday", { count: dueToday }),
-      due: dueToday > 0 ? t("updatedToday") : t("waitingForSales"),
-      href: "/dashboard/ecommerce#recent-sales",
-      id: "sales",
-      priority: dueToday > 0 ? "Low" : "Medium",
-      priorityLabel: priorityLabel(dueToday > 0 ? "Low" : "Medium", t),
-      title: t("reviewTodaySales"),
-    },
-    {
-      checked: Number(summary.revenue_growth_rate ?? 0) >= 0,
-      description: t("revenueGrowthIs", { value: formatSignedPercent(Number(summary.revenue_growth_rate ?? 0)) }),
-      due: t("thisMonth"),
-      href: "/dashboard/finance?group_by=month#finance-overview",
-      id: "growth",
-      priority: Number(summary.revenue_growth_rate ?? 0) < 0 ? "High" : "Low",
-      priorityLabel: priorityLabel(Number(summary.revenue_growth_rate ?? 0) < 0 ? "High" : "Low", t),
-      title: t("revenueTrend"),
-    },
-  ];
-}
-
-function getRenewalPriority(expiringSoon: number): GymActionItem["priority"] {
-  if (expiringSoon > 10) {
-    return "High";
-  }
-
-  if (expiringSoon > 0) {
-    return "Medium";
-  }
-
-  return "Low";
-}
-
-function priorityLabel(priority: GymActionItem["priority"], t: ChartTranslator) {
-  if (priority === "High") {
-    return t("priorityHigh");
-  }
-
-  if (priority === "Medium") {
-    return t("priorityMedium");
-  }
-
-  return t("priorityLow");
 }
 
 function getTotals(data: SalesChartPoint[]) {
@@ -1018,10 +687,6 @@ function formatCompactAxis(value: number) {
   const formatted = abs >= 1000 ? `${Math.round(abs / 1000)}k` : `${abs}`;
 
   return value < 0 ? `-${formatted}` : formatted;
-}
-
-function percentage(value: number, total: number) {
-  return Math.min(100, Math.max(0, Math.round((value / total) * 100)));
 }
 
 function formatSignedPercent(value: number) {
