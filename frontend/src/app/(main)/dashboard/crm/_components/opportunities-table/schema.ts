@@ -5,8 +5,19 @@ export const membershipPipelineSchema = z.object({
   subscriptionId: z.number(),
   memberId: z.number().nullable(),
   member: z.string().nullable(),
+  memberPhone: z.string().nullable(),
+  memberQr: z.string().nullable(),
   planId: z.number().nullable(),
   plan: z.string().nullable(),
+  addons: z.array(
+    z.object({
+      id: z.number(),
+      name: z.string(),
+      coach: z.string().nullable(),
+      price: z.number(),
+      endDate: z.string().nullable(),
+    }),
+  ),
   planOptions: z.array(
     z.object({
       id: z.number(),

@@ -4,7 +4,7 @@ import type * as React from "react";
 
 import Image from "next/image";
 
-import { Copy, Download, QrCode } from "lucide-react";
+import { Copy, Download, MessageCircle, QrCode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
+import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 
 import type { MemberPaymentHistory, MemberPaymentRow, MemberRow, MemberVisitRow, StaffOption } from "./data";
 import { MemberReportControls } from "./member-report-controls";
@@ -36,6 +37,17 @@ export function MemberDetailsDialog({
   const t = useTranslations("Dashboard.membersPage");
   const locale = useLocale();
   const qrPayload = member.attendance_qr ?? member.attendance_code ?? null;
+
+  function handleOpenWhatsApp() {
+    const url = buildWhatsAppUrl(member.phone, buildMemberWhatsAppMessage(member, t, locale));
+
+    if (!url) {
+      toast.error(t("whatsAppPhoneMissing"));
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -66,6 +78,10 @@ export function MemberDetailsDialog({
               <p className="text-muted-foreground text-xs">{t("memberReportDescription")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={handleOpenWhatsApp}>
+                <MessageCircle data-icon="inline-start" />
+                {t("sendWhatsApp")}
+              </Button>
               <Button asChild type="button" size="sm" variant="outline">
                 <a href={`/api/members/${member.id}/report/export?format=xlsx`} download>
                   <Download data-icon="inline-start" />
@@ -172,11 +188,84 @@ export function MemberDetailsDialog({
   );
 }
 
+function buildMemberWhatsAppMessage(
+  member: MemberRow,
+  t: ReturnType<typeof useTranslations<"Dashboard.membersPage">>,
+  locale: string,
+) {
+  const subscription = member.latest_subscription;
+  const addons = Array.isArray(subscription?.addons) ? subscription.addons : [];
+  const qrPayload = member.attendance_qr ?? member.attendance_code ?? null;
+  const qrImageUrl = buildQrImageUrl(qrPayload, 320);
+  const addonLines = addons
+    .map((addon) => {
+      if (!addon || typeof addon !== "object") {
+        return null;
+      }
+
+      const plan = "plan" in addon && addon.plan && typeof addon.plan === "object" ? addon.plan : null;
+      const coach = "coach" in addon && addon.coach && typeof addon.coach === "object" ? addon.coach : null;
+      const name = plan && "name" in plan ? String(plan.name ?? "").trim() : "";
+
+      if (!name) {
+        return null;
+      }
+
+      const coachName = coach && "name" in coach ? String(coach.name ?? "").trim() : "";
+
+      return coachName ? `- ${name} - ${t("whatsAppCoach")}: ${coachName}` : `- ${name}`;
+    })
+    .filter((value): value is string => Boolean(value));
+
+  const lines: string[] =
+    locale === "ar"
+      ? [
+          `مرحبًا ${member.name}`,
+          subscription ? "تم تسجيل اشتراكك بنجاح." : "تم تسجيل بياناتك بنجاح.",
+          `${t("phone")}: ${member.phone}`,
+          `${t("member")}: ${member.name}`,
+          `${t("subscription")}: ${subscription?.plan_name ?? t("noActivePlan")}`,
+          `${t("joinedDate")}: ${member.join_date ?? t("missing")}`,
+        ]
+      : [
+          `Hello ${member.name},`,
+          subscription
+            ? "your membership has been added successfully."
+            : "your member profile has been added successfully.",
+          `${t("phone")}: ${member.phone}`,
+          `${t("member")}: ${member.name}`,
+          `${t("subscription")}: ${subscription?.plan_name ?? t("noActivePlan")}`,
+          `${t("joinedDate")}: ${member.join_date ?? t("missing")}`,
+        ];
+
+  if (subscription?.start_date) {
+    lines.push(`${locale === "ar" ? "تبدأ" : "Starts"}: ${subscription.start_date}`);
+  }
+
+  if (subscription?.end_date) {
+    lines.push(`${locale === "ar" ? "تنتهي" : "Ends"}: ${subscription.end_date}`);
+  }
+
+  if (qrPayload) {
+    lines.push(`${t("memberQr")}: ${qrPayload}`);
+
+    if (qrImageUrl) {
+      lines.push(`${t("memberQrImage")}: ${qrImageUrl}`);
+    }
+  }
+
+  if (addonLines.length > 0) {
+    lines.push("");
+    lines.push(t("whatsAppAddons"));
+    lines.push(...addonLines);
+  }
+
+  return lines.join("\n");
+}
+
 function QrPanel({ payload }: { payload: string | null }) {
   const t = useTranslations("Dashboard.membersPage");
-  const qrUrl = payload
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payload)}`
-    : null;
+  const qrUrl = buildQrImageUrl(payload, 220);
 
   async function handleCopy() {
     if (!payload) {

@@ -37,7 +37,19 @@ export type MemberRow = {
     package_price_paid?: string;
     package_paid_total?: string;
     package_balance?: string;
-    addons?: unknown[];
+    addons?: {
+      id: number;
+      end_date: string | null;
+      price_paid?: string;
+      coach?: {
+        id?: number;
+        name?: string | null;
+      } | null;
+      plan?: {
+        id?: number;
+        name?: string | null;
+      } | null;
+    }[];
   } | null;
 };
 

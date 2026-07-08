@@ -79,6 +79,8 @@ type SubscriptionResource = {
   member?: {
     id?: number;
     name?: string | null;
+    phone?: string | null;
+    attendance_qr?: string | null;
   } | null;
   plan?: {
     id?: number;
@@ -97,6 +99,17 @@ type SubscriptionResource = {
     remaining_days_at_freeze?: number | string | null;
     reason?: string | null;
   } | null;
+  addons?: {
+    id: number;
+    end_date?: string | null;
+    price_paid?: string | number | null;
+    plan?: {
+      name?: string | null;
+    } | null;
+    coach?: {
+      name?: string | null;
+    } | null;
+  }[];
   sold_by?: {
     id?: number;
     name?: string | null;
@@ -308,8 +321,17 @@ function mapSubscriptionToPipeline(
     subscriptionId: subscription.id,
     memberId: subscription.member?.id ?? null,
     member: subscription.member?.name ?? null,
+    memberPhone: subscription.member?.phone ?? null,
+    memberQr: subscription.member?.attendance_qr ?? null,
     planId: subscription.plan?.id ?? null,
     plan: subscription.plan?.name ?? null,
+    addons: (subscription.addons ?? []).map((addon) => ({
+      id: addon.id,
+      name: addon.plan?.name ?? "",
+      coach: addon.coach?.name ?? null,
+      price: Number(addon.price_paid ?? 0),
+      endDate: addon.end_date ?? null,
+    })),
     planOptions: plans.map((plan) => ({
       id: plan.id,
       name: plan.name ?? "",

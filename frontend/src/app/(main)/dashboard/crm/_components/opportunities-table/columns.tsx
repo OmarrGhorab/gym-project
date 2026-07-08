@@ -9,6 +9,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { addDays, format, parseISO } from "date-fns";
 import { CalendarIcon, EllipsisVertical } from "lucide-react";
 import type { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { toast } from "sonner";
 
 import {
@@ -45,6 +46,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
+import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 
 import {
   changeMembershipPlan,
@@ -268,6 +270,7 @@ export function getOpportunitiesColumns(t: CrmT): ColumnDef<MembershipPipelineRo
 
 function SubscriptionActions({ subscription, t }: { subscription: MembershipPipelineRow; t: CrmT }) {
   const router = useRouter();
+  const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"stop" | null>(null);
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
@@ -301,6 +304,17 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
   const freezeDisabledReason = subscription.maxFreezeDays < 1 ? t("freezeUnavailableReason") : null;
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
   const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
+
+  function handleOpenWhatsApp() {
+    const url = buildWhatsAppUrl(subscription.memberPhone, buildSubscriptionWhatsAppMessage(subscription, t, locale));
+
+    if (!url) {
+      toast.error(t("whatsAppPhoneMissing"));
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 
   function updateFreezeStartDate(value: string) {
     setFreezeStartDate(value);
@@ -520,6 +534,7 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
           >
             {t("viewDetails")}
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleOpenWhatsApp}>{t("sendWhatsApp")}</DropdownMenuItem>
           <DropdownMenuSeparator />
           {subscription.balance > 0 ? (
             <DropdownMenuItem
@@ -943,6 +958,71 @@ function SubscriptionActions({ subscription, t }: { subscription: MembershipPipe
       </AlertDialog>
     </>
   );
+}
+
+function buildSubscriptionWhatsAppMessage(subscription: MembershipPipelineRow, t: CrmT, locale: string) {
+  const lines: string[] = [];
+  const memberName = subscription.member ?? t("unknownMember");
+  const qrLabel = subscription.memberQr ? `${t("memberQr")}: ${subscription.memberQr}` : null;
+  const qrImageUrl = buildQrImageUrl(subscription.memberQr, 320);
+
+  if (locale === "ar") {
+    if (subscription.health === "renewed") {
+      lines.push(`مرحبًا ${memberName}`);
+      lines.push(`تم تجديد اشتراكك بنجاح.`);
+    } else if (subscription.daysLeft !== null && subscription.daysLeft <= 7) {
+      lines.push(`مرحبًا ${memberName}`);
+      lines.push(`نود تذكيرك أن اشتراكك أوشك على الانتهاء.`);
+    } else {
+      lines.push(`مرحبًا ${memberName}`);
+      lines.push(`تم تفعيل اشتراكك بنجاح.`);
+    }
+
+    lines.push(
+      `${t("memberId")}: ${subscription.memberId ? t("memberNumber", { id: subscription.memberId }) : t("notLinked")}`,
+    );
+    lines.push(`${t("plan")}: ${subscription.plan ?? t("noPlan")}`);
+    lines.push(`${t("starts")}: ${subscription.startDate ?? t("noStartDate")}`);
+    lines.push(`${t("ends")}: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`${t("planPrice")}: ${formatCurrency(subscription.value, { currency: "EGP", noDecimals: true })}`);
+  } else {
+    if (subscription.health === "renewed") {
+      lines.push(`Hello ${memberName}, your membership has been renewed successfully.`);
+    } else if (subscription.daysLeft !== null && subscription.daysLeft <= 7) {
+      lines.push(`Hello ${memberName}, your membership is about to end soon.`);
+    } else {
+      lines.push(`Hello ${memberName}, your membership is now active.`);
+    }
+
+    lines.push(
+      `${t("memberId")}: ${subscription.memberId ? t("memberNumber", { id: subscription.memberId }) : t("notLinked")}`,
+    );
+    lines.push(`${t("plan")}: ${subscription.plan ?? t("noPlan")}`);
+    lines.push(`${t("starts")}: ${subscription.startDate ?? t("noStartDate")}`);
+    lines.push(`${t("ends")}: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`${t("planPrice")}: ${formatCurrency(subscription.value, { currency: "EGP", noDecimals: true })}`);
+  }
+
+  if (subscription.addons.length > 0) {
+    lines.push("");
+    lines.push(t("whatsAppAddons"));
+
+    for (const addon of subscription.addons) {
+      const coach = addon.coach ? ` - ${t("whatsAppCoach")}: ${addon.coach}` : "";
+      lines.push(`- ${addon.name}${coach}`);
+    }
+  }
+
+  if (qrLabel) {
+    lines.push("");
+    lines.push(qrLabel);
+
+    if (qrImageUrl) {
+      lines.push(`${t("memberQrImage")}: ${qrImageUrl}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function DatePickerField({
