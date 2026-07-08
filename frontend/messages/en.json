@@ -547,7 +547,7 @@
         "excused": "Excused"
       },
       "memberStation": "Member check-in station",
-      "memberStationDescription": "Scan a printed member QR code or use ID, phone, or name fallback.",
+      "memberStationDescription": "Check members in by QR, ID, phone, or name. Checkout is automatic after 90 minutes.",
       "staffStation": "Staff check-in station",
       "staffStationDescription": "Record employee and captain attendance with QR/manual fallback and GPS when available.",
       "checkIn": "Check in",
@@ -574,7 +574,7 @@
       "notesPlaceholder": "Notes",
       "gpsReady": "GPS ready",
       "gpsUnavailable": "GPS unavailable",
-      "submitMemberScan": "Record member scan",
+      "submitMemberScan": "Check in member",
       "submitStaffScan": "Record staff scan",
       "submitting": "Saving...",
       "manualAttendance": "Manual attendance correction",

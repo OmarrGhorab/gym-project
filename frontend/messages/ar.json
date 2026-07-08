@@ -547,7 +547,7 @@
         "excused": "بعذر"
       },
       "memberStation": "محطة دخول الأعضاء",
-      "memberStationDescription": "امسح QR العضو المطبوع أو استخدم الرقم أو الهاتف أو الاسم كبديل.",
+      "memberStationDescription": "سجل دخول الأعضاء باستخدام QR أو الرقم أو الهاتف أو الاسم. يتم تسجيل الخروج تلقائيا بعد 90 دقيقة.",
       "staffStation": "محطة حضور الموظفين",
       "staffStationDescription": "سجل حضور الموظفين والكباتن بالـ QR أو يدويًا مع الموقع عند توفره.",
       "checkIn": "دخول",
@@ -574,7 +574,7 @@
       "notesPlaceholder": "ملاحظات",
       "gpsReady": "الموقع جاهز",
       "gpsUnavailable": "الموقع غير متاح",
-      "submitMemberScan": "تسجيل مسح العضو",
+      "submitMemberScan": "تسجيل دخول العضو",
       "submitStaffScan": "تسجيل مسح الموظف",
       "submitting": "جار الحفظ...",
       "manualAttendance": "تصحيح حضور يدوي",

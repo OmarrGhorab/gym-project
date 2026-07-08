@@ -114,6 +114,28 @@ test('member phone lookup records blocked visit for invalid subscription', funct
     expect(MemberVisit::first()->alert_reason)->toContain('expired');
 });
 
+test('member selector lookup does not record the scan as qr', function (): void {
+    actingManager();
+    $member = Member::factory()->create([
+        'attendance_code' => 'M-SELECT123',
+        'name' => 'Selected Member',
+    ]);
+    Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'member_id' => $member->id,
+        'name' => $member->name,
+        'check_in_at' => '2026-06-26 10:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed')
+        ->assertJsonPath('data.member_id', $member->id)
+        ->assertJsonPath('data.scan_method', 'name');
+});
+
 test('member visit outside geofence is flagged not blocked', function (): void {
     actingManager();
     Setting::query()->updateOrCreate(['key' => 'attendance.gym_latitude'], ['value' => 30.0444]);

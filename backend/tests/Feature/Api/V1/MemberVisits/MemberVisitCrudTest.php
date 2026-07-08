@@ -122,7 +122,7 @@ test('member cannot check in again while an earlier visit is still open', functi
     expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1);
 });
 
-test('stale open member visits are auto checked out after three hours on next check in', function (): void {
+test('stale open member visits are auto checked out after ninety minutes on next check in', function (): void {
     $manager = User::factory()->create();
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
     Sanctum::actingAs($manager);
@@ -142,12 +142,12 @@ test('stale open member visits are auto checked out after three hours on next ch
 
     $this->postJson('/api/v1/member-visits', [
         'member_id' => $newMember->id,
-        'check_in_at' => '2026-06-26 14:30:00',
+        'check_in_at' => '2026-06-26 12:45:00',
     ])->assertCreated();
 
     $staleVisit->refresh();
 
-    expect($staleVisit->check_out_at?->toDateTimeString())->toBe('2026-06-26 14:00:00')
+    expect($staleVisit->check_out_at?->toDateTimeString())->toBe('2026-06-26 12:30:00')
         ->and($staleVisit->notes)->toContain('Forgot checkout.')
         ->and($staleVisit->notes)->toContain(AutoCloseStaleMemberVisits::SYSTEM_NOTE);
 });
@@ -160,7 +160,7 @@ test('member visit auto close command closes stale open visits', function (): vo
         'notes' => null,
     ]);
 
-    Carbon::setTestNow('2026-06-27 02:15:00');
+    Carbon::setTestNow('2026-06-27 00:45:00');
 
     $this->artisan('member-visits:auto-close')
         ->expectsOutput('Auto-closed 1 member visit(s).')
@@ -168,6 +168,6 @@ test('member visit auto close command closes stale open visits', function (): vo
 
     $staleVisit->refresh();
 
-    expect($staleVisit->check_out_at?->toDateTimeString())->toBe('2026-06-27 02:00:00')
+    expect($staleVisit->check_out_at?->toDateTimeString())->toBe('2026-06-27 00:30:00')
         ->and($staleVisit->notes)->toBe(AutoCloseStaleMemberVisits::SYSTEM_NOTE);
 });

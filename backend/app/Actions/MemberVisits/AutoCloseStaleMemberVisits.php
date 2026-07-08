@@ -3,18 +3,19 @@
 namespace App\Actions\MemberVisits;
 
 use App\Models\MemberVisit;
+use DateTimeInterface;
 use Illuminate\Support\Carbon;
 
 final class AutoCloseStaleMemberVisits
 {
-    public const MAX_VISIT_HOURS = 3;
+    public const MAX_VISIT_MINUTES = 90;
 
-    public const SYSTEM_NOTE = 'System auto checkout: member visit was automatically closed after 3 hours without checkout.';
+    public const SYSTEM_NOTE = 'System auto checkout: member visit was automatically closed after 90 minutes without checkout.';
 
-    public function handle(?Carbon $now = null): int
+    public function handle(?DateTimeInterface $now = null): int
     {
-        $now ??= now();
-        $cutoff = $now->copy()->subHours(self::MAX_VISIT_HOURS);
+        $now = $now ? Carbon::parse($now) : now();
+        $cutoff = $now->copy()->subMinutes(self::MAX_VISIT_MINUTES);
         $closed = 0;
 
         MemberVisit::query()
@@ -24,7 +25,7 @@ final class AutoCloseStaleMemberVisits
             ->chunkById(100, function ($visits) use (&$closed): void {
                 foreach ($visits as $visit) {
                     $visit->update([
-                        'check_out_at' => $visit->check_in_at?->copy()->addHours(self::MAX_VISIT_HOURS),
+                        'check_out_at' => $visit->check_in_at?->copy()->addMinutes(self::MAX_VISIT_MINUTES),
                         'notes' => $this->appendSystemNote($visit->notes),
                     ]);
 

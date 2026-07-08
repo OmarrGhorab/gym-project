@@ -24,7 +24,6 @@ export async function scanMemberVisit(
   _previousState: AttendanceActionResult,
   input: FormData,
 ): Promise<AttendanceActionResult> {
-  const direction = String(input.get("direction") || "check-in");
   const values = getFormValues(input);
   const parsed = scanMemberSchema.safeParse(values);
 
@@ -39,13 +38,7 @@ export async function scanMemberVisit(
 
   const payload = scanPayload(input, ["qr_token", "member_id", "phone", "name", "notes"]);
 
-  return mutateScan(
-    direction === "check-out" ? "/member-visits/check-out" : "/member-visits/check-in",
-    payload,
-    direction === "check-out" ? "Member check-out recorded." : "Member check-in recorded.",
-    "POST",
-    values,
-  );
+  return mutateScan("/member-visits/check-in", payload, "Member check-in recorded.", "POST", values);
 }
 
 export async function scanStaffAttendance(

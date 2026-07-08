@@ -2,6 +2,7 @@
 
 namespace App\Actions\Reports;
 
+use App\Actions\MemberVisits\AutoCloseStaleMemberVisits;
 use App\Models\Attendance;
 use App\Models\MemberVisit;
 use Carbon\CarbonImmutable;
@@ -9,12 +10,17 @@ use Illuminate\Support\Collection;
 
 final class LiveAttendanceSummary
 {
+    public function __construct(
+        private readonly AutoCloseStaleMemberVisits $autoCloseStaleVisits,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
     public function execute(array $filters = []): array
     {
         $now = CarbonImmutable::now();
+        $this->autoCloseStaleVisits->handle($now->toMutable());
         $date = CarbonImmutable::parse($filters['date'] ?? $now)->startOfDay();
         $comparisonDate = $date->subDay();
         $hours = (int) ($filters['hours'] ?? 24);

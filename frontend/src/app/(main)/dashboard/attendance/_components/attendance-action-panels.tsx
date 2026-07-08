@@ -65,20 +65,23 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
   const location = useGpsLocation();
-  const [scanValue, setScanValue] = useState("");
+  const [qrToken, setQrToken] = useState("");
   const [selectedMember, setSelectedMember] = useState<MemberLookupOption | null>(null);
+  const [memberLookupSource, setMemberLookupSource] = useState<"member_id" | "phone" | "name" | null>(null);
   const [lookupMembers, setLookupMembers] = useState(members);
-  const selectMember = useCallback((member: MemberLookupOption | null) => {
-    setSelectedMember(member);
+  const selectMember = useCallback(
+    (member: MemberLookupOption | null, source: "member_id" | "phone" | "name" | null) => {
+      setSelectedMember(member);
+      setMemberLookupSource(source);
 
-    if (!member) {
-      setScanValue("");
-      return;
-    }
+      if (!member) {
+        return;
+      }
 
-    setLookupMembers((current) => mergeMemberLookup(current, [member]));
-    setScanValue(member.attendance_qr ?? (member.attendance_code ? `member:${member.attendance_code}` : ""));
-  }, []);
+      setLookupMembers((current) => mergeMemberLookup(current, [member]));
+    },
+    [],
+  );
   const handleMemberSearch = useCallback(
     async (query: string) => {
       const nextMembers = await fetchMemberLookup(query, members);
@@ -89,24 +92,6 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const idOptions = memberIdSelectOptions(lookupMembers);
   const phoneOptions = memberPhoneSelectOptions(lookupMembers);
   const nameOptions = memberNameSelectOptions(lookupMembers);
-
-  useEffect(() => {
-    const query = scanValue.trim();
-
-    if (!query) {
-      return;
-    }
-
-    const timeout = window.setTimeout(async () => {
-      const matches = await fetchMemberLookup(query, members);
-
-      if (matches.length === 1) {
-        selectMember(matches[0]);
-      }
-    }, 250);
-
-    return () => window.clearTimeout(timeout);
-  }, [members, scanValue, selectMember]);
 
   return (
     <Card className="xl:col-span-6">
@@ -119,31 +104,36 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
-          <FieldGroup>
-            <FieldLabel htmlFor="member-scan-direction" label={t("scanDirection")} meta={t("requiredField")} />
-            <ScanDirectionSelect id="member-scan-direction" />
-          </FieldGroup>
+          <input type="hidden" name="direction" value="check-in" />
+          <input type="hidden" name="member_id" value={selectedMember ? String(selectedMember.id) : ""} />
+          <input
+            type="hidden"
+            name="phone"
+            value={memberLookupSource === "phone" ? (selectedMember?.phone ?? "") : ""}
+          />
+          <input type="hidden" name="name" value={memberLookupSource === "name" ? (selectedMember?.name ?? "") : ""} />
           <QrImageScanner
             label={t("scanQrImage")}
             placeholder={t("scanQrImageHelp")}
             onDecoded={(value) => {
-              setScanValue(value);
+              setQrToken(value);
+              selectMember(null, null);
               toast.success(t("qrDecoded"));
             }}
           />
           <FieldGroup>
-            <FieldLabel htmlFor="member-qr-token" label={t("memberQrTokenLabel")} meta={t("lookupField")} />
+            <FieldLabel htmlFor="member-qr-token" label={t("memberQrTokenLabel")} meta={t("optionalField")} />
             <Input
               id="member-qr-token"
               name="qr_token"
               placeholder={t("memberQrPlaceholder")}
-              value={scanValue}
+              value={qrToken}
               onChange={(event) => {
                 const nextValue = event.target.value;
-                setScanValue(nextValue);
+                setQrToken(nextValue);
 
-                if (!nextValue.trim()) {
-                  setSelectedMember(null);
+                if (nextValue.trim()) {
+                  selectMember(null, null);
                 }
               }}
             />
@@ -154,14 +144,14 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
               className="w-full"
               contentClassName="max-h-80"
               id="member-id"
-              name="member_id"
+              name="member_id_lookup"
               options={idOptions}
               placeholder={t("memberIdPlaceholder")}
               selectedLabel={selectedMember ? memberIdLabel(selectedMember) : undefined}
               value={selectedMember ? String(selectedMember.id) : ""}
               contentCollisionAvoidance={fixedTopSelectCollision}
               contentSide="top"
-              onOptionSelect={(option) => selectMember(memberFromOption(option))}
+              onOptionSelect={(option) => selectMember(memberFromOption(option), "member_id")}
               onSearchChange={handleMemberSearch}
               searchPlaceholder={t("searchMembers")}
             />
@@ -172,14 +162,14 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
               className="w-full"
               contentClassName="max-h-80"
               id="member-phone"
-              name="phone"
+              name="phone_lookup"
               options={phoneOptions}
               placeholder={t("phonePlaceholder")}
               selectedLabel={selectedMember ? memberPhoneLabel(selectedMember) : undefined}
               value={selectedMember?.phone ?? ""}
               contentCollisionAvoidance={fixedTopSelectCollision}
               contentSide="top"
-              onOptionSelect={(option) => selectMember(memberFromOption(option))}
+              onOptionSelect={(option) => selectMember(memberFromOption(option), "phone")}
               onSearchChange={handleMemberSearch}
               searchPlaceholder={t("searchMembers")}
             />
@@ -190,14 +180,14 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
               className="w-full"
               contentClassName="max-h-80"
               id="member-name"
-              name="name"
+              name="name_lookup"
               options={nameOptions}
               placeholder={t("namePlaceholder")}
               selectedLabel={selectedMember ? memberNameLabel(selectedMember) : undefined}
               value={selectedMember?.name ?? ""}
               contentCollisionAvoidance={fixedTopSelectCollision}
               contentSide="top"
-              onOptionSelect={(option) => selectMember(memberFromOption(option))}
+              onOptionSelect={(option) => selectMember(memberFromOption(option), "name")}
               onSearchChange={handleMemberSearch}
               searchPlaceholder={t("searchMembers")}
             />

@@ -80,6 +80,9 @@ final class CheckInMemberVisit
         if (! empty($data['name'])) {
             return 'name';
         }
+        if (! empty($data['member_id'])) {
+            return 'member_id';
+        }
 
         return 'manual';
     }

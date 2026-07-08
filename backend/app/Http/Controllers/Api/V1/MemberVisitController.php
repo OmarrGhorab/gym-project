@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\MemberVisits\AutoCloseStaleMemberVisits;
 use App\Actions\MemberVisits\CheckInMemberVisit;
 use App\Actions\MemberVisits\CheckOutMemberVisit;
 use App\Actions\MemberVisits\StoreMemberVisit;
@@ -18,9 +19,10 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 final class MemberVisitController extends ApiController
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AutoCloseStaleMemberVisits $autoCloseStaleVisits): JsonResponse
     {
         $this->authorize('viewAny', MemberVisit::class);
+        $autoCloseStaleVisits->handle();
 
         $visits = QueryBuilder::for(MemberVisit::class)
             ->with(['member.latestSubscription.plan', 'subscription.plan', 'creator'])
