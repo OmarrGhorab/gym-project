@@ -57,4 +57,16 @@ class NotificationController extends ApiController
             message: 'Notification marked as read',
         );
     }
+
+    public function markAllRead(Request $request): JsonResponse
+    {
+        $updated = $request->user()
+            ->unreadNotifications()
+            ->update(['read_at' => now()]);
+
+        return $this->success(
+            data: ['updated' => $updated],
+            message: 'Notifications marked as read',
+        );
+    }
 }

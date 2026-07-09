@@ -58,6 +58,8 @@
       "openNotifications": "فتح الإشعارات",
       "notificationCenter": "مركز الإشعارات",
       "latestActivity": "آخر نشاط في الجيم",
+      "markRead": "تحديد كمقروء",
+      "markAllRead": "قراءة الكل",
       "notificationsItems": {
         "trialEndingTitle": "3 عضويات تنتهي اليوم",
         "trialEndingDescription": "راجع التجديدات قبل الإغلاق.",

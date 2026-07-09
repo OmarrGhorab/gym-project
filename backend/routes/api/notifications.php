@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('notifications')->middleware('permission:'.MembershipPermissions::PERM_NOTIFICATIONS_VIEW)->group(function (): void {
     Route::get('/', [NotificationController::class, 'index']);
+    Route::patch('/read-all', [NotificationController::class, 'markAllRead'])
+        ->middleware('throttle:api');
     Route::patch('/{notification}/read', [NotificationController::class, 'markRead'])
         ->middleware('throttle:api');
 });

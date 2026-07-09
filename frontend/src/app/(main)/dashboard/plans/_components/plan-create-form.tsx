@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { PackageCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +26,7 @@ const initialPlanFormState: PlanFormState = {
 type PlanFormProps = {
   employees: PlanEmployeeOption[];
   mode?: "create" | "edit";
+  onSuccess?: () => void;
   plan?: PlanRow;
 };
 
@@ -69,7 +71,7 @@ function normalizeEmployeeRule(value: unknown, index: number): PlanEmployeeCommi
   };
 }
 
-export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormProps) {
+export function PlanCreateForm({ employees, mode = "create", onSuccess, plan }: PlanFormProps) {
   const t = useTranslations("Dashboard.plans");
   const formRef = React.useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(mode === "edit" ? updatePlan : createPlan, initialPlanFormState);
@@ -129,6 +131,8 @@ export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormPro
   React.useEffect(() => {
     if (state.ok) {
       if (mode === "create") {
+        toast.success(t("planCreated"));
+        onSuccess?.();
         formRef.current?.reset();
         setPlanType("membership");
         setCategory("gym_access");
@@ -142,7 +146,7 @@ export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormPro
         setPlanPrice("0");
       }
     }
-  }, [mode, state.ok]);
+  }, [mode, onSuccess, state.ok, t]);
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -188,7 +192,7 @@ export function PlanCreateForm({ employees, mode = "create", plan }: PlanFormPro
         name="initial_employee_commission_rule_ids"
         value={JSON.stringify(initialEmployeeRules.map((rule) => rule.id).filter((id) => id > 0))}
       />
-      {state.message ? (
+      {state.message && (!state.ok || mode === "edit") ? (
         <div
           className={
             state.ok

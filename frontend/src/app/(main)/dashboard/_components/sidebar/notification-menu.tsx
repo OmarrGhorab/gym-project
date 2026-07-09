@@ -18,6 +18,8 @@ export async function NotificationMenu() {
       labels={{
         empty: t("notificationsItems.paymentDueDescription"),
         latestActivity: t("latestActivity"),
+        markAllRead: t("markAllRead"),
+        markRead: t("markRead"),
         notificationCenter: t("notificationCenter"),
         notifications: t("notifications"),
         openNotifications: t("openNotifications"),

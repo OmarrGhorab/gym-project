@@ -26,7 +26,7 @@ const shortcuts = [
   { href: "/dashboard/attendance", labelKey: "attendance", icon: ClipboardCheck, permission: "attendance.view" },
   { href: "/dashboard/ecommerce", labelKey: "posCheckout", icon: ShoppingCart, permission: "sales.view" },
   { href: "/dashboard/logistics", labelKey: "products", icon: PackageCheck, permission: "products.view" },
-  { href: "/dashboard/finance", labelKey: "recordExpense", icon: ReceiptText, permission: "expenses.create" },
+  { href: "/dashboard/logistics", labelKey: "recordExpense", icon: ReceiptText, permission: "expenses.create" },
   { href: "/dashboard/finance", labelKey: "collectDue", icon: HandCoins, permission: "reports.view" },
   { href: "/dashboard/ecommerce", labelKey: "salesReport", icon: FileText, permission: "sales.view" },
   { href: "/dashboard/payroll", labelKey: "payroll", icon: UsersRound, permission: "payroll.view" },

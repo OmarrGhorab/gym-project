@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Bell, ClipboardList, ClockAlert, Package, ReceiptText, UserPlus, WalletCards } from "lucide-react";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  ClipboardList,
+  ClockAlert,
+  Package,
+  ReceiptText,
+  UserPlus,
+  WalletCards,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +27,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+import { markAllSidebarNotificationsRead, markSidebarNotificationRead } from "./notification-actions";
 
 export type NotificationRow = {
   id: string;
@@ -30,6 +42,8 @@ type NotificationMenuClientProps = {
   initialNotifications: NotificationRow[];
   labels: {
     latestActivity: string;
+    markAllRead: string;
+    markRead: string;
     notificationCenter: string;
     notifications: string;
     openNotifications: string;
@@ -56,8 +70,44 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
   const pathname = usePathname();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialNotifications.length);
+  const [isPending, startTransition] = useTransition();
   const knownIds = useRef(new Set(initialNotifications.map((notification) => notification.id)));
   const visibleNotifications = useMemo(() => notifications.slice(0, 5), [notifications]);
+
+  function markRead(notification: NotificationRow) {
+    setNotifications((current) => current.filter((item) => item.id !== notification.id));
+    setUnreadCount((current) => Math.max(0, current - 1));
+
+    startTransition(async () => {
+      try {
+        await markSidebarNotificationRead(notification.id);
+        router.refresh();
+      } catch (error) {
+        setNotifications((current) => [notification, ...current]);
+        setUnreadCount((current) => current + 1);
+        toast.error(error instanceof Error ? error.message : "Could not mark notification as read.");
+      }
+    });
+  }
+
+  function markAllRead() {
+    const previousNotifications = notifications;
+    const previousUnreadCount = unreadCount;
+
+    setNotifications([]);
+    setUnreadCount(0);
+
+    startTransition(async () => {
+      try {
+        await markAllSidebarNotificationsRead();
+        router.refresh();
+      } catch (error) {
+        setNotifications(previousNotifications);
+        setUnreadCount(previousUnreadCount);
+        toast.error(error instanceof Error ? error.message : "Could not mark notifications as read.");
+      }
+    });
+  }
 
   useEffect(() => {
     const events = new EventSource("/api/notifications/stream");
@@ -103,10 +153,30 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
           </Button>
         }
       />
-      <DropdownMenuContent className="w-80 rounded-lg" align="end" side="bottom" sideOffset={8}>
-        <div className="px-2 py-1.5">
-          <p className="font-medium text-sm">{labels.notifications}</p>
-          <p className="text-muted-foreground text-xs">{labels.latestActivity}</p>
+      <DropdownMenuContent
+        className="w-[min(calc(100vw-1.5rem),28rem)] rounded-lg"
+        align="end"
+        side="bottom"
+        sideOffset={8}
+      >
+        <div className="flex items-start justify-between gap-3 px-2 py-1.5">
+          <div className="min-w-0">
+            <p className="font-medium text-sm">{labels.notifications}</p>
+            <p className="text-muted-foreground text-xs">{labels.latestActivity}</p>
+          </div>
+          {unreadCount > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 gap-1.5 px-2 text-xs"
+              disabled={isPending}
+              onClick={markAllRead}
+            >
+              <CheckCheck className="size-3.5" />
+              {labels.markAllRead}
+            </Button>
+          ) : null}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -115,14 +185,29 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
               const Icon = iconForNotification(notification);
 
               return (
-                <DropdownMenuItem key={notification.id} className="items-start gap-2 py-2">
+                <DropdownMenuItem key={notification.id} className="items-start gap-3 py-2">
                   <Icon className="mt-0.5" />
-                  <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="truncate font-medium">{notificationTitle(notification.data)}</span>
                     <span className="line-clamp-2 text-muted-foreground text-xs">
                       {notificationBody(notification.data)}
                     </span>
                   </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 shrink-0 gap-1.5 px-2 text-xs"
+                    disabled={isPending}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      markRead(notification);
+                    }}
+                  >
+                    <Check className="size-3.5" />
+                    {labels.markRead}
+                  </Button>
                 </DropdownMenuItem>
               );
             })

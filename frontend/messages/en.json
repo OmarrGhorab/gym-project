@@ -58,6 +58,8 @@
       "openNotifications": "Open notifications",
       "notificationCenter": "Notification center",
       "latestActivity": "Latest gym activity",
+      "markRead": "Mark read",
+      "markAllRead": "Read all",
       "notificationsItems": {
         "trialEndingTitle": "3 memberships expire today",
         "trialEndingDescription": "Review renewals before closing.",

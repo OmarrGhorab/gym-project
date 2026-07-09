@@ -1,4 +1,4 @@
-import { Pencil, Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/utils";
 
 import { deletePlan, togglePlan } from "./_components/actions";
 import { getPlansPageData } from "./_components/data";
+import { PlanCreateDialog } from "./_components/plan-create-dialog";
 import { PlanCreateForm } from "./_components/plan-create-form";
 
 export default async function Page() {
@@ -32,19 +33,7 @@ export default async function Page() {
           <h1 className="text-3xl tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <Dialog>
-          <DialogTrigger render={<Button />}>
-            <Plus />
-            {t("createPlan")}
-          </DialogTrigger>
-          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>{t("createPlan")}</DialogTitle>
-              <DialogDescription>{t("createDescription")}</DialogDescription>
-            </DialogHeader>
-            <PlanCreateForm employees={employees} />
-          </DialogContent>
-        </Dialog>
+        <PlanCreateDialog employees={employees} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
