@@ -10,6 +10,7 @@ use App\Http\Requests\Employees\UpdateEmployeeRequest;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -60,6 +61,27 @@ final class EmployeeController extends ApiController
                 'total' => $employees->total(),
                 'last_page' => $employees->lastPage(),
             ],
+        );
+    }
+
+    public function userOptions(Request $request): JsonResponse
+    {
+        ($request->user()->can('employees.create') || $request->user()->can('employees.update')) || abort(403);
+
+        $users = User::query()
+            ->with('roles')
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'email']);
+
+        return $this->success(
+            data: $users->map(fn (User $user): array => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => $user->getRoleNames()->values()->all(),
+            ])->values()->all(),
+            message: 'Employee user link options retrieved',
         );
     }
 

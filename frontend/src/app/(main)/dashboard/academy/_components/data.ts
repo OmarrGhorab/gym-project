@@ -71,6 +71,21 @@ export type StaffAcademyData = {
   };
 };
 
+export const emptyStaffAcademyData: StaffAcademyData = {
+  generated_at: new Date().toISOString(),
+  kpis: [],
+  performance_highlights: [],
+  shift_schedule: [],
+  today: {
+    checked_in: 0,
+    late: 0,
+    off_shift: 0,
+    pending_approval: 0,
+  },
+  upcoming_events: [],
+  warning_status: [],
+};
+
 export type PayrollSettings = {
   payroll?: {
     default_pay_day: number;
@@ -160,7 +175,7 @@ export async function getStaffAcademyData(params: { from?: string; to?: string }
   const periodQuery = periodParams.toString();
   const suffix = periodQuery ? `?${periodQuery}` : "";
 
-  return (await serverApiFetch<StaffAcademyData>(`/reports/staff-academy${suffix}`)).data;
+  return safeFetch<StaffAcademyData>(`/reports/staff-academy${suffix}`, emptyStaffAcademyData);
 }
 
 export async function getAcademyEmployees(): Promise<AcademyEmployeePayDay[]> {
@@ -232,8 +247,8 @@ export async function getStaffManagementPageData(): Promise<{
       reminder_days: [7],
       vat_rate: 14,
     }),
-    safeFetch<EmployeeShift[]>("/attendance/shifts/manage", []),
-    safeFetch<UserOption[] | PaginatedData<UserOption>>("/users?sort=name&per_page=100", []),
+    safeFetch<EmployeeShift[]>("/attendance/shifts", []),
+    safeFetch<UserOption[]>("/employees/user-options", []),
     safeFetch<AccessRole[]>("/roles", []),
   ]);
 

@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import type { AcademyEmployee, AccessRole } from "./data";
-import { EmployeeActionForm } from "./staff-action-forms";
+import type { AcademyEmployee } from "./data";
+import { EmployeeActionForm, type EmployeeActionPermissions } from "./staff-action-forms";
 
 type ShiftOption = {
   id: number;
@@ -22,14 +22,14 @@ type UserOption = {
 
 export async function StaffManagement({
   employees,
+  permissions,
   shifts,
   users,
-  roles,
 }: {
   employees: AcademyEmployee[];
+  permissions: EmployeeActionPermissions;
   shifts: ShiftOption[];
   users: UserOption[];
-  roles: AccessRole[];
 }) {
   const t = await getTranslations("Dashboard.academy");
 
@@ -44,9 +44,17 @@ export async function StaffManagement({
           <CardDescription>{t("staffManagementDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <EmployeeActionForm shifts={shifts} users={users} roles={roles} />
+          {permissions.canCreate ? (
+            <EmployeeActionForm shifts={shifts} users={users} permissions={permissions} />
+          ) : null}
           {employees.map((employee) => (
-            <EmployeeActionForm key={employee.id} employee={employee} shifts={shifts} users={users} roles={roles} />
+            <EmployeeActionForm
+              key={employee.id}
+              employee={employee}
+              shifts={shifts}
+              users={users}
+              permissions={permissions}
+            />
           ))}
         </CardContent>
       </Card>

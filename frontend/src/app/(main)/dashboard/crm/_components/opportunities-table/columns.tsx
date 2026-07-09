@@ -129,8 +129,55 @@ function getBillingBadgeClassName(status: string) {
   }
 }
 
-export function getOpportunitiesColumns(t: CrmT, reminderDays: number[]): ColumnDef<MembershipPipelineRow>[] {
-  return [
+export function getOpportunitiesColumns(
+  t: CrmT,
+  reminderDays: number[],
+  canViewMoney: boolean,
+): ColumnDef<MembershipPipelineRow>[] {
+  const moneyColumns: ColumnDef<MembershipPipelineRow>[] = canViewMoney
+    ? [
+        {
+          accessorKey: "billingStatus",
+          header: t("payment"),
+          cell: ({ row }) => (
+            <div className="grid gap-1">
+              <Badge
+                variant="outline"
+                className={cn("w-fit rounded-full px-2.5", getBillingBadgeClassName(row.original.billingStatus))}
+              >
+                {translateBillingStatus(row.original.billingStatus, t)}
+              </Badge>
+              <span className="text-muted-foreground text-xs">
+                {t("paidOfValue", {
+                  paid: formatCurrency(row.original.paidTotal, { currency: "EGP", noDecimals: true }),
+                  value: formatCurrency(row.original.value, { currency: "EGP", noDecimals: true }),
+                })}
+              </span>
+            </div>
+          ),
+          filterFn: "equalsString",
+        },
+        {
+          accessorKey: "value",
+          header: t("planPrice"),
+          cell: ({ row }) => (
+            <div className="font-medium text-sm tabular-nums">
+              {formatCurrency(row.original.value, { currency: "EGP", noDecimals: true })}
+            </div>
+          ),
+        },
+        {
+          accessorKey: "balance",
+          header: t("balanceDue"),
+          cell: ({ row }) => (
+            <div className="font-medium text-sm tabular-nums">
+              {formatCurrency(row.original.balance, { currency: "EGP", noDecimals: true })}
+            </div>
+          ),
+        },
+      ]
+    : [];
+  const columns: ColumnDef<MembershipPipelineRow>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -216,45 +263,7 @@ export function getOpportunitiesColumns(t: CrmT, reminderDays: number[]): Column
       ),
       filterFn: "equalsString",
     },
-    {
-      accessorKey: "billingStatus",
-      header: t("payment"),
-      cell: ({ row }) => (
-        <div className="grid gap-1">
-          <Badge
-            variant="outline"
-            className={cn("w-fit rounded-full px-2.5", getBillingBadgeClassName(row.original.billingStatus))}
-          >
-            {translateBillingStatus(row.original.billingStatus, t)}
-          </Badge>
-          <span className="text-muted-foreground text-xs">
-            {t("paidOfValue", {
-              paid: formatCurrency(row.original.paidTotal, { currency: "EGP", noDecimals: true }),
-              value: formatCurrency(row.original.value, { currency: "EGP", noDecimals: true }),
-            })}
-          </span>
-        </div>
-      ),
-      filterFn: "equalsString",
-    },
-    {
-      accessorKey: "value",
-      header: t("planPrice"),
-      cell: ({ row }) => (
-        <div className="font-medium text-sm tabular-nums">
-          {formatCurrency(row.original.value, { currency: "EGP", noDecimals: true })}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "balance",
-      header: t("balanceDue"),
-      cell: ({ row }) => (
-        <div className="font-medium text-sm tabular-nums">
-          {formatCurrency(row.original.balance, { currency: "EGP", noDecimals: true })}
-        </div>
-      ),
-    },
+    ...moneyColumns,
     {
       id: "actions",
       header: () => <div className="text-right">{t("actions")}</div>,
@@ -266,6 +275,8 @@ export function getOpportunitiesColumns(t: CrmT, reminderDays: number[]): Column
       enableHiding: false,
     },
   ];
+
+  return columns;
 }
 
 function SubscriptionActions({

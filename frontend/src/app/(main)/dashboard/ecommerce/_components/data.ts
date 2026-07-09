@@ -203,7 +203,7 @@ export async function getPosDashboardData(
     }
 
     const [result, productsResult, membersResult, dailySalesResult, recentSalesResult] = await Promise.all([
-      serverApiFetch<PosDashboardData>(`/reports/pos-summary?${params.toString()}`),
+      safeFetch<PosDashboardData>(`/reports/pos-summary?${params.toString()}`, emptyPosData),
       safeFetch<PosProductOption[] | { data: PosProductOption[] }>(
         "/products?filter[is_active]=1&sort=name&per_page=100",
         [],
@@ -221,6 +221,7 @@ export async function getPosDashboardData(
     const recentSales = Array.isArray(recentSalesResult.data) ? recentSalesResult.data : recentSalesResult.data.data;
 
     return {
+      ...emptyPosData,
       ...result.data,
       daily_sales: dailySalesResult.data,
       recent_orders: recentSales.map(mapSaleToRecentOrder),

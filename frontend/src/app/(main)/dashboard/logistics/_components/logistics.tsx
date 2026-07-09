@@ -10,7 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-import { AddProductDialog, CreatePurchaseOrderDialog, ProductQuickActions } from "./logistics-actions";
+import {
+  AddProductDialog,
+  CreatePurchaseOrderDialog,
+  type ProductActionPermissions,
+  ProductQuickActions,
+} from "./logistics-actions";
 import type { InventoryLogisticsData, PurchaseOrder } from "./shipment-data";
 import { ShipmentDetails } from "./shipment-details";
 import { ShipmentList } from "./shipment-list";
@@ -27,10 +32,12 @@ function InventorySummarySheet({
   data,
   open,
   onOpenChange,
+  productPermissions,
 }: {
   data: InventoryLogisticsData;
   onOpenChange: (open: boolean) => void;
   open: boolean;
+  productPermissions: ProductActionPermissions;
 }) {
   const t = useTranslations("Dashboard.logistics");
   const stats = [
@@ -73,10 +80,12 @@ function InventorySummarySheet({
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-2">
-            <AddProductDialog />
-            <CreatePurchaseOrderDialog products={data.products} />
-          </div>
+          {productPermissions.canCreateProduct || productPermissions.canAdjustInventory ? (
+            <div className="grid grid-cols-2 gap-2">
+              {productPermissions.canCreateProduct ? <AddProductDialog /> : null}
+              {productPermissions.canAdjustInventory ? <CreatePurchaseOrderDialog products={data.products} /> : null}
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <div className="font-medium text-sm">{t("lowStockProducts")}</div>
@@ -98,7 +107,7 @@ function InventorySummarySheet({
                       {t("left", { count: product.stock_quantity })}
                     </Badge>
                   </div>
-                  <ProductQuickActions product={product} compact />
+                  <ProductQuickActions product={product} compact permissions={productPermissions} />
                 </div>
               ))
             )}
@@ -129,7 +138,13 @@ function InventorySummarySheet({
   );
 }
 
-export function Logistics({ data }: { data: InventoryLogisticsData }) {
+export function Logistics({
+  data,
+  productPermissions,
+}: {
+  data: InventoryLogisticsData;
+  productPermissions: ProductActionPermissions;
+}) {
   const t = useTranslations("Dashboard.logistics");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [summaryOpen, setSummaryOpen] = React.useState(false);
@@ -139,6 +154,7 @@ export function Logistics({ data }: { data: InventoryLogisticsData }) {
   const selectedShipment =
     data.purchase_orders.find((shipment) => shipment.id === selectedShipmentId) ??
     (data.purchase_orders.length > 0 ? data.purchase_orders[0] : null);
+  const canShowProductHeaderActions = productPermissions.canCreateProduct || productPermissions.canAdjustInventory;
 
   function handleSelectShipment(shipmentId: PurchaseOrder["id"]) {
     setSelectedShipmentId(shipmentId);
@@ -164,12 +180,14 @@ export function Logistics({ data }: { data: InventoryLogisticsData }) {
         </div>
         <div className="hidden h-full overflow-hidden lg:block">
           <div className="flex h-full min-h-0 flex-col">
-            <div className="flex items-center justify-end gap-2 border-b p-3">
-              <AddProductDialog />
-              <CreatePurchaseOrderDialog products={data.products} />
-            </div>
+            {canShowProductHeaderActions ? (
+              <div className="flex items-center justify-end gap-2 border-b p-3">
+                {productPermissions.canCreateProduct ? <AddProductDialog /> : null}
+                {productPermissions.canAdjustInventory ? <CreatePurchaseOrderDialog products={data.products} /> : null}
+              </div>
+            ) : null}
             <div className="min-h-0 flex-1">
-              <ShipmentDetails data={data} shipment={selectedShipment} />
+              <ShipmentDetails data={data} shipment={selectedShipment} permissions={productPermissions} />
             </div>
           </div>
         </div>
@@ -188,11 +206,16 @@ export function Logistics({ data }: { data: InventoryLogisticsData }) {
             </SheetTitle>
             <SheetDescription>{t("purchaseOrderDescription")}</SheetDescription>
           </SheetHeader>
-          <ShipmentDetails data={data} shipment={selectedShipment} />
+          <ShipmentDetails data={data} shipment={selectedShipment} permissions={productPermissions} />
         </SheetContent>
       </Sheet>
 
-      <InventorySummarySheet data={data} open={summaryOpen} onOpenChange={setSummaryOpen} />
+      <InventorySummarySheet
+        data={data}
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        productPermissions={productPermissions}
+      />
     </>
   );
 }

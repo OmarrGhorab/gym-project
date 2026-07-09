@@ -15,6 +15,9 @@ Route::prefix('employees')->group(function (): void {
     Route::get('/', [EmployeeController::class, 'index'])
         ->middleware('permission:employees.view');
 
+    Route::get('/user-options', [EmployeeController::class, 'userOptions'])
+        ->middleware('permission:employees.create|employees.update');
+
     Route::post('/', [EmployeeController::class, 'store'])
         ->middleware(['permission:employees.create', 'throttle:api']);
 

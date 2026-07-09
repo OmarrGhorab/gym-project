@@ -4,6 +4,8 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { canAccess } from "@/lib/authorization";
+import { getCurrentUser } from "@/lib/session";
 
 import { AssignmentStatus } from "./_components/assignment-status";
 import { ClassSchedule } from "./_components/class-schedule";
@@ -26,6 +28,7 @@ type AcademyPeriod = {
 
 export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.academy");
+  const user = await getCurrentUser();
   const resolvedSearchParams = await searchParams;
   const period = getAcademyPeriod(resolvedSearchParams);
   const [data, employees, payrollSettings] = await Promise.all([
@@ -35,6 +38,11 @@ export default async function Page({ searchParams }: PageProps) {
   ]);
   const shortcutRanges = getShortcutRanges(period);
   const visibleKpis = data.kpis.filter((kpi) => kpi.label !== "Payroll Receipts");
+  const canViewReports = user ? canAccess(user, "reports.view") : false;
+  const hasKpis = visibleKpis.length > 0;
+  const hasSchedule = data.shift_schedule.length > 0;
+  const hasWarnings = data.warning_status.length > 0;
+  const hasPerformance = data.performance_highlights.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -55,61 +63,71 @@ export default async function Page({ searchParams }: PageProps) {
             >
               {t("staffManagement")}
             </Button>
-            <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy">
-              <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-from-date">
-                {t("fromDate")}
-                <Input
-                  className="h-8 w-[8.5rem] min-w-0"
-                  id="academy-from-date"
-                  name="from"
-                  type="date"
-                  defaultValue={period.from}
-                />
-              </label>
-              <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-to-date">
-                {t("toDate")}
-                <Input
-                  className="h-8 w-[8.5rem] min-w-0"
-                  id="academy-to-date"
-                  name="to"
-                  type="date"
-                  defaultValue={period.to}
-                />
-              </label>
-              <Button className="h-8" size="sm" type="submit" variant="secondary">
-                {t("applyFilter")}
-              </Button>
-            </form>
-            <div className="flex flex-wrap items-center gap-1">
-              {shortcutRanges.map((shortcut) => (
-                <Button
-                  className="h-8 px-2"
-                  key={shortcut.key}
-                  nativeButton={false}
-                  render={<Link href={shortcut.href} />}
-                  size="sm"
-                  variant={shortcut.active ? "secondary" : "outline"}
-                >
-                  {t(shortcut.key)}
-                </Button>
-              ))}
-            </div>
+            {canViewReports ? (
+              <>
+                <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy">
+                  <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-from-date">
+                    {t("fromDate")}
+                    <Input
+                      className="h-8 w-[8.5rem] min-w-0"
+                      id="academy-from-date"
+                      name="from"
+                      type="date"
+                      defaultValue={period.from}
+                    />
+                  </label>
+                  <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-to-date">
+                    {t("toDate")}
+                    <Input
+                      className="h-8 w-[8.5rem] min-w-0"
+                      id="academy-to-date"
+                      name="to"
+                      type="date"
+                      defaultValue={period.to}
+                    />
+                  </label>
+                  <Button className="h-8" size="sm" type="submit" variant="secondary">
+                    {t("applyFilter")}
+                  </Button>
+                </form>
+                <div className="flex flex-wrap items-center gap-1">
+                  {shortcutRanges.map((shortcut) => (
+                    <Button
+                      className="h-8 px-2"
+                      key={shortcut.key}
+                      nativeButton={false}
+                      render={<Link href={shortcut.href} />}
+                      size="sm"
+                      variant={shortcut.active ? "secondary" : "outline"}
+                    >
+                      {t(shortcut.key)}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </div>
 
-      <KpiCards kpis={visibleKpis} />
+      {canViewReports && hasKpis ? <KpiCards kpis={visibleKpis} /> : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="xl:col-span-5">
-          <ClassSchedule shifts={data.shift_schedule} />
+      {canViewReports && (hasSchedule || hasWarnings) ? (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          {hasSchedule ? (
+            <div className="xl:col-span-5">
+              <ClassSchedule shifts={data.shift_schedule} />
+            </div>
+          ) : null}
+          {hasWarnings ? (
+            <div className="xl:col-span-7">
+              <AssignmentStatus warnings={data.warning_status} />
+            </div>
+          ) : null}
         </div>
-        <div className="xl:col-span-7">
-          <AssignmentStatus warnings={data.warning_status} />
-        </div>
-      </div>
+      ) : null}
 
-      <PerformanceHighlights highlights={data.performance_highlights} />
+      {canViewReports && hasPerformance ? <PerformanceHighlights highlights={data.performance_highlights} /> : null}
 
       <PayDayManager employees={employees} payrollSettings={payrollSettings} />
     </div>

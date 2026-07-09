@@ -41,6 +41,13 @@ import {
 } from "./actions";
 import type { InventoryProduct, PurchaseOrder } from "./shipment-data";
 
+export type ProductActionPermissions = {
+  canAdjustInventory: boolean;
+  canCreateProduct: boolean;
+  canDeleteProduct: boolean;
+  canUpdateProduct: boolean;
+};
+
 const initialLogisticsActionState: LogisticsActionResult = {
   errors: {},
   message: "",
@@ -405,10 +412,23 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
   );
 }
 
-export function ProductQuickActions({ compact = false, product }: { compact?: boolean; product: InventoryProduct }) {
+export function ProductQuickActions({
+  compact = false,
+  permissions,
+  product,
+}: {
+  compact?: boolean;
+  permissions: ProductActionPermissions;
+  product: InventoryProduct;
+}) {
   const t = useTranslations("Dashboard.logistics");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const canShowEditPanel = permissions.canUpdateProduct || permissions.canDeleteProduct;
+
+  if (!permissions.canAdjustInventory && !canShowEditPanel) {
+    return null;
+  }
 
   function run(action: (formData: FormData) => Promise<{ ok: boolean; message: string }>, formData: FormData) {
     startTransition(async () => {
@@ -426,72 +446,120 @@ export function ProductQuickActions({ compact = false, product }: { compact?: bo
 
   return (
     <div className={compact ? "grid gap-2" : "grid gap-3"}>
-      <form action={(formData) => run(adjustProductStock, formData)} className="grid grid-cols-[96px_1fr_auto] gap-2">
-        <input type="hidden" name="id" value={product.id} />
-        <Field label={t("type")}>
-          <Select name="type" defaultValue="in">
-            <SelectTrigger className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="in">{t("stockIn")}</SelectItem>
-              <SelectItem value="out">{t("stockOut")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label={t("quantity")}>
-          <Input name="quantity" type="number" min="1" defaultValue="1" className="h-8" />
-        </Field>
-        <input type="hidden" name="reason" value={t("manualAdjustment")} />
-        <Button type="submit" size="sm" disabled={pending} className="self-end">
-          {t("adjust")}
-        </Button>
-      </form>
-
-      <details className="rounded-md border p-2">
-        <summary className="cursor-pointer text-sm">{t("editProduct")}</summary>
-        <form action={(formData) => run(updateProduct, formData)} className="mt-3 grid gap-2">
+      {permissions.canAdjustInventory ? (
+        <form action={(formData) => run(adjustProductStock, formData)} className="grid grid-cols-[96px_1fr_auto] gap-2">
           <input type="hidden" name="id" value={product.id} />
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Field label={t("name")}>
-              <Input name="name" defaultValue={product.name} />
-            </Field>
-            <Field label={t("category")}>
-              <Input name="category" defaultValue={product.category} />
-            </Field>
-            <Field label={t("sku")}>
-              <Input name="sku" defaultValue={product.sku} />
-            </Field>
-            <Field label={t("salePrice")}>
-              <Input name="price" type="number" min="0.01" step="0.01" defaultValue={product.price} />
-            </Field>
-            <Field label={t("cost")}>
-              <Input name="cost" type="number" min="0" step="0.01" defaultValue={product.cost} />
-            </Field>
-            <Field label={t("lowStockThreshold")}>
-              <Input name="low_stock_threshold" type="number" min="0" defaultValue={product.low_stock_threshold} />
-            </Field>
-            <Field label={t("image")}>
-              <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
-                <ImagePlus className="size-4 text-muted-foreground" />
-                <Input name="image" type="file" accept="image/*" className="border-0 px-0 focus-visible:ring-0" />
-              </div>
-            </Field>
-          </div>
-          <Input name="stock_quantity" type="hidden" value={product.stock_quantity} readOnly />
-          <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>
-              {t("saveProduct")}
-            </Button>
-            <Button formAction={(formData) => run(toggleProduct, formData)} type="submit" size="sm" variant="outline">
-              {t("toggle")}
-            </Button>
-            <Button formAction={(formData) => run(deleteProduct, formData)} type="submit" size="sm" variant="outline">
-              {t("delete")}
-            </Button>
-          </div>
+          <Field label={t("type")}>
+            <Select name="type" defaultValue="in">
+              <SelectTrigger className="h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="in">{t("stockIn")}</SelectItem>
+                <SelectItem value="out">{t("stockOut")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label={t("quantity")}>
+            <Input name="quantity" type="number" min="1" defaultValue="1" className="h-8" />
+          </Field>
+          <input type="hidden" name="reason" value={t("manualAdjustment")} />
+          <Button type="submit" size="sm" disabled={pending} className="self-end">
+            {t("adjust")}
+          </Button>
         </form>
-      </details>
+      ) : null}
+
+      {canShowEditPanel ? (
+        <details className="rounded-md border p-2">
+          <summary className="cursor-pointer text-sm">
+            {permissions.canUpdateProduct ? t("editProduct") : t("delete")}
+          </summary>
+          <form action={(formData) => run(updateProduct, formData)} className="mt-3 grid gap-2">
+            <input type="hidden" name="id" value={product.id} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field label={t("name")}>
+                <Input name="name" defaultValue={product.name} disabled={!permissions.canUpdateProduct} />
+              </Field>
+              <Field label={t("category")}>
+                <Input name="category" defaultValue={product.category} disabled={!permissions.canUpdateProduct} />
+              </Field>
+              <Field label={t("sku")}>
+                <Input name="sku" defaultValue={product.sku} disabled={!permissions.canUpdateProduct} />
+              </Field>
+              <Field label={t("salePrice")}>
+                <Input
+                  name="price"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  defaultValue={product.price}
+                  disabled={!permissions.canUpdateProduct}
+                />
+              </Field>
+              <Field label={t("cost")}>
+                <Input
+                  name="cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={product.cost}
+                  disabled={!permissions.canUpdateProduct}
+                />
+              </Field>
+              <Field label={t("lowStockThreshold")}>
+                <Input
+                  name="low_stock_threshold"
+                  type="number"
+                  min="0"
+                  defaultValue={product.low_stock_threshold}
+                  disabled={!permissions.canUpdateProduct}
+                />
+              </Field>
+              <Field label={t("image")}>
+                <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1">
+                  <ImagePlus className="size-4 text-muted-foreground" />
+                  <Input
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    className="border-0 px-0 focus-visible:ring-0"
+                    disabled={!permissions.canUpdateProduct}
+                  />
+                </div>
+              </Field>
+            </div>
+            <Input name="stock_quantity" type="hidden" value={product.stock_quantity} readOnly />
+            <div className="flex gap-2">
+              {permissions.canUpdateProduct ? (
+                <>
+                  <Button type="submit" size="sm" disabled={pending}>
+                    {t("saveProduct")}
+                  </Button>
+                  <Button
+                    formAction={(formData) => run(toggleProduct, formData)}
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                  >
+                    {t("toggle")}
+                  </Button>
+                </>
+              ) : null}
+              {permissions.canDeleteProduct ? (
+                <Button
+                  formAction={(formData) => run(deleteProduct, formData)}
+                  type="submit"
+                  size="sm"
+                  variant="outline"
+                >
+                  {t("delete")}
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        </details>
+      ) : null}
     </div>
   );
 }

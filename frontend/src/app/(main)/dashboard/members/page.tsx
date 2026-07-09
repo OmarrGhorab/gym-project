@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCurrentUser } from "@/lib/session";
 import { formatCurrency, getInitials } from "@/lib/utils";
 
 import { getMembersPageData } from "./_components/data";
@@ -20,6 +21,7 @@ export default async function Page({
 }) {
   const t = await getTranslations("Dashboard.membersPage");
   const locale = await getLocale();
+  const user = await getCurrentUser();
   const numberFormatter = new Intl.NumberFormat(locale);
   const params = await searchParams;
   const query = normalizeQuery(params);
@@ -39,7 +41,7 @@ export default async function Page({
             <h1 className="text-2xl tracking-tight">{t("title")}</h1>
             <p className="text-muted-foreground text-sm">{t("description")}</p>
           </div>
-          <MembersHeaderActions />
+          <MembersHeaderActions user={user} />
         </div>
       </CardHeader>
 
@@ -110,7 +112,13 @@ export default async function Page({
                   </TableCell>
                   <TableCell className="text-muted-foreground">{member.join_date ?? "-"}</TableCell>
                   <TableCell className="text-end">
-                    <MemberActionsMenu member={member} plans={plans} staff={staff} due={dues[member.id] ?? null} />
+                    <MemberActionsMenu
+                      member={member}
+                      plans={plans}
+                      staff={staff}
+                      due={dues[member.id] ?? null}
+                      permissions={user?.permissions ?? []}
+                    />
                   </TableCell>
                 </TableRow>
               ))

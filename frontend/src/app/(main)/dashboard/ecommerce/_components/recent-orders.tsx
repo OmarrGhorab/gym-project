@@ -41,7 +41,7 @@ import { getRecentOrdersColumns } from "./recent-orders-table/columns";
 import { preventPaginationNavigation } from "./recent-orders-table/formatters";
 import { type OrderFilter, type OrderRow, orderFilters } from "./recent-orders-table/schema";
 
-export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
+export function RecentOrders({ canVoidSale, orders }: { canVoidSale: boolean; orders: PosRecentOrder[] }) {
   const t = useTranslations("Dashboard.ecommerce");
   const router = useRouter();
   const [selectedOrder, setSelectedOrder] = React.useState<OrderRow | null>(null);
@@ -74,7 +74,10 @@ export function RecentOrders({ orders }: { orders: PosRecentOrder[] }) {
     },
     [router, t],
   );
-  const columns = React.useMemo(() => getRecentOrdersColumns(t, setSelectedOrder, handleVoidSale), [handleVoidSale, t]);
+  const columns = React.useMemo(
+    () => getRecentOrdersColumns(t, setSelectedOrder, handleVoidSale, canVoidSale),
+    [canVoidSale, handleVoidSale, t],
+  );
 
   const table = useReactTable({
     data: recentOrders,

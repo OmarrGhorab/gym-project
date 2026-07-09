@@ -12,6 +12,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { getErrorCode, getFieldErrors, getFriendlyError, resendVerificationOtp, verifyEmailOtp } from "@/lib/auth";
 import { createVerifyEmailOtpSchema, validateWithSchema } from "@/lib/auth-validation";
+import { firstAccessibleDashboardPath } from "@/lib/authorization";
 
 export function VerifyEmailForm() {
   const router = useRouter();
@@ -60,8 +61,7 @@ export function VerifyEmailForm() {
     try {
       const result = await verifyEmailOtp({ email, otp });
       toast.success(tRegister("emailVerified"), { description: result.message });
-      router.push("/dashboard/default");
-      router.refresh();
+      router.replace(firstAccessibleDashboardPath({ permissions: result.data.user.permissions ?? [] }));
     } catch (error) {
       if (getErrorCode(error) === "invalid_otp") {
         setFieldErrors({ otp: tVerify("enterValidCode") });

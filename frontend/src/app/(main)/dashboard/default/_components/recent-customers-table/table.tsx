@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { DashboardUser } from "@/lib/session";
 
 import type { StaffOption } from "../../../members/_components/data";
 import { MemberActionsMenu } from "../../../members/_components/member-action-dialogs";
@@ -55,12 +56,14 @@ export function RecentCustomersTable({
   plans,
   query,
   staff,
+  user,
 }: {
   data: RecentCustomerRow[];
   meta: MembersMeta;
   plans: PlanRow[];
   query: MembersQuery;
   staff: StaffOption[];
+  user: DashboardUser;
 }) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
@@ -195,6 +198,7 @@ export function RecentCustomersTable({
             plans={plans}
             staff={staff}
             due={row.due ?? null}
+            permissions={user.permissions}
             labels={{
               actionsFor: (values) => t("actionOpenMenu", values),
               addPayment: t("actionAddPayment"),
@@ -224,7 +228,7 @@ export function RecentCustomersTable({
           />
         ),
       }),
-    [locale, plans, staff, t],
+    [locale, plans, staff, t, user.permissions],
   );
 
   const table = useReactTable({

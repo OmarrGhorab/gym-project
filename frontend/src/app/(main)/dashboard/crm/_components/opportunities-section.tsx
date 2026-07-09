@@ -69,9 +69,11 @@ const normalizedOpportunityFilter: FilterFn<MembershipPipelineRow> = (row, _colu
 };
 
 export function OpportunitiesSection({
+  canViewMoney,
   rows,
   reminderDays,
 }: {
+  canViewMoney: boolean;
   rows: MembershipPipelineRow[];
   reminderDays: number[];
 }) {
@@ -86,7 +88,10 @@ export function OpportunitiesSection({
     pageIndex: 0,
     pageSize: 10,
   });
-  const columns = React.useMemo(() => getOpportunitiesColumns(t, reminderDays), [reminderDays, t]);
+  const columns = React.useMemo(
+    () => getOpportunitiesColumns(t, reminderDays, canViewMoney),
+    [canViewMoney, reminderDays, t],
+  );
 
   const table = useReactTable({
     data: rows,
@@ -112,7 +117,8 @@ export function OpportunitiesSection({
   const searchQuery = table.getState().globalFilter ?? "";
   const statusFilter = (table.getColumn("status")?.getFilterValue() as string) ?? "all";
   const healthFilter = (table.getColumn("health")?.getFilterValue() as string) ?? "all";
-  const billingFilter = (table.getColumn("billingStatus")?.getFilterValue() as string) ?? "all";
+  const billingColumn = canViewMoney ? table.getColumn("billingStatus") : null;
+  const billingFilter = (billingColumn?.getFilterValue() as string) ?? "all";
   const currentPage = table.getState().pagination.pageIndex + 1;
   const pageCount = table.getPageCount();
   const filteredOpportunityCount = table.getFilteredRowModel().rows.length;
@@ -171,28 +177,30 @@ export function OpportunitiesSection({
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-                  <ListFilter data-icon="inline-start" />
-                  {t("payment")}
-                  <ChevronDownIcon data-icon="inline-end" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuRadioGroup
-                    value={billingFilter}
-                    onValueChange={(value) => {
-                      table.getColumn("billingStatus")?.setFilterValue(value === "all" ? undefined : value);
-                      table.setPageIndex(0);
-                    }}
-                  >
-                    {billingOptions.map((option) => (
-                      <DropdownMenuRadioItem key={option} value={option} className="whitespace-nowrap">
-                        {option === "all" ? t("allPayments") : translateBillingStatus(option, t)}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {canViewMoney ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+                    <ListFilter data-icon="inline-start" />
+                    {t("payment")}
+                    <ChevronDownIcon data-icon="inline-end" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuRadioGroup
+                      value={billingFilter}
+                      onValueChange={(value) => {
+                        billingColumn?.setFilterValue(value === "all" ? undefined : value);
+                        table.setPageIndex(0);
+                      }}
+                    >
+                      {billingOptions.map((option) => (
+                        <DropdownMenuRadioItem key={option} value={option} className="whitespace-nowrap">
+                          {option === "all" ? t("allPayments") : translateBillingStatus(option, t)}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
                   <ListFilter data-icon="inline-start" />

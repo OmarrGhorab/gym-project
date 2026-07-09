@@ -7,10 +7,15 @@ import { type NavGroup, type NavMainItem, sidebarItems } from "@/navigation/side
 type PermissionRequirement = string | string[];
 
 export const routePermissions: Record<string, PermissionRequirement> = {
-  "/dashboard/default": ["dashboard.view", "reports.view", "members.view", "sales.view"],
+  "/dashboard": "dashboard.view",
+  "/dashboard/default": "dashboard.view",
+  "/dashboard/default-v1": "dashboard.view",
   "/dashboard/crm": "subscriptions.view",
-  "/dashboard/finance": ["payments.view", "expenses.view", "payroll.view", "reports.view"],
+  "/dashboard/crm-v1": "subscriptions.view",
+  "/dashboard/finance": ["expenses.view", "payroll.view", "reports.view", "export.reports"],
+  "/dashboard/finance-v1": ["expenses.view", "payroll.view", "reports.view", "export.reports"],
   "/dashboard/analytics": "reports.view",
+  "/dashboard/analytics-v1": "reports.view",
   "/dashboard/productivity": "reports.view",
   "/dashboard/ecommerce": "sales.view",
   "/dashboard/academy": "employees.view",
@@ -23,21 +28,23 @@ export const routePermissions: Record<string, PermissionRequirement> = {
   "/dashboard/members": "members.view",
   "/dashboard/kanban": "reports.view",
   "/dashboard/tasks": "reports.view",
-  "/dashboard/invoice": ["export.reports", "export.payroll", "payments.view", "payroll.view"],
+  "/dashboard/invoice": [
+    "export.members",
+    "export.sales",
+    "export.payroll",
+    "export.reports",
+    "payments.view",
+    "payroll.view",
+  ],
   "/dashboard/payroll": "payroll.view",
   "/dashboard/plans": "plans.view",
   "/dashboard/users": "roles.manage",
   "/dashboard/roles": "roles.manage",
   "/dashboard/audit": "audit.view",
   "/dashboard/settings": "settings.manage",
+  "/dashboard/coming-soon": "dashboard.view",
+  "/dashboard/[...not-found]": "dashboard.view",
 };
-
-const allRequiredRoutes = new Set<string>([
-  "/dashboard/default",
-  "/dashboard/finance",
-  "/dashboard/invoice",
-  "/dashboard/crm",
-]);
 
 export const actionPermissions = {
   createMember: "members.create",
@@ -56,17 +63,10 @@ export function canAccess(user: Pick<DashboardUser, "permissions">, requirement?
 }
 
 export function canAccessRoute(user: Pick<DashboardUser, "permissions">, pathname: string) {
-  const normalizedPath = normalizeDashboardPath(pathname);
-  const requirement = routePermissions[normalizedPath];
+  const requirement = getRoutePermission(pathname);
 
   if (!requirement) {
-    return true;
-  }
-
-  if (Array.isArray(requirement) && allRequiredRoutes.has(normalizedPath)) {
-    const permissions = new Set(user.permissions);
-
-    return requirement.every((permission) => permissions.has(permission));
+    return false;
   }
 
   return canAccess(user, requirement);
@@ -96,13 +96,22 @@ export function firstAccessibleDashboardPath(user: Pick<DashboardUser, "permissi
 
 export function normalizeDashboardPath(pathname: string) {
   const path = pathname.split("?")[0] ?? pathname;
-  const segments = path.split("/").filter(Boolean);
 
-  if (segments[0] !== "dashboard") {
-    return path;
+  return path.replace(/\/+$/, "") || "/";
+}
+
+function getRoutePermission(pathname: string) {
+  const normalizedPath = normalizeDashboardPath(pathname);
+
+  if (!normalizedPath.startsWith("/dashboard")) {
+    return undefined;
   }
 
-  return `/${segments.slice(0, 2).join("/")}`;
+  return Object.entries(routePermissions)
+    .sort(([left], [right]) => right.length - left.length)
+    .find(
+      ([route]) => normalizedPath === route || (route !== "/dashboard" && normalizedPath.startsWith(`${route}/`)),
+    )?.[1];
 }
 
 export function AccessDenied({

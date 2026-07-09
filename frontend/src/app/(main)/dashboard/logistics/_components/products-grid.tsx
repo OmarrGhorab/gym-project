@@ -4,11 +4,19 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 
-import { ProductQuickActions } from "./logistics-actions";
+import { type ProductActionPermissions, ProductQuickActions } from "./logistics-actions";
 import { ProductImage } from "./product-image";
 import type { InventoryProduct } from "./shipment-data";
 
-export function ProductsGrid({ products, emptyMessage }: { products: InventoryProduct[]; emptyMessage?: string }) {
+export function ProductsGrid({
+  emptyMessage,
+  permissions,
+  products,
+}: {
+  emptyMessage?: string;
+  permissions: ProductActionPermissions;
+  products: InventoryProduct[];
+}) {
   const t = useTranslations("Dashboard.logistics");
 
   return (
@@ -32,7 +40,7 @@ export function ProductsGrid({ products, emptyMessage }: { products: InventoryPr
                 {t("left", { count: product.stock_quantity })}
               </Badge>
             </div>
-            <ProductQuickActions product={product} compact />
+            <ProductQuickActions product={product} compact permissions={permissions} />
           </div>
         ))
       )}

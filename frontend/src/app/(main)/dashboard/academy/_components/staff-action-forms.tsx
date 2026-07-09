@@ -12,7 +12,7 @@ import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 
 import { type AcademyActionResult, backfillCommissions, deleteEmployee, saveEmployee } from "./actions";
-import type { AcademyEmployee, AccessRole } from "./data";
+import type { AcademyEmployee } from "./data";
 
 type ShiftOption = {
   id: number;
@@ -28,14 +28,27 @@ type UserOption = {
   roles: string[];
 };
 
+const employeeRoleOptions = [
+  { label: "Employee", value: "employee" },
+  { label: "Captain", value: "captain" },
+  { label: "Manager", value: "manager" },
+  { label: "Coach", value: "coach" },
+] as const;
+
+export type EmployeeActionPermissions = {
+  canCreate: boolean;
+  canDelete: boolean;
+  canUpdate: boolean;
+};
+
 export function EmployeeActionForm({
   employee,
-  roles,
+  permissions,
   shifts,
   users,
 }: {
   employee?: AcademyEmployee;
-  roles: AccessRole[];
+  permissions: EmployeeActionPermissions;
   shifts: ShiftOption[];
   users: UserOption[];
 }) {
@@ -43,6 +56,12 @@ export function EmployeeActionForm({
   const [pending, startTransition] = React.useTransition();
   const [errors, setErrors] = React.useState<AcademyActionResult["errors"]>({});
   const isNew = !employee;
+  const canSubmit = isNew ? permissions.canCreate : permissions.canUpdate;
+  const canDelete = !isNew && permissions.canDelete;
+  const readOnly = !canSubmit;
+  const shiftOptions = mergeCurrentShiftOption(shifts, employee?.shift);
+  const showShiftSelect = shiftOptions.length > 0;
+  const showUserSelect = users.length > 0;
 
   function handleResult(result: AcademyActionResult) {
     setErrors(result.errors ?? {});
@@ -56,10 +75,18 @@ export function EmployeeActionForm({
   }
 
   function submit(formData: FormData) {
+    if (!canSubmit) {
+      return;
+    }
+
     startTransition(async () => handleResult(await saveEmployee(formData)));
   }
 
   function remove(formData: FormData) {
+    if (!canDelete) {
+      return;
+    }
+
     startTransition(async () => handleResult(await deleteEmployee(formData)));
   }
 
@@ -78,6 +105,7 @@ export function EmployeeActionForm({
             defaultValue={employee?.name ?? ""}
             placeholder={t("name")}
             required
+            disabled={readOnly}
             aria-invalid={Boolean(errors?.name?.[0])}
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
@@ -88,6 +116,7 @@ export function EmployeeActionForm({
             name="phone"
             defaultValue={employee?.phone ?? ""}
             placeholder={t("phone")}
+            disabled={readOnly}
             aria-invalid={Boolean(errors?.phone?.[0])}
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
@@ -98,7 +127,8 @@ export function EmployeeActionForm({
             defaultValue={employee?.role ?? "employee"}
             placeholder={t("role")}
             error={errors?.role?.[0]}
-            options={roles.map((role) => ({ value: role.name, label: role.name }))}
+            disabled={readOnly}
+            options={[...employeeRoleOptions]}
           />
         </FormField>
         <FormField error={errors?.base_salary?.[0]} label={t("baseSalary")} name="employee-base-salary">
@@ -109,6 +139,7 @@ export function EmployeeActionForm({
             min="0"
             step="0.01"
             defaultValue={employee?.base_salary ?? "0"}
+            disabled={readOnly}
             aria-invalid={Boolean(errors?.base_salary?.[0])}
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
@@ -122,6 +153,7 @@ export function EmployeeActionForm({
             max="9.9999"
             step="0.0001"
             defaultValue={employee?.commission_rate ?? "0"}
+            disabled={readOnly}
             aria-invalid={Boolean(errors?.commission_rate?.[0])}
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
@@ -135,55 +167,72 @@ export function EmployeeActionForm({
             max="31"
             defaultValue={employee?.pay_day ?? ""}
             placeholder={t("payDayPlaceholder")}
+            disabled={readOnly}
             aria-invalid={Boolean(errors?.pay_day?.[0])}
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
         </FormField>
-        <FormField label={t("shift")}>
-          <FormSelect
-            name="shift_id"
-            defaultValue={employee?.shift?.id ? String(employee.shift.id) : ""}
-            placeholder={t("noShift")}
-            error={errors?.shift_id?.[0]}
-            options={shifts.map((shift) => ({ value: String(shift.id), label: shift.name }))}
-          />
-        </FormField>
+        {showShiftSelect ? (
+          <FormField label={t("shift")}>
+            <FormSelect
+              name="shift_id"
+              defaultValue={employee?.shift?.id ? String(employee.shift.id) : ""}
+              placeholder={t("noShift")}
+              error={errors?.shift_id?.[0]}
+              disabled={readOnly}
+              options={shiftOptions.map((shift) => ({ value: String(shift.id), label: shift.name }))}
+            />
+          </FormField>
+        ) : null}
         <FormField label={t("hireDate")}>
-          <FormDatePicker name="hire_date" defaultValue={employee?.hire_date ?? ""} error={errors?.hire_date?.[0]} />
+          <FormDatePicker
+            name="hire_date"
+            defaultValue={employee?.hire_date ?? ""}
+            error={errors?.hire_date?.[0]}
+            disabled={readOnly}
+          />
         </FormField>
         <FormField label={t("status")}>
           <FormSelect
             name="status"
             defaultValue={employee?.status ?? "active"}
             error={errors?.status?.[0]}
+            disabled={readOnly}
             options={[
               { value: "active", label: t("active") },
               { value: "inactive", label: t("inactive") },
             ]}
           />
         </FormField>
-        <FormField label={t("userId")} className="sm:col-span-2 lg:col-span-1">
-          <FormSelect
-            name="user_id"
-            defaultValue={employee?.user_id ? String(employee.user_id) : ""}
-            placeholder={t("unlinkedUser")}
-            error={errors?.user_id?.[0]}
-            options={users.map((user) => ({
-              value: String(user.id),
-              label: `${user.name} (${user.email})${user.roles.length > 0 ? ` - ${user.roles.join(", ")}` : ""}`,
-            }))}
-          />
-        </FormField>
-        <div className="flex gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6">
-          <Button type="submit" size="sm" disabled={pending}>
-            {isNew ? t("create") : t("save")}
-          </Button>
-          {!isNew ? (
-            <Button formAction={remove} type="submit" size="sm" variant="outline" disabled={pending}>
-              {t("delete")}
-            </Button>
-          ) : null}
-        </div>
+        {showUserSelect ? (
+          <FormField label={t("userId")} className="sm:col-span-2 lg:col-span-1">
+            <FormSelect
+              name="user_id"
+              defaultValue={employee?.user_id ? String(employee.user_id) : ""}
+              placeholder={t("unlinkedUser")}
+              error={errors?.user_id?.[0]}
+              disabled={readOnly}
+              options={users.map((user) => ({
+                value: String(user.id),
+                label: `${user.name} (${user.email})${user.roles.length > 0 ? ` - ${user.roles.join(", ")}` : ""}`,
+              }))}
+            />
+          </FormField>
+        ) : null}
+        {canSubmit || canDelete ? (
+          <div className="flex gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6">
+            {canSubmit ? (
+              <Button type="submit" size="sm" disabled={pending}>
+                {isNew ? t("create") : t("save")}
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button formAction={remove} type="submit" size="sm" variant="outline" disabled={pending}>
+                {t("delete")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </form>
     </div>
   );
@@ -249,4 +298,12 @@ function FormField({
       <FieldError errors={error ? [error] : undefined} />
     </div>
   );
+}
+
+function mergeCurrentShiftOption(shifts: ShiftOption[], currentShift: AcademyEmployee["shift"] | undefined) {
+  if (!currentShift || shifts.some((shift) => shift.id === currentShift.id)) {
+    return shifts;
+  }
+
+  return [...shifts, currentShift];
 }

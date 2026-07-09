@@ -16,6 +16,9 @@ export type PermissionGroup = {
   }>;
 };
 
+const hiddenPermissionGroups = new Set(["foundation"]);
+const hiddenPermissions = new Set(["foundation.access-sample"]);
+
 export async function getRolesPageData() {
   const [rolesResult, permissionsResult] = await Promise.all([
     serverApiFetch<RoleRow[]>("/roles"),
@@ -24,15 +27,23 @@ export async function getRolesPageData() {
 
   return {
     permissionGroups: normalizePermissionGroups(permissionsResult.data),
-    roles: rolesResult.data,
+    roles: rolesResult.data.map((role) => ({
+      ...role,
+      permissions: role.permissions.filter((permission) => !hiddenPermissions.has(permission)),
+    })),
   };
 }
 
 function normalizePermissionGroups(
   permissions: Record<string, Array<string | { name: string; description?: string }>>,
 ): PermissionGroup[] {
-  return Object.entries(permissions).map(([group, rows]) => ({
-    group,
-    permissions: rows.map((row) => (typeof row === "string" ? { name: row } : row)),
-  }));
+  return Object.entries(permissions)
+    .filter(([group]) => !hiddenPermissionGroups.has(group))
+    .map(([group, rows]) => ({
+      group,
+      permissions: rows
+        .map((row) => (typeof row === "string" ? { name: row } : row))
+        .filter((permission) => !hiddenPermissions.has(permission.name)),
+    }))
+    .filter((group) => group.permissions.length > 0);
 }

@@ -10,6 +10,8 @@ export type AuthResponse = {
       id: number;
       name: string;
       email: string;
+      permissions?: string[];
+      roles?: string[];
       [key: string]: unknown;
     };
     token?: string;

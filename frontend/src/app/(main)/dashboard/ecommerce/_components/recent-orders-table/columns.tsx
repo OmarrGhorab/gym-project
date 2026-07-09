@@ -83,6 +83,7 @@ export function getRecentOrdersColumns(
   t: EcommerceT,
   onViewSale: (order: OrderRow) => void,
   onVoidSale: (order: OrderRow) => void,
+  canVoidSale: boolean,
 ): ColumnDef<OrderRow>[] {
   return [
     {
@@ -196,7 +197,7 @@ export function getRecentOrdersColumns(
                   {t("downloadReceipt")}
                 </DropdownMenuItem>
                 <DropdownMenuItem>{t("copySaleId")}</DropdownMenuItem>
-                {row.original.status.toLowerCase() !== "voided" ? (
+                {canVoidSale && row.original.status.toLowerCase() !== "voided" ? (
                   <DropdownMenuItem onClick={() => onVoidSale(row.original)}>{t("voidSale")}</DropdownMenuItem>
                 ) : null}
               </DropdownMenuGroup>

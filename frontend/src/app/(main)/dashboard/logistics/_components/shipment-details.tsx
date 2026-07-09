@@ -28,7 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import { ReceivePurchaseOrderForm } from "./logistics-actions";
+import { type ProductActionPermissions, ReceivePurchaseOrderForm } from "./logistics-actions";
 import { ProductImage } from "./product-image";
 import { ProductsGrid } from "./products-grid";
 import { ProductsTab } from "./products-tab";
@@ -41,6 +41,7 @@ import {
 
 type ShipmentDetailsProps = {
   data: InventoryLogisticsData;
+  permissions: ProductActionPermissions;
   shipment: PurchaseOrder | null;
 };
 
@@ -61,12 +62,18 @@ function formatEgp(value: string | number, locale: string) {
   }).format(Number(value) || 0);
 }
 
-function EmptyOrderOverview({ data }: { data: InventoryLogisticsData }) {
+function EmptyOrderOverview({
+  data,
+  permissions,
+}: {
+  data: InventoryLogisticsData;
+  permissions: ProductActionPermissions;
+}) {
   return (
     <div className="grid h-full min-h-0 grid-rows-[280px_1fr] overflow-hidden lg:grid-rows-[360px_1fr]">
       <InventoryHero data={data} order={null} />
       <div className="min-h-0 overflow-hidden p-4">
-        <ProductsTab data={data} />
+        <ProductsTab data={data} permissions={permissions} />
       </div>
     </div>
   );
@@ -128,7 +135,7 @@ function InventoryHero({ data, order }: { data: InventoryLogisticsData; order: P
   );
 }
 
-function OrderOverview({ order }: { order: PurchaseOrder }) {
+function OrderOverview({ order, permissions }: { order: PurchaseOrder; permissions: ProductActionPermissions }) {
   const t = useTranslations("Dashboard.logistics");
   const locale = useLocale();
 
@@ -235,7 +242,9 @@ function OrderOverview({ order }: { order: PurchaseOrder }) {
         ))}
       </div>
 
-      {order.status !== "received" ? <ReceivePurchaseOrderForm order={order} /> : null}
+      {permissions.canAdjustInventory && order.status !== "received" ? (
+        <ReceivePurchaseOrderForm order={order} />
+      ) : null}
 
       {order.notes && (
         <Card>
@@ -551,11 +560,11 @@ function Activity({ data, order }: { data: InventoryLogisticsData; order: Purcha
   );
 }
 
-export function ShipmentDetails({ data, shipment }: ShipmentDetailsProps) {
+export function ShipmentDetails({ data, permissions, shipment }: ShipmentDetailsProps) {
   const t = useTranslations("Dashboard.logistics");
 
   if (!shipment) {
-    return <EmptyOrderOverview data={data} />;
+    return <EmptyOrderOverview data={data} permissions={permissions} />;
   }
 
   return (
@@ -582,10 +591,10 @@ export function ShipmentDetails({ data, shipment }: ShipmentDetailsProps) {
               </TabsTrigger>
             </TabsList>
             <TabsContent className="min-h-0 overflow-auto p-4" value="overview">
-              <OrderOverview order={shipment} />
+              <OrderOverview order={shipment} permissions={permissions} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-hidden p-4" value="products">
-              <ProductsTab data={data} />
+              <ProductsTab data={data} permissions={permissions} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-auto p-4" value="alerts">
               <div className="mb-3 flex items-center justify-between">
@@ -595,7 +604,7 @@ export function ShipmentDetails({ data, shipment }: ShipmentDetailsProps) {
                 </div>
                 <Badge variant="outline">{t("itemCount", { count: data.low_stock_products.length })}</Badge>
               </div>
-              <ProductsGrid products={data.low_stock_products} />
+              <ProductsGrid products={data.low_stock_products} permissions={permissions} />
             </TabsContent>
             <TabsContent className="min-h-0 overflow-auto p-4" value="activity">
               <Activity data={data} order={shipment} />

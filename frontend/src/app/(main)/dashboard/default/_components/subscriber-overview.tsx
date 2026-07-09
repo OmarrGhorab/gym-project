@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { canAccess } from "@/lib/authorization";
+import type { DashboardUser } from "@/lib/session";
 
 import type { StaffOption } from "../../members/_components/data";
 import type { PlanRow } from "../../plans/_components/data";
@@ -19,11 +21,13 @@ type SubscriberOverviewProps = {
   query: MembersQuery;
   plans: PlanRow[];
   staff: StaffOption[];
+  user: DashboardUser;
 };
 
-export function SubscriberOverview({ members, total, meta, query, plans, staff }: SubscriberOverviewProps) {
+export function SubscriberOverview({ members, total, meta, query, plans, staff, user }: SubscriberOverviewProps) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
+  const canExportMembers = canAccess(user, "export.members");
 
   return (
     <Card>
@@ -32,16 +36,18 @@ export function SubscriberOverview({ members, total, meta, query, plans, staff }
           {t("title", { count: new Intl.NumberFormat(locale).format(total) })}
         </CardTitle>
         <CardDescription>{t("description")}</CardDescription>
-        <CardAction>
-          <Button variant="outline" size="sm">
-            <Download />
-            {t("export")}
-          </Button>
-        </CardAction>
+        {canExportMembers ? (
+          <CardAction>
+            <Button variant="outline" size="sm">
+              <Download />
+              {t("export")}
+            </Button>
+          </CardAction>
+        ) : null}
       </CardHeader>
 
       <CardContent className="pt-0">
-        <RecentCustomersTable data={members} meta={meta} query={query} plans={plans} staff={staff} />
+        <RecentCustomersTable data={members} meta={meta} query={query} plans={plans} staff={staff} user={user} />
       </CardContent>
     </Card>
   );

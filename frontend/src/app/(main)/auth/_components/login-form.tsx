@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { getErrorCode, getFieldErrors, getFriendlyError, login } from "@/lib/auth";
+import { firstAccessibleDashboardPath } from "@/lib/authorization";
 
 export function LoginForm() {
   const router = useRouter();
@@ -35,9 +36,8 @@ export function LoginForm() {
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
-      await login(data);
-      router.push("/dashboard/default");
-      router.refresh();
+      const result = await login(data);
+      router.replace(firstAccessibleDashboardPath({ permissions: result.data.user.permissions ?? [] }));
     } catch (error) {
       if (getErrorCode(error) === "email_not_verified") {
         router.push(`/auth/v2/verify-email?email=${encodeURIComponent(data.email)}`);

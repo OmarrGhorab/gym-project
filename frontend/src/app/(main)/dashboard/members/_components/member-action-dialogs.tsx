@@ -33,6 +33,7 @@ import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { canAccess } from "@/lib/authorization";
 
 import { recordMembershipPayment } from "../../crm/_components/actions";
 import type { PlanRow } from "../../plans/_components/data";
@@ -246,8 +247,10 @@ export function MemberActionsMenu({
   plans,
   staff,
   labels,
+  permissions,
 }: {
   due: MemberDueRow | null;
+  permissions: string[];
   member: MemberRow;
   plans: PlanRow[];
   staff: StaffOption[];
@@ -295,6 +298,15 @@ export function MemberActionsMenu({
   const [report, setReport] = React.useState<MemberReportData | null>(null);
   const [visits, setVisits] = React.useState<MemberVisitRow[]>([]);
   const detailsLoaded = React.useRef(false);
+  const currentUser = React.useMemo(() => ({ permissions }), [permissions]);
+  const canAddSubscription = canAccess(currentUser, "subscriptions.create");
+  const canChangePlan = canAccess(currentUser, "subscriptions.upgrade");
+  const canAddPayment = canAccess(currentUser, "payments.create");
+  const canUpdateMember = canAccess(currentUser, "members.update");
+  const canDeleteMember = canAccess(currentUser, "members.delete");
+  const hasInlineSubscriptionAction = member.latest_subscription ? canChangePlan : canAddSubscription;
+  const hasMutatingMenuAction =
+    canUpdateMember || canAddSubscription || canChangePlan || canAddPayment || canDeleteMember;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -329,32 +341,30 @@ export function MemberActionsMenu({
   return (
     <>
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            if (member.latest_subscription) {
-              setChangePlanOpen(true);
-              return;
-            }
+        {hasInlineSubscriptionAction ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (member.latest_subscription) {
+                setChangePlanOpen(true);
+                return;
+              }
 
-            setSubscriptionOpen(true);
-          }}
-        >
-          <CreditCard data-icon="inline-start" />
-          {member.latest_subscription ? resolvedLabels.changePlan : resolvedLabels.addSubscription}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={!due && !member.latest_subscription}
-          onClick={() => setPaymentOpen(true)}
-        >
-          <Receipt data-icon="inline-start" />
-          {resolvedLabels.addPayment}
-        </Button>
+              setSubscriptionOpen(true);
+            }}
+          >
+            <CreditCard data-icon="inline-start" />
+            {member.latest_subscription ? resolvedLabels.changePlan : resolvedLabels.addSubscription}
+          </Button>
+        ) : null}
+        {canAddPayment && (due || member.latest_subscription) ? (
+          <Button type="button" size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>
+            <Receipt data-icon="inline-start" />
+            {resolvedLabels.addPayment}
+          </Button>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -366,22 +376,30 @@ export function MemberActionsMenu({
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{resolvedLabels.viewDetails}</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setEditOpen(true)}>{resolvedLabels.editMember}</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{resolvedLabels.uploadPhoto}</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>
-                {resolvedLabels.addSubscription}
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!member.latest_subscription} onClick={() => setChangePlanOpen(true)}>
-                {resolvedLabels.changePlan}
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!due && !member.latest_subscription} onClick={() => setPaymentOpen(true)}>
-                {resolvedLabels.addPayment}
-              </DropdownMenuItem>
+              {canUpdateMember ? (
+                <>
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>{resolvedLabels.editMember}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{resolvedLabels.uploadPhoto}</DropdownMenuItem>
+                </>
+              ) : null}
+              {canAddSubscription ? (
+                <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>
+                  {resolvedLabels.addSubscription}
+                </DropdownMenuItem>
+              ) : null}
+              {canChangePlan && member.latest_subscription ? (
+                <DropdownMenuItem onClick={() => setChangePlanOpen(true)}>{resolvedLabels.changePlan}</DropdownMenuItem>
+              ) : null}
+              {canAddPayment && (due || member.latest_subscription) ? (
+                <DropdownMenuItem onClick={() => setPaymentOpen(true)}>{resolvedLabels.addPayment}</DropdownMenuItem>
+              ) : null}
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DeactivateMemberItem member={member} />
-            </DropdownMenuGroup>
+            {canDeleteMember && hasMutatingMenuAction ? <DropdownMenuSeparator /> : null}
+            {canDeleteMember ? (
+              <DropdownMenuGroup>
+                <DeactivateMemberItem member={member} />
+              </DropdownMenuGroup>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

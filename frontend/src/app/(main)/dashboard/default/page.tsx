@@ -72,6 +72,7 @@ export default async function Page({
         query={membersQuery}
         plans={data.memberPlans}
         staff={data.memberStaff}
+        user={user}
       />
     </div>
   );

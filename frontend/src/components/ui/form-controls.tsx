@@ -25,6 +25,7 @@ type FormSelectProps = {
   className?: string;
   contentClassName?: string;
   defaultValue?: string | number | null;
+  disabled?: boolean;
   error?: string;
   id?: string;
   name: string;
@@ -48,6 +49,7 @@ export function FormSelect({
   className,
   contentClassName,
   defaultValue,
+  disabled = false,
   error,
   id,
   name,
@@ -104,8 +106,14 @@ export function FormSelect({
 
   return (
     <>
-      <input type="hidden" name={name} value={value === emptySelectValue ? "" : value} required={required} />
-      <Popover open={open} onOpenChange={setOpen}>
+      <input
+        type="hidden"
+        name={name}
+        value={value === emptySelectValue ? "" : value}
+        required={required}
+        disabled={disabled}
+      />
+      <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
         <PopoverTrigger
           render={
             <Button
@@ -113,6 +121,7 @@ export function FormSelect({
               type="button"
               variant="outline"
               size={size}
+              disabled={disabled}
               className={cn("w-full justify-between bg-transparent px-2.5 font-normal", className)}
               aria-invalid={Boolean(error)}
               aria-describedby={error ? errorId : undefined}
@@ -227,6 +236,7 @@ function getOptionSearchText(label: React.ReactNode): string {
 type FormDatePickerProps = {
   className?: string;
   defaultValue?: string | null;
+  disabled?: boolean;
   error?: string;
   id?: string;
   name: string;
@@ -239,6 +249,7 @@ type FormDatePickerProps = {
 export function FormDatePicker({
   className,
   defaultValue = "",
+  disabled = false,
   error,
   id,
   name,
@@ -256,7 +267,7 @@ export function FormDatePicker({
 
   return (
     <>
-      <input type="hidden" name={name} value={value} required={required} />
+      <input type="hidden" name={name} value={value} required={required} disabled={disabled} />
       <Popover>
         <PopoverTrigger
           render={
@@ -264,6 +275,7 @@ export function FormDatePicker({
               id={id}
               type="button"
               variant="outline"
+              disabled={disabled}
               className={cn("w-full justify-between font-normal", className)}
               aria-invalid={Boolean(error)}
               aria-describedby={error ? errorId : undefined}

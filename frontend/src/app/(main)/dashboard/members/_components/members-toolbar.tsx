@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { canAccess } from "@/lib/authorization";
+import type { DashboardUser } from "@/lib/session";
 
 import { AddMemberDialog } from "./member-action-dialogs";
 
@@ -48,7 +50,7 @@ const rowsOptions: Option[] = [
   { labelKey: "50", value: "50" },
 ];
 
-export function MembersHeaderActions() {
+export function MembersHeaderActions({ user }: { user: DashboardUser | null }) {
   const t = useTranslations("Dashboard.membersPage");
   const locale = useLocale();
   const router = useQueryRouter();
@@ -56,6 +58,8 @@ export function MembersHeaderActions() {
   const [query, setQuery] = React.useState(searchParams.get("q") ?? "");
   const exportUrl = React.useMemo(() => buildMembersExportUrl(searchParams, locale), [locale, searchParams]);
   const [exporting, setExporting] = React.useState(false);
+  const canCreateMember = user ? canAccess(user, "members.create") : false;
+  const canExportMembers = user ? canAccess(user, "export.members") : false;
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,34 +88,36 @@ export function MembersHeaderActions() {
       >
         {t("reset")}
       </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
-          <Download data-icon="inline-start" />
-          {t("export")}
-          <ChevronDownIcon data-icon="inline-end" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem
-            disabled={exporting}
-            onClick={() => {
-              void startExportDownload(exportUrl("xlsx"), setExporting);
-            }}
-          >
-            <FileSpreadsheet data-icon="inline-start" />
-            {t("exportMembersXlsx")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={exporting}
-            onClick={() => {
-              void startExportDownload(exportUrl("pdf"), setExporting);
-            }}
-          >
-            <FileText data-icon="inline-start" />
-            {t("exportMembersPdf")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <AddMemberDialog />
+      {canExportMembers ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
+            <Download data-icon="inline-start" />
+            {t("export")}
+            <ChevronDownIcon data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              disabled={exporting}
+              onClick={() => {
+                void startExportDownload(exportUrl("xlsx"), setExporting);
+              }}
+            >
+              <FileSpreadsheet data-icon="inline-start" />
+              {t("exportMembersXlsx")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={exporting}
+              onClick={() => {
+                void startExportDownload(exportUrl("pdf"), setExporting);
+              }}
+            >
+              <FileText data-icon="inline-start" />
+              {t("exportMembersPdf")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+      {canCreateMember ? <AddMemberDialog /> : null}
     </div>
   );
 }

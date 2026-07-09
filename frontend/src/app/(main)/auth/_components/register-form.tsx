@@ -18,6 +18,7 @@ import {
   verifyEmailOtp,
 } from "@/lib/auth";
 import { createRegisterSchema, createVerifyEmailOtpSchema, validateWithSchema } from "@/lib/auth-validation";
+import { firstAccessibleDashboardPath } from "@/lib/authorization";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -96,8 +97,7 @@ export function RegisterForm() {
     try {
       const result = await verifyEmailOtp({ email, otp });
       toast.success(tRegister("emailVerified"), { description: result.message });
-      router.push("/dashboard/default");
-      router.refresh();
+      router.replace(firstAccessibleDashboardPath({ permissions: result.data.user.permissions ?? [] }));
     } catch (error) {
       toast.error(tRegister("verificationFailed"), { description: getFriendlyError(error) });
       setFieldErrors(getFieldErrors(error) ?? {});

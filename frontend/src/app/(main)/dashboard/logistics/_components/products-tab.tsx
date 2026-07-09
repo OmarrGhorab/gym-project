@@ -12,11 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { getProductsPage } from "./actions";
+import type { ProductActionPermissions } from "./logistics-actions";
 import { ProductsGrid } from "./products-grid";
 import type { InventoryLogisticsData, InventoryProduct, PaginationMeta, ProductFilters } from "./shipment-data";
 
 type ProductsTabProps = {
   data: InventoryLogisticsData;
+  permissions: ProductActionPermissions;
 };
 
 function useProductCategories(products: InventoryProduct[]) {
@@ -26,7 +28,7 @@ function useProductCategories(products: InventoryProduct[]) {
   );
 }
 
-export function ProductsTab({ data }: ProductsTabProps) {
+export function ProductsTab({ data, permissions }: ProductsTabProps) {
   const t = useTranslations("Dashboard.logistics");
   const categories = useProductCategories(data.products);
 
@@ -228,7 +230,7 @@ export function ProductsTab({ data }: ProductsTabProps) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <ProductsGrid products={products} emptyMessage={t("noProducts")} />
+        <ProductsGrid products={products} emptyMessage={t("noProducts")} permissions={permissions} />
       </div>
 
       {meta.last_page > 1 && (

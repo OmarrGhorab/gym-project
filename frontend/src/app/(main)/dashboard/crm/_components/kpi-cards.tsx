@@ -7,10 +7,12 @@ import { formatCurrency } from "@/lib/utils";
 
 import type { MembershipSummary } from "./data";
 
-export function KpiCards({ summary }: { summary: MembershipSummary }) {
+export function KpiCards({ canViewMoney, summary }: { canViewMoney: boolean; summary: MembershipSummary }) {
   const t = useTranslations("Dashboard.crm");
   const locale = useLocale();
   const numberFormatter = new Intl.NumberFormat(locale);
+  const showRevenue = canViewMoney && (summary.subscriptionRevenue > 0 || summary.salesTodayRevenue > 0);
+  const showDues = canViewMoney && (summary.outstandingDuesTotal > 0 || summary.outstandingDuesCount > 0);
 
   return (
     <section className="space-y-5">
@@ -20,56 +22,60 @@ export function KpiCards({ summary }: { summary: MembershipSummary }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardDescription>{t("subscriptionRevenue")}</CardDescription>
-            <CardAction>
-              <ArrowUpRight className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl leading-none tracking-tight">
-                {formatCurrency(summary.subscriptionRevenue, { currency: "EGP", maximumFractionDigits: 0 })}
-              </span>
+        {showRevenue ? (
+          <Card>
+            <CardHeader>
+              <CardDescription>{t("subscriptionRevenue")}</CardDescription>
+              <CardAction>
+                <ArrowUpRight className="size-4" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl leading-none tracking-tight">
+                  {formatCurrency(summary.subscriptionRevenue, { currency: "EGP", maximumFractionDigits: 0 })}
+                </span>
 
-              <PositiveBadge
-                value={t("today", {
-                  value: formatCurrency(summary.salesTodayRevenue, { currency: "EGP", noDecimals: true }),
-                })}
-              />
-            </div>
-            <p className="text-sm">
-              <span className="font-medium text-foreground">{t("allSubscriptionValue")}</span>{" "}
-              <span className="text-muted-foreground">{t("currentlyTracked")}</span>
-            </p>
-          </CardContent>
-        </Card>
+                <PositiveBadge
+                  value={t("today", {
+                    value: formatCurrency(summary.salesTodayRevenue, { currency: "EGP", noDecimals: true }),
+                  })}
+                />
+              </div>
+              <p className="text-sm">
+                <span className="font-medium text-foreground">{t("allSubscriptionValue")}</span>{" "}
+                <span className="text-muted-foreground">{t("currentlyTracked")}</span>
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
 
-        <Card>
-          <CardHeader>
-            <CardDescription>{t("outstandingDues")}</CardDescription>
-            <CardAction>
-              <ArrowUpRight className="size-4" />
-            </CardAction>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl leading-none tracking-tight">
-                {formatCurrency(summary.outstandingDuesTotal, { currency: "EGP", maximumFractionDigits: 0 })}
-              </span>
+        {showDues ? (
+          <Card>
+            <CardHeader>
+              <CardDescription>{t("outstandingDues")}</CardDescription>
+              <CardAction>
+                <ArrowUpRight className="size-4" />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl leading-none tracking-tight">
+                  {formatCurrency(summary.outstandingDuesTotal, { currency: "EGP", maximumFractionDigits: 0 })}
+                </span>
 
-              <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
-                <TrendingDown />
-                {t("dueCount", { count: numberFormatter.format(summary.outstandingDuesCount) })}
-              </Badge>
-            </div>
-            <p className="text-sm">
-              <span className="font-medium text-foreground">{t("unpaidBalances")}</span>{" "}
-              <span className="text-muted-foreground">{t("fromSubscriptions")}</span>
-            </p>
-          </CardContent>
-        </Card>
+                <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
+                  <TrendingDown />
+                  {t("dueCount", { count: numberFormatter.format(summary.outstandingDuesCount) })}
+                </Badge>
+              </div>
+              <p className="text-sm">
+                <span className="font-medium text-foreground">{t("unpaidBalances")}</span>{" "}
+                <span className="text-muted-foreground">{t("fromSubscriptions")}</span>
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>

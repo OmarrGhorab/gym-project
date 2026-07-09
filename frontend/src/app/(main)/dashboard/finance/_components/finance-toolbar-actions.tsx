@@ -21,9 +21,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { RecordExpenseDialog } from "./record-expense-dialog";
 
 export function FinanceToolbarActions({
+  canExport,
+  canRecordExpense,
   exportDefaults,
   updatedAt,
 }: {
+  canExport: boolean;
+  canRecordExpense: boolean;
   exportDefaults: { from: string; groupBy: "day" | "month"; locale: string; to: string };
   updatedAt: string;
 }) {
@@ -79,11 +83,13 @@ export function FinanceToolbarActions({
         <RotateCw className="size-4" />
         <span>{updatedAtLabel}</span>
       </div>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-        <Download data-icon="inline-start" />
-        {t("actions.export")}
-      </Button>
-      <RecordExpenseDialog />
+      {canExport ? (
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          <Download data-icon="inline-start" />
+          {t("actions.export")}
+        </Button>
+      ) : null}
+      {canRecordExpense ? <RecordExpenseDialog /> : null}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-xl">
