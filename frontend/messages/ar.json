@@ -1470,6 +1470,8 @@
       "notRecorded": "--",
       "actions": "الإجراءات",
       "markRead": "تحديد كمقروء",
+      "open": "فتح",
+      "downloadReport": "تحميل التقرير",
       "previousPage": "السابق",
       "nextPage": "التالي",
       "pageOf": "صفحة {page} من {total}",

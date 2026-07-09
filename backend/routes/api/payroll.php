@@ -23,5 +23,5 @@ Route::prefix('payroll')->group(function (): void {
         ->middleware(['permission:payroll.pay', 'throttle:sensitive']);
 
     Route::get('/{payroll}/payslip', [PayrollController::class, 'payslip'])
-        ->middleware('permission:payroll.view');
+        ->middleware('throttle:api');
 });

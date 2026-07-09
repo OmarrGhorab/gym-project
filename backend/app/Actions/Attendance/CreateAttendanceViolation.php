@@ -5,10 +5,15 @@ namespace App\Actions\Attendance;
 use App\Models\Attendance;
 use App\Models\AttendanceViolation;
 use App\Models\AttendanceViolationRule;
+use App\Services\OperationalNotifier;
 use Illuminate\Support\Carbon;
 
 final class CreateAttendanceViolation
 {
+    public function __construct(
+        private readonly OperationalNotifier $notifier,
+    ) {}
+
     public function handle(
         Attendance $attendance,
         string $type,
@@ -32,7 +37,7 @@ final class CreateAttendanceViolation
         $status = $warningPhase ? 'warning' : ($rule->requires_admin_approval ? 'pending' : 'approved');
         $deductionDays = $warningPhase ? '0.00' : (string) $rule->deduction_days;
 
-        return AttendanceViolation::query()->updateOrCreate(
+        $violation = AttendanceViolation::query()->updateOrCreate(
             [
                 'attendance_id' => $attendance->id,
                 'type' => $type,
@@ -48,6 +53,12 @@ final class CreateAttendanceViolation
                 'notes' => $notes,
             ]
         );
+
+        if ($violation->wasRecentlyCreated || $violation->wasChanged(['status', 'deduction_days'])) {
+            $this->notifier->employeeAttendanceWarning($violation);
+        }
+
+        return $violation;
     }
 
     private function ruleFor(string $type, ?int $minutes): ?AttendanceViolationRule

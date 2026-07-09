@@ -114,6 +114,15 @@ final class CheckInEmployeeAttendance
             );
         }
 
+        if (bccomp((string) $attendance->off_day_bonus_amount, '0.00', 2) === 1) {
+            $this->notifier->employeeAttendanceBonus(
+                $employee,
+                $attendance->date?->toDateString() ?? $date,
+                number_format((float) $attendance->off_day_bonus_amount, 2, '.', ''),
+                $attendance->shift?->name,
+            );
+        }
+
         activity('attendance')
             ->causedBy($user)
             ->performedOn($attendance)

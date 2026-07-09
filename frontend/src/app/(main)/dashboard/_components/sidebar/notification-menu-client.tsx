@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Bell, ClipboardList, Package, ReceiptText, UserPlus, WalletCards } from "lucide-react";
+import { Bell, ClipboardList, ClockAlert, Package, ReceiptText, UserPlus, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ type NotificationStreamPayload = {
 };
 
 const iconMap = [
+  { match: "attendance", icon: ClockAlert },
   { match: "inventory", icon: Package },
   { match: "membership", icon: UserPlus },
   { match: "payroll", icon: WalletCards },

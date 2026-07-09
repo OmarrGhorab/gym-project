@@ -4,11 +4,16 @@ namespace App\Actions\Payroll;
 
 use App\Models\AttendanceViolation;
 use App\Models\Payroll;
+use App\Services\OperationalNotifier;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 final class ApplyAttendanceDeductions
 {
+    public function __construct(
+        private readonly OperationalNotifier $notifier,
+    ) {}
+
     public function execute(Payroll $payroll): Payroll
     {
         $violations = AttendanceViolation::query()
@@ -35,6 +40,8 @@ final class ApplyAttendanceDeductions
 
         foreach ($applicable as $violation) {
             $amount = bcmul($dailySalary, (string) $violation->deduction_days, 2);
+            $originalAmount = (string) $violation->deduction_amount;
+            $originalStatus = (string) $violation->status;
             $updates = [
                 'deduction_amount' => $amount,
                 'status' => $violation->status === 'pending' ? 'auto_applied' : $violation->status,
@@ -47,6 +54,14 @@ final class ApplyAttendanceDeductions
             $violation->update($updates);
             $violation->deduction_amount = $amount;
             $violation->status = $updates['status'];
+
+            if (
+                bccomp($amount, '0.00', 2) === 1
+                && (bccomp($originalAmount, $amount, 2) !== 0 || $originalStatus !== $updates['status'])
+            ) {
+                $this->notifier->employeeAttendanceDeduction($violation);
+            }
+
             $total = bcadd($total, $amount, 2);
         }
 

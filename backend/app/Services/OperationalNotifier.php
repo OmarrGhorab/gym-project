@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\GymTask;
 use App\Models\Payroll;
@@ -111,6 +112,40 @@ class OperationalNotifier
         );
     }
 
+    public function payrollPaid(Payroll $payroll): void
+    {
+        $payroll->loadMissing('employee.user');
+        $employee = $payroll->employee;
+
+        if (! $employee instanceof Employee || ! $employee->user) {
+            return;
+        }
+
+        $this->notifyUsers(
+            collect([$employee->user]),
+            title: 'Salary paid',
+            body: "Your {$payroll->month} salary was paid. Net salary: EGP {$payroll->net_salary}.",
+            category: 'payroll.paid',
+            url: '/dashboard/payroll',
+            severity: 'success',
+            extra: [
+                'payroll_id' => $payroll->id,
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->name,
+                'month' => $payroll->month,
+                'base_salary' => number_format((float) $payroll->base_salary, 2, '.', ''),
+                'commissions_total' => number_format((float) $payroll->commissions_total, 2, '.', ''),
+                'bonuses' => number_format((float) $payroll->bonuses, 2, '.', ''),
+                'deductions' => number_format((float) $payroll->deductions, 2, '.', ''),
+                'attendance_deductions' => number_format((float) $payroll->attendance_deductions, 2, '.', ''),
+                'net_salary' => number_format((float) $payroll->net_salary, 2, '.', ''),
+                'paid_at' => $payroll->paid_at?->toIso8601String(),
+                'attendance_snapshot' => $payroll->attendance_snapshot,
+                'payslip_url' => "/api/payroll/{$payroll->id}/payslip",
+            ],
+        );
+    }
+
     public function offShiftAttendance(Employee $employee, string $date, ?string $checkIn, ?string $shiftName): void
     {
         $this->notifyAdmins(
@@ -144,6 +179,99 @@ class OperationalNotifier
                 'attendance_date' => $date,
                 'check_in' => $checkIn,
                 'late_minutes' => $lateMinutes,
+            ],
+        );
+    }
+
+    public function employeeAttendanceWarning(AttendanceViolation $violation): void
+    {
+        $violation->loadMissing(['employee.user', 'rule']);
+        $employee = $violation->employee;
+
+        if (! $employee instanceof Employee || ! $employee->user) {
+            return;
+        }
+
+        $minutes = $violation->minutes ? " ({$violation->minutes} minute(s))" : '';
+        $willDeduct = bccomp((string) $violation->deduction_days, '0.00', 2) === 1;
+
+        $this->notifyUsers(
+            collect([$employee->user]),
+            title: $willDeduct ? 'Attendance deduction pending' : 'Attendance warning',
+            body: $willDeduct
+                ? "A {$violation->type}{$minutes} record may deduct {$violation->deduction_days} day(s)."
+                : "A {$violation->type}{$minutes} warning was recorded. Please keep an eye on your attendance.",
+            category: $willDeduct ? 'attendance.deduction_pending' : 'attendance.warning',
+            url: '/dashboard/attendance',
+            severity: $willDeduct ? 'warning' : 'info',
+            extra: [
+                'attendance_violation_id' => $violation->id,
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->name,
+                'violation_type' => $violation->type,
+                'violation_date' => $violation->violation_date?->toDateString(),
+                'minutes' => $violation->minutes,
+                'deduction_days' => number_format((float) $violation->deduction_days, 2, '.', ''),
+                'status' => $violation->status,
+            ],
+        );
+    }
+
+    public function employeeAttendanceDeduction(AttendanceViolation $violation): void
+    {
+        $violation->loadMissing(['employee.user', 'payroll']);
+        $employee = $violation->employee;
+
+        if (! $employee instanceof Employee || ! $employee->user) {
+            return;
+        }
+
+        if (bccomp((string) $violation->deduction_amount, '0.00', 2) !== 1) {
+            return;
+        }
+
+        $this->notifyUsers(
+            collect([$employee->user]),
+            title: 'Attendance deduction applied',
+            body: "EGP {$violation->deduction_amount} was applied for {$violation->type} on {$violation->violation_date?->toDateString()}.",
+            category: 'attendance.deduction',
+            url: '/dashboard/payroll',
+            severity: 'warning',
+            extra: [
+                'attendance_violation_id' => $violation->id,
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->name,
+                'violation_type' => $violation->type,
+                'violation_date' => $violation->violation_date?->toDateString(),
+                'deduction_amount' => number_format((float) $violation->deduction_amount, 2, '.', ''),
+                'deduction_days' => number_format((float) $violation->deduction_days, 2, '.', ''),
+                'payroll_id' => $violation->payroll_id,
+                'payroll_month' => $violation->payroll?->month,
+            ],
+        );
+    }
+
+    public function employeeAttendanceBonus(Employee $employee, string $date, string $amount, ?string $shiftName): void
+    {
+        $employee->loadMissing('user');
+
+        if (! $employee->user || bccomp($amount, '0.00', 2) !== 1) {
+            return;
+        }
+
+        $this->notifyUsers(
+            collect([$employee->user]),
+            title: 'Attendance bonus earned',
+            body: "You earned EGP {$amount} attendance bonus".($shiftName ? " for {$shiftName}" : '').'.',
+            category: 'attendance.bonus',
+            url: '/dashboard/payroll',
+            severity: 'success',
+            extra: [
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->name,
+                'shift_name' => $shiftName,
+                'attendance_date' => $date,
+                'bonus_amount' => number_format((float) $amount, 2, '.', ''),
             ],
         );
     }

@@ -15,7 +15,13 @@ class PayrollPolicy
 
     public function view(User $user, Payroll $payroll): bool
     {
-        return $user->hasPermissionTo(HrFinancePermissions::PERM_PAYROLL_VIEW);
+        if ($user->hasPermissionTo(HrFinancePermissions::PERM_PAYROLL_VIEW)) {
+            return true;
+        }
+
+        return $payroll->employee()
+            ->where('user_id', $user->id)
+            ->exists();
     }
 
     public function generate(User $user): bool

@@ -6,13 +6,17 @@ use App\Models\Commission;
 use App\Models\Expense;
 use App\Models\Payroll;
 use App\Models\User;
+use App\Services\OperationalNotifier;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class MarkPayrollPaid
 {
-    public function __construct(private readonly ApplyAttendanceDeductions $attendanceDeductions) {}
+    public function __construct(
+        private readonly ApplyAttendanceDeductions $attendanceDeductions,
+        private readonly OperationalNotifier $notifier,
+    ) {}
 
     /**
      * Mark a payroll entry as paid and record a matching expense payout.
@@ -107,7 +111,10 @@ final class MarkPayrollPaid
 
             Cache::forget('dashboard:summary:v1');
 
-            return $payroll->fresh();
+            $paidPayroll = $payroll->fresh(['employee.user']);
+            $this->notifier->payrollPaid($paidPayroll);
+
+            return $paidPayroll;
         });
     }
 }

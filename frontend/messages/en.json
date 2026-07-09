@@ -1470,6 +1470,8 @@
       "notRecorded": "--",
       "actions": "Actions",
       "markRead": "Mark read",
+      "open": "Open",
+      "downloadReport": "Download report",
       "previousPage": "Previous",
       "nextPage": "Next",
       "pageOf": "Page {page} of {total}",

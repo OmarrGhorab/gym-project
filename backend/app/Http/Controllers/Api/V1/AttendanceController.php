@@ -8,8 +8,8 @@ use App\Actions\Attendance\StoreAttendance;
 use App\Actions\Attendance\UpdateAttendance;
 use App\Http\Requests\Attendance\ReviewAttendanceViolationRequest;
 use App\Http\Requests\Attendance\ScanAttendanceRequest;
-use App\Http\Requests\Attendance\StoreAttendanceViolationRuleRequest;
 use App\Http\Requests\Attendance\StoreAttendanceRequest;
+use App\Http\Requests\Attendance\StoreAttendanceViolationRuleRequest;
 use App\Http\Requests\Attendance\StoreEmployeeShiftRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceViolationRuleRequest;
@@ -22,6 +22,7 @@ use App\Models\Attendance;
 use App\Models\AttendanceViolation;
 use App\Models\AttendanceViolationRule;
 use App\Models\EmployeeShift;
+use App\Services\OperationalNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -183,11 +184,16 @@ final class AttendanceController extends ApiController
             ->setStatusCode(201);
     }
 
-    public function reviewViolation(ReviewAttendanceViolationRequest $request, AttendanceViolation $attendanceViolation): JsonResponse
-    {
+    public function reviewViolation(
+        ReviewAttendanceViolationRequest $request,
+        AttendanceViolation $attendanceViolation,
+        OperationalNotifier $notifier,
+    ): JsonResponse {
         $data = $request->validated();
         $deductionDays = $data['deduction_days'] ?? $attendanceViolation->deduction_days;
         $deductionAmount = $data['deduction_amount'] ?? $attendanceViolation->deduction_amount;
+        $originalDeductionAmount = (string) $attendanceViolation->deduction_amount;
+        $originalStatus = (string) $attendanceViolation->status;
 
         if (! array_key_exists('deduction_amount', $data) && $data['status'] === 'approved') {
             $attendanceViolation->loadMissing('employee');
@@ -206,6 +212,17 @@ final class AttendanceController extends ApiController
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
+
+        if (
+            bccomp((string) $deductionAmount, '0.00', 2) === 1
+            && ($originalStatus !== $data['status'] || bccomp($originalDeductionAmount, (string) $deductionAmount, 2) !== 0)
+        ) {
+            $reviewedViolation = $attendanceViolation->fresh(['employee.user', 'payroll']);
+
+            if ($reviewedViolation instanceof AttendanceViolation) {
+                $notifier->employeeAttendanceDeduction($reviewedViolation);
+            }
+        }
 
         return (new AttendanceViolationResource($attendanceViolation->fresh(['employee', 'rule'])))
             ->withMessage('Attendance violation reviewed')

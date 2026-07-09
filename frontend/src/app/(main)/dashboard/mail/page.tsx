@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import Link from "next/link";
 
-import { Bell, CheckCircle2 } from "lucide-react";
+import { Bell, CheckCircle2, Download, ExternalLink } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -77,15 +77,18 @@ export default async function Page({
                     </Badge>
                   </TableCell>
                   <TableCell>{formatDate(notification.created_at, locale, t)}</TableCell>
-                  <TableCell className="text-end">
-                    {!notification.read_at ? (
-                      <form action={markNotificationRead}>
-                        <input type="hidden" name="id" value={notification.id} />
-                        <Button type="submit" size="sm" variant="outline">
-                          {t("markRead")}
-                        </Button>
-                      </form>
-                    ) : null}
+                  <TableCell>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <NotificationPayloadActions data={notification.data} t={t} />
+                      {!notification.read_at ? (
+                        <form action={markNotificationRead}>
+                          <input type="hidden" name="id" value={notification.id} />
+                          <Button type="submit" size="sm" variant="outline">
+                            {t("markRead")}
+                          </Button>
+                        </form>
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -120,11 +123,16 @@ export default async function Page({
 type NotificationQuery = Parameters<typeof getNotificationsPageData>[0];
 
 const notificationCategoryOptions = [
+  "attendance.bonus",
+  "attendance.deduction",
+  "attendance.deduction_pending",
   "attendance.late",
   "attendance.off_shift",
+  "attendance.warning",
   "inventory.low_stock",
   "membership.expiring_soon",
   "membership.subscription_created",
+  "payroll.paid",
   "payroll.ready",
   "tasks.assigned",
 ] as const;
@@ -177,6 +185,34 @@ function FilterField({ children, label }: { children: ReactNode; label: string }
       <span className="text-muted-foreground text-xs">{label}</span>
       {children}
     </div>
+  );
+}
+
+function NotificationPayloadActions({
+  data,
+  t,
+}: {
+  data: Record<string, unknown>;
+  t: Awaited<ReturnType<typeof getTranslations<"Dashboard.mail">>>;
+}) {
+  const payslipUrl = safeRelativeHref(data.payslip_url);
+  const url = safeRelativeHref(data.url);
+
+  return (
+    <>
+      {payslipUrl ? (
+        <Button size="sm" variant="outline" render={<a href={payslipUrl} />}>
+          <Download data-icon="inline-start" />
+          {t("downloadReport")}
+        </Button>
+      ) : null}
+      {url && url !== payslipUrl ? (
+        <Button size="sm" variant="outline" render={<Link href={url} />}>
+          <ExternalLink data-icon="inline-start" />
+          {t("open")}
+        </Button>
+      ) : null}
+    </>
   );
 }
 
@@ -246,6 +282,18 @@ function notificationTitle(
 
 function notificationBody(data: Record<string, unknown>) {
   return String(data.body ?? data.description ?? data.member_name ?? data.plan_name ?? "");
+}
+
+function safeRelativeHref(value: unknown) {
+  if (typeof value !== "string" || !value.startsWith("/")) {
+    return null;
+  }
+
+  if (value.startsWith("//")) {
+    return null;
+  }
+
+  return value;
 }
 
 function formatDate(

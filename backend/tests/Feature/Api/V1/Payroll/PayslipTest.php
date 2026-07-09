@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Employee;
 use App\Models\Payroll;
 use App\Models\User;
 use App\Support\FoundationPermissions;
@@ -48,6 +49,33 @@ test('admin can retrieve payslip as PDF stream', function (): void {
     ])
         ->assertStatus(200)
         ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('linked employee can retrieve their own payslip as PDF stream', function (): void {
+    $employeeUser = User::factory()->create();
+    Sanctum::actingAs($employeeUser);
+
+    $payroll = Payroll::factory()
+        ->for(Employee::factory()->state(['user_id' => $employeeUser->id]))
+        ->create();
+
+    $this->get("/api/v1/payroll/{$payroll->id}/payslip", [
+        'Accept' => 'application/pdf',
+    ])
+        ->assertStatus(200)
+        ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('linked employee cannot retrieve another employee payslip', function (): void {
+    $employeeUser = User::factory()->create();
+    Sanctum::actingAs($employeeUser);
+
+    $payroll = Payroll::factory()->create();
+
+    $this->get("/api/v1/payroll/{$payroll->id}/payslip", [
+        'Accept' => 'application/pdf',
+    ])
+        ->assertForbidden();
 });
 
 test('payslip violation table includes manual payroll adjustments', function (): void {
