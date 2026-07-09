@@ -120,6 +120,7 @@ export default async function Page({
 type NotificationQuery = Parameters<typeof getNotificationsPageData>[0];
 
 const notificationCategoryOptions = [
+  "attendance.late",
   "attendance.off_shift",
   "inventory.low_stock",
   "membership.expiring_soon",

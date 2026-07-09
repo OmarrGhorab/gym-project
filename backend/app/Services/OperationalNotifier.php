@@ -129,6 +129,25 @@ class OperationalNotifier
         );
     }
 
+    public function lateAttendance(Employee $employee, string $date, ?string $checkIn, ?string $shiftName, int $lateMinutes): void
+    {
+        $this->notifyAdmins(
+            title: 'Late staff attendance',
+            body: "{$employee->name} checked in {$lateMinutes} minute(s) late".($shiftName ? " for {$shiftName}" : '').'.',
+            category: 'attendance.late',
+            url: '/dashboard/attendance',
+            severity: 'warning',
+            extra: [
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->name,
+                'shift_name' => $shiftName,
+                'attendance_date' => $date,
+                'check_in' => $checkIn,
+                'late_minutes' => $lateMinutes,
+            ],
+        );
+    }
+
     public function taskAssigned(GymTask $task): void
     {
         $task->loadMissing('assignedEmployee.user');

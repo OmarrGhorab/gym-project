@@ -104,6 +104,16 @@ final class CheckInEmployeeAttendance
                 ->log(($attendance->employee?->name ?? 'Employee').' checked in outside the assigned shift.');
         }
 
+        if ($lateMinutes > 0) {
+            $this->notifier->lateAttendance(
+                $employee,
+                $attendance->date?->toDateString() ?? $date,
+                $attendance->check_in?->format('H:i'),
+                $attendance->shift?->name,
+                $lateMinutes,
+            );
+        }
+
         activity('attendance')
             ->causedBy($user)
             ->performedOn($attendance)
