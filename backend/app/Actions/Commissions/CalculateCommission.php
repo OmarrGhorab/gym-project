@@ -178,10 +178,11 @@ final class CalculateCommission
      */
     private function resolveSubscriptionAddonSpecs(SubscriptionAddon $addon): array
     {
-        $addon->loadMissing(['plan', 'coach.planCommissionRules']);
+        $addon->loadMissing(['plan', 'subscription', 'coach.planCommissionRules']);
         $specs = [];
         $month = $addon->created_at ? $addon->created_at->format('Y-m') : now()->format('Y-m');
         $base = (string) $addon->price_paid;
+        $coachPercentageBase = bcadd((string) ($addon->subscription?->price_paid ?? '0.00'), $base, 2);
 
         $salesEmployee = $this->resolveSalesEmployee($addon->sold_by_user_id, $addon);
 
@@ -210,7 +211,7 @@ final class CalculateCommission
 
         if ($coach !== null && $coach->status === 'active' && $coachRule !== null) {
             $amount = $coachRule->calculation_type === 'percentage'
-                ? bcmul($base, bcdiv((string) $coachRule->value, '100', 6), 2)
+                ? bcmul($coachPercentageBase, bcdiv((string) $coachRule->value, '100', 6), 2)
                 : number_format((float) $coachRule->value, 2, '.', '');
 
             if (bccomp($amount, '0.00', 2) > 0) {

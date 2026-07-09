@@ -924,6 +924,12 @@ function SubscriptionFormContent({
                 ? calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType)
                 : "0";
               const addonPayment = addonPlan ? calculatePaymentAmount(addonPlan.price, addonDiscount) : "0";
+              const coachCommission = calculateAddonCoachCommissionPreview({
+                addonPayment,
+                basePayment: paymentAmount,
+                coachId: addon.coach_id,
+                plan: addonPlan,
+              });
 
               return (
                 <div key={addon._key} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-2">
@@ -1033,6 +1039,15 @@ function SubscriptionFormContent({
                     <Input value={addonPayment} readOnly />
                     <p className="text-muted-foreground text-xs">{t("addonChargeHelp")}</p>
                   </div>
+                  <div className="grid gap-2">
+                    <Label>{t("addonCoachCommission")}</Label>
+                    <Input value={coachCommission.amount} readOnly />
+                    <p className="text-muted-foreground text-xs">
+                      {coachCommission.isPercentage
+                        ? t("addonCoachCommissionPercentHelp")
+                        : t("addonCoachCommissionFixedHelp")}
+                    </p>
+                  </div>
                   <div className="flex items-end lg:justify-end">
                     <Button
                       type="button"
@@ -1113,6 +1128,43 @@ function getAssignedEmployees(plan?: PlanRow | null): PlanAssignedEmployee[] {
   }
 
   return Array.from(assigned.values());
+}
+
+function calculateAddonCoachCommissionPreview({
+  addonPayment,
+  basePayment,
+  coachId,
+  plan,
+}: {
+  addonPayment: string;
+  basePayment: string;
+  coachId: string;
+  plan?: PlanRow;
+}) {
+  const coachIdNumber = Number(coachId);
+  const rule = plan?.employee_commission_rules?.find((item) => item.is_active && item.employee_id === coachIdNumber);
+
+  if (!rule) {
+    return {
+      amount: "0.00",
+      isPercentage: true,
+    };
+  }
+
+  if (rule.calculation_type === "fixed") {
+    return {
+      amount: Math.max(0, Number(rule.value || 0)).toFixed(2),
+      isPercentage: false,
+    };
+  }
+
+  const totalPaid = Math.max(0, Number(basePayment || 0)) + Math.max(0, Number(addonPayment || 0));
+  const commission = totalPaid * (Math.min(Math.max(0, Number(rule.value || 0)), 100) / 100);
+
+  return {
+    amount: Number.isFinite(commission) ? commission.toFixed(2) : "0.00",
+    isPercentage: true,
+  };
 }
 
 function PhotoDialogContent({

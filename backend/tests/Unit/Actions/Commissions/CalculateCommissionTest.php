@@ -4,6 +4,7 @@ use App\Actions\Commissions\CalculateCommission;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\EmployeePlanCommissionRule;
+use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Sale;
 use App\Models\Subscription;
@@ -77,17 +78,18 @@ test('it resolves plan override rate for subscriptions', function (): void {
         ->and($commission->amount)->toBe('60.00');
 });
 
-test('it calculates coach commission for subscription add ons', function (): void {
+test('it calculates percentage coach commission for subscription add ons from subscription plus add on total', function (): void {
     $coach = Employee::factory()->create([
         'role' => 'coach',
         'status' => 'active',
     ]);
-    $member = App\Models\Member::factory()->active()->create();
+    $member = Member::factory()->active()->create();
     $basePlan = Plan::factory()->create(['category' => 'gym_access']);
     $servicePlan = Plan::factory()->create(['category' => 'personal_training']);
     $subscription = Subscription::factory()->create([
         'member_id' => $member->id,
         'plan_id' => $basePlan->id,
+        'price_paid' => '500.00',
     ]);
     $addon = SubscriptionAddon::create([
         'subscription_id' => $subscription->id,
@@ -97,13 +99,13 @@ test('it calculates coach commission for subscription add ons', function (): voi
         'start_date' => '2026-07-07',
         'end_date' => '2026-08-07',
         'status' => 'active',
-        'price_paid' => '1000.00',
+        'price_paid' => '300.00',
     ]);
     EmployeePlanCommissionRule::create([
         'employee_id' => $coach->id,
         'plan_id' => $servicePlan->id,
         'calculation_type' => 'percentage',
-        'value' => '15.0000',
+        'value' => '50.0000',
         'is_active' => true,
     ]);
 
@@ -114,5 +116,5 @@ test('it calculates coach commission for subscription add ons', function (): voi
         ->and($commission)->not->toBeNull()
         ->and($commission->employee_id)->toBe($coach->id)
         ->and($commission->commission_type)->toBe('subscription_addon_coach')
-        ->and($commission->amount)->toBe('150.00');
+        ->and($commission->amount)->toBe('400.00');
 });
