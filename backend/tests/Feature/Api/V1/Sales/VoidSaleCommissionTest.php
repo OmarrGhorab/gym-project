@@ -4,7 +4,6 @@ use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Member;
 use App\Models\Product;
-use App\Models\Sale;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -20,14 +19,13 @@ beforeEach(function (): void {
     $this->seed(PosAccessSeeder::class);
 });
 
-test('commission is preserved when a sale is voided', function (): void {
+test('voiding a sale succeeds when no commission is created for pos sales', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
 
-    $employee = Employee::factory()->create([
+    Employee::factory()->create([
         'user_id' => $user->id,
-        'commission_rate' => '0.1000',
         'status' => 'active',
     ]);
 
@@ -47,22 +45,12 @@ test('commission is preserved when a sale is voided', function (): void {
 
     $saleId = $saleResponse->json('data.id');
 
-    // Check commission was created
-    $commission = Commission::where('source_type', Sale::class)
-        ->where('source_id', $saleId)
-        ->first();
-    expect($commission)->not->toBeNull();
-    expect($commission->status)->toBe('pending');
+    expect(Commission::query()->where('source_id', $saleId)->exists())->toBeFalse();
 
     // Void the sale
     $this->postJson("/api/v1/sales/{$saleId}/void", [
         'reason' => 'testing void',
     ])->assertStatus(200);
-
-    // Commission should still exist (not reversed)
-    $commission->refresh();
-    expect($commission)->not->toBeNull();
-    // Commission is preserved — business rule: voided sales don't reverse commissions
 });
 
 test('voided sale restores product stock', function (): void {

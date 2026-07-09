@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\User;
-use App\Support\FoundationPermissions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +13,8 @@ class GymStaffSeeder extends Seeder
 {
     /**
      * Seed realistic gym staff employees and login users for daily operations.
+     *
+     * Does not assign Spatie roles or permissions — configure access yourself.
      */
     public function run(): void
     {
@@ -33,8 +34,6 @@ class GymStaffSeeder extends Seeder
                     if ($user->email_verified_at === null) {
                         $user->forceFill(['email_verified_at' => now()])->save();
                     }
-
-                    $user->syncRoles([$staffMember['access_role']]);
                 }
 
                 Employee::query()->updateOrCreate(
@@ -66,8 +65,7 @@ class GymStaffSeeder extends Seeder
      * @return array<int, array{
      *     name: string,
      *     email: string|null,
-     *     access_role: string|null,
-     *     employee_role: 'employee'|'captain'|'manager',
+     *     employee_role: 'employee'|'captain'|'manager'|'coach',
      *     phone: string,
      *     shift: string,
      *     base_salary: float,
@@ -81,7 +79,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Omar El-Sayed',
                 'email' => 'operations.manager@gym.test',
-                'access_role' => FoundationPermissions::ROLE_MANAGER,
                 'employee_role' => 'manager',
                 'phone' => '+201011110001',
                 'shift' => 'Flexible Admin Shift',
@@ -92,7 +89,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Mona Hassan',
                 'email' => 'frontdesk@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CASHIER,
                 'employee_role' => 'employee',
                 'phone' => '+201011110002',
                 'shift' => 'Opening Shift',
@@ -103,7 +99,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Youssef Adel',
                 'email' => 'membership.advisor@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CASHIER,
                 'employee_role' => 'employee',
                 'phone' => '+201011110003',
                 'shift' => 'Evening Shift',
@@ -114,7 +109,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Ahmed Nabil',
                 'email' => 'head.captain@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CAPTAIN,
                 'employee_role' => 'coach',
                 'phone' => '+201011110004',
                 'shift' => 'Midday Shift',
@@ -125,7 +119,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Heba Farouk',
                 'email' => 'personal.trainer@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CAPTAIN,
                 'employee_role' => 'coach',
                 'phone' => '+201011110005',
                 'shift' => 'Evening Shift',
@@ -136,7 +129,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Sara Mounir',
                 'email' => 'nutrition.coach@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CAPTAIN,
                 'employee_role' => 'coach',
                 'phone' => '+201011110006',
                 'shift' => 'Midday Shift',
@@ -147,7 +139,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Lina Mostafa',
                 'email' => 'group.instructor@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CAPTAIN,
                 'employee_role' => 'coach',
                 'phone' => '+201011110007',
                 'shift' => 'Weekend Shift',
@@ -158,7 +149,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Tarek Salah',
                 'email' => 'gym.accountant@gym.test',
-                'access_role' => FoundationPermissions::ROLE_ACCOUNTANT,
                 'employee_role' => 'employee',
                 'phone' => '+201011110008',
                 'shift' => 'Flexible Admin Shift',
@@ -169,7 +159,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Dina Fathy',
                 'email' => 'payroll.officer@gym.test',
-                'access_role' => FoundationPermissions::ROLE_ACCOUNTANT,
                 'employee_role' => 'employee',
                 'phone' => '+201011110009',
                 'shift' => 'Flexible Admin Shift',
@@ -180,7 +169,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Karim Zaki',
                 'email' => 'inventory.coordinator@gym.test',
-                'access_role' => FoundationPermissions::ROLE_CASHIER,
                 'employee_role' => 'employee',
                 'phone' => '+201011110010',
                 'shift' => 'Opening Shift',
@@ -191,7 +179,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Hossam Yassin',
                 'email' => null,
-                'access_role' => null,
                 'employee_role' => 'employee',
                 'phone' => '+201011110011',
                 'shift' => 'Midday Shift',
@@ -202,7 +189,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Nadia Soliman',
                 'email' => null,
-                'access_role' => null,
                 'employee_role' => 'employee',
                 'phone' => '+201011110012',
                 'shift' => 'Opening Shift',
@@ -213,7 +199,6 @@ class GymStaffSeeder extends Seeder
             [
                 'name' => 'Sherif Hamed',
                 'email' => null,
-                'access_role' => null,
                 'employee_role' => 'employee',
                 'phone' => '+201011110013',
                 'shift' => 'Night Security Shift',

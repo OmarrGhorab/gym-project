@@ -5,27 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const shortcuts = [
-  { id: 1, labelKey: "recordExpense", icon: ReceiptText, permission: "recordExpense" },
-  { id: 2, labelKey: "collectDue", icon: HandCoins, permission: "payments" },
-  { id: 3, labelKey: "salesReport", icon: FileText, permission: "reports" },
-  { id: 4, labelKey: "payroll", icon: UsersRound, permission: "payroll" },
-  { id: 5, labelKey: "payments", icon: Banknote, permission: "payments" },
-  { id: 6, labelKey: "export", icon: Download, permission: "export" },
+  { id: 1, labelKey: "recordExpense", icon: ReceiptText, permission: "canRecordExpense" },
+  { id: 2, labelKey: "collectDue", icon: HandCoins, permission: "canCollectDue" },
+  { id: 3, labelKey: "salesReport", icon: FileText, permission: "canViewReports" },
+  { id: 4, labelKey: "payroll", icon: UsersRound, permission: "canViewPayroll" },
+  { id: 5, labelKey: "payments", icon: Banknote, permission: "canViewPayments" },
+  { id: 6, labelKey: "export", icon: Download, permission: "canExport" },
 ] as const;
 
-export function QuickActions({ canExport, canRecordExpense }: { canExport: boolean; canRecordExpense: boolean }) {
+type QuickActionPermissions = Record<(typeof shortcuts)[number]["permission"], boolean>;
+
+export function QuickActions({ permissions }: { permissions: QuickActionPermissions }) {
   const t = useTranslations("Dashboard.finance");
-  const visibleShortcuts = shortcuts.filter((shortcut) => {
-    if (shortcut.permission === "recordExpense") {
-      return canRecordExpense;
-    }
-
-    if (shortcut.permission === "export") {
-      return canExport;
-    }
-
-    return false;
-  });
+  const visibleShortcuts = shortcuts.filter((shortcut) => permissions[shortcut.permission]);
 
   if (visibleShortcuts.length === 0) {
     return null;

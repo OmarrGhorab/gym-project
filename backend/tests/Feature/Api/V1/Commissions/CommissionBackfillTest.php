@@ -2,6 +2,7 @@
 
 use App\Models\Commission;
 use App\Models\Employee;
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
@@ -20,9 +21,8 @@ test('admin can run backfill and it creates commissions idempotently', function 
     Sanctum::actingAs($adminUser);
 
     $user = User::factory()->create();
-    $employee = Employee::factory()->captain()->create([
+    Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => '0.1000',
     ]);
 
     // We must temporarily disable observers or delete any auto-created commission
@@ -31,6 +31,7 @@ test('admin can run backfill and it creates commissions idempotently', function 
     $subscription = Subscription::factory()->create([
         'sold_by_user_id' => $user->id,
         'price_paid' => '100.00',
+        'plan_id' => Plan::factory()->create(['commission_rate' => '0.1000'])->id,
     ]);
 
     // Delete the auto-created commission (simulate historical data that lacks one)
@@ -57,14 +58,14 @@ test('backfill dry_run returns scanned info without persisting commissions', fun
     Sanctum::actingAs($adminUser);
 
     $user = User::factory()->create();
-    $employee = Employee::factory()->captain()->create([
+    Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => '0.1000',
     ]);
 
     Subscription::factory()->create([
         'sold_by_user_id' => $user->id,
         'price_paid' => '100.00',
+        'plan_id' => Plan::factory()->create(['commission_rate' => '0.1000'])->id,
     ]);
 
     Commission::query()->delete();

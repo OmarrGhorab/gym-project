@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { createViolationRule, updateSettings, updateViolationRule } from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
+import { GymLocationMap } from "./_components/gym-location-map";
 import { SettingsActionForm } from "./_components/settings-action-form";
 
 export default async function Page() {
@@ -37,7 +38,7 @@ export default async function Page() {
       </div>
 
       <SettingsActionForm action={updateSettings} className="grid grid-cols-1 gap-4">
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-normal">
               <MapPinned className="size-4" />
@@ -45,41 +46,28 @@ export default async function Page() {
             </CardTitle>
             <CardDescription>{t("attendanceGpsDescription")}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <Field
-              label={t("latitude")}
-              name="attendance.gym_latitude"
-              type="number"
-              step="0.000001"
-              defaultValue={settings.attendance.gym_latitude ?? ""}
+          <CardContent className="grid gap-4 overflow-visible">
+            <GymLocationMap
+              latitude={settings.attendance.gym_latitude}
+              longitude={settings.attendance.gym_longitude}
+              radiusMeters={settings.attendance.gym_radius_meters}
             />
-            <Field
-              label={t("longitude")}
-              name="attendance.gym_longitude"
-              type="number"
-              step="0.000001"
-              defaultValue={settings.attendance.gym_longitude ?? ""}
-            />
-            <Field
-              label={t("radiusMeters")}
-              name="attendance.gym_radius_meters"
-              type="number"
-              defaultValue={settings.attendance.gym_radius_meters}
-            />
-            <Field
-              label={t("defaultGraceMinutes")}
-              name="attendance.default_grace_minutes"
-              type="number"
-              defaultValue={settings.attendance.default_grace_minutes}
-            />
-            <Field
-              label={t("reminderDays")}
-              name="reminder_days"
-              type="text"
-              defaultValue={settings.reminder_days.join(",")}
-              placeholder={t("reminderDaysPlaceholder")}
-              hint={t("reminderDaysHint")}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label={t("defaultGraceMinutes")}
+                name="attendance.default_grace_minutes"
+                type="number"
+                defaultValue={settings.attendance.default_grace_minutes}
+              />
+              <Field
+                label={t("reminderDays")}
+                name="reminder_days"
+                type="text"
+                defaultValue={settings.reminder_days.join(",")}
+                placeholder={t("reminderDaysPlaceholder")}
+                hint={t("reminderDaysHint")}
+              />
+            </div>
             <Button type="submit" className="w-full">
               {t("saveSettings")}
             </Button>

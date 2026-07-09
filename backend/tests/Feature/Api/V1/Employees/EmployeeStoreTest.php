@@ -24,7 +24,6 @@ test('admin can create an employee and receives 201', function (): void {
         'phone' => '0123456789',
         'role' => 'captain',
         'base_salary' => '2500.00',
-        'commission_rate' => '0.1250',
         'hire_date' => '2026-06-01',
         'status' => 'active',
         'user_id' => $targetUser->id,
@@ -33,7 +32,6 @@ test('admin can create an employee and receives 201', function (): void {
         ->assertJsonPath('data.name', 'John Doe')
         ->assertJsonPath('data.role', 'captain')
         ->assertJsonPath('data.base_salary', '2500.00')
-        ->assertJsonPath('data.commission_rate', '0.1250')
         ->assertJsonPath('data.user.id', $targetUser->id);
 });
 
@@ -50,21 +48,6 @@ test('storing employee validation rejects negative base salary', function (): vo
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed')
         ->assertJsonStructure(['error' => ['details' => ['base_salary']]]);
-});
-
-test('storing employee validation rejects negative commission rate', function (): void {
-    $adminUser = User::factory()->create();
-    $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
-    Sanctum::actingAs($adminUser);
-
-    $this->postJson('/api/v1/employees', [
-        'name' => 'John Doe',
-        'role' => 'captain',
-        'commission_rate' => '-0.0500',
-    ])
-        ->assertStatus(422)
-        ->assertJsonPath('error.code', 'validation_failed')
-        ->assertJsonStructure(['error' => ['details' => ['commission_rate']]]);
 });
 
 test('storing employee validation rejects duplicate user_id link', function (): void {

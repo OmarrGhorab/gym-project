@@ -11,8 +11,6 @@ export function KpiCards({ canViewMoney, summary }: { canViewMoney: boolean; sum
   const t = useTranslations("Dashboard.crm");
   const locale = useLocale();
   const numberFormatter = new Intl.NumberFormat(locale);
-  const showRevenue = canViewMoney && (summary.subscriptionRevenue > 0 || summary.salesTodayRevenue > 0);
-  const showDues = canViewMoney && (summary.outstandingDuesTotal > 0 || summary.outstandingDuesCount > 0);
 
   return (
     <section className="space-y-5">
@@ -22,7 +20,7 @@ export function KpiCards({ canViewMoney, summary }: { canViewMoney: boolean; sum
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {showRevenue ? (
+        {canViewMoney ? (
           <Card>
             <CardHeader>
               <CardDescription>{t("subscriptionRevenue")}</CardDescription>
@@ -50,7 +48,7 @@ export function KpiCards({ canViewMoney, summary }: { canViewMoney: boolean; sum
           </Card>
         ) : null}
 
-        {showDues ? (
+        {canViewMoney ? (
           <Card>
             <CardHeader>
               <CardDescription>{t("outstandingDues")}</CardDescription>

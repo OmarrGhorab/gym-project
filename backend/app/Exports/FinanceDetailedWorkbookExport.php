@@ -131,7 +131,6 @@ class FinanceDetailedWorkbookExport implements WithMultipleSheets
             'collected' => ['ar' => 'المحصل', 'en' => 'Collected'],
             'collected_amount' => ['ar' => 'المبلغ المحصل', 'en' => 'Collected amount'],
             'collected_revenue_total' => ['ar' => 'إجمالي الإيراد المحصل', 'en' => 'Collected revenue total'],
-            'commission_rate' => ['ar' => 'نسبة العمولة', 'en' => 'Commission rate'],
             'commissions_total' => ['ar' => 'إجمالي العمولات', 'en' => 'Commissions total'],
             'count' => ['ar' => 'العدد', 'en' => 'Count'],
             'created_at' => ['ar' => 'تاريخ الإنشاء', 'en' => 'Created at'],

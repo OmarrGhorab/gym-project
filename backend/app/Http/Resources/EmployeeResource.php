@@ -21,7 +21,6 @@ class EmployeeResource extends JsonResource
             'role' => $this->role,
             'base_salary' => number_format((float) $this->base_salary, 2, '.', ''),
             'pay_day' => $this->pay_day,
-            'commission_rate' => number_format((float) $this->commission_rate, 4, '.', ''),
             'shift_id' => $this->shift_id,
             'shift' => new EmployeeShiftResource($this->whenLoaded('shift')),
             'hire_date' => $this->hire_date?->toDateString(),

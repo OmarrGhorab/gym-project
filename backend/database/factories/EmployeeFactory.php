@@ -22,7 +22,6 @@ class EmployeeFactory extends Factory
             'attendance_code' => null,
             'role' => 'employee',
             'base_salary' => 3000.00,
-            'commission_rate' => 0.0000,
             'shift_id' => null,
             'hire_date' => fake()->date(),
             'status' => 'active',
@@ -34,7 +33,6 @@ class EmployeeFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'role' => 'captain',
             'base_salary' => 4000.00,
-            'commission_rate' => 0.1000,
         ]);
     }
 
@@ -43,7 +41,6 @@ class EmployeeFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'role' => 'manager',
             'base_salary' => 6000.00,
-            'commission_rate' => 0.0000,
         ]);
     }
 

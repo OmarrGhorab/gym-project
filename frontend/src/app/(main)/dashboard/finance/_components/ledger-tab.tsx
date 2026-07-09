@@ -12,10 +12,14 @@ import { DuePaymentForm } from "./due-payment-form";
 import { ExpenseRowActions } from "./expense-row-actions";
 
 export function LedgerTab({
+  canCollectDue,
+  canManageExpenses,
   dues,
   expenses,
   payments,
 }: {
+  canCollectDue: boolean;
+  canManageExpenses: boolean;
   dues: FinanceDue[];
   expenses: FinanceExpense[];
   payments: FinancePayment[];
@@ -40,7 +44,7 @@ export function LedgerTab({
           <CardDescription>{t("outstandingDuesDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <DuesTable dues={dues} />
+          <DuesTable canCollectDue={canCollectDue} dues={dues} />
         </CardContent>
       </Card>
 
@@ -50,7 +54,7 @@ export function LedgerTab({
           <CardDescription>{t("expenseLedgerDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ExpensesTable expenses={expenses} />
+          <ExpensesTable canManageExpenses={canManageExpenses} expenses={expenses} />
         </CardContent>
       </Card>
     </div>
@@ -95,7 +99,7 @@ function PaymentsTable({ payments }: { payments: FinancePayment[] }) {
   );
 }
 
-function DuesTable({ dues }: { dues: FinanceDue[] }) {
+function DuesTable({ canCollectDue, dues }: { canCollectDue: boolean; dues: FinanceDue[] }) {
   const t = useTranslations("Dashboard.finance");
 
   return (
@@ -105,7 +109,7 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
           <TableHead>{t("member")}</TableHead>
           <TableHead>{t("due")}</TableHead>
           <TableHead className="text-end">{t("balance")}</TableHead>
-          <TableHead className="text-end">{t("actionsTitle")}</TableHead>
+          {canCollectDue ? <TableHead className="text-end">{t("actionsTitle")}</TableHead> : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -123,27 +127,29 @@ function DuesTable({ dues }: { dues: FinanceDue[] }) {
                   noDecimals: true,
                 })}
               </TableCell>
-              <TableCell>
-                {due.subscription_id ? (
-                  <DuePaymentForm
-                    subscriptionId={due.subscription_id}
-                    amount={due.outstanding_balance ?? due.amount_due ?? ""}
-                  />
-                ) : (
-                  <span className="text-muted-foreground text-xs">{t("notAvailable")}</span>
-                )}
-              </TableCell>
+              {canCollectDue ? (
+                <TableCell>
+                  {due.subscription_id ? (
+                    <DuePaymentForm
+                      subscriptionId={due.subscription_id}
+                      amount={due.outstanding_balance ?? due.amount_due ?? ""}
+                    />
+                  ) : (
+                    <span className="text-muted-foreground text-xs">{t("notAvailable")}</span>
+                  )}
+                </TableCell>
+              ) : null}
             </TableRow>
           ))
         ) : (
-          <EmptyRow colSpan={4} label={t("noOutstandingDues")} />
+          <EmptyRow colSpan={canCollectDue ? 4 : 3} label={t("noOutstandingDues")} />
         )}
       </TableBody>
     </Table>
   );
 }
 
-function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
+function ExpensesTable({ canManageExpenses, expenses }: { canManageExpenses: boolean; expenses: FinanceExpense[] }) {
   const t = useTranslations("Dashboard.finance");
   const locale = useLocale();
 
@@ -156,7 +162,7 @@ function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
           <TableHead>{t("description")}</TableHead>
           <TableHead>{t("createdBy")}</TableHead>
           <TableHead className="text-end">{t("amount")}</TableHead>
-          <TableHead className="text-end">{t("actionsTitle")}</TableHead>
+          {canManageExpenses ? <TableHead className="text-end">{t("actionsTitle")}</TableHead> : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -170,20 +176,22 @@ function ExpensesTable({ expenses }: { expenses: FinanceExpense[] }) {
               <TableCell className="text-end">
                 {formatCurrency(Number(expense.amount), { currency: "EGP", noDecimals: true })}
               </TableCell>
-              <TableCell>
-                <ExpenseRowActions
-                  id={expense.id}
-                  category={expense.category}
-                  amount={expense.amount}
-                  date={expense.date ?? ""}
-                  description={expense.description}
-                  locale={locale}
-                />
-              </TableCell>
+              {canManageExpenses ? (
+                <TableCell>
+                  <ExpenseRowActions
+                    id={expense.id}
+                    category={expense.category}
+                    amount={expense.amount}
+                    date={expense.date ?? ""}
+                    description={expense.description}
+                    locale={locale}
+                  />
+                </TableCell>
+              ) : null}
             </TableRow>
           ))
         ) : (
-          <EmptyRow colSpan={6} label={t("noExpenses")} />
+          <EmptyRow colSpan={canManageExpenses ? 6 : 5} label={t("noExpenses")} />
         )}
       </TableBody>
     </Table>

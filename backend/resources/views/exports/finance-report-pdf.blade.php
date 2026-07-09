@@ -199,7 +199,6 @@
                 'coach' => $report['meta']['locale'] === 'ar' ? 'المدرب' : 'Coach',
                 'collected' => $report['meta']['locale'] === 'ar' ? 'المحصل' : 'Collected',
                 'collected_amount' => $report['meta']['locale'] === 'ar' ? 'المبلغ المحصل' : 'Collected amount',
-                'commission_rate' => $report['meta']['locale'] === 'ar' ? 'نسبة العمولة' : 'Commission rate',
                 'commissions_total' => $report['meta']['locale'] === 'ar' ? 'إجمالي العمولات' : 'Commissions total',
                 'created_at' => $report['meta']['locale'] === 'ar' ? 'تاريخ الإنشاء' : 'Created at',
                 'created_by' => $report['meta']['locale'] === 'ar' ? 'أضيف بواسطة' : 'Created by',

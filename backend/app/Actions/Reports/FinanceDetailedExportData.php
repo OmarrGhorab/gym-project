@@ -252,7 +252,6 @@ class FinanceDetailedExportData
                 'status' => $this->normalizeLabel($employee->status, $locale),
                 'base_salary' => (float) $employee->base_salary,
                 'pay_day' => $employee->pay_day ?? '',
-                'commission_rate' => (float) $employee->commission_rate,
                 'shift' => $employee->shift?->name ?? '',
                 'hire_date' => $this->date($employee->hire_date),
             ])->all(),

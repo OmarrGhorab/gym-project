@@ -99,9 +99,7 @@ final class CalculateCommission
 
         if ($salesEmployee !== null) {
             $plan = $subscription->plan;
-            $rate = $plan && $plan->commission_rate !== null
-                ? (string) $plan->commission_rate
-                : (string) $salesEmployee->commission_rate;
+            $rate = $plan && $plan->commission_rate !== null ? (string) $plan->commission_rate : '0.0000';
 
             if (bccomp($rate, '0.0000', 4) > 0) {
                 $specs[] = [
@@ -138,30 +136,9 @@ final class CalculateCommission
      */
     private function resolveSaleSpecs(Sale $sale): array
     {
-        $employee = $this->resolveSalesEmployee($sale->sold_by_user_id, $sale);
+        Log::info("Skipping commission for source {$sale->id} - POS sales do not have a commission plan.");
 
-        if ($employee === null) {
-            return [];
-        }
-
-        $rate = (string) $employee->commission_rate;
-
-        if (bccomp($rate, '0.0000', 4) === 0) {
-            Log::info("Skipping commission for source {$sale->id} - resolved commission rate is 0.");
-
-            return [];
-        }
-
-        return [[
-            'employee' => $employee,
-            'commission_type' => 'pos_sale',
-            'calculation_type' => 'percentage',
-            'rate' => $rate,
-            'rule_value' => bcmul($rate, '100', 4),
-            'amount' => bcmul((string) $sale->total, $rate, 2),
-            'month' => $sale->created_at ? $sale->created_at->format('Y-m') : now()->format('Y-m'),
-            'rule_id' => null,
-        ]];
+        return [];
     }
 
     /**
@@ -188,9 +165,7 @@ final class CalculateCommission
 
         if ($salesEmployee !== null) {
             $plan = $addon->plan;
-            $rate = $plan && $plan->commission_rate !== null
-                ? (string) $plan->commission_rate
-                : (string) $salesEmployee->commission_rate;
+            $rate = $plan && $plan->commission_rate !== null ? (string) $plan->commission_rate : '0.0000';
 
             if (bccomp($rate, '0.0000', 4) > 0) {
                 $specs[] = [

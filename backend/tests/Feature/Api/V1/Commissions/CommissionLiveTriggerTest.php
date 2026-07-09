@@ -14,14 +14,13 @@ beforeEach(function (): void {
     $this->seed(HrFinanceAccessSeeder::class);
 });
 
-test('creating a subscription for a linked employee captain automatically creates a pending commission', function (): void {
+test('creating a subscription for a linked employee captain automatically creates a pending plan commission', function (): void {
     $user = User::factory()->create();
     $employee = Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => '0.1000', // 10%
     ]);
 
-    $plan = Plan::factory()->create(['commission_rate' => null]);
+    $plan = Plan::factory()->create(['commission_rate' => '0.1000']);
 
     // Create a subscription sold by this user
     $subscription = Subscription::factory()->create([
@@ -45,11 +44,10 @@ test('creating a subscription for a linked employee captain automatically create
     // So format is YYYY-MM (e.g. $subscription->created_at->format('Y-m'))
 });
 
-test('plan level commission rate overrides employee default rate for subscription', function (): void {
+test('plan level commission rate drives subscription commission', function (): void {
     $user = User::factory()->create();
-    $employee = Employee::factory()->captain()->create([
+    Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => '0.1000', // 10%
     ]);
 
     // Plan has an override rate of 15%
@@ -70,11 +68,10 @@ test('plan level commission rate overrides employee default rate for subscriptio
     expect($commission->amount)->toBe('30.00'); // 15% of 200
 });
 
-test('creating a completed sale for a linked employee captain automatically creates a pending commission', function (): void {
+test('creating a completed sale for a linked employee captain does not create commission without a commission plan', function (): void {
     $user = User::factory()->create();
-    $employee = Employee::factory()->captain()->create([
+    Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => '0.0500', // 5%
     ]);
 
     $sale = Sale::factory()->create([
@@ -87,11 +84,7 @@ test('creating a completed sale for a linked employee captain automatically crea
         ->where('source_id', $sale->id)
         ->first();
 
-    expect($commission)->not->toBeNull();
-    expect($commission->employee_id)->toBe($employee->id);
-    expect($commission->rate)->toBe('0.0500');
-    expect($commission->amount)->toBe('25.00'); // 5% of 500
-    expect($commission->status)->toBe('pending');
+    expect($commission)->toBeNull();
 });
 
 test('unlinked user transactions do not trigger commission creation', function (): void {

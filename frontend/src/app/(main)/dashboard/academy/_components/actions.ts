@@ -39,7 +39,6 @@ const optionalDate = z.preprocess(
 
 const employeeSchema = z.object({
   base_salary: z.coerce.number().min(0, "Base salary cannot be negative."),
-  commission_rate: z.coerce.number().min(0, "Commission cannot be negative.").max(9.9999, "Commission is too high."),
   hire_date: optionalDate,
   id: z.coerce.number().int().min(0),
   name: z.string().trim().min(2, "Name must be at least 2 characters.").max(120, "Name is too long."),
@@ -74,7 +73,6 @@ const employeePlanCommissionRuleSchema = z.object({
 export async function saveEmployee(input: FormData): Promise<AcademyActionResult> {
   const parsed = employeeSchema.safeParse({
     base_salary: input.get("base_salary") || "0",
-    commission_rate: input.get("commission_rate") || "0",
     hire_date: input.get("hire_date"),
     id: input.get("id") || "0",
     name: input.get("name") || "",
@@ -97,7 +95,6 @@ export async function saveEmployee(input: FormData): Promise<AcademyActionResult
   const id = parsed.data.id;
   const payload = {
     base_salary: String(parsed.data.base_salary),
-    commission_rate: String(parsed.data.commission_rate),
     hire_date: parsed.data.hire_date,
     name: parsed.data.name,
     phone: nullableString(parsed.data.phone),

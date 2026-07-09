@@ -14,11 +14,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('it resolves employee default rate and calculates commission amount', function (): void {
+test('it skips pos sales because they do not have a commission plan', function (): void {
     $user = User::factory()->create();
-    $employee = Employee::factory()->captain()->create([
+    Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => 0.1000,
     ]);
 
     $sale = Sale::factory()->create([
@@ -28,13 +27,9 @@ test('it resolves employee default rate and calculates commission amount', funct
     Commission::query()->delete();
 
     $created = app(CalculateCommission::class)->forSource($sale);
-    $commission = Commission::query()->first();
 
-    expect($created)->toBe(1)
-        ->and($commission)->not->toBeNull()
-        ->and($commission->employee_id)->toBe($employee->id)
-        ->and($commission->rate)->toBe('0.1000')
-        ->and($commission->amount)->toBe('35.00');
+    expect($created)->toBe(0)
+        ->and(Commission::query()->count())->toBe(0);
 });
 
 test('it skips calculation when user is not linked to employee', function (): void {
@@ -51,11 +46,10 @@ test('it skips calculation when user is not linked to employee', function (): vo
         ->and(Commission::query()->count())->toBe(0);
 });
 
-test('it resolves plan override rate for subscriptions', function (): void {
+test('it resolves plan commission rate for subscriptions', function (): void {
     $user = User::factory()->create();
     Employee::factory()->captain()->create([
         'user_id' => $user->id,
-        'commission_rate' => 0.1000,
     ]);
 
     $plan = Plan::factory()->create([
@@ -76,6 +70,29 @@ test('it resolves plan override rate for subscriptions', function (): void {
         ->and($commission)->not->toBeNull()
         ->and($commission->rate)->toBe('0.1200')
         ->and($commission->amount)->toBe('60.00');
+});
+
+test('it skips subscription seller commission when the plan has no commission rate', function (): void {
+    $user = User::factory()->create();
+    Employee::factory()->captain()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $plan = Plan::factory()->create([
+        'commission_rate' => null,
+    ]);
+
+    $subscription = Subscription::factory()->create([
+        'sold_by_user_id' => $user->id,
+        'plan_id' => $plan->id,
+        'price_paid' => 500.00,
+    ]);
+    Commission::query()->delete();
+
+    $created = app(CalculateCommission::class)->forSource($subscription);
+
+    expect($created)->toBe(0)
+        ->and(Commission::query()->count())->toBe(0);
 });
 
 test('it calculates percentage coach commission for subscription add ons from subscription plus add on total', function (): void {

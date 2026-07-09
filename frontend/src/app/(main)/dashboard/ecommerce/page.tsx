@@ -31,18 +31,6 @@ export default async function Page({
   const canViewReports = user ? canAccess(user, "reports.view") : false;
   const canViewProducts = user ? canAccess(user, "products.view") : false;
   const canVoidSale = user ? canAccess(user, "sales.void") : false;
-  const hasSalesTotals =
-    Number(data.totals.sales) > 0 ||
-    data.totals.orders > 0 ||
-    data.totals.member_buyers > 0 ||
-    Number(data.totals.average_sale) > 0;
-  const hasSalesChart = data.sales_chart.some((point) => Number(point.revenue) > 0 || point.orders > 0);
-  const hasHourlyActivity = data.hourly_activity.some((point) => Number(point.revenue) > 0 || point.orders > 0);
-  const hasPaymentMethods = data.payment_methods.some((method) => Number(method.amount) > 0 || method.count > 0);
-  const hasTopProducts = data.top_products.products.length > 0;
-  const hasInventory = data.inventory.products_total > 0;
-  const hasStockAlerts = data.stock_alerts.length > 0;
-  const hasRecentOrders = data.recent_orders.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -57,35 +45,35 @@ export default async function Page({
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        {canViewReports && (hasSalesTotals || hasSalesChart) ? (
+        {canViewReports ? (
           <KpiStrip chart={data.sales_chart} dailySales={data.daily_sales} totals={data.totals} />
         ) : null}
-        {canViewReports && hasHourlyActivity ? (
+        {canViewReports ? (
           <div className="xl:col-span-5">
             <StoreTraffic data={data.hourly_activity} />
           </div>
         ) : null}
-        {canViewReports && hasPaymentMethods ? (
+        {canViewReports ? (
           <div className="xl:col-span-7">
             <TrafficSources methods={data.payment_methods} />
           </div>
         ) : null}
-        {canViewReports && hasTopProducts ? (
+        {canViewReports ? (
           <div className="xl:col-span-4">
             <TopProducts data={data.top_products} />
           </div>
         ) : null}
-        {canViewProducts && hasInventory ? (
+        {canViewProducts ? (
           <div className="xl:col-span-4">
             <Inventory inventory={data.inventory} />
           </div>
         ) : null}
-        {canViewProducts && hasStockAlerts ? (
+        {canViewProducts ? (
           <div className="xl:col-span-4">
             <CustomerReviews alerts={data.stock_alerts} />
           </div>
         ) : null}
-        {hasRecentOrders ? (
+        {canViewReports ? (
           <div className="xl:col-span-12">
             <RecentOrders orders={data.recent_orders} canVoidSale={canVoidSale} />
           </div>

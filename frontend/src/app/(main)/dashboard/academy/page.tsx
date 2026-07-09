@@ -39,10 +39,6 @@ export default async function Page({ searchParams }: PageProps) {
   const shortcutRanges = getShortcutRanges(period);
   const visibleKpis = data.kpis.filter((kpi) => kpi.label !== "Payroll Receipts");
   const canViewReports = user ? canAccess(user, "reports.view") : false;
-  const hasKpis = visibleKpis.length > 0;
-  const hasSchedule = data.shift_schedule.length > 0;
-  const hasWarnings = data.warning_status.length > 0;
-  const hasPerformance = data.performance_highlights.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,24 +106,20 @@ export default async function Page({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {canViewReports && hasKpis ? <KpiCards kpis={visibleKpis} /> : null}
+      {canViewReports ? <KpiCards kpis={visibleKpis} /> : null}
 
-      {canViewReports && (hasSchedule || hasWarnings) ? (
+      {canViewReports ? (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-          {hasSchedule ? (
-            <div className="xl:col-span-5">
-              <ClassSchedule shifts={data.shift_schedule} />
-            </div>
-          ) : null}
-          {hasWarnings ? (
-            <div className="xl:col-span-7">
-              <AssignmentStatus warnings={data.warning_status} />
-            </div>
-          ) : null}
+          <div className="xl:col-span-5">
+            <ClassSchedule shifts={data.shift_schedule} />
+          </div>
+          <div className="xl:col-span-7">
+            <AssignmentStatus warnings={data.warning_status} />
+          </div>
         </div>
       ) : null}
 
-      {canViewReports && hasPerformance ? <PerformanceHighlights highlights={data.performance_highlights} /> : null}
+      {canViewReports ? <PerformanceHighlights highlights={data.performance_highlights} /> : null}
 
       <PayDayManager employees={employees} payrollSettings={payrollSettings} />
     </div>

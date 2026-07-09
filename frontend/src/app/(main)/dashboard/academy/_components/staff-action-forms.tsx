@@ -144,20 +144,6 @@ export function EmployeeActionForm({
             className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
           />
         </FormField>
-        <FormField error={errors?.commission_rate?.[0]} label={t("commissionRate")} name="employee-commission-rate">
-          <input
-            id="employee-commission-rate"
-            name="commission_rate"
-            type="number"
-            min="0"
-            max="9.9999"
-            step="0.0001"
-            defaultValue={employee?.commission_rate ?? "0"}
-            disabled={readOnly}
-            aria-invalid={Boolean(errors?.commission_rate?.[0])}
-            className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-          />
-        </FormField>
         <FormField error={errors?.pay_day?.[0]} label={t("payDay")} name="employee-pay-day">
           <input
             id="employee-pay-day"

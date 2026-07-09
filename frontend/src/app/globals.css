@@ -1,6 +1,30 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "leaflet/dist/leaflet.css";
+
+/* Leaflet tiles break under Tailwind/preflight img max-width rules. */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  font: inherit;
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+}
+
+.leaflet-container .leaflet-tile,
+.leaflet-container img.leaflet-tile,
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.gym-location-map {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
 
 /* Theme preset styles: these override CSS variables based on the selected data-theme-preset */
 @import "../styles/presets/brutalist.css";

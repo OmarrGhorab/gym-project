@@ -117,7 +117,6 @@ export type AcademyEmployee = {
   role: string;
   base_salary: string;
   pay_day: number | null;
-  commission_rate: string;
   hire_date: string | null;
   status: "active" | "inactive";
   shift?: {
