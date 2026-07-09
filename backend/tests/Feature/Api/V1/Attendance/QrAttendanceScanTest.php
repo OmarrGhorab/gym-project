@@ -16,13 +16,20 @@ use Database\Seeders\AttendanceRulesSeeder;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function (): void {
+    Carbon::setTestNow();
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
     $this->seed(HrFinanceAccessSeeder::class);
     $this->seed(AttendanceRulesSeeder::class);
+});
+
+afterEach(function (): void {
+    Carbon::setTestNow();
 });
 
 function actingManager(): User
@@ -207,6 +214,31 @@ test('employee check in accepts raw printed attendance code', function (): void 
         ->assertJsonPath('data.scan_method', 'qr');
 });
 
+test('employee check in can use selected attendance date', function (): void {
+    Carbon::setTestNow('2026-07-09 10:30:00');
+    actingManager();
+    $shift = EmployeeShift::factory()->create([
+        'starts_at' => '09:00',
+        'ends_at' => '17:00',
+        'grace_minutes' => 15,
+    ]);
+    $employee = Employee::factory()->create([
+        'attendance_code' => 'E-HISTORY',
+        'shift_id' => $shift->id,
+    ]);
+
+    $this->postJson('/api/v1/attendance/check-in', [
+        'qr_token' => 'employee:E-HISTORY',
+        'attendance_date' => '2026-07-08',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.employee_id', $employee->id)
+        ->assertJsonPath('data.date', '2026-07-08')
+        ->assertJsonPath('data.check_in', '10:30');
+
+    expect(Attendance::where('employee_id', $employee->id)->whereDate('date', '2026-07-08')->exists())->toBeTrue();
+});
+
 test('employee check in before shift start is recorded on shift', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
@@ -325,7 +357,7 @@ test('employee off day check in syncs bonus into existing pending payroll', func
 });
 
 test('employee off shift check in requires approval violation', function (): void {
-    actingManager();
+    $manager = actingManager();
     $shift = EmployeeShift::factory()->create([
         'starts_at' => '09:00',
         'ends_at' => '17:00',
@@ -344,6 +376,17 @@ test('employee off shift check in requires approval violation', function (): voi
         ->assertJsonPath('data.approval_status', 'pending');
 
     expect(AttendanceViolation::where('employee_id', $employee->id)->where('type', 'off_shift')->exists())->toBeTrue();
+    expect(
+        $manager->notifications()
+            ->get()
+            ->contains(fn ($notification): bool => ($notification->data['category'] ?? null) === 'attendance.off_shift')
+    )->toBeTrue();
+    expect(
+        Activity::query()
+            ->where('event', 'off_shift')
+            ->where('subject_type', Attendance::class)
+            ->exists()
+    )->toBeTrue();
 });
 
 test('manager can edit attendance violation rule penalties', function (): void {

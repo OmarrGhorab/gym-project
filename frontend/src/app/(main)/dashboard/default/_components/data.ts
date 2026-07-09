@@ -30,6 +30,7 @@ type MemberResource = {
   name: string;
   email?: string | null;
   phone?: string | null;
+  national_id?: string | null;
   gender?: string | null;
   attendance_code?: string | null;
   attendance_qr?: string | null;
@@ -257,6 +258,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     name: member.name,
     email: member.email ?? "",
     phone: member.phone ?? "",
+    national_id: member.national_id ?? null,
     gender: member.gender ?? null,
     attendance_code: member.attendance_code ?? null,
     attendance_qr: member.attendance_qr ?? null,

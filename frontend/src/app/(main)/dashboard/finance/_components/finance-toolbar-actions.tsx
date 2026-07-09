@@ -143,6 +143,7 @@ export function FinanceToolbarActions({
                 <FieldLabel htmlFor="finance-export-date">{t("exportDate")}</FieldLabel>
                 <FormDatePicker
                   id="finance-export-date"
+                  name="finance_export_date"
                   value={dailyDate}
                   onValueChange={(value) => setDailyDate(value)}
                 />
@@ -154,6 +155,7 @@ export function FinanceToolbarActions({
                 <FieldLabel htmlFor="finance-export-month">{t("exportMonth")}</FieldLabel>
                 <FormDatePicker
                   id="finance-export-month"
+                  name="finance_export_month"
                   value={`${monthValue}-01`}
                   onValueChange={(value) => setMonthValue(value.slice(0, 7))}
                 />
@@ -166,13 +168,19 @@ export function FinanceToolbarActions({
                   <FieldLabel htmlFor="finance-export-from">{t("exportFrom")}</FieldLabel>
                   <FormDatePicker
                     id="finance-export-from"
+                    name="finance_export_from"
                     value={fromDate}
                     onValueChange={(value) => setFromDate(value)}
                   />
                 </div>
                 <div className="grid gap-1.5">
                   <FieldLabel htmlFor="finance-export-to">{t("exportTo")}</FieldLabel>
-                  <FormDatePicker id="finance-export-to" value={toDate} onValueChange={(value) => setToDate(value)} />
+                  <FormDatePicker
+                    id="finance-export-to"
+                    name="finance_export_to"
+                    value={toDate}
+                    onValueChange={(value) => setToDate(value)}
+                  />
                 </div>
               </div>
             ) : null}

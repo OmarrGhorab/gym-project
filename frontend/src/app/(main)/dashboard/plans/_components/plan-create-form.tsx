@@ -667,6 +667,7 @@ function PlanEmployeesSection({
           <div className="space-y-2 sm:col-span-2 xl:col-span-1">
             <Label>{employeeLabel}</Label>
             <FormSelect
+              name={`employee_rules.${index}.employee_id`}
               value={rule.employee_id}
               className="min-w-0"
               contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
@@ -684,6 +685,7 @@ function PlanEmployeesSection({
           <div className="space-y-2">
             <Label>{commissionTypeLabel}</Label>
             <FormSelect
+              name={`employee_rules.${index}.calculation_type`}
               value={rule.calculation_type}
               className="min-w-0"
               contentClassName="max-w-[calc(100vw-2rem)]"
@@ -706,6 +708,7 @@ function PlanEmployeesSection({
           <div className="space-y-2">
             <Label>{commissionValueLabel}</Label>
             <Input
+              name={`employee_rules.${index}.value`}
               type="number"
               min="0"
               step="0.01"

@@ -50,7 +50,7 @@ export function AttendanceActionPanels({ correctionRecord, defaultAttendanceDate
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <MemberScanCard members={members} />
-      <StaffScanCard employees={employees} />
+      <StaffScanCard defaultAttendanceDate={defaultAttendanceDate} employees={employees} />
       <ManualAttendanceCard
         correctionRecord={correctionRecord}
         defaultAttendanceDate={defaultAttendanceDate}
@@ -204,7 +204,13 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   );
 }
 
-function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
+function StaffScanCard({
+  defaultAttendanceDate,
+  employees,
+}: {
+  defaultAttendanceDate: string;
+  employees: EmployeeOption[];
+}) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(scanStaffAttendance, initialState);
   const location = useGpsLocation();
@@ -262,6 +268,7 @@ function StaffScanCard({ employees }: { employees: EmployeeOption[] }) {
       </CardHeader>
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
+          <input type="hidden" name="attendance_date" value={defaultAttendanceDate} />
           <FieldGroup>
             <FieldLabel htmlFor="staff-scan-direction" label={t("scanDirection")} meta={t("requiredField")} />
             <ScanDirectionSelect id="staff-scan-direction" />

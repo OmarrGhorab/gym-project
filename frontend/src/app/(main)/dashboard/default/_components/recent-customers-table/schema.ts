@@ -5,6 +5,7 @@ export const recentCustomersSchema = z.object({
   name: z.string(),
   email: z.string(),
   phone: z.string(),
+  national_id: z.string().nullable().optional(),
   gender: z.string().nullable().optional(),
   attendance_code: z.string().nullable().optional(),
   attendance_qr: z.string().nullable().optional(),

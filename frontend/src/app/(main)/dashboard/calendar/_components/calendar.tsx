@@ -56,6 +56,45 @@ const views = [
   { value: "listWeek", label: "List" },
 ] as const;
 
+type CalendarViewValue = (typeof views)[number]["value"];
+
+function isCalendarView(value: string | null | undefined): value is CalendarViewValue {
+  return views.some((view) => view.value === value);
+}
+
+type CalendarRenderEventArg = {
+  event: {
+    title: string;
+    extendedProps: Record<string, unknown>;
+  };
+};
+
+function getCalendarExtendedProps(value: Record<string, unknown>): CalendarEventInput["extendedProps"] {
+  return {
+    source: typeof value.source === "string" ? value.source : "manual",
+    status: typeof value.status === "string" ? value.status : "scheduled",
+    type: typeof value.type === "string" ? value.type : "manual",
+    assignedEmployees: Array.isArray(value.assignedEmployees)
+      ? value.assignedEmployees.filter(isAssignedEmployee)
+      : undefined,
+    location: typeof value.location === "string" ? value.location : null,
+    notes: typeof value.notes === "string" ? value.notes : null,
+  };
+}
+
+function isAssignedEmployee(
+  value: unknown,
+): value is NonNullable<CalendarEventInput["extendedProps"]["assignedEmployees"]>[number] {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "name" in value &&
+    typeof value.id === "number" &&
+    typeof value.name === "string"
+  );
+}
+
 const calendars = [
   { value: "all", label: "All gym ops" },
   { value: "shift", label: "Staff shifts" },
@@ -82,6 +121,12 @@ const statuses = [
   { value: "delayed", label: "Delayed" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+type CalendarStatusValue = (typeof statuses)[number]["value"];
+
+function isCalendarStatus(value: string | null | undefined): value is CalendarStatusValue {
+  return statuses.some((status) => status.value === value);
+}
 
 const typeColors: Record<CalendarEventType, string> = {
   manual: "#64748b",
@@ -144,7 +189,7 @@ export function Calendar({ events, employees }: CalendarProps) {
   const controller = useCalendarController();
   const [eventCount, setEventCount] = React.useState(0);
   const [selectedCalendar, setSelectedCalendar] = React.useState("all");
-  const [selectedView, setSelectedView] = React.useState(views[0].value);
+  const [selectedView, setSelectedView] = React.useState<CalendarViewValue>(views[0].value);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit" | "view">("create");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [selectedEvent, setSelectedEvent] = React.useState<OperationsCalendarEvent | null>(null);
@@ -167,33 +212,30 @@ export function Calendar({ events, employees }: CalendarProps) {
 
   const calendarEvents = React.useMemo(() => filteredEvents.map(toFullCalendarEvent), [filteredEvents]);
   const eventContent = React.useCallback(
-    (arg: {
-      event: {
-        title: string;
-        start: Date | null;
-        end: Date | null;
-        extendedProps: CalendarEventInput["extendedProps"];
-      };
-    }) => (
-      <div className={cn("flex h-full min-w-0 flex-col gap-1 overflow-hidden", isRtl && "text-right")}>
-        <div className="flex min-w-0 items-start gap-1.5">
-          <span className="min-w-0 flex-1 truncate font-medium">{arg.event.title}</span>
+    (arg: CalendarRenderEventArg) => {
+      const extendedProps = getCalendarExtendedProps(arg.event.extendedProps);
+
+      return (
+        <div className={cn("flex h-full min-w-0 flex-col gap-1 overflow-hidden", isRtl && "text-right")}>
+          <div className="flex min-w-0 items-start gap-1.5">
+            <span className="min-w-0 flex-1 truncate font-medium">{arg.event.title}</span>
+          </div>
+          <div
+            className={cn(
+              "flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-tight opacity-90",
+              isRtl && "justify-end",
+            )}
+          >
+            {extendedProps.assignedEmployees?.length ? (
+              <span className="truncate">
+                {extendedProps.assignedEmployees.map((employee) => employee.name).join(", ")}
+              </span>
+            ) : null}
+            {extendedProps.notes ? <span className="truncate">{extendedProps.notes}</span> : null}
+          </div>
         </div>
-        <div
-          className={cn(
-            "flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-tight opacity-90",
-            isRtl && "justify-end",
-          )}
-        >
-          {arg.event.extendedProps.assignedEmployees?.length ? (
-            <span className="truncate">
-              {arg.event.extendedProps.assignedEmployees.map((employee) => employee.name).join(", ")}
-            </span>
-          ) : null}
-          {arg.event.extendedProps.notes ? <span className="truncate">{arg.event.extendedProps.notes}</span> : null}
-        </div>
-      </div>
-    ),
+      );
+    },
     [isRtl],
   );
   const editableEvents = events.filter((event) => event.editable).length;
@@ -202,7 +244,7 @@ export function Calendar({ events, employees }: CalendarProps) {
   const currentViewLabel = t(`views.${currentView}`);
 
   React.useEffect(() => {
-    if (controller.view?.type && controller.view.type !== selectedView) {
+    if (isCalendarView(controller.view?.type) && controller.view.type !== selectedView) {
       setSelectedView(controller.view.type);
     }
   }, [controller.view?.type, selectedView]);
@@ -260,7 +302,7 @@ export function Calendar({ events, employees }: CalendarProps) {
                 <Select
                   value={currentView}
                   onValueChange={(value) => {
-                    if (value !== null) {
+                    if (isCalendarView(value)) {
                       setSelectedView(value);
                       controller.changeView(value);
                     }
@@ -350,7 +392,7 @@ export function Calendar({ events, employees }: CalendarProps) {
                 <Select
                   value={currentView}
                   onValueChange={(value) => {
-                    if (value !== null) {
+                    if (isCalendarView(value)) {
                       setSelectedView(value);
                       controller.changeView(value);
                     }
@@ -672,7 +714,7 @@ function EventFormFields({
             value={status}
             selectedLabel={getStatusLabel(status, t)}
             options={statuses.map((item) => ({ value: item.value, label: t(`statuses.${item.value}`) }))}
-            onValueChange={(value) => setStatus(value || "scheduled")}
+            onValueChange={(value) => setStatus(isCalendarStatus(value) ? value : "scheduled")}
             error={errors?.status?.[0]}
           />
         </div>

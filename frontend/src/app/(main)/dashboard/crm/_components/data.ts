@@ -38,7 +38,7 @@ export type MembershipDashboardData = {
     target: number;
     percentage: number;
   };
-  reminderDays: number;
+  reminderDays: number[];
 };
 
 type SettingsResponse = {

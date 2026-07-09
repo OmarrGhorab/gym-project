@@ -11,14 +11,24 @@ class NotificationController extends ApiController
 {
     public function index(IndexNotificationRequest $request): JsonResponse
     {
+        $status = $request->validated('status');
+
         $notifications = $request->user()
             ->notifications()
             ->when(
-                $request->boolean('unread'),
+                $request->boolean('unread') || $status === 'unread',
                 fn ($query) => $query->whereNull('read_at'),
             )
+            ->when(
+                $status === 'read',
+                fn ($query) => $query->whereNotNull('read_at'),
+            )
+            ->when(
+                $request->validated('category'),
+                fn ($query, string $category) => $query->where('data->category', $category),
+            )
             ->latest()
-            ->paginate(15)
+            ->paginate((int) ($request->validated('per_page') ?? 15))
             ->withQueryString();
 
         return $this->success(

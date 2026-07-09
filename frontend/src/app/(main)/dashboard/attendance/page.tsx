@@ -46,12 +46,18 @@ export default async function Page({ searchParams }: PageProps) {
     ? data.records.find((record) => record.id === correctionRecordId)
     : undefined;
   const dayTotals = data.records.reduce(
-    (acc, row) => ({
-      absent: acc.absent + (row.status === "absent" ? 1 : 0),
-      late: acc.late + (row.status === "late" ? 1 : 0),
-      present: acc.present + (row.status === "present" || row.status === "late" ? 1 : 0),
-      records: acc.records + 1,
-    }),
+    (acc, row) => {
+      const countsAsPresent =
+        !["off_shift", "unassigned"].includes(row.schedule_status ?? "") &&
+        (row.status === "present" || row.status === "late");
+
+      return {
+        absent: acc.absent + (row.status === "absent" ? 1 : 0),
+        late: acc.late + (row.status === "late" ? 1 : 0),
+        present: acc.present + (countsAsPresent ? 1 : 0),
+        records: acc.records + 1,
+      };
+    },
     { absent: 0, late: 0, present: 0, records: 0 },
   );
 
@@ -131,7 +137,11 @@ export default async function Page({ searchParams }: PageProps) {
               </TableHeader>
               <TableBody>
                 {data.records.map((record) => {
-                  const displayStatus = getAttendanceDisplayStatus(record.status, record.check_out);
+                  const displayStatus = getAttendanceDisplayStatus(
+                    record.status,
+                    record.schedule_status,
+                    record.check_out,
+                  );
 
                   return (
                     <TableRow key={record.id}>
@@ -144,7 +154,7 @@ export default async function Page({ searchParams }: PageProps) {
                         {formatClockTime(record.check_in, locale)} / {formatClockTime(record.check_out, locale)}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge label={t(`statuses.${displayStatus}`)} value={displayStatus} />
+                        <StatusBadge label={statusLabel(displayStatus, t)} value={displayStatus} />
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
@@ -333,12 +343,24 @@ function StatusBadge({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getAttendanceDisplayStatus(status: string, checkOut: string | null) {
+function getAttendanceDisplayStatus(status: string, scheduleStatus: string | null, checkOut: string | null) {
   if (checkOut) {
     return "checked_out";
   }
 
+  if (scheduleStatus && ["off_day", "off_shift", "unassigned"].includes(scheduleStatus)) {
+    return scheduleStatus;
+  }
+
   return status;
+}
+
+function statusLabel(status: string, t: Awaited<ReturnType<typeof getTranslations<"Dashboard.attendance">>>) {
+  if (["off_day", "off_shift", "unassigned"].includes(status)) {
+    return t(`scheduleStatuses.${status}`);
+  }
+
+  return t(`statuses.${status}`);
 }
 
 function statusTone(value: string): "critical" | "neutral" | "ready" | "warning" {
@@ -350,7 +372,7 @@ function statusTone(value: string): "critical" | "neutral" | "ready" | "warning"
     return "neutral";
   }
 
-  if (value === "late" || value === "flagged") {
+  if (["flagged", "late", "off_day", "off_shift", "unassigned"].includes(value)) {
     return "warning";
   }
 

@@ -3,11 +3,14 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\WrapsApiResponse;
+use App\Models\Attendance;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Expense;
+use App\Models\GymTask;
 use App\Models\InventoryMovement;
 use App\Models\Member;
+use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Plan;
@@ -24,12 +27,15 @@ final class AuditLogResource extends JsonResource
 
     public static array $aliasMap = [
         'member' => Member::class,
+        'member_visit' => MemberVisit::class,
         'subscription' => Subscription::class,
         'sale' => Sale::class,
         'payment' => Payment::class,
         'payroll' => Payroll::class,
         'commission' => Commission::class,
         'employee' => Employee::class,
+        'attendance' => Attendance::class,
+        'task' => GymTask::class,
         'expense' => Expense::class,
         'inventory_movement' => InventoryMovement::class,
         'product' => Product::class,
@@ -68,6 +74,7 @@ final class AuditLogResource extends JsonResource
             'subject' => $this->subject_type ? [
                 'type' => $subjectAlias,
                 'id' => $this->subject_id,
+                'label' => $this->subjectLabel(),
             ] : null,
             'causer' => $this->causer ? [
                 'id' => $this->causer->id,
@@ -78,5 +85,22 @@ final class AuditLogResource extends JsonResource
             'properties' => $this->properties ?? (object) [],
             'created_at' => $this->created_at?->toDateTimeString(),
         ];
+    }
+
+    private function subjectLabel(): ?string
+    {
+        $subject = $this->subject;
+
+        if ($subject instanceof MemberVisit) {
+            $subject->loadMissing('member:id,name');
+
+            return $subject->member?->name;
+        }
+
+        if ($subject instanceof Member || $subject instanceof Employee || $subject instanceof Product || $subject instanceof Plan) {
+            return $subject->name;
+        }
+
+        return null;
     }
 }

@@ -24,6 +24,9 @@ class IndexAuditLogRequest extends FormRequest
                 }
             }],
             'filter.causer' => ['nullable', 'integer'],
+            'filter.action' => ['nullable', 'string', 'max:100'],
+            'filter.log_name' => ['nullable', 'string', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sort' => ['nullable', 'string', 'in:created_at,-created_at'],
         ];
     }

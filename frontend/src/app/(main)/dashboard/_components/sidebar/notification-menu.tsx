@@ -1,7 +1,5 @@
-"use client";
-
-import { Bell, CalendarClock, CircleDollarSign, UserPlus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Bell, ClipboardList, Package, ReceiptText, UserPlus, WalletCards } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,37 +10,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { serverApiFetch } from "@/lib/api/server";
 
-const notifications = [
-  {
-    id: "trial-ending",
-    titleKey: "trialEndingTitle",
-    descriptionKey: "trialEndingDescription",
-    icon: CalendarClock,
-  },
-  {
-    id: "payment-due",
-    titleKey: "paymentDueTitle",
-    descriptionKey: "paymentDueDescription",
-    icon: CircleDollarSign,
-  },
-  {
-    id: "new-member",
-    titleKey: "newMemberTitle",
-    descriptionKey: "newMemberDescription",
-    icon: UserPlus,
-  },
+type NotificationRow = {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string | null;
+};
+
+type PaginatedData<T> = {
+  data?: T[];
+};
+
+const iconMap = [
+  { match: "inventory", icon: Package },
+  { match: "membership", icon: UserPlus },
+  { match: "payroll", icon: WalletCards },
+  { match: "tasks", icon: ClipboardList },
+  { match: "sales", icon: ReceiptText },
 ] as const;
 
-export function NotificationMenu() {
-  const t = useTranslations("Dashboard.shell");
+export async function NotificationMenu() {
+  const t = await getTranslations("Dashboard.shell");
+  const notifications = await getUnreadNotifications();
+  const visibleNotifications = notifications.slice(0, 5);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button size="icon" aria-label={t("openNotifications")}>
+          <Button size="icon" aria-label={t("openNotifications")} className="relative">
             <Bell />
+            {notifications.length > 0 ? (
+              <span className="absolute -end-1 -top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
+                {Math.min(notifications.length, 9)}
+              </span>
+            ) : null}
           </Button>
         }
       />
@@ -53,23 +58,66 @@ export function NotificationMenu() {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {notifications.map((notification) => {
-            const Icon = notification.icon;
+          {visibleNotifications.length > 0 ? (
+            visibleNotifications.map((notification) => {
+              const Icon = iconForNotification(notification);
 
-            return (
-              <DropdownMenuItem key={notification.id} className="items-start gap-2 py-2">
-                <Icon className="mt-0.5" />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="font-medium">{t(`notificationsItems.${notification.titleKey}`)}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {t(`notificationsItems.${notification.descriptionKey}`)}
+              return (
+                <DropdownMenuItem key={notification.id} className="items-start gap-2 py-2">
+                  <Icon className="mt-0.5" />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate font-medium">{notificationTitle(notification.data)}</span>
+                    <span className="line-clamp-2 text-muted-foreground text-xs">
+                      {notificationBody(notification.data)}
+                    </span>
                   </span>
-                </span>
-              </DropdownMenuItem>
-            );
-          })}
+                </DropdownMenuItem>
+              );
+            })
+          ) : (
+            <DropdownMenuItem className="items-start gap-2 py-2 text-muted-foreground">
+              <Bell className="mt-0.5" />
+              <span className="text-xs">{t("notificationsItems.paymentDueDescription")}</span>
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<a href="/dashboard/mail" />}>{t("notificationCenter")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+async function getUnreadNotifications() {
+  try {
+    const result = await serverApiFetch<NotificationRow[] | PaginatedData<NotificationRow>>(
+      "/notifications?unread=1&page=1",
+    );
+
+    return unwrapList(result.data);
+  } catch {
+    return [];
+  }
+}
+
+function unwrapList<T>(value: T[] | PaginatedData<T>): T[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return Array.isArray(value.data) ? value.data : [];
+}
+
+function notificationTitle(data: Record<string, unknown>) {
+  return String(data.title ?? data.subject ?? data.message ?? "Notification");
+}
+
+function notificationBody(data: Record<string, unknown>) {
+  return String(data.body ?? data.description ?? data.member_name ?? data.plan_name ?? "");
+}
+
+function iconForNotification(notification: NotificationRow) {
+  const category = String(notification.data.category ?? notification.type).toLowerCase();
+
+  return iconMap.find((entry) => category.includes(entry.match))?.icon ?? Bell;
 }

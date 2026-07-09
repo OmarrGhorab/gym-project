@@ -92,6 +92,19 @@ final class MarkPayrollPaid
                 'created_by' => $user->id,
             ]);
 
+            activity('payroll')
+                ->causedBy($user)
+                ->performedOn($payroll)
+                ->event('paid')
+                ->withProperties([
+                    'payroll_id' => $payroll->id,
+                    'employee_id' => $payroll->employee_id,
+                    'employee_name' => $payroll->employee?->name,
+                    'month' => $payroll->month,
+                    'net_salary' => $netSalary,
+                ])
+                ->log($user->name.' paid '.$payroll->employee?->name.' payroll for '.$payroll->month.' - EGP '.$netSalary);
+
             Cache::forget('dashboard:summary:v1');
 
             return $payroll->fresh();

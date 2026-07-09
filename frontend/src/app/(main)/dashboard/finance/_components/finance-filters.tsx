@@ -97,14 +97,14 @@ export function FinanceFilters({ defaults }: FinanceFiltersProps) {
       {mode === "daily" ? (
         <div className="grid gap-1">
           <FieldLabel className="text-xs">{t("exportDate")}</FieldLabel>
-          <FormDatePicker value={dailyDate} onValueChange={setDailyDate} />
+          <FormDatePicker name="finance_daily_date" value={dailyDate} onValueChange={setDailyDate} />
         </div>
       ) : null}
 
       {mode === "monthly" ? (
         <div className="grid gap-1">
           <FieldLabel className="text-xs">{t("exportMonth")}</FieldLabel>
-          <FormDatePicker value={monthDate} onValueChange={(value) => setMonthDate(value)} />
+          <FormDatePicker name="finance_month_date" value={monthDate} onValueChange={(value) => setMonthDate(value)} />
         </div>
       ) : null}
 
@@ -112,11 +112,11 @@ export function FinanceFilters({ defaults }: FinanceFiltersProps) {
         <>
           <div className="grid gap-1">
             <FieldLabel className="text-xs">{t("exportFrom")}</FieldLabel>
-            <FormDatePicker value={fromDate} onValueChange={setFromDate} />
+            <FormDatePicker name="finance_from_date" value={fromDate} onValueChange={setFromDate} />
           </div>
           <div className="grid gap-1">
             <FieldLabel className="text-xs">{t("exportTo")}</FieldLabel>
-            <FormDatePicker value={toDate} onValueChange={setToDate} />
+            <FormDatePicker name="finance_to_date" value={toDate} onValueChange={setToDate} />
           </div>
         </>
       ) : null}

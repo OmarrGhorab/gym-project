@@ -58,7 +58,7 @@ export async function scanStaffAttendance(
     };
   }
 
-  const payload = scanPayload(input, ["qr_token", "employee_id", "notes"]);
+  const payload = scanPayload(input, ["qr_token", "employee_id", "attendance_date", "notes"]);
 
   return mutateScan(
     direction === "check-out" ? "/attendance/check-out" : "/attendance/check-in",
@@ -139,8 +139,12 @@ async function mutateScan(
   method: "POST" | "PUT",
   values: Record<string, string>,
 ): Promise<AttendanceActionResult> {
+  let result: Awaited<
+    ReturnType<typeof serverApiFetch<{ schedule_status?: string | null; approval_status?: string | null }>>
+  >;
+
   try {
-    await serverApiFetch(path, {
+    result = await serverApiFetch<{ schedule_status?: string | null; approval_status?: string | null }>(path, {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
@@ -163,7 +167,10 @@ async function mutateScan(
 
   return {
     ok: true,
-    message: successMessage,
+    message:
+      result.data?.schedule_status === "off_shift"
+        ? "Recorded with warning: this scan is outside the assigned shift."
+        : successMessage,
     errors: {},
     values,
   };

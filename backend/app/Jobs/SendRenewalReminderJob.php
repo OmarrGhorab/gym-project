@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\SubscriptionExpiringSoonEvent;
 use App\Models\Subscription;
 use App\Notifications\SubscriptionRenewalReminder;
+use App\Services\OperationalNotifier;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -41,6 +42,8 @@ class SendRenewalReminderJob implements ShouldQueue
                 'end_date' => $subscription->end_date?->toDateString(),
             ]));
         }
+
+        app(OperationalNotifier::class)->subscriptionEndingSoon($subscription);
 
         SubscriptionExpiringSoonEvent::dispatch(
             $subscription->id,

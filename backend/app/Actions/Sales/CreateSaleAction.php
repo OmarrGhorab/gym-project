@@ -6,6 +6,7 @@ use App\Broadcasting\Events\NewSaleEvent;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
+use App\Services\OperationalNotifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -89,12 +90,17 @@ class CreateSaleAction
             $total = bcsub($subtotal, $discount, 2);
 
             // 5. Update stock and write inventory movements
+            $lowStockProducts = collect();
             foreach ($lineItemsData as $lineItem) {
                 $product = $lineItem['product'];
                 $qty = $lineItem['quantity'];
 
                 $product->stock_quantity -= $qty;
                 $product->save();
+
+                if ($product->stock_quantity <= $product->low_stock_threshold) {
+                    $lowStockProducts->push($product->fresh());
+                }
 
                 $product->inventoryMovements()->create([
                     'type' => 'out',
@@ -146,8 +152,29 @@ class CreateSaleAction
                 ));
             });
 
+            DB::afterCommit(function () use ($lowStockProducts): void {
+                $notifier = app(OperationalNotifier::class);
+                $lowStockProducts->filter()->each(fn (Product $product) => $notifier->lowStock($product));
+            });
+
             // Load relations for response
             $sale->load(['items.product', 'payment', 'member', 'soldBy']);
+            $itemsLabel = $sale->items
+                ->map(fn ($item): string => ($item->product?->name ?? 'Product').' x'.$item->quantity)
+                ->join(', ');
+            activity('sales')
+                ->causedBy($cashier)
+                ->performedOn($sale)
+                ->event('completed')
+                ->withProperties([
+                    'sale_id' => $sale->id,
+                    'member_id' => $sale->member_id,
+                    'member_name' => $sale->member?->name ?? 'Walk-in',
+                    'items' => $itemsLabel,
+                    'payment_method' => $sale->payment_method,
+                    'total' => (string) $sale->total,
+                ])
+                ->log($cashier->name.' sold '.$itemsLabel.' to '.($sale->member?->name ?? 'walk-in').' for EGP '.$sale->total);
 
             return $sale;
         });

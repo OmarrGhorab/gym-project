@@ -912,6 +912,7 @@ function SubscriptionFormContent({
                   <div className="grid gap-2 lg:col-span-2">
                     <Label>{t("extraService")}</Label>
                     <FormSelect
+                      name={`addons.${index}.plan_id`}
                       value={addon.plan_id}
                       onValueChange={(value) =>
                         setAddons((current) =>
@@ -938,6 +939,7 @@ function SubscriptionFormContent({
                   <div className="grid gap-2 lg:col-span-2">
                     <Label>{t("coach")}</Label>
                     <FormSelect
+                      name={`addons.${index}.coach_id`}
                       value={addon.coach_id}
                       onValueChange={(value) =>
                         setAddons((current) =>
@@ -954,6 +956,7 @@ function SubscriptionFormContent({
                     <Label>{t("discount")}</Label>
                     <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
                       <FormSelect
+                        name={`addons.${index}.discount_type`}
                         value={addon.discountType}
                         onValueChange={(value) =>
                           setAddons((current) =>
@@ -989,6 +992,7 @@ function SubscriptionFormContent({
                   <div className="grid gap-2">
                     <Label>{t("paymentMethod")}</Label>
                     <FormSelect
+                      name={`addons.${index}.payment_method`}
                       value={addon.payment_method}
                       onValueChange={(value) =>
                         setAddons((current) =>

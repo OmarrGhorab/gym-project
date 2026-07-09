@@ -39,6 +39,8 @@ export type StaffAcademyPerformance = {
   commissions_total: string;
   coached_services_count?: number;
   coached_services_revenue?: string;
+  pos_sales_volume?: string;
+  subscriptions_sold?: number;
   warnings_count: number;
 };
 
@@ -109,7 +111,20 @@ export type AcademyEmployee = {
     starts_at: string;
     ends_at: string;
   } | null;
+  attendance_code?: string | null;
+  attendance_qr?: string | null;
   plan_commission_rules?: AcademyEmployeePlanCommissionRule[];
+};
+
+export type StaffAcademyPageData = {
+  employeeRows: Array<{
+    employee: AcademyEmployee;
+    performance: StaffAcademyPerformance | null;
+    commissions: Array<{
+      id: number;
+      amount: string;
+    }>;
+  }>;
 };
 
 export type ShiftOption = {
@@ -179,7 +194,7 @@ export async function getStaffManagementPageData(): Promise<{
     price: string;
   }[];
   settings: DashboardSettings;
-  shifts: ShiftOption[];
+  shifts: EmployeeShift[];
   users: UserOption[];
   roles: AccessRole[];
 }> {
@@ -214,7 +229,7 @@ export async function getStaffManagementPageData(): Promise<{
         schedule_mode: "fixed",
       },
       receipt_template: "default",
-      reminder_days: 7,
+      reminder_days: [7],
       vat_rate: 14,
     }),
     safeFetch<EmployeeShift[]>("/attendance/shifts/manage", []),

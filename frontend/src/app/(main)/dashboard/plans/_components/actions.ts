@@ -240,8 +240,8 @@ export async function deletePlan(input: FormData): Promise<void> {
   await mutate(`/plans/${Number(input.get("id"))}`, "DELETE");
 }
 
-async function mutate(path: string, method: string, body?: Record<string, unknown>) {
-  const response = await serverApiFetch(path, {
+async function mutate<T = unknown>(path: string, method: string, body?: Record<string, unknown>) {
+  const response = await serverApiFetch<T>(path, {
     ...(body
       ? {
           body: JSON.stringify(body),

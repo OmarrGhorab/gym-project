@@ -19,7 +19,7 @@ final class CheckOutEmployeeAttendance
     public function handle(array $data, User $user): Attendance
     {
         $employee = $this->identity->employee($data);
-        $checkOut = Carbon::parse($data['check_out_at'] ?? now());
+        $checkOut = $this->scanTimestamp($data, 'check_out_at');
         $attendance = Attendance::query()
             ->where('employee_id', $employee->id)
             ->where('date', $checkOut->toDateString())
@@ -50,7 +50,22 @@ final class CheckOutEmployeeAttendance
             $this->violations->handle($attendance, 'early_leave', $earlyLeaveMinutes, 'Early checkout detected.');
         }
 
-        return $attendance->load(['employee.shift', 'shift']);
+        $attendance->load(['employee.shift', 'shift']);
+        activity('attendance')
+            ->causedBy($user)
+            ->performedOn($attendance)
+            ->event('check_out')
+            ->withProperties([
+                'employee_id' => $attendance->employee_id,
+                'employee_name' => $attendance->employee?->name,
+                'shift' => $attendance->shift?->name,
+                'date' => $attendance->date?->toDateString(),
+                'check_out' => $attendance->check_out?->format('H:i'),
+                'early_leave_minutes' => $attendance->early_leave_minutes,
+            ])
+            ->log($attendance->employee?->name.' checked out from '.$attendance->shift?->name.' at '.$attendance->check_out?->format('H:i'));
+
+        return $attendance;
     }
 
     private function earlyLeaveMinutes($shift, Carbon $checkOut): int
@@ -66,5 +81,18 @@ final class CheckOutEmployeeAttendance
         }
 
         return $checkOut->lessThan($end) ? (int) $checkOut->diffInMinutes($end) : 0;
+    }
+
+    private function scanTimestamp(array $data, string $field): Carbon
+    {
+        if (! empty($data[$field])) {
+            return Carbon::parse($data[$field]);
+        }
+
+        if (! empty($data['attendance_date'])) {
+            return Carbon::parse($data['attendance_date'])->setTimeFrom(now());
+        }
+
+        return now();
     }
 }

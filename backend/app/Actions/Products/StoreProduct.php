@@ -3,6 +3,7 @@
 namespace App\Actions\Products;
 
 use App\Models\Product;
+use App\Services\OperationalNotifier;
 use Illuminate\Http\UploadedFile;
 
 final class StoreProduct
@@ -19,6 +20,9 @@ final class StoreProduct
             $data['image'] = $path;
         }
 
-        return Product::create($data);
+        $product = Product::create($data);
+        app(OperationalNotifier::class)->lowStock($product);
+
+        return $product;
     }
 }

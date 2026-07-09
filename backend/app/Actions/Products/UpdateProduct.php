@@ -3,6 +3,7 @@
 namespace App\Actions\Products;
 
 use App\Models\Product;
+use App\Services\OperationalNotifier;
 use App\Services\ImageUploadService;
 use Illuminate\Http\UploadedFile;
 
@@ -23,6 +24,9 @@ final class UpdateProduct
 
         $product->update($data);
 
-        return $product->fresh();
+        $freshProduct = $product->fresh();
+        app(OperationalNotifier::class)->lowStock($freshProduct);
+
+        return $freshProduct;
     }
 }

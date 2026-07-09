@@ -14,6 +14,7 @@ export type MemberRow = {
   name: string;
   phone: string;
   email: string | null;
+  national_id: string | null;
   gender: string | null;
   attendance_code: string | null;
   attendance_qr: string | null;
@@ -31,12 +32,12 @@ export type MemberRow = {
     start_date: string | null;
     end_date: string | null;
     status: string;
-    price_paid?: string;
-    paid_total?: string;
-    balance?: string;
-    package_price_paid?: string;
-    package_paid_total?: string;
-    package_balance?: string;
+    price_paid?: string | null;
+    paid_total?: string | null;
+    balance?: string | null;
+    package_price_paid?: string | null;
+    package_paid_total?: string | null;
+    package_balance?: string | null;
     addons?: {
       id: number;
       end_date: string | null;

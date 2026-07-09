@@ -4,6 +4,8 @@ namespace App\Actions\Products;
 
 use App\Models\InventoryMovement;
 use App\Models\Product;
+use App\Models\User;
+use App\Services\OperationalNotifier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -52,7 +54,36 @@ final class AdjustStock
                 'created_by' => $data['created_by'] ?? null,
             ]);
 
-            return $lockedProduct->fresh();
+            $freshProduct = $lockedProduct->fresh();
+            $activity = activity('inventory')
+                ->performedOn($freshProduct);
+
+            if (! empty($data['created_by'])) {
+                $causer = User::query()->find($data['created_by']);
+
+                if ($causer) {
+                    $activity->causedBy($causer);
+                }
+            }
+
+            $activity
+                ->event('stock_adjusted')
+                ->withProperties([
+                    'product_id' => $freshProduct->id,
+                    'product_name' => $freshProduct->name,
+                    'movement_type' => $type,
+                    'quantity' => $movementQty,
+                    'new_stock' => $freshProduct->stock_quantity,
+                    'reason' => $data['reason'],
+                    'created_by' => $data['created_by'] ?? null,
+                ])
+                ->log($freshProduct->name.' stock adjusted by '.$movementQty.'. New stock: '.$freshProduct->stock_quantity);
+
+            DB::afterCommit(function () use ($freshProduct): void {
+                app(OperationalNotifier::class)->lowStock($freshProduct);
+            });
+
+            return $freshProduct;
         });
     }
 }

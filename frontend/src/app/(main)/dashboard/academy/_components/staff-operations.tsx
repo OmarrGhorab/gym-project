@@ -18,8 +18,9 @@ import { SettingsActionButton, SettingsActionForm } from "../../settings/_compon
 
 export async function StaffOperations({ settings, shifts }: { settings: DashboardSettings; shifts: EmployeeShift[] }) {
   const t = await getTranslations("Dashboard.settings");
-  const payrollScheduleMode = settings.payroll.schedule_mode;
-  const payrollDefaultPayDay = settings.payroll.default_pay_day;
+  const payroll = settings.payroll ?? { default_pay_day: 30, schedule_mode: "fixed" as const };
+  const payrollScheduleMode = payroll.schedule_mode;
+  const payrollDefaultPayDay = payroll.default_pay_day;
 
   return (
     <div className="grid gap-4">

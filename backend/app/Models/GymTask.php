@@ -6,10 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class GymTask extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $fillable = [
         'title',
@@ -27,6 +30,14 @@ class GymTask extends Model
         'due_date' => 'date',
         'progress' => 'integer',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->useLogName('tasks');
+    }
 
     public function assignedEmployee(): BelongsTo
     {

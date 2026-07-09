@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\EmployeeShift;
 use App\Models\Payroll;
 use App\Models\User;
+use App\Services\OperationalNotifier;
 use App\Support\Geofence;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -18,12 +19,13 @@ final class CheckInEmployeeAttendance
         private readonly Geofence $geofence,
         private readonly CreateAttendanceViolation $violations,
         private readonly ApplyAttendanceBonuses $attendanceBonuses,
+        private readonly OperationalNotifier $notifier,
     ) {}
 
     public function handle(array $data, User $user): Attendance
     {
         $employee = $this->identity->employee($data);
-        $checkIn = Carbon::parse($data['check_in_at'] ?? now());
+        $checkIn = $this->scanTimestamp($data, 'check_in_at');
         $date = $checkIn->toDateString();
         $shift = $employee->shift;
         $location = $this->geofence->evaluate($data);
@@ -76,8 +78,48 @@ final class CheckInEmployeeAttendance
         }
 
         $this->syncPendingPayrollBonus($attendance);
+        $attendance->load(['employee.shift', 'shift']);
+        if ($scheduleStatus === 'off_shift') {
+            $this->notifier->offShiftAttendance(
+                $employee,
+                $attendance->date?->toDateString() ?? $date,
+                $attendance->check_in?->format('H:i'),
+                $attendance->shift?->name,
+            );
 
-        return $attendance->load(['employee.shift', 'shift']);
+            activity('attendance')
+                ->causedBy($user)
+                ->performedOn($attendance)
+                ->event('off_shift')
+                ->withProperties([
+                    'employee_id' => $attendance->employee_id,
+                    'employee_name' => $attendance->employee?->name,
+                    'shift' => $attendance->shift?->name,
+                    'date' => $attendance->date?->toDateString(),
+                    'check_in' => $attendance->check_in?->format('H:i'),
+                    'status' => $attendance->status,
+                    'schedule_status' => $attendance->schedule_status,
+                    'approval_status' => $attendance->approval_status,
+                ])
+                ->log(($attendance->employee?->name ?? 'Employee').' checked in outside the assigned shift.');
+        }
+
+        activity('attendance')
+            ->causedBy($user)
+            ->performedOn($attendance)
+            ->event('check_in')
+            ->withProperties([
+                'employee_id' => $attendance->employee_id,
+                'employee_name' => $attendance->employee?->name,
+                'shift' => $attendance->shift?->name,
+                'date' => $attendance->date?->toDateString(),
+                'check_in' => $attendance->check_in?->format('H:i'),
+                'status' => $attendance->status,
+                'schedule_status' => $attendance->schedule_status,
+            ])
+            ->log($attendance->employee?->name.' checked in for '.$attendance->shift?->name.' at '.$attendance->check_in?->format('H:i'));
+
+        return $attendance;
     }
 
     private function lateMinutes(?EmployeeShift $shift, Carbon $checkIn): int
@@ -108,8 +150,9 @@ final class CheckInEmployeeAttendance
             $end->addDay();
         }
 
-        $windowStart = $start->copy()->subHours(6);
-        $windowEnd = $end->copy()->addHours(2);
+        $graceMinutes = (int) $shift->grace_minutes;
+        $windowStart = $start->copy()->subMinutes($graceMinutes);
+        $windowEnd = $end->copy()->addMinutes($graceMinutes);
 
         if ($checkIn->lessThan($windowStart) || $checkIn->greaterThan($windowEnd)) {
             return 'off_shift';
@@ -125,6 +168,19 @@ final class CheckInEmployeeAttendance
         }
 
         return in_array((int) $date->dayOfWeek, array_map('intval', $shift->off_days), true);
+    }
+
+    private function scanTimestamp(array $data, string $field): Carbon
+    {
+        if (! empty($data[$field])) {
+            return Carbon::parse($data[$field]);
+        }
+
+        if (! empty($data['attendance_date'])) {
+            return Carbon::parse($data['attendance_date'])->setTimeFrom(now());
+        }
+
+        return now();
     }
 
     private function syncPendingPayrollBonus(Attendance $attendance): void

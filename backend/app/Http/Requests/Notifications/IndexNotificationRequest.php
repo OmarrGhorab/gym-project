@@ -17,6 +17,9 @@ class IndexNotificationRequest extends FormRequest
     {
         return [
             'unread' => ['sometimes', Rule::in(['true', 'false', '1', '0', true, false, 1, 0])],
+            'status' => ['nullable', Rule::in(['all', 'read', 'unread'])],
+            'category' => ['nullable', 'string', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
     }
 }

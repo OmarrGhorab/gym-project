@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\Subscription;
+use App\Services\OperationalNotifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 
@@ -43,6 +44,21 @@ final class GymTaskController extends ApiController
             'progress' => $validated['progress'] ?? 0,
             'created_by' => $request->user()->id,
         ]);
+        app(OperationalNotifier::class)->taskAssigned($task);
+        $task->loadMissing('assignedEmployee');
+        activity('tasks')
+            ->causedBy($request->user())
+            ->performedOn($task)
+            ->event('assigned')
+            ->withProperties([
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+                'assigned_employee_id' => $task->assigned_employee_id,
+                'assigned_employee_name' => $task->assignedEmployee?->name,
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->toDateString(),
+            ])
+            ->log($request->user()->name.' assigned task "'.$task->title.'" to '.($task->assignedEmployee?->name ?? 'unassigned'));
 
         return $this->success(
             data: $this->formatTask($task->fresh(['assignedEmployee:id,name,role'])->loadCount('comments')),
@@ -53,7 +69,24 @@ final class GymTaskController extends ApiController
 
     public function update(UpdateGymTaskRequest $request, GymTask $gymTask): JsonResponse
     {
+        $previousAssignedEmployeeId = $gymTask->assigned_employee_id;
         $gymTask->update($request->validated());
+
+        if ($gymTask->assigned_employee_id && $gymTask->assigned_employee_id !== $previousAssignedEmployeeId) {
+            app(OperationalNotifier::class)->taskAssigned($gymTask);
+            $gymTask->loadMissing('assignedEmployee');
+            activity('tasks')
+                ->causedBy($request->user())
+                ->performedOn($gymTask)
+                ->event('assigned')
+                ->withProperties([
+                    'task_id' => $gymTask->id,
+                    'task_title' => $gymTask->title,
+                    'assigned_employee_id' => $gymTask->assigned_employee_id,
+                    'assigned_employee_name' => $gymTask->assignedEmployee?->name,
+                ])
+                ->log($request->user()->name.' reassigned task "'.$gymTask->title.'" to '.$gymTask->assignedEmployee?->name);
+        }
 
         return $this->success(
             data: $this->formatTask($gymTask->fresh(['assignedEmployee:id,name,role'])->loadCount('comments')),

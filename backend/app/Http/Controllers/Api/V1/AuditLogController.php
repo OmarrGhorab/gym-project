@@ -27,11 +27,18 @@ final class AuditLogController extends ApiController
         if ($causer = $request->validated('filter.causer')) {
             $query->where('causer_id', $causer);
         }
+        if ($action = $request->validated('filter.action')) {
+            $query->where('event', $action);
+        }
+        if ($logName = $request->validated('filter.log_name')) {
+            $query->where('log_name', $logName);
+        }
 
         $activities = QueryBuilder::for($query)
             ->allowedSorts('created_at')
             ->defaultSort('-created_at')
-            ->paginate(15);
+            ->paginate((int) ($request->validated('per_page') ?? 15))
+            ->withQueryString();
 
         return AuditLogResource::collection($activities)
             ->additional([

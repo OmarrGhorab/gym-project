@@ -11,6 +11,7 @@ use App\Http\Requests\Payroll\IndexPayrollRequest;
 use App\Http\Requests\Payroll\UpdatePayrollRequest;
 use App\Http\Resources\PayrollResource;
 use App\Models\Payroll;
+use App\Services\OperationalNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -56,6 +57,8 @@ final class PayrollController extends ApiController
     {
         $month = $request->query('month');
         $result = $action->execute($month);
+        $notifier = app(OperationalNotifier::class);
+        collect($result['generated'])->each(fn (Payroll $payroll) => $notifier->payrollReady($payroll));
 
         return $this->success(
             data: PayrollResource::collection($result['generated'])->resolve(),

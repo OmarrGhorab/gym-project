@@ -1,18 +1,33 @@
+import type { ReactNode } from "react";
+
+import Link from "next/link";
+
 import { Bell, CheckCircle2 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-controls";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { markNotificationRead } from "./_components/actions";
 import { getNotificationsPageData } from "./_components/data";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    status?: string;
+    category?: string;
+    per_page?: string;
+  }>;
+}) {
+  const query = await searchParams;
   const t = await getTranslations("Dashboard.mail");
   const locale = await getLocale();
-  const notifications = await getNotificationsPageData();
+  const { meta, notifications } = await getNotificationsPageData(query);
   const unread = notifications.filter((notification) => !notification.read_at).length;
 
   return (
@@ -33,7 +48,8 @@ export default async function Page() {
           <CardTitle className="font-normal">{t("inbox")}</CardTitle>
           <CardDescription>{t("inboxDescription")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <NotificationFilters query={query} t={t} />
           <Table>
             <TableHeader>
               <TableRow>
@@ -82,10 +98,142 @@ export default async function Page() {
               ) : null}
             </TableBody>
           </Table>
+          <PageControls
+            basePath="/dashboard/mail"
+            meta={meta}
+            query={query}
+            t={{
+              next: t("nextPage"),
+              pageOf: t("pageOf", {
+                page: meta.current_page ?? 1,
+                total: meta.last_page ?? 1,
+              }),
+              previous: t("previousPage"),
+            }}
+          />
         </CardContent>
       </Card>
     </div>
   );
+}
+
+type NotificationQuery = Parameters<typeof getNotificationsPageData>[0];
+
+const notificationCategoryOptions = [
+  "attendance.off_shift",
+  "inventory.low_stock",
+  "membership.expiring_soon",
+  "membership.subscription_created",
+  "payroll.ready",
+  "tasks.assigned",
+] as const;
+
+function NotificationFilters({
+  query,
+  t,
+}: {
+  query: NotificationQuery;
+  t: Awaited<ReturnType<typeof getTranslations<"Dashboard.mail">>>;
+}) {
+  return (
+    <form className="grid gap-3 rounded-lg border bg-muted/20 p-3 md:grid-cols-[1fr_1fr_auto]">
+      <FilterField label={t("filters.status")}>
+        <FormSelect
+          name="status"
+          defaultValue={query?.status ?? "all"}
+          options={[
+            { label: t("filters.all"), value: "all" },
+            { label: t("filters.unread"), value: "unread" },
+            { label: t("filters.read"), value: "read" },
+          ]}
+        />
+      </FilterField>
+      <FilterField label={t("filters.category")}>
+        <FormSelect
+          name="category"
+          defaultValue={query?.category ?? ""}
+          placeholder={t("filters.allCategories")}
+          options={notificationCategoryOptions.map((category) => ({
+            label: humanizeCategory(category),
+            value: category,
+          }))}
+        />
+      </FilterField>
+      <div className="flex items-end gap-2">
+        <input type="hidden" name="per_page" value={query?.per_page ?? "15"} />
+        <Button type="submit">{t("filters.apply")}</Button>
+        <Button type="button" variant="outline" render={<Link href="/dashboard/mail" />}>
+          {t("filters.clear")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function FilterField({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="grid gap-1 text-sm">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function PageControls({
+  basePath,
+  meta,
+  query,
+  t,
+}: {
+  basePath: string;
+  meta: Awaited<ReturnType<typeof getNotificationsPageData>>["meta"];
+  query: NotificationQuery;
+  t: {
+    next: string;
+    pageOf: string;
+    previous: string;
+  };
+}) {
+  const currentPage = meta.current_page ?? 1;
+  const lastPage = meta.last_page ?? 1;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+      <span className="text-muted-foreground">{t.pageOf}</span>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={currentPage <= 1}
+          render={<Link href={buildPageHref(basePath, query, currentPage - 1)} />}
+        >
+          {t.previous}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={currentPage >= lastPage}
+          render={<Link href={buildPageHref(basePath, query, currentPage + 1)} />}
+        >
+          {t.next}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function buildPageHref(basePath: string, query: NotificationQuery, page: number) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value && key !== "page") {
+      params.set(key, value);
+    }
+  }
+
+  params.set("page", String(page));
+
+  return `${basePath}?${params.toString()}`;
 }
 
 function notificationTitle(
@@ -109,4 +257,11 @@ function formatDate(
   }
 
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function humanizeCategory(value: string) {
+  return value
+    .replaceAll(".", " / ")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
