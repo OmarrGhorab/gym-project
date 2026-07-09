@@ -95,6 +95,34 @@ test('generating payroll is idempotent on re-run', function (): void {
     expect(Payroll::count())->toBe(1);
 });
 
+test('regenerating payroll syncs updated employee base salary on pending rows', function (): void {
+    $adminUser = User::factory()->create();
+    $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($adminUser);
+
+    $employee = Employee::factory()->create([
+        'base_salary' => '0.00',
+        'status' => 'active',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertStatus(201)
+        ->assertJsonPath('data.0.base_salary', '0.00')
+        ->assertJsonPath('data.0.net_salary', '0.00');
+
+    $employee->update(['base_salary' => '5500.00']);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertStatus(201)
+        ->assertJsonPath('meta.refreshed', 1)
+        ->assertJsonPath('data.0.base_salary', '5500.00')
+        ->assertJsonPath('data.0.net_salary', '5500.00');
+
+    expect(Payroll::count())->toBe(1)
+        ->and(Payroll::first()->base_salary)->toBe('5500.00')
+        ->and(Payroll::first()->net_salary)->toBe('5500.00');
+});
+
 test('generating payroll refreshes approved deductions on existing pending payroll', function (): void {
     $adminUser = User::factory()->create();
     $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);

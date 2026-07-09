@@ -66,7 +66,7 @@ final class GeneratePayroll
                     continue;
                 }
 
-                $this->refreshPendingPayroll($existingPayroll);
+                $this->refreshPendingPayroll($existingPayroll, $employee);
                 $refreshed[] = $existingPayroll->fresh(['employee']);
 
                 continue;
@@ -111,15 +111,27 @@ final class GeneratePayroll
         ];
     }
 
-    public function refreshPendingPayroll(Payroll $payroll): void
+    public function refreshPendingPayroll(Payroll $payroll, ?Employee $employee = null): void
     {
         if ($payroll->status !== 'pending') {
             return;
         }
 
+        $employee ??= Employee::query()->find($payroll->employee_id);
+
+        // Keep pending payroll in sync with the employee profile (e.g. base salary updates).
+        if ($employee !== null) {
+            $payroll->base_salary = $employee->base_salary;
+        }
+
         $payroll->commissions_total = $this->commissionTotal($payroll->employee_id, $payroll->month);
         $payroll = $this->attendanceDeductions->execute($payroll);
-        $this->attendanceBonuses->execute($payroll);
+        $payroll = $this->attendanceBonuses->execute($payroll);
+
+        // ApplyAttendanceBonuses saves when bonuses/net change; always persist base/commission sync.
+        if ($payroll->isDirty()) {
+            $payroll->save();
+        }
     }
 
     private function commissionTotal(int $employeeId, string $month): string

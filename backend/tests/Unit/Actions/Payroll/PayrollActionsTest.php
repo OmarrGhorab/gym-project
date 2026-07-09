@@ -26,6 +26,25 @@ test('generate payroll creates pending record for active employee', function ():
         ->and($results[0]->status)->toBe('pending');
 });
 
+test('refreshing pending payroll picks up employee base salary changes', function (): void {
+    $employee = Employee::factory()->create([
+        'base_salary' => 0.00,
+        'status' => 'active',
+    ]);
+
+    $generator = app(GeneratePayroll::class);
+    $generator->execute('2026-06');
+
+    $employee->update(['base_salary' => 4200.00]);
+
+    $result = $generator->execute('2026-06');
+
+    expect($result['refreshed_count'])->toBe(1)
+        ->and($result['generated'][0]->base_salary)->toBe('4200.00')
+        ->and($result['generated'][0]->net_salary)->toBe('4200.00')
+        ->and(Payroll::first()->base_salary)->toBe('4200.00');
+});
+
 test('update payroll recomputes net correctly', function (): void {
     $payroll = Payroll::factory()->create([
         'base_salary' => 1500.00,
