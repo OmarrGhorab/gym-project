@@ -15,6 +15,7 @@ export default async function Page() {
     canDeleteProduct: user ? canAccess(user, "products.delete") : false,
     canUpdateProduct: user ? canAccess(user, "products.update") : false,
   };
+  const canRecordExpense = user ? canAccess(user, "expenses.create") : false;
 
-  return <Logistics data={data} productPermissions={productPermissions} />;
+  return <Logistics canRecordExpense={canRecordExpense} data={data} productPermissions={productPermissions} />;
 }

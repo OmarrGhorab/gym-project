@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+import { RecordExpenseDialog } from "../../finance/_components/record-expense-dialog";
 import {
   AddProductDialog,
   CreatePurchaseOrderDialog,
@@ -29,11 +30,13 @@ function formatEgp(value: string | number) {
 }
 
 function InventorySummarySheet({
+  canRecordExpense,
   data,
   open,
   onOpenChange,
   productPermissions,
 }: {
+  canRecordExpense: boolean;
   data: InventoryLogisticsData;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -80,10 +83,11 @@ function InventorySummarySheet({
             </CardContent>
           </Card>
 
-          {productPermissions.canCreateProduct || productPermissions.canAdjustInventory ? (
+          {productPermissions.canCreateProduct || productPermissions.canAdjustInventory || canRecordExpense ? (
             <div className="grid grid-cols-2 gap-2">
               {productPermissions.canCreateProduct ? <AddProductDialog /> : null}
               {productPermissions.canAdjustInventory ? <CreatePurchaseOrderDialog products={data.products} /> : null}
+              {canRecordExpense ? <RecordExpenseDialog /> : null}
             </div>
           ) : null}
 
@@ -139,9 +143,11 @@ function InventorySummarySheet({
 }
 
 export function Logistics({
+  canRecordExpense,
   data,
   productPermissions,
 }: {
+  canRecordExpense: boolean;
   data: InventoryLogisticsData;
   productPermissions: ProductActionPermissions;
 }) {
@@ -154,7 +160,8 @@ export function Logistics({
   const selectedShipment =
     data.purchase_orders.find((shipment) => shipment.id === selectedShipmentId) ??
     (data.purchase_orders.length > 0 ? data.purchase_orders[0] : null);
-  const canShowProductHeaderActions = productPermissions.canCreateProduct || productPermissions.canAdjustInventory;
+  const canShowProductHeaderActions =
+    productPermissions.canCreateProduct || productPermissions.canAdjustInventory || canRecordExpense;
 
   function handleSelectShipment(shipmentId: PurchaseOrder["id"]) {
     setSelectedShipmentId(shipmentId);
@@ -184,6 +191,7 @@ export function Logistics({
               <div className="flex items-center justify-end gap-2 border-b p-3">
                 {productPermissions.canCreateProduct ? <AddProductDialog /> : null}
                 {productPermissions.canAdjustInventory ? <CreatePurchaseOrderDialog products={data.products} /> : null}
+                {canRecordExpense ? <RecordExpenseDialog /> : null}
               </div>
             ) : null}
             <div className="min-h-0 flex-1">
@@ -215,6 +223,7 @@ export function Logistics({
         open={summaryOpen}
         onOpenChange={setSummaryOpen}
         productPermissions={productPermissions}
+        canRecordExpense={canRecordExpense}
       />
     </>
   );

@@ -106,6 +106,35 @@ test('manager can create expense and receives 201', function (): void {
     expect(Expense::count())->toBe(1);
 });
 
+test('creating expense notifies admins and managers', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    $creator = User::factory()->create(['name' => 'Front Desk']);
+    $creator->givePermissionTo('expenses.create');
+    Sanctum::actingAs($creator);
+
+    $this->postJson('/api/v1/expenses', [
+        'category' => 'utilities',
+        'amount' => '450.50',
+        'description' => 'Electricity bill',
+        'date' => '2026-06-11',
+    ])->assertStatus(201);
+
+    expect($admin->notifications()->where('data->category', 'expenses.created')->count())->toBe(1)
+        ->and($manager->notifications()->where('data->category', 'expenses.created')->count())->toBe(1)
+        ->and($creator->notifications()->where('data->category', 'expenses.created')->count())->toBe(0)
+        ->and($admin->notifications()->first()?->data)
+        ->toMatchArray([
+            'amount' => '450.50',
+            'category' => 'expenses.created',
+            'creator_name' => 'Front Desk',
+            'date' => '2026-06-11',
+            'expense_category' => 'utilities',
+        ]);
+});
+
 test('storing expense validation rejects missing fields and invalid types', function (): void {
     $manager = User::factory()->create();
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);

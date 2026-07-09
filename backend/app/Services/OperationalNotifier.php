@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceViolation;
 use App\Models\Employee;
+use App\Models\Expense;
 use App\Models\GymTask;
 use App\Models\Payroll;
 use App\Models\Product;
@@ -142,6 +143,28 @@ class OperationalNotifier
                 'paid_at' => $payroll->paid_at?->toIso8601String(),
                 'attendance_snapshot' => $payroll->attendance_snapshot,
                 'payslip_url' => "/api/payroll/{$payroll->id}/payslip",
+            ],
+        );
+    }
+
+    public function expenseCreated(Expense $expense): void
+    {
+        $expense->loadMissing('creator');
+
+        $this->notifyAdmins(
+            title: 'Expense recorded',
+            body: ($expense->creator?->name ?? 'Staff').' recorded '.$expense->category.' expense for EGP '.$expense->amount.'.',
+            category: 'expenses.created',
+            url: '/dashboard/finance',
+            severity: 'warning',
+            extra: [
+                'expense_id' => $expense->id,
+                'expense_category' => $expense->category,
+                'amount' => number_format((float) $expense->amount, 2, '.', ''),
+                'date' => $expense->date?->toDateString(),
+                'created_by' => $expense->created_by,
+                'creator_name' => $expense->creator?->name,
+                'description' => $expense->description,
             ],
         );
     }

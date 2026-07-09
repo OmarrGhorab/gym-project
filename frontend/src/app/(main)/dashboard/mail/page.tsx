@@ -129,6 +129,7 @@ const notificationCategoryOptions = [
   "attendance.late",
   "attendance.off_shift",
   "attendance.warning",
+  "expenses.created",
   "inventory.low_stock",
   "membership.expiring_soon",
   "membership.subscription_created",
