@@ -91,6 +91,14 @@ export type DefaultDashboardData = {
   memberStaff: StaffOption[];
 };
 
+export type DefaultDashboardAccess = {
+  canViewEmployees: boolean;
+  canViewMembers: boolean;
+  canViewPayments: boolean;
+  canViewPlans: boolean;
+  canViewReports: boolean;
+};
+
 export type MemberSort = "newest" | "oldest" | "name-asc" | "name-desc";
 
 export type MemberBillingFilter = "paid" | "pending" | "overdue" | "trial";
@@ -118,6 +126,13 @@ export async function getDefaultDashboardData(
   from: string,
   to: string,
   membersQuery: MembersQuery = {},
+  access: DefaultDashboardAccess = {
+    canViewEmployees: true,
+    canViewMembers: true,
+    canViewPayments: true,
+    canViewPlans: true,
+    canViewReports: true,
+  },
 ): Promise<DefaultDashboardData> {
   const dateParams = new URLSearchParams({
     from,
@@ -138,16 +153,32 @@ export async function getDefaultDashboardData(
     plansResult,
     staffResult,
   ] = await Promise.all([
-    serverApiFetch<DashboardSummary>("/dashboard/summary"),
-    serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(`/members?${memberParams.toString()}`),
-    serverApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${dateParams.toString()}`),
+    access.canViewReports
+      ? serverApiFetch<DashboardSummary>("/dashboard/summary")
+      : Promise.resolve({ data: getEmptySummary() }),
+    access.canViewMembers
+      ? serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(`/members?${memberParams.toString()}`)
+      : Promise.resolve({ data: [] }),
+    access.canViewReports
+      ? serverApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${dateParams.toString()}`)
+      : Promise.resolve({ data: [] }),
     safeFetch<unknown>("/dashboard/active-subscriptions", null),
     safeFetch<unknown>("/dashboard/expiring-soon?per_page=5", null),
-    safeFetch<{ count: number; revenue: string }>("/dashboard/sales-today", { count: 0, revenue: "0.00" }),
-    safeFetch<unknown[]>("/dashboard/top-products?period=month&limit=5", []),
-    safeFetch<DueResource[] | PaginatedData<DueResource>>("/payments/dues?per_page=100", []),
-    safeFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100", []),
-    safeFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100", []),
+    access.canViewReports
+      ? safeFetch<{ count: number; revenue: string }>("/dashboard/sales-today", { count: 0, revenue: "0.00" })
+      : Promise.resolve({ data: { count: 0, revenue: "0.00" } }),
+    access.canViewReports
+      ? safeFetch<unknown[]>("/dashboard/top-products?period=month&limit=5", [])
+      : Promise.resolve({ data: [] }),
+    access.canViewPayments
+      ? safeFetch<DueResource[] | PaginatedData<DueResource>>("/payments/dues?per_page=100", [])
+      : Promise.resolve({ data: [] }),
+    access.canViewPlans
+      ? safeFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?filter[is_active]=1&sort=name&per_page=100", [])
+      : Promise.resolve({ data: [] }),
+    access.canViewEmployees
+      ? safeFetch<StaffOption[] | PaginatedData<StaffOption>>("/employees?filter[status]=active&per_page=100", [])
+      : Promise.resolve({ data: [] }),
   ]);
 
   const members = unwrapList(membersResult.data);
@@ -156,11 +187,12 @@ export async function getDefaultDashboardData(
   const memberDues = mapMemberDues(dues);
   const memberPlans = unwrapList(plansResult.data);
   const memberStaff = unwrapList(staffResult.data);
-  const membersMeta = getPaginationMeta(membersResult.meta, members.length);
+  const membersMeta = getPaginationMeta("meta" in membersResult ? membersResult.meta : undefined, members.length);
 
   return {
     summary: {
       ...summaryResult.data,
+      active_subscriptions: getCount(activeSubscriptionsResult.data) ?? summaryResult.data.active_subscriptions,
       active_subscriptions_detail: activeSubscriptionsResult.data,
       expiring_soon_detail: expiringSoonResult.data,
       sales_today_detail: salesTodayResult.data,
@@ -176,12 +208,40 @@ export async function getDefaultDashboardData(
   };
 }
 
+function getEmptySummary(): DashboardSummary {
+  return {
+    active_subscriptions: 0,
+    revenue_mtd: "0.00",
+    revenue_growth_rate: "0",
+    new_members_this_month: 0,
+    new_members_previous_month: 0,
+    new_members_growth_rate: "0",
+    expiring_soon: 0,
+    sales_today: {
+      count: 0,
+      revenue: "0.00",
+    },
+    top_products: [],
+    captain_leaderboard: [],
+  };
+}
+
 async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
   try {
     return await serverApiFetch<T>(path);
   } catch {
     return { data: fallback };
   }
+}
+
+function getCount(value: unknown) {
+  if (value && typeof value === "object" && "count" in value) {
+    const count = Number(value.count);
+
+    return Number.isFinite(count) ? count : undefined;
+  }
+
+  return undefined;
 }
 
 function buildMemberParams(options: MembersQuery) {

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { format as formatDateFns, subDays } from "date-fns";
 
-import { canAccessRoute, firstAccessibleDashboardPath } from "@/lib/authorization";
+import { canAccess, canAccessRoute, firstAccessibleDashboardPath } from "@/lib/authorization";
 import { getCurrentUser, requireAuth } from "@/lib/session";
 
 import { DashboardChartStyleSwitcher } from "./_components/dashboard-chart-style-switcher";
@@ -56,24 +56,39 @@ export default async function Page({
   const resolvedFrom = getDateParam(from, defaultFrom);
   const resolvedTo = getDateParam(to, defaultTo);
   const membersQuery = parseMembersQuery(memberParams);
-  const data = await getDefaultDashboardData(resolvedFrom, resolvedTo, membersQuery);
+  const access = {
+    canViewEmployees: canAccess(user, "employees.view"),
+    canViewMembers: canAccess(user, "members.view"),
+    canViewPayments: canAccess(user, "payments.view"),
+    canViewPlans: canAccess(user, "plans.view"),
+    canViewReports: canAccess(user, "reports.view"),
+  };
+  const data = await getDefaultDashboardData(resolvedFrom, resolvedTo, membersQuery, access);
 
   return (
     <div className="@container/main flex flex-col gap-4 md:gap-6">
-      <MetricCards summary={data.summary} />
-      <DashboardShortcuts />
-      <Suspense fallback={null}>
-        <DashboardChartStyleSwitcher data={data.salesChart} summary={data.summary} />
-      </Suspense>
-      <SubscriberOverview
-        members={data.members}
-        total={data.membersTotal}
-        meta={data.membersMeta}
-        query={membersQuery}
-        plans={data.memberPlans}
-        staff={data.memberStaff}
-        user={user}
+      <MetricCards
+        canViewMembers={access.canViewMembers}
+        canViewReports={access.canViewReports}
+        summary={data.summary}
       />
+      <DashboardShortcuts />
+      {access.canViewReports ? (
+        <Suspense fallback={null}>
+          <DashboardChartStyleSwitcher data={data.salesChart} summary={data.summary} />
+        </Suspense>
+      ) : null}
+      {access.canViewMembers ? (
+        <SubscriberOverview
+          members={data.members}
+          total={data.membersTotal}
+          meta={data.membersMeta}
+          query={membersQuery}
+          plans={data.memberPlans}
+          staff={data.memberStaff}
+          user={user}
+        />
+      ) : null}
     </div>
   );
 }

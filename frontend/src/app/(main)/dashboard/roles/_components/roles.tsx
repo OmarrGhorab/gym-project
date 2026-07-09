@@ -486,6 +486,24 @@ function permissionLabel(permission: string) {
 }
 
 function permissionActionLabel(permission: string) {
+  const permissionLabels: Record<string, string> = {
+    "roles.manage": "Manage roles",
+    "settings.manage": "Manage settings",
+    "audit.view": "View audit",
+    "export.members": "Export members",
+    "export.subscriptions": "Export subscriptions",
+    "export.sales": "Export sales",
+    "export.payments": "Export payments",
+    "export.payroll": "Export payroll",
+    "export.reports": "Export reports",
+    "export.attendance": "Export attendance",
+    "export.member-visits": "Export member visits",
+  };
+
+  if (permissionLabels[permission]) {
+    return permissionLabels[permission];
+  }
+
   const action = permission.split(".").at(-1) ?? permission;
 
   return action
