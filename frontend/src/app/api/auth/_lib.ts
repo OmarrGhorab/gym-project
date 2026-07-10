@@ -1,4 +1,8 @@
+import "server-only";
+
 import { NextResponse } from "next/server";
+
+import { z } from "zod";
 
 import { AUTH_COOKIE_MAX_AGE, AUTH_TOKEN_COOKIE } from "@/lib/auth-cookie";
 
@@ -14,6 +18,34 @@ type AuthApiPayload = {
   };
   [key: string]: unknown;
 };
+
+const emailSchema = z.email().max(254);
+const passwordSchema = z.string().min(1).max(256);
+const otpSchema = z.string().regex(/^\d{6}$/);
+
+const authRequestSchemas = {
+  "/auth/forgot-password": z.object({ email: emailSchema }).strict(),
+  "/auth/login": z.object({ email: emailSchema, password: passwordSchema, remember: z.boolean().optional() }).strict(),
+  "/auth/register": z
+    .object({
+      email: emailSchema,
+      name: z.string().trim().min(1).max(120),
+      password: passwordSchema,
+      password_confirmation: passwordSchema,
+    })
+    .strict(),
+  "/auth/resend-verification": z.object({ email: emailSchema }).strict(),
+  "/auth/reset-password": z
+    .object({
+      email: emailSchema,
+      password: passwordSchema,
+      password_confirmation: passwordSchema,
+      token: z.string().min(1).max(2048),
+    })
+    .strict(),
+  "/auth/verify-email": z.object({ email: emailSchema, otp: otpSchema }).strict(),
+  "/auth/verify-otp": z.object({ email: emailSchema, otp: otpSchema }).strict(),
+} as const;
 
 export function getCookieOptions(remember?: boolean) {
   return {
@@ -39,17 +71,19 @@ function stripToken(payload: AuthApiPayload): AuthApiPayload {
   };
 }
 
-async function readJsonBody(request: Request) {
+async function readJsonBody(request: Request, schema: z.ZodType) {
   const text = await request.text();
 
   if (!text) {
-    return {};
+    return { success: false as const };
   }
 
   try {
-    return JSON.parse(text) as Record<string, unknown>;
+    const parsed = schema.safeParse(JSON.parse(text));
+
+    return parsed.success ? { data: parsed.data, success: true as const } : { success: false as const };
   } catch {
-    return {};
+    return { success: false as const };
   }
 }
 
@@ -64,7 +98,22 @@ export async function forwardAuthRequest(
   } = {},
 ) {
   const method = init.method ?? "POST";
-  const body = method === "POST" ? await readJsonBody(request) : undefined;
+  const schema = authRequestSchemas[path as keyof typeof authRequestSchemas];
+  const parsedBody = method === "POST" && schema ? await readJsonBody(request, schema) : undefined;
+
+  if (parsedBody && !parsedBody.success) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "invalid_request",
+          message: "Invalid request.",
+        },
+      },
+      { status: 422 },
+    );
+  }
+
+  const body = parsedBody?.success ? parsedBody.data : undefined;
   const url = method === "GET" ? `${API_BASE_URL}${path}${new URL(request.url).search}` : `${API_BASE_URL}${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AUTH_PROXY_TIMEOUT_MS);
@@ -120,7 +169,9 @@ export async function forwardAuthRequest(
     : NextResponse.json(stripToken(payload), { status: response.status });
 
   if (init.storeToken && payload.data?.token) {
-    authResponse.cookies.set(AUTH_TOKEN_COOKIE, payload.data.token, getCookieOptions(Boolean(body?.remember)));
+    const remember = typeof body === "object" && body !== null && "remember" in body && body.remember === true;
+
+    authResponse.cookies.set(AUTH_TOKEN_COOKIE, payload.data.token, getCookieOptions(remember));
   }
 
   return authResponse;

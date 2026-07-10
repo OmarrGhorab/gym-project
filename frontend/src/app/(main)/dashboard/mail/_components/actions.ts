@@ -2,10 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 
+import { z } from "zod";
+
 import { serverApiFetch } from "@/lib/api/server";
 
 export async function markNotificationRead(input: FormData): Promise<void> {
-  await serverApiFetch(`/notifications/${String(input.get("id"))}/read`, {
+  const notificationId = z.uuid().safeParse(input.get("id"));
+
+  if (!notificationId.success) {
+    throw new Error("Invalid notification.");
+  }
+
+  await serverApiFetch(`/notifications/${encodeURIComponent(notificationId.data)}/read`, {
     method: "PATCH",
   });
 

@@ -1,10 +1,12 @@
 "use client";
 
 import { AlertTriangle, RefreshCw, WifiOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
 export default function DashboardError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const t = useTranslations("Dashboard.shell");
   const isNetworkLike = /fetch|network|failed|ECONN|timeout|unavailable/i.test(error.message);
 
   return (
@@ -14,16 +16,14 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
           {isNetworkLike ? <WifiOff className="size-6" /> : <AlertTriangle className="size-6" />}
         </div>
         <div className="space-y-2">
-          <h1 className="font-semibold text-2xl">{isNetworkLike ? "Connection problem." : "Something went wrong."}</h1>
+          <h1 className="font-semibold text-2xl">{isNetworkLike ? t("networkErrorTitle") : t("errorTitle")}</h1>
           <p className="text-muted-foreground">
-            {isNetworkLike
-              ? "The dashboard could not reach the API. Check the backend or your connection, then try again."
-              : "The dashboard hit an unexpected error. Try again, and if it keeps happening check the server logs."}
+            {isNetworkLike ? t("networkErrorDescription") : t("unexpectedErrorDescription")}
           </p>
         </div>
         <Button type="button" onClick={reset}>
           <RefreshCw data-icon="inline-start" />
-          Try again
+          {t("tryAgain")}
         </Button>
       </div>
     </div>

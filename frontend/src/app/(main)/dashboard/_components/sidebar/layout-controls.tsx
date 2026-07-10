@@ -125,7 +125,9 @@ export function LayoutControls({
 
   return (
     <Popover key={locale}>
-      <PopoverTrigger render={<Button size="icon" {...trigger} />}>{children ?? <Settings />}</PopoverTrigger>
+      <PopoverTrigger render={<Button aria-label={t("title")} size="icon" {...trigger} />}>
+        {children ?? <Settings />}
+      </PopoverTrigger>
       <PopoverContent align="end">
         <div className="flex flex-col gap-5">
           <div className="space-y-1.5">

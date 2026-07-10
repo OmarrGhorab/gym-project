@@ -1,6 +1,7 @@
 "use client";
 
 import { Ellipsis, RotateCcw, Search, SlidersHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
@@ -16,6 +17,7 @@ interface MailInboxProps {
 }
 
 export function MailInbox({ mails, onSelectMail }: MailInboxProps) {
+  const t = useTranslations("Dashboard.mail");
   const pinnedMails = mails.filter((mail) => mail.isPinned);
   const unpinnedMails = mails.filter((mail) => !mail.isPinned);
 
@@ -25,16 +27,16 @@ export function MailInbox({ mails, onSelectMail }: MailInboxProps) {
         <div className="flex items-center">
           <SidebarTrigger />
           <Separator orientation="vertical" className="mr-2 ml-1 h-4 data-vertical:self-center" />
-          <h1 className="font-medium text-xl leading-none">Inbox</h1>
+          <h1 className="font-medium text-xl leading-none">{t("legacyInbox")}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" aria-label="Filter inbox">
+          <Button variant="ghost" size="icon-sm" aria-label={t("filterInbox")}>
             <SlidersHorizontal />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="Refresh inbox">
+          <Button variant="ghost" size="icon-sm" aria-label={t("refreshInbox")}>
             <RotateCcw />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="More inbox actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t("moreInboxActions")}>
             <Ellipsis />
           </Button>
         </div>
@@ -46,7 +48,7 @@ export function MailInbox({ mails, onSelectMail }: MailInboxProps) {
 
       <div className="px-2">
         <InputGroup className="h-7 w-full rounded-md">
-          <InputGroupInput className="h-7" placeholder="Search..." />
+          <InputGroupInput className="h-7" placeholder={t("searchInbox")} />
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>

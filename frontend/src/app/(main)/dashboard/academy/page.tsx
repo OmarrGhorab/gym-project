@@ -3,7 +3,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FormDatePicker } from "@/components/ui/form-controls";
+import { Label } from "@/components/ui/label";
 import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
 
@@ -62,26 +63,24 @@ export default async function Page({ searchParams }: PageProps) {
             {canViewReports ? (
               <>
                 <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy">
-                  <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-from-date">
-                    {t("fromDate")}
-                    <Input
+                  <div className="grid gap-1 text-muted-foreground text-xs">
+                    <Label htmlFor="academy-from-date">{t("fromDate")}</Label>
+                    <FormDatePicker
                       className="h-8 w-[8.5rem] min-w-0"
+                      defaultValue={period.from}
                       id="academy-from-date"
                       name="from"
-                      type="date"
-                      defaultValue={period.from}
                     />
-                  </label>
-                  <label className="grid gap-1 text-muted-foreground text-xs" htmlFor="academy-to-date">
-                    {t("toDate")}
-                    <Input
+                  </div>
+                  <div className="grid gap-1 text-muted-foreground text-xs">
+                    <Label htmlFor="academy-to-date">{t("toDate")}</Label>
+                    <FormDatePicker
                       className="h-8 w-[8.5rem] min-w-0"
+                      defaultValue={period.to}
                       id="academy-to-date"
                       name="to"
-                      type="date"
-                      defaultValue={period.to}
                     />
-                  </label>
+                  </div>
                   <Button className="h-8" size="sm" type="submit" variant="secondary">
                     {t("applyFilter")}
                   </Button>

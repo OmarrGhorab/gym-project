@@ -1,5 +1,9 @@
+import "server-only";
+
+import { z } from "zod";
+
 import { API_BASE_URL } from "@/app/api/auth/_lib";
-import { getAuthToken } from "@/lib/session";
+import { requireAuth } from "@/lib/session";
 
 type ApiEnvelope<T> = {
   data: T;
@@ -9,12 +13,23 @@ type ApiEnvelope<T> = {
 
 type ApiErrorDetails = Record<string, string[] | string | undefined>;
 
-export async function serverApiFetch<T>(path: string, init: RequestInit = {}): Promise<ApiEnvelope<T>> {
-  const token = await getAuthToken();
+const apiEnvelopeSchema = z.object({
+  data: z.unknown(),
+  message: z.string().optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+});
 
-  if (!token) {
-    throw new Error("Missing authentication token.");
-  }
+const apiErrorPayloadSchema = apiEnvelopeSchema.extend({
+  error: z
+    .object({
+      details: z.record(z.string(), z.union([z.array(z.string()), z.string()])).optional(),
+      message: z.string().optional(),
+    })
+    .optional(),
+});
+
+export async function serverApiFetch<T>(path: string, init: RequestInit = {}): Promise<ApiEnvelope<T>> {
+  const token = await requireAuth();
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -26,9 +41,14 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
     cache: "no-store",
   });
 
-  const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T> & {
-    error?: { details?: ApiErrorDetails; message?: string };
-  };
+  const rawPayload: unknown = await response.json().catch(() => ({}));
+  const parsedPayload = apiErrorPayloadSchema.safeParse(rawPayload);
+
+  if (!parsedPayload.success) {
+    throw new Error("The API returned an invalid response.");
+  }
+
+  const payload = parsedPayload.data;
 
   if (!response.ok) {
     throw new Error(
@@ -36,7 +56,7 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
     );
   }
 
-  return payload;
+  return payload as ApiEnvelope<T>;
 }
 
 function getApiErrorMessage(message: string, details?: ApiErrorDetails) {

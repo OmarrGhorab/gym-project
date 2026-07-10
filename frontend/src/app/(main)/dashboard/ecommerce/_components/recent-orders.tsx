@@ -143,7 +143,7 @@ export function RecentOrders({ canVoidSale, orders }: { canVoidSale: boolean; or
           <Button aria-label={t("downloadSales")} size="icon-sm" variant="outline">
             <Download />
           </Button>
-          <Button size="icon-sm" variant="outline">
+          <Button aria-label={t("moreSalesActions")} size="icon-sm" variant="outline">
             <MoreHorizontal />
           </Button>
         </CardAction>

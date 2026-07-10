@@ -1,5 +1,9 @@
+import "server-only";
+
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { z } from "zod";
 
 import { API_BASE_URL } from "@/app/api/auth/_lib";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth-cookie";
@@ -13,15 +17,17 @@ export type DashboardUser = {
   permissions: string[];
 };
 
-type CurrentUserResponse = {
-  data?: {
-    id: number;
-    name: string;
-    email: string;
-    roles?: string[];
-    permissions?: string[];
-  };
-};
+const currentUserResponseSchema = z.object({
+  data: z
+    .object({
+      email: z.email(),
+      id: z.number().int().positive(),
+      name: z.string().trim().min(1),
+      permissions: z.array(z.string()).optional(),
+      roles: z.array(z.string()).optional(),
+    })
+    .optional(),
+});
 
 export async function getAuthToken() {
   const cookieStore = await cookies();
@@ -59,8 +65,13 @@ export async function getCurrentUser(): Promise<DashboardUser | null> {
       return null;
     }
 
-    const payload = (await response.json()) as CurrentUserResponse;
-    const user = payload.data;
+    const payload = currentUserResponseSchema.safeParse(await response.json());
+
+    if (!payload.success) {
+      return null;
+    }
+
+    const user = payload.data.data;
 
     if (!user?.name || !user.email) {
       return null;

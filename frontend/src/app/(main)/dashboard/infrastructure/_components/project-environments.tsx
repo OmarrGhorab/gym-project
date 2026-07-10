@@ -220,7 +220,11 @@ function EnvironmentTable({ rows }: { rows: SystemHealthGroup["rows"] }) {
               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="-mr-2" />}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button aria-label={t("openRowActions")} variant="ghost" size="icon-sm" className="-mr-2" />
+                    }
+                  >
                     <EllipsisVertical />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-40" align="end">

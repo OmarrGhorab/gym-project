@@ -323,13 +323,13 @@ export function Calendar({ events, employees }: CalendarProps) {
                   </SelectContent>
                 </Select>
                 <ButtonGroup>
-                  <Button size="icon" variant="outline" onClick={() => controller.next()}>
+                  <Button aria-label={t("next")} size="icon" variant="outline" onClick={() => controller.next()}>
                     <ChevronRight />
                   </Button>
                   <Button variant="outline" onClick={() => controller.today()}>
                     {t("today")}
                   </Button>
-                  <Button size="icon" variant="outline" onClick={() => controller.prev()}>
+                  <Button aria-label={t("previous")} size="icon" variant="outline" onClick={() => controller.prev()}>
                     <ChevronLeft />
                   </Button>
                 </ButtonGroup>
@@ -379,13 +379,13 @@ export function Calendar({ events, employees }: CalendarProps) {
                   </SelectContent>
                 </Select>
                 <ButtonGroup>
-                  <Button size="icon" variant="outline" onClick={() => controller.prev()}>
+                  <Button aria-label={t("previous")} size="icon" variant="outline" onClick={() => controller.prev()}>
                     <ChevronLeft />
                   </Button>
                   <Button variant="outline" onClick={() => controller.today()}>
                     {t("today")}
                   </Button>
-                  <Button size="icon" variant="outline" onClick={() => controller.next()}>
+                  <Button aria-label={t("next")} size="icon" variant="outline" onClick={() => controller.next()}>
                     <ChevronRight />
                   </Button>
                 </ButtonGroup>

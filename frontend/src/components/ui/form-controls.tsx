@@ -3,13 +3,20 @@
 import * as React from "react";
 
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckIcon, ChevronDownIcon } from "lucide-react";
-import { useLocale } from "next-intl";
+import { CalendarIcon } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { FieldError } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -22,6 +29,7 @@ type FormSelectOption = {
 };
 
 type FormSelectProps = {
+  "aria-label"?: string;
   className?: string;
   contentClassName?: string;
   defaultValue?: string | number | null;
@@ -43,9 +51,8 @@ type FormSelectProps = {
   size?: "default" | "sm";
 };
 
-const emptySelectValue = "__empty__";
-
 export function FormSelect({
+  "aria-label": ariaLabel,
   className,
   contentClassName,
   defaultValue,
@@ -56,7 +63,7 @@ export function FormSelect({
   options,
   placeholder,
   required = false,
-  searchPlaceholder = "Search...",
+  searchPlaceholder,
   selectedLabel: controlledSelectedLabel,
   value: controlledValue,
   contentCollisionAvoidance,
@@ -67,30 +74,23 @@ export function FormSelect({
   size = "default",
 }: FormSelectProps) {
   const errorId = React.useId();
-  const initialValue = defaultValue === null || defaultValue === undefined || defaultValue === "" ? emptySelectValue : String(defaultValue);
+  const t = useTranslations("Dashboard.formControls");
+  const initialValue = defaultValue === null || defaultValue === undefined || defaultValue === "" ? null : String(defaultValue);
   const isControlled = controlledValue !== undefined;
-  const currentValue =
-    controlledValue === null || controlledValue === undefined || controlledValue === ""
-      ? emptySelectValue
-      : String(controlledValue);
-  const [open, setOpen] = React.useState(false);
-  const [internalValue, setInternalValue] = React.useState(initialValue);
+  const currentValue = controlledValue === null || controlledValue === undefined || controlledValue === "" ? null : String(controlledValue);
+  const [internalValue, setInternalValue] = React.useState<string | null>(initialValue);
   const [query, setQuery] = React.useState("");
-  const [selectedLabelOverride, setSelectedLabelOverride] = React.useState<React.ReactNode>(null);
   const value = isControlled ? currentValue : internalValue;
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredOptions = normalizedQuery
-    ? options.filter((option) => getOptionSearchText(option.label).includes(normalizedQuery))
-    : options;
-  const selectedLabel: React.ReactNode =
-    value === emptySelectValue
-      ? placeholder
-      : options.find((option) => option.value === value)?.label ??
-        controlledSelectedLabel ??
-        selectedLabelOverride ??
-        placeholder ??
-        value;
-  const showSearch = options.length > 8 || Boolean(onSearchChange);
+  const selectedOption = React.useMemo(() => {
+    if (!value) {
+      return null;
+    }
+
+    return options.find((option) => option.value === value) ?? {
+      label: controlledSelectedLabel ?? value,
+      value,
+    };
+  }, [controlledSelectedLabel, options, value]);
 
   React.useEffect(() => {
     if (!onSearchChange) {
@@ -105,119 +105,58 @@ export function FormSelect({
   }, [onSearchChange, query]);
 
   return (
-    <>
-      <input
-        type="hidden"
-        name={name}
-        value={value === emptySelectValue ? "" : value}
-        required={required}
-        disabled={disabled}
+    <Combobox
+      autoHighlight
+      disabled={disabled}
+      id={id}
+      isItemEqualToValue={(left, right) => left.value === right.value}
+      itemToStringLabel={(option) => getOptionSearchText(option.label)}
+      itemToStringValue={(option) => option.value}
+      items={options}
+      name={name}
+      onInputValueChange={(nextQuery) => setQuery(nextQuery)}
+      onValueChange={(option) => {
+        const nextValue = option?.value ?? "";
+
+        if (!isControlled) {
+          setInternalValue(option?.value ?? null);
+        }
+
+        onOptionSelect?.(option ?? null);
+        onValueChange?.(nextValue);
+      }}
+      required={required}
+      value={isControlled ? selectedOption : undefined}
+      defaultValue={isControlled ? undefined : selectedOption}
+    >
+      <ComboboxInput
+        aria-describedby={error ? errorId : undefined}
+        aria-invalid={Boolean(error)}
+        aria-label={ariaLabel ?? placeholder ?? t("selectOption")}
+        className={cn("w-full", size === "sm" && "h-7", className)}
+        placeholder={placeholder ?? searchPlaceholder ?? t("selectOption")}
+        showClear={Boolean(value)}
+        showTrigger
       />
-      <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
-        <PopoverTrigger
-          render={
-            <Button
-              id={id}
-              type="button"
-              variant="outline"
-              size={size}
-              disabled={disabled}
-              className={cn("w-full justify-between bg-transparent px-2.5 font-normal", className)}
-              aria-invalid={Boolean(error)}
-              aria-describedby={error ? errorId : undefined}
-            />
-          }
-        >
-          <span
-            className={cn(
-              "min-w-0 flex-1 truncate text-start",
-              value === emptySelectValue && "text-muted-foreground",
-            )}
-          >
-            {selectedLabel}
-          </span>
-          <ChevronDownIcon data-icon="inline-end" className="text-muted-foreground" />
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className={cn("w-(--anchor-width) gap-0 overflow-hidden p-0", contentClassName)}
-          collisionAvoidance={contentCollisionAvoidance}
-          side={contentSide}
-        >
-          {showSearch ? (
-            <div className="border-b bg-popover p-2">
-              <Input
-                autoFocus
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="h-8"
-              />
-            </div>
-          ) : null}
-          <div className="max-h-72 overflow-y-auto p-1">
-            {placeholder ? (
-              <FormSelectOptionButton
-                checked={value === emptySelectValue}
-                label={placeholder}
-                onSelect={() => {
-                  if (!isControlled) {
-                    setInternalValue(emptySelectValue);
-                  }
-                  setSelectedLabelOverride(null);
-                  onOptionSelect?.(null);
-                  onValueChange?.("");
-                  setOpen(false);
-                }}
-              />
-            ) : null}
-            {filteredOptions.map((option) => (
-              <FormSelectOptionButton
-                key={option.key ?? option.value}
-                checked={option.value === value}
-                label={option.label}
-                onSelect={() => {
-                  if (!isControlled) {
-                    setInternalValue(option.value);
-                  }
-                  setSelectedLabelOverride(option.label);
-                  onOptionSelect?.(option);
-                  onValueChange?.(option.value);
-                  setOpen(false);
-                }}
-              />
-            ))}
-            {filteredOptions.length === 0 ? (
-              <div className="px-2 py-3 text-center text-muted-foreground text-sm">No results</div>
-            ) : null}
-          </div>
-        </PopoverContent>
-      </Popover>
+      <ComboboxContent
+        align="start"
+        className={contentClassName}
+        collisionAvoidance={contentCollisionAvoidance}
+        side={contentSide}
+      >
+        <ComboboxList>
+          {options.map((option) => (
+            <ComboboxItem key={option.key ?? option.value} value={option}>
+              {option.label}
+            </ComboboxItem>
+          ))}
+        </ComboboxList>
+        <ComboboxEmpty>{t("noResults")}</ComboboxEmpty>
+      </ComboboxContent>
       <FieldError id={errorId} className="pt-1">
         {error}
       </FieldError>
-    </>
-  );
-}
-
-function FormSelectOptionButton({
-  checked,
-  label,
-  onSelect,
-}: {
-  checked: boolean;
-  label: React.ReactNode;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-      onClick={onSelect}
-    >
-      <span className="flex min-w-0 flex-1 truncate">{label}</span>
-      {checked ? <CheckIcon className="size-4 shrink-0" /> : <span className="size-4 shrink-0" />}
-    </button>
+    </Combobox>
   );
 }
 
@@ -234,6 +173,7 @@ function getOptionSearchText(label: React.ReactNode): string {
 }
 
 type FormDatePickerProps = {
+  "aria-label"?: string;
   className?: string;
   defaultValue?: string | null;
   disabled?: boolean;
@@ -247,6 +187,7 @@ type FormDatePickerProps = {
 };
 
 export function FormDatePicker({
+  "aria-label": ariaLabel,
   className,
   defaultValue = "",
   disabled = false,
@@ -254,12 +195,13 @@ export function FormDatePicker({
   id,
   name,
   onValueChange,
-  placeholder = "Select date",
+  placeholder,
   required = false,
   value: controlledValue,
 }: FormDatePickerProps) {
   const errorId = React.useId();
   const locale = useLocale();
+  const t = useTranslations("Dashboard.formControls");
   const isControlled = controlledValue !== undefined;
   const [internalValue, setInternalValue] = React.useState(defaultValue ?? "");
   const value = isControlled ? (controlledValue ?? "") : internalValue;
@@ -279,12 +221,13 @@ export function FormDatePicker({
               className={cn("w-full justify-between font-normal", className)}
               aria-invalid={Boolean(error)}
               aria-describedby={error ? errorId : undefined}
+              aria-label={ariaLabel ?? placeholder ?? t("selectDate")}
             />
           }
         >
           {selectedDate
             ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(selectedDate)
-            : placeholder}
+            : (placeholder ?? t("selectDate"))}
           <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto overflow-hidden p-0">
@@ -316,6 +259,7 @@ const timeHours = Array.from({ length: 12 }, (_, index) => index + 1);
 const timeMinutes = Array.from({ length: 60 }, (_, index) => index);
 
 type FormTimePickerProps = {
+  "aria-label"?: string;
   className?: string;
   defaultValue?: string | null;
   error?: string;
@@ -327,6 +271,7 @@ type FormTimePickerProps = {
 };
 
 export function FormTimePicker({
+  "aria-label": ariaLabel,
   className,
   defaultValue = "",
   error,
@@ -337,6 +282,7 @@ export function FormTimePicker({
   value: controlledValue,
 }: FormTimePickerProps) {
   const errorId = React.useId();
+  const t = useTranslations("Dashboard.formControls");
   const isControlled = controlledValue !== undefined;
   const initial = parseTime24((controlledValue ?? defaultValue) || "");
   const [hour, setHour] = React.useState<number | null>(initial?.hour ?? null);
@@ -376,7 +322,13 @@ export function FormTimePicker({
           updateValue(nextHour, minute, period);
         }}
       >
-        <SelectTrigger id={id ? `${id}-hour` : undefined} className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
+        <SelectTrigger
+          id={id ? `${id}-hour` : undefined}
+          className="w-full"
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={Boolean(error)}
+          aria-label={ariaLabel ? `${ariaLabel}: ${t("hour")}` : t("hour")}
+        >
           <SelectValue placeholder="--" />
         </SelectTrigger>
         <SelectContent>
@@ -398,7 +350,12 @@ export function FormTimePicker({
           updateValue(hour, nextMinute, period);
         }}
       >
-        <SelectTrigger className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
+        <SelectTrigger
+          className="w-full"
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={Boolean(error)}
+          aria-label={ariaLabel ? `${ariaLabel}: ${t("minute")}` : t("minute")}
+        >
           <SelectValue placeholder="--" />
         </SelectTrigger>
         <SelectContent>
@@ -419,7 +376,13 @@ export function FormTimePicker({
           updateValue(hour, minute, nextPeriod);
         }}
       >
-        <SelectTrigger id={id ? `${id}-period` : undefined} className="w-full" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}>
+        <SelectTrigger
+          id={id ? `${id}-period` : undefined}
+          className="w-full"
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={Boolean(error)}
+          aria-label={ariaLabel ? `${ariaLabel}: ${t("period")}` : t("period")}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
