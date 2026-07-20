@@ -242,11 +242,22 @@ export async function getStaffManagementPageData(): Promise<{
         default_pay_day: 30,
         schedule_mode: "fixed",
       },
+      shifts: {
+        handover_auto_accept: false,
+        handover_auto_accept_on_match_only: true,
+        require_handover_to_open: true,
+      },
       receipt_template: "default",
       reminder_days: [7],
       vat_rate: 14,
     }),
-    safeFetch<EmployeeShift[]>("/attendance/shifts", []),
+    safeFetch<EmployeeShift[]>("/attendance/shifts/manage", []).then(async (managed) => {
+      if (managed.length > 0) {
+        return managed;
+      }
+
+      return safeFetch<EmployeeShift[]>("/attendance/shifts", []);
+    }),
     safeFetch<UserOption[]>("/employees/user-options", []),
     safeFetch<AccessRole[]>("/roles", []),
   ]);

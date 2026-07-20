@@ -26,9 +26,16 @@ class RenewSubscription
             : $subscription->plan;
 
         $today = Carbon::today();
-        $startDate = $subscription->status !== 'expired' && $subscription->end_date !== null && $subscription->end_date->gte($today)
-            ? $subscription->end_date->copy()->addDay()
-            : $today;
+
+        // Only stack periods for still-live memberships (active/frozen with remaining time).
+        // Stopped/expired always restart from today so cancel+renew does not double the period.
+        if (in_array($subscription->status, ['stopped', 'expired'], true)) {
+            $startDate = $today;
+        } elseif ($subscription->end_date !== null && $subscription->end_date->gte($today)) {
+            $startDate = $subscription->end_date->copy()->addDay();
+        } else {
+            $startDate = $today;
+        }
 
         $alreadyRenewed = Subscription::query()
             ->whereKeyNot($subscription->getKey())

@@ -24,7 +24,134 @@ afterEach(function (): void {
     Carbon::setTestNow();
 });
 
-test('admin can upgrade a subscription to a new plan with prorated credit', function (): void {
+test('upgrade rejects extra service plans that are not gym access', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $mainPlan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+        'category' => 'gym_access',
+    ]);
+    $ptPlan = Plan::factory()->active()->create([
+        'price' => '1800.00',
+        'duration_days' => 30,
+        'category' => 'personal_training',
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $mainPlan->id,
+        'price_paid' => '300.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '300.00',
+        'status' => 'paid',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $ptPlan->id,
+        'payment' => ['amount' => '1800.00', 'method' => 'cash'],
+    ])->assertStatus(422);
+});
+
+test('admin can add an extra service plan without changing the main membership', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $mainPlan = Plan::factory()->active()->create([
+        'price' => '650.00',
+        'duration_days' => 30,
+        'category' => 'gym_access',
+    ]);
+    $ptPlan = Plan::factory()->active()->create([
+        'price' => '1800.00',
+        'duration_days' => 30,
+        'category' => 'personal_training',
+        'sessions_count' => 8,
+        'is_unlimited_sessions' => false,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $mainPlan->id,
+        'price_paid' => '650.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/addons", [
+        'plan_id' => $ptPlan->id,
+        'payment' => ['amount' => '1800.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.plan.id', $mainPlan->id)
+        ->assertJsonPath('data.addons.0.plan.id', $ptPlan->id);
+
+    expect($subscription->fresh()->plan_id)->toBe($mainPlan->id)
+        ->and($subscription->addons()->count())->toBe(1);
+});
+
+test('admin can upgrade a subscription with full plan price difference by default', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+
+    $basicPlan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+        'category' => 'gym_access',
+    ]);
+
+    $vipPlan = Plan::factory()->active()->create([
+        'price' => '600.00',
+        'duration_days' => 30,
+        'duration_months' => 1,
+        'category' => 'gym_access',
+    ]);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basicPlan->id,
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'price_paid' => '300.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '300.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-06-01 10:00:00',
+    ]);
+
+    // Full difference: 600 - 300 paid credit = 300.00 due
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $vipPlan->id,
+        'payment' => [
+            'amount' => '300.00',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.plan.id', $vipPlan->id)
+        ->assertJsonPath('data.start_date', '2026-06-10')
+        ->assertJsonPath('data.end_date', '2026-07-10')
+        ->assertJsonPath('data.days_left', 30)
+        ->assertJsonPath('data.price_paid', '300.00');
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe('stopped')
+        ->and(Subscription::count())->toBe(2);
+});
+
+test('admin can upgrade a subscription to a new plan with day-prorated credit', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
@@ -63,6 +190,7 @@ test('admin can upgrade a subscription to a new plan with prorated credit', func
     // 9 of 30 days used -> 21 remaining -> 210.00 credit
     $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
         'plan_id' => $vipPlan->id,
+        'credit_mode' => 'day_proration',
         'payment' => [
             'amount' => '390.00',
             'method' => 'cash',
@@ -106,7 +234,7 @@ test('upgrade resets days left to the selected plan duration days', function ():
         'price_paid' => '12000.00',
     ]);
 
-    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+    $response = $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
         'plan_id' => $sixMonthPlan->id,
         'payment' => [
             'amount' => '0.00',
@@ -115,10 +243,12 @@ test('upgrade resets days left to the selected plan duration days', function ():
     ])
         ->assertStatus(201)
         ->assertJsonPath('data.start_date', '2026-06-10')
-        ->assertJsonPath('data.end_date', '2026-12-07')
-        ->assertJsonPath('data.days_left', 180)
+        // 6 calendar months from 2026-06-10 via Plan::endDateFrom / addMonthsNoOverflow
+        ->assertJsonPath('data.end_date', '2026-12-10')
         ->assertJsonPath('data.price_paid', '6500.00')
         ->assertJsonPath('data.paid_total', '6500.00');
+
+    expect((int) $response->json('data.days_left'))->toBeGreaterThan(170);
 });
 
 test('upgrade does not give credit for unpaid old subscription balance', function (): void {
@@ -213,7 +343,7 @@ test('upgrade with full credit coverage allows zero payment', function (): void 
         'paid_at' => '2026-06-01 10:00:00',
     ]);
 
-    // 9 of 30 days used -> 21 remaining -> 700.00 credit, covers VIP price
+    // Full difference credit of 1000 covers VIP price of 600
     $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
         'plan_id' => $vipPlan->id,
         'payment' => [
@@ -223,6 +353,44 @@ test('upgrade with full credit coverage allows zero payment', function (): void 
     ])
         ->assertStatus(201)
         ->assertJsonPath('data.price_paid', '0.00');
+});
+
+test('admin can override amount due on upgrade', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $basicPlan = Plan::factory()->active()->create(['price' => '300.00', 'duration_days' => 30, 'category' => 'gym_access']);
+    $vipPlan = Plan::factory()->active()->create(['price' => '600.00', 'duration_days' => 30, 'category' => 'gym_access']);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basicPlan->id,
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'price_paid' => '300.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '300.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-06-01 10:00:00',
+    ]);
+
+    // Staff decides difference is 200 instead of default 300
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $vipPlan->id,
+        'amount_due' => '200.00',
+        'payment' => [
+            'amount' => '200.00',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.price_paid', '200.00');
 });
 
 test('upgrade rejects same plan and suggests renew', function (): void {

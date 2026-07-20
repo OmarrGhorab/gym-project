@@ -314,6 +314,8 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
   }
 
   const parsed = subscriptionChangeSchema.safeParse({
+    amount_due: input.get("amount_due") || input.get("payment_amount"),
+    credit_mode: input.get("credit_mode") || "full_difference",
     discount: input.get("discount"),
     payment_amount: input.get("payment_amount"),
     payment_method: input.get("payment_method") || "cash",
@@ -333,6 +335,8 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
     await serverApiFetch(`/subscriptions/${subscriptionId.data}/upgrade`, {
       body: JSON.stringify({
         plan_id: parsed.data.plan_id,
+        credit_mode: parsed.data.credit_mode,
+        amount_due: parsed.data.amount_due ?? parsed.data.payment_amount,
         discount: parsed.data.discount ?? "0",
         payment: {
           amount: parsed.data.payment_amount,
@@ -372,6 +376,73 @@ export async function deactivateMember(input: FormData): Promise<void> {
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+}
+
+export async function cancelMemberSubscription(input: FormData): Promise<MemberFormState> {
+  const subscriptionId = z.coerce.number().int().min(1).safeParse(input.get("subscription_id"));
+  const values = getFormValues(input);
+
+  if (!subscriptionId.success) {
+    return {
+      ok: false,
+      message: "Subscription is required.",
+      errors: {},
+      values,
+    };
+  }
+
+  const parsed = z
+    .object({
+      method: z.enum(["cash", "card", "bank_transfer"]).default("cash"),
+      reason: z.string().trim().max(1000).optional(),
+      refund_amount: z.string().trim().min(1, "Refund amount is required."),
+    })
+    .safeParse({
+      method: input.get("method") || "cash",
+      reason: input.get("reason") || undefined,
+      refund_amount: input.get("refund_amount"),
+    });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Please review the refund fields.",
+      errors: parsed.error.flatten().fieldErrors,
+      values,
+    };
+  }
+
+  try {
+    await serverApiFetch(`/subscriptions/${subscriptionId.data}/cancel`, {
+      body: JSON.stringify({
+        method: parsed.data.method,
+        reason: parsed.data.reason,
+        refund_amount: parsed.data.refund_amount,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not cancel subscription.",
+      errors: {},
+      values,
+    };
+  }
+
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/default");
+
+  return {
+    ok: true,
+    message: "Subscription cancelled with refund.",
+    errors: {},
+    values: {},
+  };
 }
 
 export async function uploadMemberPhoto(input: FormData): Promise<void> {
@@ -427,6 +498,8 @@ const subscriptionInputSchema = z.object({
 });
 
 const subscriptionChangeSchema = z.object({
+  amount_due: optionalTextInput(),
+  credit_mode: z.enum(["full_difference", "day_proration"]).default("full_difference"),
   discount: optionalTextInput(),
   payment_amount: z.string().trim().min(1, "Payment amount is required."),
   payment_method: z.enum(["cash", "card", "bank_transfer"]),

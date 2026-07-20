@@ -38,6 +38,7 @@ import { canAccess } from "@/lib/authorization";
 import { recordMembershipPayment } from "../../crm/_components/actions";
 import type { PlanRow } from "../../plans/_components/data";
 import {
+  cancelMemberSubscription,
   changeMemberPlan,
   createMember,
   createMemberReportShareLink,
@@ -292,6 +293,7 @@ export function MemberActionsMenu({
   const [photoOpen, setPhotoOpen] = React.useState(false);
   const [subscriptionOpen, setSubscriptionOpen] = React.useState(false);
   const [changePlanOpen, setChangePlanOpen] = React.useState(false);
+  const [cancelOpen, setCancelOpen] = React.useState(false);
   const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
   const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
@@ -301,12 +303,19 @@ export function MemberActionsMenu({
   const currentUser = React.useMemo(() => ({ permissions }), [permissions]);
   const canAddSubscription = canAccess(currentUser, "subscriptions.create");
   const canChangePlan = canAccess(currentUser, "subscriptions.upgrade");
+  const canCancelSubscription = canAccess(currentUser, "subscriptions.stop");
   const canAddPayment = canAccess(currentUser, "payments.create");
   const canUpdateMember = canAccess(currentUser, "members.update");
   const canDeleteMember = canAccess(currentUser, "members.delete");
+  const canCancelWithRefund = Boolean(member.latest_subscription?.can_cancel_with_refund);
   const hasInlineSubscriptionAction = member.latest_subscription ? canChangePlan : canAddSubscription;
   const hasMutatingMenuAction =
-    canUpdateMember || canAddSubscription || canChangePlan || canAddPayment || canDeleteMember;
+    canUpdateMember ||
+    canAddSubscription ||
+    canChangePlan ||
+    canAddPayment ||
+    canDeleteMember ||
+    (canCancelSubscription && canCancelWithRefund);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -390,6 +399,9 @@ export function MemberActionsMenu({
               {canChangePlan && member.latest_subscription ? (
                 <DropdownMenuItem onClick={() => setChangePlanOpen(true)}>{resolvedLabels.changePlan}</DropdownMenuItem>
               ) : null}
+              {canCancelSubscription && canCancelWithRefund && member.latest_subscription ? (
+                <DropdownMenuItem onClick={() => setCancelOpen(true)}>{t("cancelWithRefund")}</DropdownMenuItem>
+              ) : null}
               {canAddPayment && (due || member.latest_subscription) ? (
                 <DropdownMenuItem onClick={() => setPaymentOpen(true)}>{resolvedLabels.addPayment}</DropdownMenuItem>
               ) : null}
@@ -423,6 +435,7 @@ export function MemberActionsMenu({
         onOpenChange={setSubscriptionOpen}
       />
       <MemberChangePlanDialog member={member} plans={plans} open={changePlanOpen} onOpenChange={setChangePlanOpen} />
+      <MemberCancelSubscriptionDialog member={member} open={cancelOpen} onOpenChange={setCancelOpen} />
       <MemberPaymentDialog
         due={due}
         member={member}
@@ -431,6 +444,100 @@ export function MemberActionsMenu({
         labels={resolvedLabels}
       />
     </>
+  );
+}
+
+function MemberCancelSubscriptionDialog({
+  member,
+  onOpenChange,
+  open,
+}: {
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+  const router = useRouter();
+  const [state, submit, pending] = useActionState(cancelMemberSubscription, initialMemberFormState);
+  const subscription = member.latest_subscription;
+  const defaultRefund = String(
+    subscription?.default_refund_amount ?? subscription?.paid_total ?? subscription?.price_paid ?? "0",
+  );
+
+  React.useEffect(() => {
+    if (!state.ok) {
+      return;
+    }
+
+    toast.success(state.message ?? t("cancelWithRefund"));
+    onOpenChange(false);
+    router.refresh();
+  }, [onOpenChange, router, state.message, state.ok, t]);
+
+  if (!subscription) {
+    return null;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("cancelWithRefund")}</DialogTitle>
+          <DialogDescription>
+            {t("cancelWithRefundDescription", {
+              date: subscription.cancellation_grace_ends_on ?? "—",
+              name: member.name,
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <form action={submit} className="grid gap-4">
+          <input type="hidden" name="subscription_id" value={String(subscription.id)} />
+          {state.message && !state.ok ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
+              {state.message}
+            </div>
+          ) : null}
+          <div className="grid gap-2">
+            <Label htmlFor="refund_amount">{t("refundAmount")}</Label>
+            <Input
+              id="refund_amount"
+              name="refund_amount"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={defaultRefund}
+              required
+            />
+            <FieldError errors={state.errors.refund_amount} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="method">{t("paymentMethod")}</Label>
+            <FormSelect
+              id="method"
+              name="method"
+              defaultValue="cash"
+              options={[
+                { value: "cash", label: t("cash") },
+                { value: "card", label: t("card") },
+                { value: "bank_transfer", label: t("bankTransfer") },
+              ]}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="reason">{t("reason")}</Label>
+            <Textarea id="reason" name="reason" rows={2} placeholder={t("optionalNote")} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("cancel")}
+            </Button>
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending ? t("working") : t("cancelWithRefund")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -708,6 +815,8 @@ function SubscriptionFormContent({
   const [startDate, setStartDate] = React.useState(defaultStartDate);
   const [discountType, setDiscountType] = React.useState<"fixed" | "percent">("fixed");
   const [discountValue, setDiscountValue] = React.useState("0");
+  const [creditMode, setCreditMode] = React.useState<"full_difference" | "day_proration">("full_difference");
+  const [paymentAmountOverride, setPaymentAmountOverride] = React.useState<string | null>(null);
   const [addons, setAddons] = React.useState<
     Array<{
       _key: string;
@@ -723,7 +832,22 @@ function SubscriptionFormContent({
   const normalizedDiscount = selectedPlan
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
     : "0";
-  const paymentAmount = selectedPlan ? calculatePaymentAmount(selectedPlan.price, normalizedDiscount) : "";
+  let suggestedPaymentAmount = "";
+  if (selectedPlan) {
+    if (kind === "change") {
+      suggestedPaymentAmount = calculateUpgradePaymentAmount({
+        creditMode,
+        newPrice: selectedPlan.price,
+        paidTotal: Number(currentSubscription?.paid_total ?? currentSubscription?.price_paid ?? 0),
+        startDate: currentSubscription?.start_date ?? null,
+        endDate: currentSubscription?.end_date ?? null,
+        extraDiscount: normalizedDiscount,
+      });
+    } else {
+      suggestedPaymentAmount = calculatePaymentAmount(selectedPlan.price, normalizedDiscount);
+    }
+  }
+  const paymentAmount = paymentAmountOverride ?? suggestedPaymentAmount;
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -752,6 +876,8 @@ function SubscriptionFormContent({
     setStartDate(defaultStartDate);
     setDiscountType("fixed");
     setDiscountValue("0");
+    setCreditMode("full_difference");
+    setPaymentAmountOverride(null);
     setAddons([]);
   }, [defaultStartDate, initialPlan, open]);
 
@@ -847,15 +973,45 @@ function SubscriptionFormContent({
               <FieldError errors={state.errors.end_date} />
             </div>
           ) : null}
-          <Field
-            error={fieldError(state, "payment_amount")}
-            label={t("paymentAmount")}
-            name="payment_amount"
-            required
-            type="number"
-            value={paymentAmount}
-            readOnly
-          />
+          {kind === "change" ? (
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="credit_mode">{t("creditMode")}</Label>
+              <input type="hidden" name="credit_mode" value={creditMode} />
+              <FormSelect
+                id="credit_mode"
+                name="credit_mode_select"
+                value={creditMode}
+                onValueChange={(value) => {
+                  setCreditMode((value as "full_difference" | "day_proration") || "full_difference");
+                  setPaymentAmountOverride(null);
+                }}
+                options={[
+                  { value: "full_difference", label: t("creditModeFullDifference") },
+                  { value: "day_proration", label: t("creditModeDayProration") },
+                ]}
+              />
+              <p className="text-muted-foreground text-xs">
+                {creditMode === "full_difference" ? t("creditModeFullDifferenceHint") : t("creditModeDayProrationHint")}
+              </p>
+            </div>
+          ) : null}
+          <div className="grid gap-2">
+            <Label htmlFor="payment_amount">{t("paymentAmount")}</Label>
+            <input type="hidden" name="amount_due" value={paymentAmount} />
+            <Input
+              id="payment_amount"
+              name="payment_amount"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              value={paymentAmount}
+              readOnly={kind === "create"}
+              onChange={kind === "change" ? (event) => setPaymentAmountOverride(event.currentTarget.value) : undefined}
+              aria-invalid={Boolean(fieldError(state, "payment_amount"))}
+            />
+            <FieldError errors={state.errors.payment_amount} />
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="payment_method">{t("paymentMethod")}</Label>
             <FormSelect
@@ -1294,6 +1450,45 @@ function calculatePaymentAmount(price: string, discount: string) {
   const amount = Math.max(0, Number(price || 0) - Number(discount || 0));
 
   return Number.isFinite(amount) ? amount.toFixed(2) : "";
+}
+
+function calculateUpgradePaymentAmount({
+  creditMode,
+  newPrice,
+  paidTotal,
+  startDate,
+  endDate,
+  extraDiscount,
+}: {
+  creditMode: "full_difference" | "day_proration";
+  newPrice: string;
+  paidTotal: number;
+  startDate: string | null;
+  endDate: string | null;
+  extraDiscount: string;
+}) {
+  const price = Number(newPrice || 0);
+  const paid = Math.max(0, Number.isFinite(paidTotal) ? paidTotal : 0);
+  const extra = Math.max(0, Number(extraDiscount || 0));
+  let credit = paid;
+
+  if (creditMode === "day_proration" && startDate && endDate) {
+    const start = parseDateOnly(startDate);
+    const end = parseDateOnly(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (start && end) {
+      const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1);
+      const usedDays = Math.max(0, Math.floor((today.getTime() - start.getTime()) / 86_400_000));
+      const remainingDays = Math.max(0, totalDays - usedDays);
+      credit = remainingDays > 0 ? (paid / totalDays) * remainingDays : 0;
+    }
+  }
+
+  const amountDue = Math.max(0, price - Math.min(price, credit + extra));
+
+  return Number.isFinite(amountDue) ? amountDue.toFixed(2) : "";
 }
 
 function calculateDiscountAmount(price: string, discountValue: string, discountType: "fixed" | "percent") {

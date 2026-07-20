@@ -95,10 +95,64 @@ export type FinanceExpense = {
   created_at: string | null;
 };
 
+export type FinanceShiftSession = {
+  id: number;
+  status: string;
+  opening_float: string;
+  expected_cash: string | null;
+  expected_card: string | null;
+  expected_bank: string | null;
+  expected_expenses: string | null;
+  expected_net: string | null;
+  counted_cash: string | null;
+  counted_card: string | null;
+  counted_bank: string | null;
+  counted_expenses: string | null;
+  variance_notes?: string | null;
+  variance?: {
+    cash?: { expected: string | null; counted: string | null; variance: string | null };
+    card?: { expected: string | null; counted: string | null; variance: string | null };
+    bank?: { expected: string | null; counted: string | null; variance: string | null };
+    expenses?: { expected: string | null; counted: string | null; variance: string | null };
+  } | null;
+  live_totals?: {
+    cash: string;
+    card: string;
+    bank: string;
+    expenses: string;
+    net: string;
+    opening_float?: string;
+    collections?: string;
+    refunds?: string;
+    payment_count?: number;
+    expense_count?: number;
+    by_method?: {
+      cash: string;
+      card: string;
+      bank: string;
+    };
+    by_source?: {
+      subscriptions: string;
+      addons: string;
+      pos: string;
+      other: string;
+      refunds: string;
+      expenses?: string;
+    };
+  } | null;
+  shift?: { id: number; name: string } | null;
+};
+
 export type FinancePageData = FinanceDashboardData & {
   duesLedger: FinanceDue[];
   expensesLedger: FinanceExpense[];
   paymentsLedger: FinancePayment[];
+  shiftDesk: {
+    current: FinanceShiftSession | null;
+    pending: FinanceShiftSession[];
+    shifts: Array<{ id: number; name: string }>;
+    requireHandoverToOpen: boolean;
+  };
 };
 
 const emptyFinanceData: FinanceDashboardData = {
@@ -142,7 +196,17 @@ export async function getFinanceDashboardData(
     to,
   });
 
-  const [summaryResult, chartResult, paymentsResult, duesResult, expensesResult] = await Promise.all([
+  const [
+    summaryResult,
+    chartResult,
+    paymentsResult,
+    duesResult,
+    expensesResult,
+    currentSession,
+    pendingSessions,
+    shifts,
+    settings,
+  ] = await Promise.all([
     access.canViewReports
       ? safeFetch<FinanceDashboardData>(`/reports/finance-summary?${summaryParams.toString()}`, emptyFinanceData)
       : { data: emptyFinanceData },
@@ -158,7 +222,43 @@ export async function getFinanceDashboardData(
     access.canViewExpenses
       ? safeFetch<FinanceExpense[] | PaginatedData<FinanceExpense>>("/expenses?sort=-date&page=1&per_page=15", [])
       : { data: [] },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<FinanceShiftSession | null>("/shift-sessions/current", null)
+      : { data: null },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
+          "/shift-sessions?status=pending_admin&per_page=10",
+          [],
+        )
+      : { data: [] },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<Array<{ id: number; name: string }> | PaginatedData<{ id: number; name: string }>>(
+          "/shift-sessions/options",
+          [],
+        )
+      : { data: [] },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<{
+          shifts?: {
+            require_handover_to_open?: boolean;
+          };
+        }>("/settings", {})
+      : { data: {} },
   ]);
+
+  const pendingHandover =
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? await safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
+          "/shift-sessions?status=pending_handover&per_page=10",
+          [],
+        )
+      : { data: [] };
+
+  const pending = [...unwrapList(pendingSessions.data), ...unwrapList(pendingHandover.data)];
+  const shiftOptions = unwrapList(shifts.data).map((shift) => ({
+    id: Number(shift.id),
+    name: String(shift.name ?? `Shift #${shift.id}`),
+  }));
 
   return {
     ...summaryResult.data,
@@ -166,7 +266,32 @@ export async function getFinanceDashboardData(
     duesLedger: unwrapList(duesResult.data).map(normalizeDue),
     expensesLedger: unwrapList(expensesResult.data),
     paymentsLedger: unwrapList(paymentsResult.data),
+    shiftDesk: {
+      current: normalizeCurrentSession(currentSession.data),
+      pending,
+      shifts: shiftOptions,
+      // Default false so first open works without hunting for "force open".
+      requireHandoverToOpen: Boolean(settings.data.shifts?.require_handover_to_open),
+    },
   };
+}
+
+/** API sometimes encodes JSON null as {} — treat empty objects as no open session. */
+function normalizeCurrentSession(value: FinanceShiftSession | null | undefined | Record<string, never>): FinanceShiftSession | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const id = Number((value as FinanceShiftSession).id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return null;
+  }
+
+  return value as FinanceShiftSession;
 }
 
 function normalizeDue(due: FinanceDue): FinanceDue {

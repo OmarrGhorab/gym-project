@@ -87,7 +87,7 @@ final class FinanceDashboardSummary
     private function paidPaymentsTotal(Carbon $from, Carbon $to): float
     {
         return (float) Payment::query()
-            ->whereIn('status', ['paid', 'partial'])
+            ->revenue()
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->sum('amount');
     }
@@ -103,7 +103,7 @@ final class FinanceDashboardSummary
     private function paidPaymentsTotalForTypes(Carbon $from, Carbon $to, array $payableTypes): float
     {
         return (float) Payment::query()
-            ->whereIn('status', ['paid', 'partial'])
+            ->revenue()
             ->whereIn('payable_type', $payableTypes)
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->sum('amount');
@@ -121,59 +121,20 @@ final class FinanceDashboardSummary
      */
     private function outstandingDues(): array
     {
-        $subscriptionPaidTotals = Payment::query()
-            ->selectRaw('payable_id, SUM(amount) as paid_total')
-            ->where('payable_type', Subscription::class)
-            ->groupBy('payable_id');
-
-        $addonPaidTotals = Payment::query()
-            ->join('subscription_addons', 'subscription_addons.id', '=', 'payments.payable_id')
-            ->selectRaw('subscription_addons.subscription_id, SUM(payments.amount) as paid_total')
-            ->where('payments.payable_type', SubscriptionAddon::class)
-            ->groupBy('subscription_addons.subscription_id');
-
-        $addonPriceTotals = SubscriptionAddon::query()
-            ->selectRaw('subscription_id, SUM(price_paid) as price_total')
-            ->groupBy('subscription_id');
-
-        $duesQuery = Subscription::query()
-            ->with(['member', 'plan'])
-            ->leftJoinSub($subscriptionPaidTotals, 'subscription_paid_totals', 'subscription_paid_totals.payable_id', '=', 'subscriptions.id')
-            ->leftJoinSub($addonPaidTotals, 'addon_paid_totals', 'addon_paid_totals.subscription_id', '=', 'subscriptions.id')
-            ->leftJoinSub($addonPriceTotals, 'addon_price_totals', 'addon_price_totals.subscription_id', '=', 'subscriptions.id')
-            ->select('subscriptions.*')
-            ->selectRaw('COALESCE(subscription_paid_totals.paid_total, 0) as base_paid_total')
-            ->selectRaw('COALESCE(addon_paid_totals.paid_total, 0) as addon_paid_total')
-            ->selectRaw('COALESCE(addon_price_totals.price_total, 0) as addon_price_total')
-            ->whereRaw('(subscriptions.price_paid + COALESCE(addon_price_totals.price_total, 0)) > (COALESCE(subscription_paid_totals.paid_total, 0) + COALESCE(addon_paid_totals.paid_total, 0))')
-            ->orderBy('end_date');
-
-        $rows = (clone $duesQuery)
-            ->limit(4)
-            ->get();
-
-        $allDues = $duesQuery->get();
-
-        $total = $allDues->sum(fn (Subscription $subscription): float => $this->subscriptionBalance($subscription));
+        $metrics = app(MembershipMetrics::class);
+        $totals = $metrics->outstandingDues();
+        $rows = $metrics->duesQuery()->limit(4)->get();
 
         return [
-            'total' => $total,
-            'count' => $allDues->count(),
+            'total' => $totals['total'],
+            'count' => $totals['count'],
             'rows' => $rows->map(fn (Subscription $subscription): array => [
                 'id' => $subscription->id,
                 'title' => $subscription->member?->name ?? 'Unknown member',
                 'description' => ($subscription->plan?->name ?? 'Subscription').' due '.$subscription->end_date?->toDateString(),
-                'amount' => $this->money($this->subscriptionBalance($subscription)),
+                'amount' => $this->money($metrics->subscriptionBalance($subscription)),
             ])->values(),
         ];
-    }
-
-    private function subscriptionBalance(Subscription $subscription): float
-    {
-        $packagePrice = (float) $subscription->price_paid + (float) ($subscription->addon_price_total ?? 0);
-        $paidTotal = (float) ($subscription->base_paid_total ?? 0) + (float) ($subscription->addon_paid_total ?? 0);
-
-        return max($packagePrice - $paidTotal, 0.0);
     }
 
     /**
@@ -205,7 +166,7 @@ final class FinanceDashboardSummary
     private function paymentMethods(Carbon $from, Carbon $to): array
     {
         $rows = Payment::query()
-            ->whereIn('status', ['paid', 'partial'])
+            ->revenue()
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->selectRaw('method, SUM(amount) as total')
             ->groupBy('method')

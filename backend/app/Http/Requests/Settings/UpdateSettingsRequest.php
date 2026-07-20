@@ -136,6 +136,28 @@ class UpdateSettingsRequest extends FormRequest
             $normalized['attendance'] = $attendance;
         }
 
+        // 10. shift handover settings
+        $shifts = [];
+        if ($this->has('shifts') && is_array($this->input('shifts'))) {
+            $shifts = array_intersect_key($this->input('shifts'), array_flip([
+                'handover_auto_accept',
+                'handover_auto_accept_on_match_only',
+                'require_handover_to_open',
+            ]));
+        }
+        foreach ([
+            'handover_auto_accept' => 'shifts.handover_auto_accept',
+            'handover_auto_accept_on_match_only' => 'shifts.handover_auto_accept_on_match_only',
+            'require_handover_to_open' => 'shifts.require_handover_to_open',
+        ] as $nested => $flatKey) {
+            if ($this->has($flatKey)) {
+                $shifts[$nested] = $this->boolean($flatKey);
+            }
+        }
+        if (! empty($shifts)) {
+            $normalized['shifts'] = $shifts;
+        }
+
         $this->replace($normalized);
     }
 
@@ -160,6 +182,10 @@ class UpdateSettingsRequest extends FormRequest
             'attendance.gym_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'attendance.gym_radius_meters' => ['nullable', 'integer', 'min:10', 'max:10000'],
             'attendance.default_grace_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
+            'shifts' => ['nullable', 'array'],
+            'shifts.handover_auto_accept' => ['nullable', 'boolean'],
+            'shifts.handover_auto_accept_on_match_only' => ['nullable', 'boolean'],
+            'shifts.require_handover_to_open' => ['nullable', 'boolean'],
         ];
 
         if ($this->hasFile('gym.logo')) {

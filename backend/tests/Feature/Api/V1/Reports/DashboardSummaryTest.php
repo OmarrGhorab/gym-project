@@ -33,7 +33,12 @@ test('authenticated user with reports.view permission can view dashboard summary
         ->assertJsonStructure([
             'data' => [
                 'active_subscriptions',
+                'frozen_subscriptions',
                 'revenue_mtd',
+                'subscription_revenue_mtd',
+                'subscription_revenue_live',
+                'outstanding_dues_total',
+                'outstanding_dues_count',
                 'revenue_growth_rate',
                 'new_members_this_month',
                 'new_members_previous_month',
@@ -132,7 +137,7 @@ test('dashboard summary returns accurate numbers and is cached and invalidated c
     expect($response2->json('data.sales_today.count'))->toBe(1);
 
     // Fire cache invalidation (clear cache manually to simulate invalidation, or check if observer triggers it)
-    Cache::forget('dashboard:summary:v2');
+    Cache::forget('dashboard:summary:v3');
 
     $response3 = $this->getJson('/api/v1/dashboard/summary')
         ->assertStatus(200);

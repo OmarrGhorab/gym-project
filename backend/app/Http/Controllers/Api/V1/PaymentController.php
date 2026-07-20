@@ -38,11 +38,12 @@ class PaymentController extends ApiController
         );
     }
 
-    public function dues(): JsonResponse
+    public function dues(\Illuminate\Http\Request $request): JsonResponse
     {
         $this->authorize('viewAny', Payment::class);
 
-        $result = app(ListPaymentDues::class)->handle();
+        $perPage = $request->integer('per_page', 50);
+        $result = app(ListPaymentDues::class)->handle($perPage > 0 ? $perPage : 50);
 
         return $this->success(
             data: $result['data'],

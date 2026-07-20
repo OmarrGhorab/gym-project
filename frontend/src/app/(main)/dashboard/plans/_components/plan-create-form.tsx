@@ -331,13 +331,16 @@ export function PlanCreateForm({ employees, mode = "create", onSuccess, plan }: 
       </div>
 
       {!unlimitedSessions ? (
-        <Field
-          error={fieldError(state, "sessions_count")}
-          label={t("sessionsCount")}
-          name="sessions_count"
-          type="number"
-          defaultValue={valueOrPlan(state, plan, "sessions_count")}
-        />
+        <div className="space-y-1">
+          <Field
+            error={fieldError(state, "sessions_count")}
+            label={t("sessionsCount")}
+            name="sessions_count"
+            type="number"
+            defaultValue={valueOrPlan(state, plan, "sessions_count")}
+          />
+          <p className="text-muted-foreground text-xs">{t("sessionsCountHelp")}</p>
+        </div>
       ) : null}
 
       <Field
@@ -354,6 +357,14 @@ export function PlanCreateForm({ employees, mode = "create", onSuccess, plan }: 
         type="number"
         defaultValue={valueOrPlan(state, plan, "access_grace_days") || "0"}
       />
+      <Field
+        error={fieldError(state, "cancellation_grace_days")}
+        label={t("cancellationGraceDays")}
+        name="cancellation_grace_days"
+        type="number"
+        defaultValue={valueOrPlan(state, plan, "cancellation_grace_days") || "2"}
+      />
+      <p className="text-muted-foreground text-xs">{t("cancellationGraceDaysHelp")}</p>
       <Field
         error={fieldError(state, "min_freeze_days")}
         label={t("minFreezeDays")}
@@ -387,6 +398,7 @@ export function PlanCreateForm({ employees, mode = "create", onSuccess, plan }: 
         name="access_ends_at"
         defaultValue={valueOrPlan(state, plan, "access_ends_at")}
       />
+      <p className="text-muted-foreground text-xs">{t("accessHoursHelp")}</p>
 
       <div className="space-y-2">
         <Label htmlFor="description">{t("descriptionField")}</Label>

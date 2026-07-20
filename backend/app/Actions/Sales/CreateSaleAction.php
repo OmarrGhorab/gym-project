@@ -2,6 +2,7 @@
 
 namespace App\Actions\Sales;
 
+use App\Actions\ShiftSessions\ResolveOpenShiftSession;
 use App\Broadcasting\Events\NewSaleEvent;
 use App\Models\Product;
 use App\Models\Sale;
@@ -12,6 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class CreateSaleAction
 {
+    public function __construct(
+        private readonly ResolveOpenShiftSession $openShiftSession,
+    ) {}
+
     /**
      * Execute the sale creation action.
      *
@@ -110,6 +115,8 @@ class CreateSaleAction
                 ]);
             }
 
+            $shiftSessionId = $data['shift_session_id'] ?? $this->openShiftSession->current()?->id;
+
             // 6. Create Sale
             $sale = Sale::create([
                 'idempotency_key' => $data['idempotency_key'],
@@ -121,6 +128,7 @@ class CreateSaleAction
                 'payment_method' => $data['payment_method'],
                 'status' => 'completed',
                 'notes' => $data['notes'] ?? null,
+                'shift_session_id' => $shiftSessionId,
             ]);
 
             // 7. Create Sale Items
@@ -140,6 +148,7 @@ class CreateSaleAction
                 'status' => 'paid',
                 'paid_at' => now(),
                 'created_by' => $cashier->id,
+                'shift_session_id' => $shiftSessionId,
             ]);
 
             // 9. Dispatch Real-time Event Post-Commit

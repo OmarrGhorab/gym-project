@@ -102,7 +102,7 @@ test('member qr check in is rejected when member already has an open visit', fun
     expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1);
 });
 
-test('member phone lookup records blocked visit for invalid subscription', function (): void {
+test('member phone lookup rejects check-in for invalid subscription', function (): void {
     actingManager();
     $member = Member::factory()->create(['phone' => '+201111111111']);
     Subscription::factory()->for($member)->expired()->create([
@@ -114,11 +114,9 @@ test('member phone lookup records blocked visit for invalid subscription', funct
         'phone' => '+201111111111',
         'check_in_at' => '2026-06-26 10:00:00',
     ])
-        ->assertCreated()
-        ->assertJsonPath('data.status', 'blocked')
-        ->assertJsonPath('data.scan_method', 'phone');
+        ->assertUnprocessable();
 
-    expect(MemberVisit::first()->alert_reason)->toContain('expired');
+    expect(MemberVisit::count())->toBe(0);
 });
 
 test('member selector lookup does not record the scan as qr', function (): void {

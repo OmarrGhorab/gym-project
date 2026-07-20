@@ -72,6 +72,7 @@ class CreateSubscription
                 'status' => 'active',
                 'price_paid' => $pricePaid,
                 'discount' => $discount,
+                'cancellation_grace_days' => (int) ($plan->cancellation_grace_days ?? 2),
                 'sessions_total' => $sessionAllowance,
                 'sessions_remaining' => $sessionAllowance,
                 'sold_by_user_id' => $seller->id,

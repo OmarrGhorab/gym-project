@@ -66,13 +66,16 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
   const location = useGpsLocation();
   const [qrToken, setQrToken] = useState("");
+  const [scanMethod, setScanMethod] = useState<"qr" | "scanner" | "manual">("scanner");
   const [selectedMember, setSelectedMember] = useState<MemberLookupOption | null>(null);
+  const [selectedAddonId, setSelectedAddonId] = useState("none");
   const [memberLookupSource, setMemberLookupSource] = useState<"member_id" | "phone" | "name" | null>(null);
   const [lookupMembers, setLookupMembers] = useState(members);
   const selectMember = useCallback(
     (member: MemberLookupOption | null, source: "member_id" | "phone" | "name" | null) => {
       setSelectedMember(member);
       setMemberLookupSource(source);
+      setSelectedAddonId("none");
 
       if (!member) {
         return;
@@ -92,6 +95,10 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const idOptions = memberIdSelectOptions(lookupMembers);
   const phoneOptions = memberPhoneSelectOptions(lookupMembers);
   const nameOptions = memberNameSelectOptions(lookupMembers);
+  const activeAddons = (selectedMember?.latest_subscription?.addons ?? []).filter(
+    (addon) => !addon.status || addon.status === "active",
+  );
+  const membershipSessions = selectedMember?.latest_subscription?.sessions_remaining;
 
   return (
     <Card className="xl:col-span-6">
@@ -105,6 +112,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
           <input type="hidden" name="direction" value="check-in" />
+          <input type="hidden" name="scan_method" value={scanMethod} />
           <input type="hidden" name="member_id" value={selectedMember ? String(selectedMember.id) : ""} />
           <input
             type="hidden"
@@ -112,15 +120,32 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
             value={memberLookupSource === "phone" ? (selectedMember?.phone ?? "") : ""}
           />
           <input type="hidden" name="name" value={memberLookupSource === "name" ? (selectedMember?.name ?? "") : ""} />
-          <QrImageScanner
-            label={t("scanQrImage")}
-            placeholder={t("scanQrImageHelp")}
-            onDecoded={(value) => {
-              setQrToken(value);
-              selectMember(null, null);
-              toast.success(t("qrDecoded"));
-            }}
-          />
+          <ScanSourceToggle value={scanMethod} onChange={setScanMethod} />
+          {scanMethod === "scanner" ? (
+            <HardwareScannerInput
+              id="member-hardware-scanner"
+              label={t("scannerDevice")}
+              help={t("scannerDeviceHelp")}
+              onScan={(value) => {
+                setQrToken(value);
+                selectMember(null, null);
+                setScanMethod("scanner");
+                toast.success(t("scannerCaptured"));
+              }}
+            />
+          ) : null}
+          {scanMethod === "qr" ? (
+            <QrImageScanner
+              label={t("scanQrImage")}
+              placeholder={t("scanQrImageHelp")}
+              onDecoded={(value) => {
+                setQrToken(value);
+                selectMember(null, null);
+                setScanMethod("qr");
+                toast.success(t("qrDecoded"));
+              }}
+            />
+          ) : null}
           <FieldGroup>
             <FieldLabel htmlFor="member-qr-token" label={t("memberQrTokenLabel")} meta={t("optionalField")} />
             <Input
@@ -134,6 +159,9 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
 
                 if (nextValue.trim()) {
                   selectMember(null, null);
+                  if (scanMethod !== "scanner") {
+                    setScanMethod("manual");
+                  }
                 }
               }}
             />
@@ -192,6 +220,44 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
               searchPlaceholder={t("searchMembers")}
             />
           </FieldGroup>
+          {selectedMember?.latest_subscription ? (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs md:col-span-2">
+              <p className="font-medium text-sm">
+                {selectedMember.latest_subscription.plan_name ?? t("membership")} ·{" "}
+                {selectedMember.latest_subscription.status}
+              </p>
+              <p className="text-muted-foreground">
+                {membershipSessions === null || membershipSessions === undefined
+                  ? t("unlimitedSessions")
+                  : t("sessionsRemaining", { count: membershipSessions })}
+              </p>
+            </div>
+          ) : null}
+          {activeAddons.length > 0 ? (
+            <FieldGroup className="md:col-span-2">
+              <FieldLabel htmlFor="member-addon" label={t("consumeAddon")} meta={t("optionalField")} />
+              <FormSelect
+                id="member-addon"
+                name="subscription_addon_id"
+                value={selectedAddonId}
+                onValueChange={setSelectedAddonId}
+                placeholder={t("addonNone")}
+                options={[
+                  { value: "none", label: t("addonNone") },
+                  ...activeAddons.map((addon) => ({
+                    value: String(addon.id),
+                    label: [
+                      addon.plan?.name ?? t("addon"),
+                      addon.sessions_remaining === null || addon.sessions_remaining === undefined
+                        ? t("unlimitedSessions")
+                        : t("sessionsRemaining", { count: addon.sessions_remaining }),
+                    ].join(" · "),
+                  })),
+                ]}
+              />
+              <p className="text-muted-foreground text-xs">{t("consumeAddonHelp")}</p>
+            </FieldGroup>
+          ) : null}
           <GpsFields location={location} />
           <FieldGroup className="md:col-span-2">
             <FieldLabel htmlFor="member-scan-notes" label={t("notesLabel")} meta={t("optionalField")} />
@@ -215,6 +281,7 @@ function StaffScanCard({
   const [state, action, pending] = useActionState(scanStaffAttendance, initialState);
   const location = useGpsLocation();
   const [scanValue, setScanValue] = useState("");
+  const [scanMethod, setScanMethod] = useState<"qr" | "scanner" | "manual">("scanner");
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption | null>(null);
   const [lookupEmployees, setLookupEmployees] = useState(employees);
   const selectEmployee = useCallback((employee: EmployeeOption | null) => {
@@ -269,18 +336,36 @@ function StaffScanCard({
       <CardContent>
         <form action={action} className="grid gap-3 md:grid-cols-2">
           <input type="hidden" name="attendance_date" value={defaultAttendanceDate} />
+          <input type="hidden" name="scan_method" value={scanMethod} />
           <FieldGroup>
             <FieldLabel htmlFor="staff-scan-direction" label={t("scanDirection")} meta={t("requiredField")} />
             <ScanDirectionSelect id="staff-scan-direction" />
           </FieldGroup>
-          <QrImageScanner
-            label={t("scanQrImage")}
-            placeholder={t("scanQrImageHelp")}
-            onDecoded={(value) => {
-              setScanValue(value);
-              toast.success(t("qrDecoded"));
-            }}
-          />
+          <ScanSourceToggle value={scanMethod} onChange={setScanMethod} />
+          {scanMethod === "scanner" ? (
+            <HardwareScannerInput
+              id="staff-hardware-scanner"
+              label={t("scannerDevice")}
+              help={t("scannerDeviceHelp")}
+              onScan={(value) => {
+                setScanValue(value);
+                setSelectedEmployee(null);
+                setScanMethod("scanner");
+                toast.success(t("scannerCaptured"));
+              }}
+            />
+          ) : null}
+          {scanMethod === "qr" ? (
+            <QrImageScanner
+              label={t("scanQrImage")}
+              placeholder={t("scanQrImageHelp")}
+              onDecoded={(value) => {
+                setScanValue(value);
+                setScanMethod("qr");
+                toast.success(t("qrDecoded"));
+              }}
+            />
+          ) : null}
           <FieldGroup>
             <FieldLabel htmlFor="employee-qr-token" label={t("employeeQrTokenLabel")} meta={t("lookupField")} />
             <Input
@@ -294,6 +379,8 @@ function StaffScanCard({
 
                 if (!nextValue.trim()) {
                   setSelectedEmployee(null);
+                } else if (scanMethod !== "scanner") {
+                  setScanMethod("manual");
                 }
               }}
             />
@@ -800,6 +887,102 @@ function GpsFields({ location }: { location: GpsState }) {
       </Badge>
       {location.error ? <span className="text-muted-foreground text-xs">{location.error}</span> : null}
     </div>
+  );
+}
+
+function ScanSourceToggle({
+  value,
+  onChange,
+}: {
+  value: "qr" | "scanner" | "manual";
+  onChange: (value: "qr" | "scanner" | "manual") => void;
+}) {
+  const t = useTranslations("Dashboard.attendance");
+
+  return (
+    <FieldGroup className="md:col-span-2">
+      <FieldLabel htmlFor="scan-source" label={t("scanSource")} meta={t("requiredField")} />
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { id: "scanner", label: t("scanSourceScanner") },
+            { id: "qr", label: t("scanSourceCamera") },
+            { id: "manual", label: t("scanSourceManual") },
+          ] as const
+        ).map((option) => (
+          <Button
+            key={option.id}
+            type="button"
+            size="sm"
+            variant={value === option.id ? "default" : "outline"}
+            onClick={() => onChange(option.id)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+    </FieldGroup>
+  );
+}
+
+function HardwareScannerInput({
+  help,
+  id,
+  label,
+  onScan,
+}: {
+  help: string;
+  id: string;
+  label: string;
+  onScan: (value: string) => void;
+}) {
+  const t = useTranslations("Dashboard.attendance");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [buffer, setBuffer] = useState("");
+  const [armed, setArmed] = useState(true);
+
+  useEffect(() => {
+    if (!armed) {
+      return;
+    }
+
+    inputRef.current?.focus();
+  }, [armed]);
+
+  return (
+    <FieldGroup className="md:col-span-2">
+      <FieldLabel htmlFor={id} label={label} meta={t("scannerReady")} />
+      <div className="rounded-lg border border-emerald-500/40 border-dashed bg-emerald-500/5 p-3">
+        <p className="mb-2 text-muted-foreground text-xs">{help}</p>
+        <Input
+          ref={inputRef}
+          id={id}
+          autoComplete="off"
+          autoFocus
+          value={buffer}
+          placeholder={t("scannerPlaceholder")}
+          onFocus={() => setArmed(true)}
+          onBlur={() => setArmed(false)}
+          onChange={(event) => setBuffer(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") {
+              return;
+            }
+
+            event.preventDefault();
+            const value = buffer.trim();
+
+            if (!value) {
+              return;
+            }
+
+            onScan(value);
+            setBuffer("");
+          }}
+        />
+        <p className="mt-2 text-muted-foreground text-xs">{armed ? t("scannerListening") : t("scannerClickToArm")}</p>
+      </div>
+    </FieldGroup>
   );
 }
 

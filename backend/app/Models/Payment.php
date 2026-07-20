@@ -15,6 +15,14 @@ class Payment extends Model
     /** @use HasFactory<PaymentFactory> */
     use HasFactory, LogsActivity;
 
+    /** Statuses that affect collected revenue (refunds use negative amounts). */
+    public const REVENUE_STATUSES = ['paid', 'partial', 'refunded'];
+
+    /** Statuses that represent money collected toward a payable (exclude refunds). */
+    public const COLLECTED_STATUSES = ['paid', 'partial'];
+
+    public const STATUS_REFUNDED = 'refunded';
+
     protected $fillable = [
         'payable_type',
         'payable_id',
@@ -24,6 +32,7 @@ class Payment extends Model
         'paid_at',
         'due_date',
         'created_by',
+        'shift_session_id',
     ];
 
     protected function casts(): array
@@ -51,5 +60,27 @@ class Payment extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Payments that count toward net revenue (collections + refunds as negatives).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function scopeRevenue($query)
+    {
+        return $query->whereIn('status', self::REVENUE_STATUSES);
+    }
+
+    /**
+     * Payments that count as money collected (excludes refund rows).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<static>
+     */
+    public function scopeCollected($query)
+    {
+        return $query->whereIn('status', self::COLLECTED_STATUSES);
     }
 }

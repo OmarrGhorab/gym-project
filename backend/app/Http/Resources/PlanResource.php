@@ -33,6 +33,7 @@ final class PlanResource extends JsonResource
             'access_ends_at' => $this->access_ends_at,
             'max_freeze_days' => $this->max_freeze_days,
             'access_grace_days' => $this->access_grace_days,
+            'cancellation_grace_days' => $this->cancellation_grace_days ?? 2,
             'min_freeze_days' => $this->min_freeze_days,
             'freeze_requires_approval' => $this->freeze_requires_approval,
             'is_sellable' => $this->isSellable(),

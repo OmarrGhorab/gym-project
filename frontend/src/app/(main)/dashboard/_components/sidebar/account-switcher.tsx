@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logoutAction } from "@/lib/actions/logout";
+import { canAccessRoute } from "@/lib/authorization";
 import type { DashboardUser } from "@/lib/session";
 import { cn, getInitials } from "@/lib/utils";
 
@@ -22,6 +23,13 @@ export function AccountSwitcher({ user }: { readonly user: DashboardUser }) {
   const locale = useLocale();
   const isRtl = locale === "ar";
   const t = useTranslations("Dashboard.account");
+  const navigationItems = [
+    { href: "/dashboard/settings", icon: Settings, key: "profile-security", label: t("profileSecurity") },
+    { href: "/dashboard/settings", icon: Dumbbell, key: "gym-settings", label: t("gymSettings") },
+    { href: "/dashboard/users", icon: ShieldCheck, key: "users-roles", label: t("usersRoles") },
+    { href: "/dashboard/academy", icon: UsersRound, key: "staff", label: t("staff") },
+    { href: "/dashboard/mail", icon: Bell, key: "notifications", label: t("notificationCenter") },
+  ].filter((item) => canAccessRoute(user, item.href));
 
   return (
     <DropdownMenu>
@@ -43,30 +51,20 @@ export function AccountSwitcher({ user }: { readonly user: DashboardUser }) {
             </div>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
-            <Settings />
-            {t("profileSecurity")}
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
-            <Dumbbell />
-            {t("gymSettings")}
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/dashboard/users" />}>
-            <ShieldCheck />
-            {t("usersRoles")}
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/dashboard/academy" />}>
-            <UsersRound />
-            {t("staff")}
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/dashboard/mail" />}>
-            <Bell />
-            {t("notificationCenter")}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
+        {navigationItems.length > 0 ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {navigationItems.map(({ href, icon: Icon, key, label }) => (
+                <DropdownMenuItem key={key} render={<Link href={href} />}>
+                  <Icon />
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <form action={logoutAction}>
           <DropdownMenuItem nativeButton render={<button type="submit" className="w-full" />}>
             <LogOut />

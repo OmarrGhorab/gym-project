@@ -40,7 +40,8 @@ function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
   return (
     <ComboboxPrimitive.Clear
       data-slot="combobox-clear"
-      render={<InputGroupButton variant="ghost" size="icon-xs" />}
+      // Clear is a non-native Base UI button host; the rendered control is a real <button>.
+      render={<InputGroupButton variant="ghost" size="icon-xs" nativeButton />}
       className={cn(className)}
       {...props}
     >
@@ -68,14 +69,24 @@ function ComboboxInput({
       />
       <InputGroupAddon align="inline-end">
         {showTrigger && (
-          <InputGroupButton
-            size="icon-xs"
-            variant="ghost"
-            render={<ComboboxTrigger />}
-            data-slot="input-group-button"
-            className="group-has-data-[slot=combobox-clear]/input-group:hidden data-pressed:bg-transparent"
+          // Host the trigger on a real button with nativeButton so Base UI does not
+          // apply non-native attrs (role/aria-disabled) onto a <button>.
+          <ComboboxPrimitive.Trigger
+            data-slot="combobox-trigger"
             disabled={disabled}
-          />
+            render={
+              <InputGroupButton
+                size="icon-xs"
+                variant="ghost"
+                data-slot="input-group-button"
+                className="group-has-data-[slot=combobox-clear]/input-group:hidden data-pressed:bg-transparent [&_svg:not([class*='size-'])]:size-4"
+                disabled={disabled}
+                nativeButton
+              />
+            }
+          >
+            <ChevronDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+          </ComboboxPrimitive.Trigger>
         )}
         {showClear && <ComboboxClear disabled={disabled} />}
       </InputGroupAddon>
@@ -251,7 +262,7 @@ function ComboboxChip({
       {children}
       {showRemove && (
         <ComboboxPrimitive.ChipRemove
-          render={<Button variant="ghost" size="icon-xs" />}
+          render={<Button variant="ghost" size="icon-xs" nativeButton />}
           className="-ml-1 opacity-50 hover:opacity-100"
           data-slot="combobox-chip-remove"
         >

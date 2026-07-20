@@ -143,6 +143,10 @@ class AttendanceRulesSeeder extends Seeder
             'attendance.gym_longitude' => null,
             'attendance.gym_radius_meters' => 150,
             'attendance.default_grace_minutes' => 15,
+            // First shift open should not block on empty handover history.
+            'shifts.require_handover_to_open' => false,
+            'shifts.handover_auto_accept' => true,
+            'shifts.handover_auto_accept_on_match_only' => true,
         ];
     }
 }

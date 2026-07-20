@@ -2,51 +2,39 @@
 
 namespace App\Actions\Payments;
 
-use App\Models\Payment;
+use App\Actions\Reports\MembershipMetrics;
 use App\Models\Subscription;
-use App\Models\SubscriptionAddon;
 
 final class ListPaymentDues
 {
-    /** @return array{data: array, meta: array} */
-    public function handle(): array
+    public function __construct(
+        private readonly MembershipMetrics $metrics,
+    ) {}
+
+    /**
+     * @return array{data: array<int, array<string, mixed>>, meta: array<string, mixed>}
+     */
+    public function handle(?int $perPage = null): array
     {
-        $subscriptionPaidTotals = Payment::query()
-            ->selectRaw('payable_id, SUM(amount) as paid_total')
-            ->where('payable_type', Subscription::class)
-            ->groupBy('payable_id');
+        $perPage = min(max($perPage ?? 50, 1), 200);
 
-        $addonPaidTotals = Payment::query()
-            ->join('subscription_addons', 'subscription_addons.id', '=', 'payments.payable_id')
-            ->selectRaw('subscription_addons.subscription_id, SUM(payments.amount) as paid_total')
-            ->where('payments.payable_type', SubscriptionAddon::class)
-            ->groupBy('subscription_addons.subscription_id');
-
-        $addonPriceTotals = SubscriptionAddon::query()
-            ->selectRaw('subscription_id, SUM(price_paid) as price_total')
-            ->groupBy('subscription_id');
-
-        $dues = Subscription::query()
-            ->with(['member', 'plan', 'soldBy'])
-            ->leftJoinSub($subscriptionPaidTotals, 'subscription_paid_totals', 'subscription_paid_totals.payable_id', '=', 'subscriptions.id')
-            ->leftJoinSub($addonPaidTotals, 'addon_paid_totals', 'addon_paid_totals.subscription_id', '=', 'subscriptions.id')
-            ->leftJoinSub($addonPriceTotals, 'addon_price_totals', 'addon_price_totals.subscription_id', '=', 'subscriptions.id')
-            ->select('subscriptions.*')
-            ->selectRaw('COALESCE(subscription_paid_totals.paid_total, 0) as base_paid_total')
-            ->selectRaw('COALESCE(addon_paid_totals.paid_total, 0) as addon_paid_total')
-            ->selectRaw('COALESCE(addon_price_totals.price_total, 0) as addon_price_total')
-            ->whereRaw('(subscriptions.price_paid + COALESCE(addon_price_totals.price_total, 0)) > (COALESCE(subscription_paid_totals.paid_total, 0) + COALESCE(addon_paid_totals.paid_total, 0))')
-            ->orderBy('end_date')
-            ->paginate(15)
+        $dues = $this->metrics->duesQuery()
+            ->paginate($perPage)
             ->withQueryString();
 
+        $totals = $this->metrics->outstandingDues();
+
         $data = $dues->getCollection()->map(function (Subscription $subscription): array {
-            $basePaid = (string) ($subscription->base_paid_total ?? '0.00');
-            $addonPaid = (string) ($subscription->addon_paid_total ?? '0.00');
-            $addonPrice = (string) ($subscription->addon_price_total ?? '0.00');
+            $basePaid = bcadd((string) ($subscription->base_paid_total ?? '0.00'), '0.00', 2);
+            $addonPaid = bcadd((string) ($subscription->addon_paid_total ?? '0.00'), '0.00', 2);
+            $addonPrice = bcadd((string) ($subscription->addon_price_total ?? '0.00'), '0.00', 2);
             $packagePrice = bcadd((string) $subscription->price_paid, $addonPrice, 2);
             $paid = bcadd($basePaid, $addonPaid, 2);
             $balance = bcsub($packagePrice, $paid, 2);
+
+            if (bccomp($balance, '0.00', 2) === -1) {
+                $balance = '0.00';
+            }
 
             return [
                 'subscription' => [
@@ -63,11 +51,11 @@ final class ListPaymentDues
                 'paid_total' => $paid,
                 'price_paid' => $packagePrice,
                 'base_price_paid' => $subscription->price_paid,
-                'base_paid_total' => bcadd($basePaid, '0.00', 2),
-                'addon_price_total' => bcadd($addonPrice, '0.00', 2),
-                'addon_paid_total' => bcadd($addonPaid, '0.00', 2),
+                'base_paid_total' => $basePaid,
+                'addon_price_total' => $addonPrice,
+                'addon_paid_total' => $addonPaid,
             ];
-        })->values();
+        })->values()->all();
 
         return [
             'data' => $data,
@@ -76,6 +64,9 @@ final class ListPaymentDues
                 'per_page' => $dues->perPage(),
                 'total' => $dues->total(),
                 'last_page' => $dues->lastPage(),
+                // Authoritative full totals (not just this page).
+                'outstanding_dues_total' => number_format($totals['total'], 2, '.', ''),
+                'outstanding_dues_count' => $totals['count'],
             ],
         ];
     }

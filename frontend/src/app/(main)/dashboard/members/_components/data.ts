@@ -25,6 +25,7 @@ export type MemberRow = {
   notes: string | null;
   has_photo: boolean;
   total_paid: string;
+  visits_this_month?: number;
   updated_at?: string | null;
   latest_subscription: {
     id: number;
@@ -38,10 +39,18 @@ export type MemberRow = {
     package_price_paid?: string | null;
     package_paid_total?: string | null;
     package_balance?: string | null;
+    sessions_total?: number | null;
+    sessions_remaining?: number | null;
+    can_cancel_with_refund?: boolean | null;
+    cancellation_grace_ends_on?: string | null;
+    default_refund_amount?: string | null;
     addons?: {
       id: number;
+      status?: string;
       end_date: string | null;
       price_paid?: string;
+      sessions_total?: number | null;
+      sessions_remaining?: number | null;
       coach?: {
         id?: number;
         name?: string | null;

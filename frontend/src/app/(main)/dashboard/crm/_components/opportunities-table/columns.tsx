@@ -49,6 +49,8 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 
 import {
+  addMembershipExtra,
+  cancelMembershipSubscription,
   changeMembershipPlan,
   freezeMembershipSubscription,
   recordMembershipPayment,
@@ -65,9 +67,10 @@ const healthStripSlots = Array.from({ length: 18 }, (_, index) => ({
 
 const paymentMethodItems = [{ value: "cash" }, { value: "card" }, { value: "bank_transfer" }] as const;
 
-type SubscriptionAction = "renew" | "freeze" | "stop" | "unfreeze";
+type SubscriptionAction = "renew" | "freeze" | "stop" | "unfreeze" | "cancel";
 type CrmT = ReturnType<typeof useTranslations<"Dashboard.crm">>;
-type DialogMode = "details" | "renew" | "freeze" | "unfreeze" | "change_plan" | "payment";
+type DialogMode = "details" | "renew" | "freeze" | "unfreeze" | "change_plan" | "payment" | "cancel";
+type ChangePlanTarget = "main" | "extra";
 
 function getHealthScore(health: MembershipPipelineRow["health"]) {
   switch (health) {
@@ -124,6 +127,12 @@ function getBillingBadgeClassName(status: string) {
       return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
     case "pending":
       return "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    case "refunded":
+      return "border-violet-500/35 bg-violet-500/10 text-violet-700 dark:text-violet-300";
+    case "partial_refund":
+      return "border-orange-500/35 bg-orange-500/10 text-orange-700 dark:text-orange-300";
+    case "stopped":
+      return "border-slate-500/35 bg-slate-500/10 text-slate-700 dark:text-slate-300";
     default:
       return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
   }
@@ -139,22 +148,40 @@ export function getOpportunitiesColumns(
         {
           accessorKey: "billingStatus",
           header: t("payment"),
-          cell: ({ row }) => (
-            <div className="grid gap-1">
-              <Badge
-                variant="outline"
-                className={cn("w-fit rounded-full px-2.5", getBillingBadgeClassName(row.original.billingStatus))}
-              >
-                {translateBillingStatus(row.original.billingStatus, t)}
-              </Badge>
-              <span className="text-muted-foreground text-xs">
-                {t("paidOfValue", {
-                  paid: formatCurrency(row.original.paidTotal, { currency: "EGP", noDecimals: true }),
-                  value: formatCurrency(row.original.value, { currency: "EGP", noDecimals: true }),
-                })}
-              </span>
-            </div>
-          ),
+          cell: ({ row }) => {
+            const { billingStatus, paidTotal, collectedPaidTotal, refundTotal, value } = row.original;
+            const netPaid = paidTotal;
+            const grossCollected = Math.max(collectedPaidTotal, netPaid + Math.max(refundTotal, 0));
+
+            return (
+              <div className="grid gap-1">
+                <Badge
+                  variant="outline"
+                  className={cn("w-fit rounded-full px-2.5", getBillingBadgeClassName(billingStatus))}
+                >
+                  {translateBillingStatus(billingStatus, t)}
+                </Badge>
+                <span className="text-muted-foreground text-xs">
+                  {t("paidOfValue", {
+                    paid: formatCurrency(netPaid, { currency: "EGP", noDecimals: true }),
+                    value: formatCurrency(value, { currency: "EGP", noDecimals: true }),
+                  })}
+                </span>
+                {refundTotal > 0 ? (
+                  <span className="text-violet-700 text-xs dark:text-violet-300">
+                    {t("refundedAmount", {
+                      amount: formatCurrency(refundTotal, { currency: "EGP", noDecimals: true }),
+                    })}
+                    {grossCollected > 0 && refundTotal < grossCollected
+                      ? ` · ${t("netAfterRefund", {
+                          amount: formatCurrency(netPaid, { currency: "EGP", noDecimals: true }),
+                        })}`
+                      : null}
+                  </span>
+                ) : null}
+              </div>
+            );
+          },
           filterFn: "equalsString",
         },
         {
@@ -163,6 +190,17 @@ export function getOpportunitiesColumns(
           cell: ({ row }) => (
             <div className="font-medium text-sm tabular-nums">
               {formatCurrency(row.original.value, { currency: "EGP", noDecimals: true })}
+            </div>
+          ),
+        },
+        {
+          accessorKey: "refundTotal",
+          header: t("refund"),
+          cell: ({ row }) => (
+            <div className="font-medium text-sm tabular-nums">
+              {row.original.refundTotal > 0
+                ? formatCurrency(row.original.refundTotal, { currency: "EGP", noDecimals: true })
+                : "—"}
             </div>
           ),
         },
@@ -232,12 +270,23 @@ export function getOpportunitiesColumns(
     {
       id: "period",
       header: t("period"),
-      cell: ({ row }) => (
-        <div className="grid gap-0.5 text-sm">
-          <span>{formatSubscriptionPeriod(row.original.startDate, row.original.endDate, t)}</span>
-          <span className="text-muted-foreground text-xs">{formatDaysLeft(row.original.daysLeft, t)}</span>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const isClosed = row.original.status === "stopped" || row.original.status === "expired";
+        const wasRefunded = row.original.refundTotal > 0 || row.original.billingStatus === "refunded";
+
+        return (
+          <div className="grid gap-0.5 text-sm">
+            <span>{formatSubscriptionPeriod(row.original.startDate, row.original.endDate, t)}</span>
+            <span className="text-muted-foreground text-xs">
+              {isClosed
+                ? wasRefunded
+                  ? t("periodClosedRefunded")
+                  : t("periodClosed")
+                : formatDaysLeft(row.original.daysLeft, t)}
+            </span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "health",
@@ -298,22 +347,65 @@ function SubscriptionActions({
   const [freezeStartDate, setFreezeStartDate] = React.useState(() => getTodayDateString());
   const [freezeEndDate, setFreezeEndDate] = React.useState(() => getTodayDateString());
   const [resumeOnDate, setResumeOnDate] = React.useState(() => getTodayDateString());
-  const canChangePlan =
+  const canChangeMainPlan =
     subscription.status === "active" || subscription.status === "expired" || subscription.status === "stopped";
+  const canAddExtra = subscription.status === "active";
+  const canOpenChangePlan = canChangeMainPlan || canAddExtra;
   const changePlanMode = subscription.status === "active" ? "upgrade" : "renew";
-  const firstPlanOption =
-    subscription.planOptions.find((plan) => subscription.status !== "active" || plan.id !== subscription.planId) ??
-    subscription.planOptions[0] ??
+  const mainPlanOptions = subscription.planOptions.filter((plan) => plan.kind === "main");
+  const extraPlanOptions = subscription.planOptions.filter((plan) => plan.kind === "extra");
+  const defaultMainPlan =
+    mainPlanOptions.find((plan) => subscription.status !== "active" || plan.id !== subscription.planId) ??
+    mainPlanOptions[0] ??
     null;
-  const [changePlanId, setChangePlanId] = React.useState(() => (firstPlanOption ? String(firstPlanOption.id) : ""));
+  const defaultExtraPlan = extraPlanOptions[0] ?? null;
+  const [changePlanTarget, setChangePlanTarget] = React.useState<ChangePlanTarget>("main");
+  const [changePlanId, setChangePlanId] = React.useState(() => (defaultMainPlan ? String(defaultMainPlan.id) : ""));
   const [changePlanDiscount, setChangePlanDiscount] = React.useState("0");
+  const [changePlanCreditMode, setChangePlanCreditMode] = React.useState<"full_difference" | "day_proration">(
+    "full_difference",
+  );
+  const [changePlanAmountOverride, setChangePlanAmountOverride] = React.useState<string | null>(null);
+  const [changePlanCoachId, setChangePlanCoachId] = React.useState(() =>
+    subscription.coachOptions[0] ? String(subscription.coachOptions[0].id) : "",
+  );
+  const [cancelRefundAmount, setCancelRefundAmount] = React.useState(() => subscription.defaultRefundAmount.toFixed(2));
   const backendActions = getBackendActions(subscription.status);
+  const availableChangePlans = changePlanTarget === "main" ? mainPlanOptions : extraPlanOptions;
   const selectedChangePlan =
-    subscription.planOptions.find((plan) => String(plan.id) === changePlanId) ?? firstPlanOption;
-  const selectedChangePlanLabel = selectedChangePlan ? formatPlanOptionLabel(selectedChangePlan) : t("selectPlan");
-  const changePlanPaymentAmount = selectedChangePlan
-    ? calculatePaymentAmount(selectedChangePlan.price, changePlanDiscount)
-    : "";
+    availableChangePlans.find((plan) => String(plan.id) === changePlanId) ?? availableChangePlans[0] ?? null;
+  const selectedChangePlanLabel = selectedChangePlan
+    ? formatPlanOptionLabel(selectedChangePlan)
+    : changePlanTarget === "main"
+      ? t("selectMainPlan")
+      : t("selectExtraPlan");
+  const suggestedChangePlanAmount =
+    selectedChangePlan == null
+      ? ""
+      : changePlanTarget === "main"
+        ? calculateUpgradePaymentAmount({
+            creditMode: changePlanCreditMode,
+            newPrice: selectedChangePlan.price,
+            paidTotal: subscription.paidTotal,
+            startDate: subscription.startDate,
+            endDate: subscription.endDate,
+            extraDiscount: changePlanDiscount,
+          })
+        : String(Math.max(0, selectedChangePlan.price - Number(changePlanDiscount || 0)).toFixed(2));
+  const changePlanPaymentAmount = changePlanAmountOverride ?? suggestedChangePlanAmount;
+
+  function switchChangePlanTarget(target: ChangePlanTarget) {
+    setChangePlanTarget(target);
+    setChangePlanAmountOverride(null);
+    setChangePlanDiscount("0");
+
+    if (target === "main") {
+      setChangePlanId(defaultMainPlan ? String(defaultMainPlan.id) : "");
+      return;
+    }
+
+    setChangePlanId(defaultExtraPlan ? String(defaultExtraPlan.id) : "");
+  }
   const selectedFreezeDays = getInclusiveDays(freezeStartDate, freezeEndDate);
   const freezeEndRange = getFreezeEndRange(freezeStartDate, subscription.minFreezeDays, subscription.maxFreezeDays);
   const isFreezeDurationInvalid =
@@ -418,6 +510,8 @@ function SubscriptionActions({
     const planId = Number(formData.get("plan_id"));
     const amount = String(formData.get("amount") ?? "").trim();
     const discount = String(formData.get("discount") ?? "").trim();
+    const creditMode = String(formData.get("credit_mode") ?? "full_difference") as "full_difference" | "day_proration";
+    const coachId = Number(formData.get("coach_id") || 0);
 
     if (!planId || !amount || Number(amount) < 0) {
       toast.error(t("paymentAmountRequired"));
@@ -426,10 +520,37 @@ function SubscriptionActions({
 
     setPendingAction("change_plan");
 
+    if (changePlanTarget === "extra") {
+      if (subscription.status !== "active") {
+        toast.error(t("extraRequiresActiveMembership"));
+        setPendingAction(null);
+        return;
+      }
+
+      const result = await addMembershipExtra(subscription.subscriptionId, {
+        plan_id: planId,
+        ...(coachId > 0 ? { coach_id: coachId } : {}),
+        ...(discount ? { discount } : {}),
+        payment: {
+          amount,
+          method: paymentMethod,
+        },
+      });
+
+      finishAction(result);
+      return;
+    }
+
     const result = await changeMembershipPlan(
       subscription.subscriptionId,
       {
         plan_id: planId,
+        ...(changePlanMode === "upgrade"
+          ? {
+              credit_mode: creditMode,
+              amount_due: amount,
+            }
+          : {}),
         ...(discount ? { discount } : {}),
         payment: {
           amount,
@@ -516,12 +637,42 @@ function SubscriptionActions({
       return;
     }
 
+    if (action === "cancel") {
+      setCancelRefundAmount(subscription.defaultRefundAmount.toFixed(2));
+      setDialogMode("cancel");
+      setOpen(true);
+      return;
+    }
+
     if (action === "stop") {
       setConfirmAction(action);
       return;
     }
 
     await executeDirectAction(action);
+  }
+
+  async function submitCancel(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const refundAmount = String(formData.get("refund_amount") ?? "").trim();
+    const reason = String(formData.get("reason") ?? "").trim();
+
+    if (!refundAmount || Number(refundAmount) < 0) {
+      toast.error(t("paymentAmountRequired"));
+      return;
+    }
+
+    setPendingAction("cancel");
+
+    const result = await cancelMembershipSubscription(subscription.subscriptionId, {
+      refund_amount: refundAmount,
+      method: paymentMethod,
+      ...(reason ? { reason } : {}),
+    });
+
+    finishAction(result);
   }
 
   async function executeDirectAction(action: string) {
@@ -592,14 +743,39 @@ function SubscriptionActions({
               {pendingAction === "payment" ? t("working") : t("addPayment")}
             </DropdownMenuItem>
           ) : null}
-          {canChangePlan ? (
+          {subscription.canCancelWithRefund ? (
             <DropdownMenuItem
-              data-disabled={pendingAction !== null || subscription.planOptions.length === 0 ? "" : undefined}
+              data-disabled={pendingAction !== null ? "" : undefined}
               onClick={() => {
-                if (pendingAction !== null || subscription.planOptions.length === 0) {
+                if (pendingAction !== null) {
                   return;
                 }
 
+                void runAction("cancel");
+              }}
+            >
+              {pendingAction === "cancel" ? t("working") : t("cancelWithRefund")}
+            </DropdownMenuItem>
+          ) : null}
+          {canOpenChangePlan ? (
+            <DropdownMenuItem
+              data-disabled={
+                pendingAction !== null || (mainPlanOptions.length === 0 && extraPlanOptions.length === 0)
+                  ? ""
+                  : undefined
+              }
+              onClick={() => {
+                if (pendingAction !== null || (mainPlanOptions.length === 0 && extraPlanOptions.length === 0)) {
+                  return;
+                }
+
+                const initialTarget: ChangePlanTarget =
+                  canChangeMainPlan && mainPlanOptions.length > 0
+                    ? "main"
+                    : canAddExtra && extraPlanOptions.length > 0
+                      ? "extra"
+                      : "main";
+                switchChangePlanTarget(initialTarget);
                 setDialogMode("change_plan");
                 setOpen(true);
               }}
@@ -788,28 +964,151 @@ function SubscriptionActions({
             </form>
           ) : null}
 
+          {dialogMode === "cancel" ? (
+            <form className="grid gap-3 rounded-lg border border-border/70 p-3" onSubmit={submitCancel}>
+              <div>
+                <div className="font-medium text-sm">{t("cancelWithRefund")}</div>
+                <p className="text-muted-foreground text-xs">
+                  {t("cancelWithRefundDescription", {
+                    date: subscription.cancellationGraceEndsOn ?? "—",
+                  })}
+                </p>
+              </div>
+              <label className="grid gap-1.5 text-sm" htmlFor={fieldId("cancel-refund-amount")}>
+                {t("refundAmount")}
+                <Input
+                  id={fieldId("cancel-refund-amount")}
+                  name="refund_amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={cancelRefundAmount}
+                  onChange={(event) => setCancelRefundAmount(event.currentTarget.value)}
+                />
+              </label>
+              <div className="grid gap-1.5 text-sm">
+                {t("paymentMethod")}
+                <Select
+                  value={paymentMethod}
+                  onValueChange={(value) => setPaymentMethod(value as "cash" | "card" | "bank_transfer")}
+                >
+                  <SelectTrigger id={fieldId("cancel-method")} className="w-full">
+                    <SelectValue placeholder={t("selectPaymentMethod")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {paymentMethodItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {t(`paymentMethods.${item.value}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="grid gap-1.5 text-sm" htmlFor={fieldId("cancel-reason")}>
+                {t("reason")}
+                <Textarea id={fieldId("cancel-reason")} name="reason" placeholder={t("optionalNote")} rows={2} />
+              </label>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+                  {t("cancel")}
+                </Button>
+                <Button type="submit" size="sm" variant="destructive" disabled={pendingAction !== null}>
+                  {pendingAction === "cancel" ? t("working") : t("cancelWithRefund")}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+
           {dialogMode === "change_plan" ? (
             <form className="grid gap-3 rounded-lg border border-border/70 p-3" onSubmit={submitChangePlan}>
               <div>
                 <div className="font-medium text-sm">{t("changePlan")}</div>
-                <p className="text-muted-foreground text-xs">{t("changePlanDescription")}</p>
+                <p className="text-muted-foreground text-xs">
+                  {changePlanTarget === "main" ? t("changeMainPlanDescription") : t("addExtraPlanDescription")}
+                </p>
               </div>
+
+              <div className="grid gap-2">
+                <span className="font-medium text-muted-foreground text-xs">{t("planTarget")}</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={changePlanTarget === "main" ? "default" : "outline"}
+                    disabled={!canChangeMainPlan || mainPlanOptions.length === 0}
+                    onClick={() => switchChangePlanTarget("main")}
+                  >
+                    {t("mainMembershipPlan")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={changePlanTarget === "extra" ? "default" : "outline"}
+                    disabled={!canAddExtra || extraPlanOptions.length === 0}
+                    onClick={() => switchChangePlanTarget("extra")}
+                  >
+                    {t("extraServicePlan")}
+                  </Button>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {changePlanTarget === "main" ? t("mainMembershipPlanHelp") : t("extraServicePlanHelp")}
+                </p>
+              </div>
+
+              {changePlanTarget === "main" ? (
+                <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+                  <span className="font-medium text-foreground">{t("currentMainPlan")}: </span>
+                  <span className="text-muted-foreground">{subscription.plan ?? t("noPlan")}</span>
+                </div>
+              ) : subscription.addons.length > 0 ? (
+                <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+                  <div className="mb-1 font-medium text-foreground">{t("currentExtras")}</div>
+                  <ul className="grid gap-0.5 text-muted-foreground">
+                    {subscription.addons.map((addon) => (
+                      <li key={addon.id}>
+                        {addon.name}
+                        {addon.coach ? ` · ${addon.coach}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed px-3 py-2 text-muted-foreground text-xs">
+                  {t("noExtrasYet")}
+                </div>
+              )}
+
               <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan")}>
-                {t("newPlan")}
-                <Select value={changePlanId} onValueChange={(value) => setChangePlanId(value ?? "")}>
+                {changePlanTarget === "main" ? t("newMainPlan") : t("newExtraPlan")}
+                <Select
+                  value={selectedChangePlan ? String(selectedChangePlan.id) : ""}
+                  onValueChange={(value) => {
+                    setChangePlanId(value ?? "");
+                    setChangePlanAmountOverride(null);
+                  }}
+                >
                   <SelectTrigger id={fieldId("change-plan")} className="w-full">
                     <SelectValue>{selectedChangePlanLabel}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {subscription.planOptions.map((plan) => (
+                      {availableChangePlans.map((plan) => (
                         <SelectItem
                           key={plan.id}
                           value={String(plan.id)}
-                          disabled={subscription.status === "active" && plan.id === subscription.planId}
+                          disabled={
+                            changePlanTarget === "main" &&
+                            subscription.status === "active" &&
+                            plan.id === subscription.planId
+                          }
                         >
                           {formatPlanOptionLabel(plan, {
-                            isCurrent: subscription.status === "active" && plan.id === subscription.planId,
+                            isCurrent:
+                              changePlanTarget === "main" &&
+                              subscription.status === "active" &&
+                              plan.id === subscription.planId,
                             t,
                           })}
                         </SelectItem>
@@ -817,8 +1116,58 @@ function SubscriptionActions({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <input type="hidden" name="plan_id" value={changePlanId} />
+                <input type="hidden" name="plan_id" value={selectedChangePlan ? String(selectedChangePlan.id) : ""} />
               </label>
+
+              {changePlanTarget === "extra" ? (
+                <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-coach")}>
+                  {t("coachOptional")}
+                  <Select value={changePlanCoachId} onValueChange={(value) => setChangePlanCoachId(value ?? "")}>
+                    <SelectTrigger id={fieldId("change-plan-coach")} className="w-full">
+                      <SelectValue placeholder={t("selectCoach")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {subscription.coachOptions.map((coach) => (
+                          <SelectItem key={coach.id} value={String(coach.id)}>
+                            {coach.name} ({coach.role})
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <input type="hidden" name="coach_id" value={changePlanCoachId} />
+                </label>
+              ) : null}
+
+              {changePlanTarget === "main" && changePlanMode === "upgrade" ? (
+                <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-credit-mode")}>
+                  {t("creditMode")}
+                  <Select
+                    value={changePlanCreditMode}
+                    onValueChange={(value) => {
+                      setChangePlanCreditMode((value as "full_difference" | "day_proration") || "full_difference");
+                      setChangePlanAmountOverride(null);
+                    }}
+                  >
+                    <SelectTrigger id={fieldId("change-plan-credit-mode")} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="full_difference">{t("creditModeFullDifference")}</SelectItem>
+                        <SelectItem value="day_proration">{t("creditModeDayProration")}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <input type="hidden" name="credit_mode" value={changePlanCreditMode} />
+                  <p className="text-muted-foreground text-xs">
+                    {changePlanCreditMode === "full_difference"
+                      ? t("creditModeFullDifferenceHint")
+                      : t("creditModeDayProrationHint")}
+                  </p>
+                </label>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-amount")}>
                   {t("paymentAmount")}
@@ -829,7 +1178,7 @@ function SubscriptionActions({
                     min="0"
                     step="0.01"
                     value={changePlanPaymentAmount}
-                    readOnly
+                    onChange={(event) => setChangePlanAmountOverride(event.currentTarget.value)}
                   />
                 </label>
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-discount")}>
@@ -841,7 +1190,10 @@ function SubscriptionActions({
                     min="0"
                     step="0.01"
                     value={changePlanDiscount}
-                    onChange={(event) => setChangePlanDiscount(event.currentTarget.value)}
+                    onChange={(event) => {
+                      setChangePlanDiscount(event.currentTarget.value);
+                      setChangePlanAmountOverride(null);
+                    }}
                   />
                 </label>
               </div>
@@ -869,8 +1221,16 @@ function SubscriptionActions({
                 <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
                   {t("cancel")}
                 </Button>
-                <Button type="submit" size="sm" disabled={pendingAction !== null || !changePlanId}>
-                  {pendingAction === "change_plan" ? t("working") : t("changePlan")}
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={pendingAction !== null || !selectedChangePlan}
+                >
+                  {pendingAction === "change_plan"
+                    ? t("working")
+                    : changePlanTarget === "main"
+                      ? t("changeMainPlan")
+                      : t("addExtraPlan")}
                 </Button>
               </div>
             </form>
@@ -1173,6 +1533,8 @@ function labelAction(action: string, t: CrmT) {
       return t("unfreeze");
     case "stop":
       return t("stop");
+    case "cancel":
+      return t("cancelWithRefund");
     default:
       return action;
   }
@@ -1206,6 +1568,8 @@ function getDialogDescription(mode: DialogMode, t: CrmT) {
       return t("addPaymentDialogDescription");
     case "change_plan":
       return t("changePlanDialogDescription");
+    case "cancel":
+      return t("cancelWithRefundDialogDescription");
     case "freeze":
       return t("freezeDialogDescription");
     case "unfreeze":
@@ -1215,12 +1579,43 @@ function getDialogDescription(mode: DialogMode, t: CrmT) {
   }
 }
 
-function calculatePaymentAmount(price: number, discount: string) {
-  const normalizedPrice = Number.isFinite(price) ? price : 0;
-  const normalizedDiscount = Number(discount || 0);
-  const amount = Math.max(0, normalizedPrice - (Number.isFinite(normalizedDiscount) ? normalizedDiscount : 0));
+function calculateUpgradePaymentAmount({
+  creditMode,
+  newPrice,
+  paidTotal,
+  startDate,
+  endDate,
+  extraDiscount,
+}: {
+  creditMode: "full_difference" | "day_proration";
+  newPrice: number;
+  paidTotal: number;
+  startDate: string | null;
+  endDate: string | null;
+  extraDiscount: string;
+}) {
+  const price = Number.isFinite(newPrice) ? newPrice : 0;
+  const paid = Number.isFinite(paidTotal) ? Math.max(0, paidTotal) : 0;
+  const extra = Number(extraDiscount || 0);
+  const extraSafe = Number.isFinite(extra) ? Math.max(0, extra) : 0;
 
-  return amount.toFixed(2);
+  let credit = paid;
+
+  if (creditMode === "day_proration" && startDate && endDate) {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1);
+    const usedDays = Math.max(0, Math.floor((today.getTime() - start.getTime()) / 86_400_000));
+    const remainingDays = Math.max(0, totalDays - usedDays);
+    credit = remainingDays > 0 ? (paid / totalDays) * remainingDays : 0;
+  }
+
+  const amountDue = Math.max(0, price - Math.min(price, credit + extraSafe));
+
+  return amountDue.toFixed(2);
 }
 
 function formatPlanOptionLabel(
@@ -1333,7 +1728,14 @@ export function translateStatus(value: string, t: CrmT) {
 }
 
 export function translateBillingStatus(value: string, t: CrmT) {
-  if (value === "paid" || value === "pending" || value === "overdue") {
+  if (
+    value === "paid" ||
+    value === "pending" ||
+    value === "overdue" ||
+    value === "refunded" ||
+    value === "partial_refund" ||
+    value === "stopped"
+  ) {
     return t(`billingStatuses.${value}`);
   }
 
@@ -1359,6 +1761,10 @@ function translateHealthReason(subscription: MembershipPipelineRow, t: CrmT) {
 
   if (subscription.healthReason === "stopped") {
     return t("healthReasons.stopped");
+  }
+
+  if (subscription.healthReason === "refunded") {
+    return t("healthReasons.refunded");
   }
 
   if (subscription.healthReason === "ends_in") {
@@ -1396,7 +1802,7 @@ function formatSubscriptionPeriod(startDate: string | null, endDate: string | nu
 
 function formatDaysLeft(daysLeft: number | null, t: CrmT) {
   if (daysLeft === null) {
-    return t("noEndDate");
+    return t("noRemainingDays");
   }
 
   if (daysLeft < 0) {

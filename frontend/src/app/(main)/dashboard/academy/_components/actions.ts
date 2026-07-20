@@ -320,6 +320,7 @@ export async function deleteEmployeePlanCommissionRule(input: FormData): Promise
 
 function revalidateStaff() {
   revalidatePath("/dashboard/academy");
+  revalidatePath("/dashboard/academy/staff");
   revalidatePath("/dashboard/attendance");
   revalidatePath("/dashboard/payroll");
   revalidatePath("/dashboard/settings");

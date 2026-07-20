@@ -76,3 +76,35 @@ test('renew subscription starts today when the source subscription is already ex
         ->and($renewed->end_date->toDateString())->toBe('2026-07-10')
         ->and(Subscription::count())->toBe(2);
 });
+
+test('renew subscription starts today when the source was stopped with remaining calendar days', function (): void {
+    Carbon::setTestNow('2026-06-10');
+
+    $seller = User::factory()->create();
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+    ]);
+
+    // Old bug: stopped kept end_date in the future, so renew stacked from end_date+1 (~60 days total).
+    $source = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'stopped',
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
+        'price_paid' => '300.00',
+    ]);
+
+    $renewed = app(RenewSubscription::class)->handle($source, [
+        'payment' => [
+            'amount' => '300.00',
+            'method' => 'cash',
+        ],
+    ], $seller);
+
+    expect($renewed->start_date->toDateString())->toBe('2026-06-10')
+        ->and($renewed->end_date->toDateString())->toBe('2026-07-10')
+        ->and($renewed->status)->toBe('active');
+});

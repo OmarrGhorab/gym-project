@@ -26,20 +26,31 @@ final class StoreMemberVisit
             $this->ensureMemberCanCheckIn->handle($member);
 
             $subscription = $this->visitSubscription->consume($member, $checkIn);
-            $status = $subscription ? 'allowed' : 'blocked';
+
+            $addonId = isset($data['subscription_addon_id']) ? (int) $data['subscription_addon_id'] : 0;
+            $addon = null;
+            if ($addonId > 0) {
+                $addon = $this->visitSubscription->consumeAddon($member, $checkIn, $addonId);
+            }
 
             return MemberVisit::create([
                 'member_id' => $member->id,
-                'subscription_id' => $subscription?->id,
+                'subscription_id' => $subscription->id,
+                'subscription_addon_id' => $addon?->id,
                 'check_in_at' => $checkIn,
                 'check_out_at' => isset($data['check_out_at']) ? Carbon::parse($data['check_out_at']) : null,
-                'status' => $status,
-                'alert_reason' => $status === 'blocked' ? $this->visitSubscription->alertReason($member, $checkIn) : null,
+                'status' => 'allowed',
+                'alert_reason' => null,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $user->id,
             ]);
         });
 
-        return $visit->load(['member.latestSubscription.plan', 'subscription.plan', 'creator']);
+        return $visit->load([
+            'member.latestSubscription.plan',
+            'subscription.plan',
+            'subscriptionAddon.plan',
+            'creator',
+        ]);
     }
 }

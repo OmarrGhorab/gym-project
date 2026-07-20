@@ -8,6 +8,7 @@ use App\Models\Expense;
 use App\Models\GymTask;
 use App\Models\Payroll;
 use App\Models\Product;
+use App\Models\ShiftSession;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Notifications\OperationalNotification;
@@ -165,6 +166,51 @@ class OperationalNotifier
                 'created_by' => $expense->created_by,
                 'creator_name' => $expense->creator?->name,
                 'description' => $expense->description,
+            ],
+        );
+    }
+
+    public function shiftHandoverPending(ShiftSession $session, bool $matches): void
+    {
+        $session->loadMissing(['shift', 'closedBy', 'receivedBy']);
+
+        $this->notifyAdmins(
+            title: 'Shift handover needs review',
+            body: ($session->shift?->name ?? 'Shift').' session #'.$session->id
+                .' is '.($matches ? 'matched and ' : 'mismatched and ')
+                .'waiting for admin acceptance.',
+            category: 'shifts.handover_pending',
+            url: '/dashboard/finance',
+            severity: $matches ? 'info' : 'warning',
+            extra: [
+                'shift_session_id' => $session->id,
+                'shift_name' => $session->shift?->name,
+                'matches' => $matches,
+                'expected_cash' => number_format((float) $session->expected_cash, 2, '.', ''),
+                'counted_cash' => number_format((float) $session->counted_cash, 2, '.', ''),
+            ],
+        );
+    }
+
+    public function subscriptionCancelled(Subscription $subscription, string $refundAmount, User $actor): void
+    {
+        $subscription->loadMissing(['member:id,name', 'plan:id,name']);
+
+        $this->notifyAdmins(
+            title: 'Membership cancelled with refund',
+            body: ($subscription->member?->name ?? 'Member').' cancelled '.($subscription->plan?->name ?? 'a plan')
+                .' — refund EGP '.number_format((float) $refundAmount, 2, '.', '').' by '.$actor->name.'.',
+            category: 'membership.cancelled_refund',
+            url: '/dashboard/crm',
+            severity: 'warning',
+            extra: [
+                'subscription_id' => $subscription->id,
+                'member_id' => $subscription->member_id,
+                'member_name' => $subscription->member?->name,
+                'plan_name' => $subscription->plan?->name,
+                'refund_amount' => number_format((float) $refundAmount, 2, '.', ''),
+                'cancelled_by' => $actor->id,
+                'cancelled_by_name' => $actor->name,
             ],
         );
     }

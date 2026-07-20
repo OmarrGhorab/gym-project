@@ -31,6 +31,7 @@ final class PlanFactory extends Factory
             'access_ends_at' => null,
             'max_freeze_days' => 0,
             'access_grace_days' => 0,
+            'cancellation_grace_days' => 2,
             'min_freeze_days' => 0,
             'freeze_requires_approval' => false,
         ];

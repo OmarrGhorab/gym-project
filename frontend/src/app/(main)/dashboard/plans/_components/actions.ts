@@ -22,6 +22,7 @@ const planInputSchema = z
       z.string().nullable(),
     ),
     access_grace_days: z.coerce.number().int().min(0, "Access grace days cannot be negative."),
+    cancellation_grace_days: z.coerce.number().int().min(0, "Cancellation grace days cannot be negative."),
     category: z.enum(["gym_access", "personal_training", "classes", "nutrition", "recovery"], {
       error: "Plan category is required.",
     }),
@@ -101,6 +102,7 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
     access_ends_at: input.get("access_ends_at"),
     access_starts_at: input.get("access_starts_at"),
     access_grace_days: input.get("access_grace_days"),
+    cancellation_grace_days: input.get("cancellation_grace_days") ?? "2",
     category: input.get("category"),
     description: input.get("description"),
     duration_basis: input.get("duration_basis"),
@@ -163,6 +165,7 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
     access_ends_at: input.get("access_ends_at"),
     access_starts_at: input.get("access_starts_at"),
     access_grace_days: input.get("access_grace_days"),
+    cancellation_grace_days: input.get("cancellation_grace_days") ?? "2",
     category: input.get("category"),
     description: input.get("description"),
     duration_basis: input.get("duration_basis"),

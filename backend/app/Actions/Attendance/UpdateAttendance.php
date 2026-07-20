@@ -8,14 +8,19 @@ use Illuminate\Support\Carbon;
 
 final class UpdateAttendance
 {
+    public function __construct(
+        private readonly ResolveEmployeeOffDay $resolveOffDay,
+    ) {}
+
     public function handle(Attendance $attendance, array $data): Attendance
     {
         $shiftId = $data['shift_id'] ?? $attendance->shift_id;
         $dateValue = $data['date'] ?? $attendance->date;
         $shift = $shiftId ? EmployeeShift::query()->find($shiftId) : null;
         $date = $dateValue ? Carbon::parse($dateValue) : null;
+        $employee = $attendance->employee ?? $attendance->employee()->first();
 
-        if ($shift && $date && $this->isOffDay($shift, $date)) {
+        if ($employee && $shift && $date && $this->resolveOffDay->handle($employee, $date, $shift)) {
             $data['schedule_status'] = 'off_day';
 
             if (($data['status'] ?? $attendance->status) === 'absent') {
@@ -33,14 +38,5 @@ final class UpdateAttendance
         $attendance->load('employee');
 
         return $attendance;
-    }
-
-    private function isOffDay(EmployeeShift $shift, Carbon $date): bool
-    {
-        if (empty($shift->off_days)) {
-            return false;
-        }
-
-        return in_array((int) $date->dayOfWeek, array_map('intval', $shift->off_days), true);
     }
 }

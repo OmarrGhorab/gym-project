@@ -15,7 +15,7 @@ use Spatie\Permission\PermissionRegistrar;
  * Role matrix:
  *   Admin      — all POS permissions
  *   Manager    — all POS permissions
- *   Cashier    — products.view, sales.view, sales.create
+ *   Cashier    — products.view, sales.view, sales.create, reports.view (Finance / shift desk)
  *   Accountant — sales.view, reports.view
  *
  * Idempotent — uses firstOrCreate so re-running does not create duplicates.
@@ -47,11 +47,12 @@ class PosAccessSeeder extends Seeder
         // Manager — all permissions.
         $manager->givePermissionTo(PosPermissions::ALL_PERMISSIONS);
 
-        // Cashier — products.view, sales.view, sales.create.
+        // Cashier — POS + reports.view so they can open Finance shift desk.
         $cashier->givePermissionTo([
             PosPermissions::PERM_PRODUCTS_VIEW,
             PosPermissions::PERM_SALES_VIEW,
             PosPermissions::PERM_SALES_CREATE,
+            PosPermissions::PERM_REPORTS_VIEW,
         ]);
 
         // Accountant — sales.view, reports.view.

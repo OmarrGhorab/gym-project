@@ -20,6 +20,7 @@ final class CheckInEmployeeAttendance
         private readonly CreateAttendanceViolation $violations,
         private readonly ApplyAttendanceBonuses $attendanceBonuses,
         private readonly OperationalNotifier $notifier,
+        private readonly ResolveEmployeeOffDay $resolveOffDay,
     ) {}
 
     public function handle(array $data, User $user): Attendance
@@ -29,9 +30,9 @@ final class CheckInEmployeeAttendance
         $date = $checkIn->toDateString();
         $shift = $employee->shift;
         $location = $this->geofence->evaluate($data);
-        $isOffDay = $this->isOffDay($shift, $checkIn);
+        $isOffDay = $this->resolveOffDay->handle($employee, $checkIn, $shift);
         $lateMinutes = $isOffDay ? 0 : $this->lateMinutes($shift, $checkIn);
-        $scheduleStatus = $this->scheduleStatus($shift, $checkIn, $lateMinutes);
+        $scheduleStatus = $this->scheduleStatus($shift, $checkIn, $lateMinutes, $isOffDay);
         $approvalStatus = $scheduleStatus === 'off_shift' ? 'pending' : 'approved';
         $status = $lateMinutes > 0 ? 'late' : 'present';
         $offDayBonusAmount = $isOffDay && $shift?->off_day_bonus_enabled ? (string) $shift->off_day_bonus_amount : '0.00';
@@ -60,7 +61,7 @@ final class CheckInEmployeeAttendance
                 'check_in_distance_meters' => $location['distance_meters'],
                 'check_in_location_status' => $location['location_status'],
                 'status' => $status,
-                'scan_method' => ! empty($data['qr_token']) ? 'qr' : 'manual',
+                'scan_method' => $this->resolveScanMethod($data),
                 'schedule_status' => $scheduleStatus,
                 'approval_status' => $approvalStatus,
                 'late_minutes' => $lateMinutes,
@@ -153,13 +154,13 @@ final class CheckInEmployeeAttendance
         return $checkIn->greaterThan($allowed) ? (int) $allowed->diffInMinutes($checkIn) : 0;
     }
 
-    private function scheduleStatus(?EmployeeShift $shift, Carbon $checkIn, int $lateMinutes): string
+    private function scheduleStatus(?EmployeeShift $shift, Carbon $checkIn, int $lateMinutes, bool $isOffDay = false): string
     {
         if (! $shift) {
             return 'unassigned';
         }
 
-        if ($this->isOffDay($shift, $checkIn)) {
+        if ($isOffDay) {
             return 'off_day';
         }
 
@@ -180,13 +181,18 @@ final class CheckInEmployeeAttendance
         return $lateMinutes > 0 ? 'late' : 'on_shift';
     }
 
-    private function isOffDay(?EmployeeShift $shift, Carbon $date): bool
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function resolveScanMethod(array $data): string
     {
-        if (! $shift || empty($shift->off_days)) {
-            return false;
+        $requested = strtolower(trim((string) ($data['scan_method'] ?? '')));
+
+        if (in_array($requested, ['qr', 'scanner', 'manual'], true)) {
+            return $requested;
         }
 
-        return in_array((int) $date->dayOfWeek, array_map('intval', $shift->off_days), true);
+        return ! empty($data['qr_token']) ? 'qr' : 'manual';
     }
 
     private function scanTimestamp(array $data, string $field): Carbon

@@ -57,8 +57,12 @@ final class MemberVisitController extends ApiController
     {
         $visit = $action->handle($request->validated(), $request->user());
 
+        $message = $visit->status === 'flagged'
+            ? 'Member checked in with location alert'
+            : $this->successMessage($visit);
+
         return (new MemberVisitResource($visit))
-            ->withMessage($visit->status === 'blocked' ? 'Member visit recorded with alert' : 'Member visit recorded')
+            ->withMessage($message)
             ->response()
             ->setStatusCode(201);
     }
@@ -67,10 +71,32 @@ final class MemberVisitController extends ApiController
     {
         $visit = $action->handle($request->validated(), $request->user());
 
+        $message = $visit->status === 'flagged'
+            ? 'Member checked in with location alert'
+            : $this->successMessage($visit);
+
         return (new MemberVisitResource($visit))
-            ->withMessage($visit->status === 'allowed' ? 'Member visit recorded' : 'Member visit recorded with alert')
+            ->withMessage($message)
             ->response()
             ->setStatusCode(201);
+    }
+
+    private function successMessage(MemberVisit $visit): string
+    {
+        $visit->loadMissing(['subscription', 'subscriptionAddon']);
+        $remaining = $visit->subscription?->sessions_remaining;
+        $parts = ['Member check-in allowed'];
+
+        if ($remaining !== null) {
+            $parts[] = "{$remaining} session(s) remaining on membership";
+        }
+
+        $addonRemaining = $visit->subscriptionAddon?->sessions_remaining;
+        if ($addonRemaining !== null) {
+            $parts[] = "{$addonRemaining} session(s) remaining on add-on";
+        }
+
+        return implode('. ', $parts).'.';
     }
 
     public function checkOut(ScanMemberVisitRequest $request, CheckOutMemberVisit $action): JsonResponse

@@ -60,32 +60,39 @@ class RoleMatrixSeeder extends Seeder
             'audit.view',
         ];
 
-        // Cashier permissions
+        // Cashier — front desk: sell memberships/POS + run Finance shift desk (open/close/handover).
         $cashierPermissions = [
             'members.view', 'members.create', 'members.update',
             'plans.view',
-            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew',
+            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade',
             'payments.view', 'payments.create',
             'products.view',
             'sales.view', 'sales.create',
+            'reports.view',
+            'expenses.view', 'expenses.create',
+            'attendance.view', 'attendance.create',
             'dashboard.view',
             'notifications.view',
         ];
 
-        // Captain permissions
+        // Captain — floor staff: view ops + shift desk operate (same money tracking needs as cashier).
         $captainPermissions = [
             'members.view',
             'plans.view',
             'subscriptions.view',
+            'payments.view', 'payments.create',
+            'reports.view',
+            'expenses.view', 'expenses.create',
             'commissions.view',
-            'attendance.view',
+            'attendance.view', 'attendance.create',
             'dashboard.view',
+            'notifications.view',
         ];
 
         // Accountant permissions
         $accountantPermissions = [
             'plans.view',
-            'payments.view',
+            'payments.view', 'payments.create',
             'products.view',
             'sales.view',
             'reports.view',
@@ -96,6 +103,7 @@ class RoleMatrixSeeder extends Seeder
             'attendance.view',
             'dashboard.view',
             'audit.view',
+            'notifications.view',
         ];
 
         // 4. Append export permissions dynamically based on the view permissions

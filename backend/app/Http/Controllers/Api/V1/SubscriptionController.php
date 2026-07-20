@@ -2,23 +2,26 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Subscriptions\AddSubscriptionAddon;
+use App\Actions\Subscriptions\CancelSubscription;
 use App\Actions\Subscriptions\CreateSubscription;
 use App\Actions\Subscriptions\FreezeSubscription;
 use App\Actions\Subscriptions\RenewSubscription;
 use App\Actions\Subscriptions\StopSubscription;
 use App\Actions\Subscriptions\UnfreezeSubscription;
 use App\Actions\Subscriptions\UpgradeSubscription;
+use App\Http\Requests\Subscriptions\AddSubscriptionAddonRequest;
+use App\Http\Requests\Subscriptions\CancelSubscriptionRequest;
 use App\Http\Requests\Subscriptions\FreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\RenewSubscriptionRequest;
 use App\Http\Requests\Subscriptions\StoreSubscriptionRequest;
 use App\Http\Requests\Subscriptions\UnfreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\UpgradeSubscriptionRequest;
+use App\Actions\Reports\MembershipMetrics;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
-use App\Models\SubscriptionAddon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -31,7 +34,7 @@ class SubscriptionController extends ApiController
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $subscriptions = QueryBuilder::for(Subscription::class)
-            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes', 'addons.plan', 'addons.coach', 'addons.payments'])
+            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes', 'refunds', 'addons.plan', 'addons.coach', 'addons.payments'])
             ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),
@@ -63,12 +66,14 @@ class SubscriptionController extends ApiController
             ->setStatusCode(201);
     }
 
-    public function summary(Request $request): JsonResponse
+    public function summary(Request $request, MembershipMetrics $metrics): JsonResponse
     {
         $this->authorize('viewAny', Subscription::class);
 
         $status = $request->input('filter.status');
         $memberId = $request->input('filter.member_id');
+        $hasFilters = (is_string($status) && $status !== '') || is_numeric($memberId);
+
         $baseQuery = Subscription::query()
             ->when(is_string($status) && $status !== '', fn ($query) => $query->where('status', $status))
             ->when(is_numeric($memberId), fn ($query) => $query->where('member_id', (int) $memberId));
@@ -77,16 +82,51 @@ class SubscriptionController extends ApiController
             ->selectRaw('status, COUNT(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status');
-        $today = Carbon::today();
+
+        // Unfiltered summary uses shared MembershipMetrics so CRM/Default stay identical.
+        if (! $hasFilters) {
+            $snapshot = $metrics->snapshot();
+
+            return $this->success(
+                data: [
+                    'total' => (clone $baseQuery)->count(),
+                    'active' => (int) ($counts['active'] ?? 0),
+                    'expired' => (int) ($counts['expired'] ?? 0),
+                    'frozen' => (int) ($counts['frozen'] ?? 0),
+                    'stopped' => (int) ($counts['stopped'] ?? 0),
+                    'expiring_soon' => $snapshot['expiring_soon'],
+                    'revenue' => $snapshot['subscription_revenue_live'],
+                    'revenue_mtd' => $snapshot['subscription_revenue_mtd'],
+                    'outstanding_dues_total' => $snapshot['outstanding_dues_total'],
+                    'outstanding_dues_count' => $snapshot['outstanding_dues_count'],
+                ],
+                message: 'Subscription summary retrieved',
+            );
+        }
+
         $expiringSoon = (clone $baseQuery)
             ->where('status', 'active')
             ->withoutLaterActiveRenewal()
-            ->whereBetween('end_date', [$today->toDateString(), $today->copy()->addDays(7)->toDateString()])
+            ->whereBetween('end_date', [
+                now()->toDateString(),
+                now()->copy()->addDays(max(1, (int) app(\App\Actions\Reminders\FindExpiringSubscriptions::class)->reminderDays()))->toDateString(),
+            ])
             ->count();
-        $baseRevenue = (clone $baseQuery)->sum('price_paid');
-        $addonRevenue = SubscriptionAddon::query()
-            ->whereIn('subscription_id', (clone $baseQuery)->select('id'))
-            ->sum('price_paid');
+
+        $liveIds = (clone $baseQuery)->whereIn('status', ['active', 'frozen'])->select('id');
+        $baseNet = (float) \App\Models\Payment::query()
+            ->revenue()
+            ->where('payable_type', Subscription::class)
+            ->whereIn('payable_id', $liveIds)
+            ->sum('amount');
+        $addonNet = (float) \App\Models\Payment::query()
+            ->revenue()
+            ->where('payable_type', \App\Models\SubscriptionAddon::class)
+            ->whereIn(
+                'payable_id',
+                \App\Models\SubscriptionAddon::query()->whereIn('subscription_id', $liveIds)->select('id'),
+            )
+            ->sum('amount');
 
         return $this->success(
             data: [
@@ -96,7 +136,7 @@ class SubscriptionController extends ApiController
                 'frozen' => (int) ($counts['frozen'] ?? 0),
                 'stopped' => (int) ($counts['stopped'] ?? 0),
                 'expiring_soon' => $expiringSoon,
-                'revenue' => number_format((float) $baseRevenue + (float) $addonRevenue, 2, '.', ''),
+                'revenue' => number_format(max(0.0, $baseNet + $addonNet), 2, '.', ''),
             ],
             message: 'Subscription summary retrieved',
         );
@@ -138,6 +178,19 @@ class SubscriptionController extends ApiController
             ->setStatusCode(201);
     }
 
+    public function addAddon(
+        AddSubscriptionAddonRequest $request,
+        Subscription $subscription,
+        AddSubscriptionAddon $action,
+    ): JsonResponse {
+        $updated = $action->handle($subscription, $request->validated(), $request->user());
+
+        return (new SubscriptionResource($updated))
+            ->withMessage('Extra service added to membership')
+            ->response()
+            ->setStatusCode(201);
+    }
+
     public function freeze(
         FreezeSubscriptionRequest $request,
         Subscription $subscription,
@@ -174,6 +227,19 @@ class SubscriptionController extends ApiController
 
         return (new SubscriptionResource($stopped))
             ->withMessage('Subscription stopped')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function cancel(
+        CancelSubscriptionRequest $request,
+        Subscription $subscription,
+        CancelSubscription $action,
+    ): JsonResponse {
+        $cancelled = $action->handle($subscription, $request->validated(), $request->user());
+
+        return (new SubscriptionResource($cancelled))
+            ->withMessage('Subscription cancelled with refund')
             ->response()
             ->setStatusCode(200);
     }

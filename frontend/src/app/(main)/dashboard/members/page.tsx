@@ -64,67 +64,98 @@ export default async function Page({
                 <Checkbox aria-label={t("selectAll")} />
               </TableHead>
               <TableHead>{t("member")}</TableHead>
-              <TableHead>{t("subscription")}</TableHead>
-              <TableHead>{t("qr")}</TableHead>
+              <TableHead>{t("plan")}</TableHead>
+              <TableHead>{t("sessions")}</TableHead>
+              <TableHead>{t("extras")}</TableHead>
+              <TableHead>{t("visitsThisMonth")}</TableHead>
               <TableHead>{t("status")}</TableHead>
               <TableHead>{t("totalPaid")}</TableHead>
-              <TableHead>{t("joinedDate")}</TableHead>
               <TableHead className="text-end">{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {members.length > 0 ? (
-              members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>
-                    <Checkbox aria-label={t("selectMember", { name: member.name })} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        {member.has_photo ? <AvatarImage src={getMemberPhotoUrl(member)} alt={member.name} /> : null}
-                        <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{member.name}</div>
-                        <div className="text-muted-foreground text-xs">{member.phone}</div>
+              members.map((member) => {
+                const subscription = member.latest_subscription;
+                const activeAddons = (subscription?.addons ?? []).filter(
+                  (addon) => !addon.status || addon.status === "active",
+                );
+
+                return (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <Checkbox aria-label={t("selectMember", { name: member.name })} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          {member.has_photo ? <AvatarImage src={getMemberPhotoUrl(member)} alt={member.name} /> : null}
+                          <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{member.name}</div>
+                          <div className="text-muted-foreground text-xs">{member.phone}</div>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{member.latest_subscription?.plan_name ?? t("noSubscription")}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {member.latest_subscription?.status ?? t("none")} · {member.expiry_date ?? t("noExpiry")}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {member.attendance_qr ? (
-                      <Badge variant="outline">{t("ready")}</Badge>
-                    ) : (
-                      <Badge variant="outline">{t("missing")}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={member.status === "active" ? "secondary" : "outline"}>{member.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {formatCurrency(Number(member.total_paid), { currency: "EGP", noDecimals: true })}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{member.join_date ?? "-"}</TableCell>
-                  <TableCell className="text-end">
-                    <MemberActionsMenu
-                      member={member}
-                      plans={plans}
-                      staff={staff}
-                      due={dues[member.id] ?? null}
-                      permissions={user?.permissions ?? []}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{subscription?.plan_name ?? t("noSubscription")}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {subscription?.status ?? t("none")} · {member.expiry_date ?? t("noExpiry")}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <SessionsCell
+                        remaining={subscription?.sessions_remaining}
+                        total={subscription?.sessions_total}
+                        unlimitedLabel={t("unlimitedSessions")}
+                        leftLabel={t("sessionsLeft")}
+                        noSubscription={!subscription}
+                        noSubscriptionLabel={t("noSessions")}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {activeAddons.length > 0 ? (
+                        <div className="flex max-w-56 flex-wrap gap-1">
+                          {activeAddons.map((addon) => (
+                            <Badge key={addon.id} variant="outline" className="font-normal">
+                              {addon.plan?.name ?? t("addon")}
+                              {" · "}
+                              {formatSessions(addon.sessions_remaining, addon.sessions_total, t("unlimitedSessions"))}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">{t("noExtras")}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium tabular-nums">
+                        {numberFormatter.format(member.visits_this_month ?? 0)}
+                      </span>
+                      <div className="text-muted-foreground text-xs">{t("thisMonth")}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={member.status === "active" ? "secondary" : "outline"}>{member.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(Number(member.total_paid), { currency: "EGP", noDecimals: true })}
+                    </TableCell>
+                    <TableCell className="text-end">
+                      <MemberActionsMenu
+                        member={member}
+                        plans={plans}
+                        staff={staff}
+                        due={dues[member.id] ?? null}
+                        permissions={user?.permissions ?? []}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                   {t("noMembers")}
                 </TableCell>
               </TableRow>
@@ -144,6 +175,53 @@ function Metric({ label, value }: { label: string; value: string }) {
       {label}: <span className="text-foreground tabular-nums">{value}</span>
     </span>
   );
+}
+
+function SessionsCell({
+  remaining,
+  total,
+  unlimitedLabel,
+  leftLabel,
+  noSubscription,
+  noSubscriptionLabel,
+}: {
+  remaining?: number | null;
+  total?: number | null;
+  unlimitedLabel: string;
+  leftLabel: string;
+  noSubscription?: boolean;
+  noSubscriptionLabel: string;
+}) {
+  if (noSubscription) {
+    return <span className="text-muted-foreground text-sm">{noSubscriptionLabel}</span>;
+  }
+
+  // null remaining = unlimited plan allowance
+  if (remaining === null || remaining === undefined) {
+    return <span className="text-muted-foreground text-sm">{unlimitedLabel}</span>;
+  }
+
+  return (
+    <div>
+      <div className="font-medium tabular-nums">
+        {remaining}
+        {total !== null && total !== undefined ? ` / ${total}` : ""}
+      </div>
+      <div className="text-muted-foreground text-xs">{leftLabel}</div>
+    </div>
+  );
+}
+
+function formatSessions(remaining?: number | null, total?: number | null, unlimitedLabel = "Unlimited"): string {
+  if (remaining === null || remaining === undefined) {
+    return unlimitedLabel;
+  }
+
+  if (total !== null && total !== undefined) {
+    return `${remaining}/${total}`;
+  }
+
+  return String(remaining);
 }
 
 function normalizeQuery(params: Record<string, string | string[] | undefined>) {

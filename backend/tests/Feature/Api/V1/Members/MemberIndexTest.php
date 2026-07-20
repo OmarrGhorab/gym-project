@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\Member;
+use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
@@ -49,8 +51,37 @@ test('member list returns correct data shape', function (): void {
             ->has('data.0.name')
             ->has('data.0.phone')
             ->has('data.0.status')
+            ->has('data.0.visits_this_month')
             ->etc()
         );
+});
+
+test('member list includes visits this month count', function (): void {
+    Carbon::setTestNow('2026-06-15 12:00:00');
+
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create(['name' => 'Visit Counter']);
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => '2026-06-10 10:00:00',
+        'status' => 'allowed',
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => '2026-06-12 11:00:00',
+        'status' => 'flagged',
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => '2026-05-20 10:00:00',
+        'status' => 'allowed',
+    ]);
+
+    $this->getJson('/api/v1/members?filter[search]=Visit%20Counter')
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.visits_this_month', 2);
+
+    Carbon::setTestNow();
 });
 
 test('member list exposes backend membership and billing statuses', function (): void {

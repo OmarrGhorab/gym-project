@@ -26,6 +26,7 @@ class Subscription extends Model
         'status',
         'price_paid',
         'discount',
+        'cancellation_grace_days',
         'sessions_total',
         'sessions_remaining',
         'sold_by_user_id',
@@ -41,6 +42,7 @@ class Subscription extends Model
             'last_reminded_on' => 'date',
             'price_paid' => 'decimal:2',
             'discount' => 'decimal:2',
+            'cancellation_grace_days' => 'integer',
             'sessions_total' => 'integer',
             'sessions_remaining' => 'integer',
         ];
@@ -87,6 +89,11 @@ class Subscription extends Model
     public function payments(): MorphMany
     {
         return $this->morphMany(Payment::class, 'payable');
+    }
+
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(SubscriptionRefund::class);
     }
 
     public function addons(): HasMany

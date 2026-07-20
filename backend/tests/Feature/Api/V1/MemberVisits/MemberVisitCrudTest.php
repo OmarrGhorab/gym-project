@@ -5,6 +5,7 @@ use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -37,7 +38,7 @@ test('member visit records allowed active subscription visits', function (): voi
         ->assertJsonPath('data.subscription_id', $subscription->id);
 });
 
-test('member visit records blocked visits when subscription is invalid', function (): void {
+test('member visit is rejected when subscription is invalid', function (): void {
     $manager = User::factory()->create();
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
     Sanctum::actingAs($manager);
@@ -52,11 +53,159 @@ test('member visit records blocked visits when subscription is invalid', functio
         'member_id' => $member->id,
         'check_in_at' => '2026-06-26 10:00:00',
     ])
-        ->assertCreated()
-        ->assertJsonPath('data.status', 'blocked')
-        ->assertJsonPath('data.subscription_id', null);
+        ->assertUnprocessable();
 
-    expect(MemberVisit::first()->alert_reason)->not->toBeNull();
+    expect(MemberVisit::count())->toBe(0);
+});
+
+test('limited membership sessions are deducted on successful check-in', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->active()->create([
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+        'access_starts_at' => null,
+        'access_ends_at' => null,
+    ]);
+    $subscription = Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 8,
+    ]);
+
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'check_in_at' => '2026-06-10 10:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed')
+        ->assertJsonPath('data.subscription.sessions_remaining', 7);
+
+    expect($subscription->fresh()->sessions_remaining)->toBe(7);
+});
+
+test('check-in is rejected when no sessions remain', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->active()->create([
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+    ]);
+    Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 0,
+    ]);
+
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'check_in_at' => '2026-06-10 10:00:00',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonFragment(['Membership has no sessions remaining.']);
+
+    expect(MemberVisit::count())->toBe(0);
+});
+
+test('check-in is rejected outside plan access hours', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->active()->create([
+        'access_starts_at' => '19:00',
+        'access_ends_at' => '23:00',
+        'is_unlimited_sessions' => true,
+        'sessions_count' => null,
+    ]);
+    Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => null,
+    ]);
+
+    // Before window
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'check_in_at' => '2026-06-10 18:30:00',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.details.member_id.0', 'Membership access is only allowed between 19:00 and 23:00. Check-in is outside that window.');
+
+    // Inside window
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'check_in_at' => '2026-06-10 20:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed');
+});
+
+test('add-on sessions and access hours are enforced when provided', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    $gymPlan = Plan::factory()->active()->create([
+        'category' => 'gym_access',
+        'is_unlimited_sessions' => true,
+        'sessions_count' => null,
+        'access_starts_at' => null,
+        'access_ends_at' => null,
+    ]);
+    $ptPlan = Plan::factory()->active()->create([
+        'category' => 'personal_training',
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+        'access_starts_at' => '19:00',
+        'access_ends_at' => '23:00',
+    ]);
+    $subscription = Subscription::factory()->for($member)->for($gymPlan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => null,
+    ]);
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $ptPlan->id,
+        'coach_id' => null,
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'status' => 'active',
+        'price_paid' => '500.00',
+        'discount' => '0.00',
+        'sessions_total' => 8,
+        'sessions_remaining' => 8,
+    ]);
+
+    // Outside add-on hours
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'subscription_addon_id' => $addon->id,
+        'check_in_at' => '2026-06-10 10:00:00',
+    ])->assertUnprocessable();
+
+    // Inside add-on hours — deducts add-on session
+    $this->postJson('/api/v1/member-visits', [
+        'member_id' => $member->id,
+        'subscription_addon_id' => $addon->id,
+        'check_in_at' => '2026-06-10 20:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.subscription_addon.sessions_remaining', 7);
+
+    expect($addon->fresh()->sessions_remaining)->toBe(7);
 });
 
 test('member visit allows access during plan grace days after subscription end', function (): void {

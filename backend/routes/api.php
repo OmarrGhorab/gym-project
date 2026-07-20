@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\MemberController;
 use App\Http\Controllers\Api\V1\Foundation\ProtectedSampleController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\MemberController;
 use App\Http\Controllers\Api\V1\SearchController;
 use Illuminate\Support\Facades\Route;
 
@@ -113,6 +113,7 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/commissions.php';
         require __DIR__.'/api/payroll.php';
         require __DIR__.'/api/expenses.php';
+        require __DIR__.'/api/shift-sessions.php';
         require __DIR__.'/api/attendance.php';
         require __DIR__.'/api/reports.php';
         require __DIR__.'/api/gym-tasks.php';

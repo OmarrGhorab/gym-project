@@ -5,11 +5,10 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * Root database seeder.
+ * Full application seed for local testing.
  *
- * Seeds roles/permissions, stable role logins (admin/manager/etc.), shifts,
- * attendance violation rules/settings, and staff.
- * Does not seed members, plans, products, sales, revenue, or other operational demo data.
+ * Includes access matrix, 4 desk shifts (≤5h, 06:00–23:59), cashiers per shift,
+ * attendance rules, membership plans, plain members, and POS products.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -25,12 +24,17 @@ class DatabaseSeeder extends Seeder
         $this->call(HrFinanceAccessSeeder::class);
         $this->call(RoleMatrixSeeder::class);
 
-        // One login user per role (admin@gym.test, manager@gym.test, ...)
+        // One login user per role (admin@gym.test, manager@gym.test, cashier@gym.test, ...)
         $this->call(RoleUserSeeder::class);
 
-        // Staff roster + attendance rules (no members/plans/revenue)
+        // Shifts (4 desk + flexible admin) + attendance rules + staff cashiers
         $this->call(EmployeeShiftSeeder::class);
         $this->call(AttendanceRulesSeeder::class);
         $this->call(GymStaffSeeder::class);
+
+        // Catalog + members so cashiers can sell/renew subscriptions and POS
+        $this->call(PlanSeeder::class);
+        $this->call(ProductSeeder::class);
+        $this->call(MemberSeeder::class);
     }
 }

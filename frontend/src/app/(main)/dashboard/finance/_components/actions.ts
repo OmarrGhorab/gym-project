@@ -146,6 +146,53 @@ export async function recordPaymentForm(input: FormData): Promise<void> {
   await recordPayment(input);
 }
 
+export async function openShiftSession(input: {
+  employee_shift_id: number;
+  opening_float?: string;
+  force_open?: boolean;
+}): Promise<FinanceActionResult> {
+  return mutateFinance(
+    "/shift-sessions",
+    "POST",
+    {
+      employee_shift_id: input.employee_shift_id,
+      opening_float: input.opening_float ?? "0",
+      force_open: input.force_open ?? false,
+    },
+    "Shift session opened.",
+  );
+}
+
+export async function closeShiftSession(id: number): Promise<FinanceActionResult> {
+  return mutateFinance(`/shift-sessions/${id}/close`, "POST", {}, "Shift session closed.");
+}
+
+export async function submitShiftHandover(
+  id: number,
+  input: {
+    counted_cash: string;
+    counted_card: string;
+    counted_bank: string;
+    counted_expenses: string;
+    variance_notes?: string;
+  },
+): Promise<FinanceActionResult> {
+  return mutateFinance(`/shift-sessions/${id}/handover`, "POST", input, "Handover submitted for review.");
+}
+
+export async function reviewShiftHandover(
+  id: number,
+  decision: "accepted" | "rejected",
+  notes?: string,
+): Promise<FinanceActionResult> {
+  return mutateFinance(
+    `/shift-sessions/${id}/review`,
+    "POST",
+    { decision, ...(notes ? { notes } : {}) },
+    decision === "accepted" ? "Handover accepted." : "Handover rejected.",
+  );
+}
+
 export async function updateExpenseForm(input: FormData): Promise<void> {
   await updateExpense(input);
 }

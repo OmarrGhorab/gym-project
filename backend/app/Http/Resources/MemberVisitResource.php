@@ -27,7 +27,17 @@ class MemberVisitResource extends JsonResource
                 'plan_name' => $this->subscription?->plan?->name,
                 'status' => $this->subscription?->status,
                 'end_date' => $this->subscription?->end_date?->toDateString(),
+                'sessions_total' => $this->subscription?->sessions_total,
+                'sessions_remaining' => $this->subscription?->sessions_remaining,
             ]),
+            'subscription_addon_id' => $this->subscription_addon_id,
+            'subscription_addon' => $this->whenLoaded('subscriptionAddon', fn () => $this->subscriptionAddon ? [
+                'id' => $this->subscriptionAddon->id,
+                'plan_name' => $this->subscriptionAddon->plan?->name,
+                'status' => $this->subscriptionAddon->status,
+                'sessions_total' => $this->subscriptionAddon->sessions_total,
+                'sessions_remaining' => $this->subscriptionAddon->sessions_remaining,
+            ] : null),
             'check_in_at' => $this->check_in_at?->toIso8601String(),
             'check_in_location' => [
                 'latitude' => $this->check_in_latitude ? (float) $this->check_in_latitude : null,

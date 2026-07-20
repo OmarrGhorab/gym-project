@@ -34,6 +34,7 @@ final class UpdatePlanRequest extends FormRequest
             'access_ends_at' => ['nullable', 'required_with:access_starts_at', 'date_format:H:i'],
             'max_freeze_days' => ['sometimes', 'integer', 'min:0', 'lte:duration_days'],
             'access_grace_days' => ['sometimes', 'integer', 'min:0'],
+            'cancellation_grace_days' => ['sometimes', 'integer', 'min:0'],
             'min_freeze_days' => ['sometimes', 'integer', 'min:0', 'lte:max_freeze_days'],
             'freeze_requires_approval' => ['sometimes', 'boolean'],
         ];

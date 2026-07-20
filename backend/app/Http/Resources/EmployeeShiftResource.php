@@ -22,6 +22,19 @@ class EmployeeShiftResource extends JsonResource
             'off_day_bonus_enabled' => (bool) $this->off_day_bonus_enabled,
             'off_day_bonus_amount' => number_format((float) $this->off_day_bonus_amount, 2, '.', ''),
             'is_active' => (bool) $this->is_active,
+            'off_rotation' => $this->whenLoaded('offRotation', function () {
+                if (! $this->offRotation) {
+                    return null;
+                }
+
+                return [
+                    'id' => $this->offRotation->id,
+                    'off_weekday' => (int) $this->offRotation->off_weekday,
+                    'rotation_start_date' => $this->offRotation->rotation_start_date?->toDateString(),
+                    'employee_order' => array_map('intval', $this->offRotation->employee_order ?? []),
+                    'is_active' => (bool) $this->offRotation->is_active,
+                ];
+            }),
         ];
     }
 }

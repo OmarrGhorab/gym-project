@@ -170,7 +170,7 @@ class Member extends Model
             ->selectSub(
                 Payment::query()
                     ->selectRaw('COALESCE(SUM(payments.amount), 0)')
-                    ->whereIn('payments.status', ['paid', 'partial'])
+                    ->whereIn('payments.status', Payment::REVENUE_STATUSES)
                     ->where(function ($query): void {
                         $query
                             ->where(function ($query): void {

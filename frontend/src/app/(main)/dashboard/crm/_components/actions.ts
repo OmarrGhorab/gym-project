@@ -45,6 +45,8 @@ const recordPaymentSchema = z.object({
   subscription_id: subscriptionIdSchema,
 });
 const changePlanSchema = z.object({
+  amount_due: optionalMoneySchema,
+  credit_mode: z.enum(["full_difference", "day_proration"]).optional(),
   discount: optionalMoneySchema,
   payment: paymentSchema.extend({
     amount: z
@@ -79,6 +81,29 @@ export async function stopMembershipSubscription(id: number): Promise<Membership
   }
 
   return mutateSubscription(`/subscriptions/${id}/stop`, "Subscription stopped.");
+}
+
+export type CancelMembershipSubscriptionInput = {
+  refund_amount?: string;
+  method?: "cash" | "card" | "bank_transfer";
+  reason?: string;
+};
+
+export async function cancelMembershipSubscription(
+  id: number,
+  input: CancelMembershipSubscriptionInput = {},
+): Promise<MembershipActionResult> {
+  const parsedId = subscriptionIdSchema.safeParse(id);
+
+  if (!parsedId.success) {
+    return invalidResult("Subscription is required.", parsedId.error);
+  }
+
+  return mutateSubscription(`/subscriptions/${parsedId.data}/cancel`, "Subscription cancelled with refund.", {
+    ...(input.refund_amount !== undefined ? { refund_amount: input.refund_amount } : {}),
+    ...(input.method ? { method: input.method } : {}),
+    ...(input.reason ? { reason: input.reason } : {}),
+  });
 }
 
 export type UnfreezeMembershipSubscriptionInput = {
@@ -137,6 +162,8 @@ export async function recordMembershipPayment(input: RecordMembershipPaymentInpu
 
 export type ChangeMembershipPlanInput = {
   plan_id: number;
+  credit_mode?: "full_difference" | "day_proration";
+  amount_due?: string;
   discount?: string;
   payment: {
     amount: string;
@@ -155,7 +182,46 @@ export async function changeMembershipPlan(
   if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
   if (!parsedInput.success) return invalidResult("Please fix the highlighted plan fields.", parsedInput.error);
 
-  return mutateSubscription(`/subscriptions/${parsedId.data}/${mode}`, "Plan changed.", parsedInput.data);
+  return mutateSubscription(`/subscriptions/${parsedId.data}/${mode}`, "Main membership plan changed.", parsedInput.data);
+}
+
+export type AddMembershipExtraInput = {
+  plan_id: number;
+  coach_id?: number;
+  discount?: string;
+  payment: {
+    amount: string;
+    method: "cash" | "card" | "bank_transfer";
+  };
+};
+
+const addExtraSchema = z.object({
+  plan_id: z.coerce.number().int().positive("Extra plan is required."),
+  coach_id: z.coerce.number().int().positive().optional(),
+  discount: optionalMoneySchema,
+  payment: paymentSchema.extend({
+    amount: z
+      .string()
+      .trim()
+      .refine((value) => Number(value) >= 0, "Payment amount cannot be negative."),
+  }),
+});
+
+export async function addMembershipExtra(
+  subscriptionId: number,
+  input: AddMembershipExtraInput,
+): Promise<MembershipActionResult> {
+  const parsedId = subscriptionIdSchema.safeParse(subscriptionId);
+  const parsedInput = addExtraSchema.safeParse(input);
+
+  if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
+  if (!parsedInput.success) return invalidResult("Please fix the highlighted extra-service fields.", parsedInput.error);
+
+  return mutateSubscription(
+    `/subscriptions/${parsedId.data}/addons`,
+    "Extra service added to membership.",
+    parsedInput.data,
+  );
 }
 
 export type FreezeMembershipSubscriptionInput = {

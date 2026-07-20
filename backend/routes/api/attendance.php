@@ -31,6 +31,18 @@ Route::prefix('attendance')->group(function (): void {
     Route::delete('/shifts/{employeeShift}', [AttendanceController::class, 'deactivateShift'])
         ->middleware(['permission:settings.manage', 'throttle:api']);
 
+    Route::put('/shifts/{employeeShift}/off-rotation', [AttendanceController::class, 'upsertShiftOffRotation'])
+        ->middleware(['permission:settings.manage', 'throttle:api']);
+
+    Route::get('/shifts/{employeeShift}/off-rotation/preview', [AttendanceController::class, 'shiftOffRotationPreview'])
+        ->middleware('permission:settings.manage');
+
+    Route::post('/off-day-overrides', [AttendanceController::class, 'storeOffDayOverride'])
+        ->middleware(['permission:settings.manage', 'throttle:api']);
+
+    Route::delete('/off-day-overrides/{override}', [AttendanceController::class, 'destroyOffDayOverride'])
+        ->middleware(['permission:settings.manage', 'throttle:api']);
+
     Route::get('/violations', [AttendanceController::class, 'violations'])
         ->middleware('permission:attendance.view');
 

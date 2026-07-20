@@ -74,6 +74,14 @@ final class UpdateSettings
             }
         }
 
+        if (isset($validated['shifts'])) {
+            foreach (['handover_auto_accept', 'handover_auto_accept_on_match_only', 'require_handover_to_open'] as $key) {
+                if (array_key_exists($key, $validated['shifts'])) {
+                    $flat["shifts.{$key}"] = $validated['shifts'][$key];
+                }
+            }
+        }
+
         if (isset($validated['attendance'])) {
             foreach (['gym_latitude', 'gym_longitude', 'gym_radius_meters', 'default_grace_minutes'] as $key) {
                 if (array_key_exists($key, $validated['attendance'])) {

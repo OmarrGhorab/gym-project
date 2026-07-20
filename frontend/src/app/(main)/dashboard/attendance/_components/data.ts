@@ -82,12 +82,33 @@ export type EmployeeOption = {
   attendance_qr: string | null;
 };
 
+export type MemberAddonOption = {
+  id: number;
+  status?: string;
+  sessions_remaining?: number | null;
+  sessions_total?: number | null;
+  plan?: {
+    id?: number;
+    name?: string | null;
+    access_starts_at?: string | null;
+    access_ends_at?: string | null;
+  } | null;
+};
+
 export type MemberLookupOption = {
   id: number;
   name: string;
   phone: string | null;
   attendance_code: string | null;
   attendance_qr: string | null;
+  latest_subscription?: {
+    id?: number;
+    plan_name?: string | null;
+    status?: string;
+    sessions_remaining?: number | null;
+    sessions_total?: number | null;
+    addons?: MemberAddonOption[];
+  } | null;
 };
 
 export type EmployeeShift = {

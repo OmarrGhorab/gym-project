@@ -16,6 +16,7 @@ class StoreMemberVisitRequest extends FormRequest
     {
         return [
             'member_id' => ['required', 'integer', 'exists:members,id'],
+            'subscription_addon_id' => ['nullable', 'integer', 'exists:subscription_addons,id'],
             'check_in_at' => ['nullable', 'date'],
             'check_out_at' => ['nullable', 'date', 'after_or_equal:check_in_at'],
             'notes' => ['nullable', 'string', 'max:2000'],

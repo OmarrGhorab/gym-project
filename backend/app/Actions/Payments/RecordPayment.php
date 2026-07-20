@@ -2,6 +2,7 @@
 
 namespace App\Actions\Payments;
 
+use App\Actions\ShiftSessions\ResolveOpenShiftSession;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
@@ -11,6 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class RecordPayment
 {
+    public function __construct(
+        private readonly ResolveOpenShiftSession $openShiftSession,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -19,9 +24,9 @@ class RecordPayment
         return DB::transaction(function () use ($payable, $data, $creator): Payment {
             $lockedPayable = $payable instanceof Subscription
                 ? Subscription::query()
-                ->lockForUpdate()
-                ->with('plan')
-                ->findOrFail($payable->id)
+                    ->lockForUpdate()
+                    ->with('plan')
+                    ->findOrFail($payable->id)
                 : SubscriptionAddon::query()
                     ->lockForUpdate()
                     ->with('plan')
@@ -40,6 +45,8 @@ class RecordPayment
             $remaining = bccomp($newTotal, $owed, 2) === 1 ? '0.00' : bcsub($owed, $newTotal, 2);
             $status = bccomp($remaining, '0.00', 2) === 0 ? 'paid' : 'partial';
 
+            $openSessionId = $this->openShiftSession->current()?->id;
+
             return Payment::create([
                 'payable_type' => $lockedPayable::class,
                 'payable_id' => $lockedPayable->id,
@@ -49,6 +56,8 @@ class RecordPayment
                 'paid_at' => $data['paid_at'] ?? now(),
                 'due_date' => bccomp($remaining, '0.00', 2) === 1 ? now()->toDateString() : null,
                 'created_by' => $creator?->id,
+                // Prefer live open desk session so membership revenue lands on Shift desk.
+                'shift_session_id' => $openSessionId ?? ($data['shift_session_id'] ?? null),
             ]);
         });
     }

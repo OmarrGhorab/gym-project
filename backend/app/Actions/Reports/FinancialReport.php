@@ -2,10 +2,11 @@
 
 namespace App\Actions\Reports;
 
-use Carbon\Carbon;
+use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class FinancialReport
@@ -36,9 +37,9 @@ class FinancialReport
             $expenseGroup = $isSqlite ? 'strftime("%Y-%m", date)' : 'DATE_FORMAT(date, "%Y-%m")';
         }
 
-        // Aggregate revenue (paid payments)
+        // Aggregate net revenue (collections + refunds as negative amounts)
         $revenueQuery = DB::table('payments')
-            ->whereIn('status', ['paid', 'partial'])
+            ->whereIn('status', Payment::REVENUE_STATUSES)
             ->whereBetween('paid_at', [$startDate, $endDate])
             ->when(
                 $revenueSource === 'subscriptions',

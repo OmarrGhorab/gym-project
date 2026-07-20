@@ -7,7 +7,12 @@ import type { RecentCustomerRow } from "./recent-customers-table/schema";
 
 export type DashboardSummary = {
   active_subscriptions: number;
+  frozen_subscriptions?: number;
   revenue_mtd: string;
+  subscription_revenue_mtd?: string;
+  subscription_revenue_live?: string;
+  outstanding_dues_total?: string;
+  outstanding_dues_count?: number;
   revenue_growth_rate?: string;
   new_members_this_month?: number;
   new_members_previous_month?: number;
@@ -189,10 +194,14 @@ export async function getDefaultDashboardData(
   const memberStaff = unwrapList(staffResult.data);
   const membersMeta = getPaginationMeta("meta" in membersResult ? membersResult.meta : undefined, members.length);
 
+  // Prefer dashboard/summary MembershipMetrics totals; only fill detail payloads from extra endpoints.
+  const summaryActive =
+    summaryResult.data.active_subscriptions ?? getCount(activeSubscriptionsResult.data) ?? 0;
+
   return {
     summary: {
       ...summaryResult.data,
-      active_subscriptions: getCount(activeSubscriptionsResult.data) ?? summaryResult.data.active_subscriptions,
+      active_subscriptions: summaryActive,
       active_subscriptions_detail: activeSubscriptionsResult.data,
       expiring_soon_detail: expiringSoonResult.data,
       sales_today_detail: salesTodayResult.data,

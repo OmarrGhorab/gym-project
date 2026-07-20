@@ -26,6 +26,7 @@ class Sale extends Model
         'payment_method',
         'status',
         'notes',
+        'shift_session_id',
     ];
 
     protected $casts = [

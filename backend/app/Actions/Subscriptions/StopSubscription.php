@@ -3,6 +3,7 @@
 namespace App\Actions\Subscriptions;
 
 use App\Models\Subscription;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class StopSubscription
@@ -15,7 +16,12 @@ class StopSubscription
             ]);
         }
 
-        $subscription->update(['status' => 'stopped']);
+        // Close the period today so renew starts a new period from today (not stacked after old end_date).
+        $subscription->update([
+            'status' => 'stopped',
+            'end_date' => Carbon::today()->toDateString(),
+            'sessions_remaining' => 0,
+        ]);
 
         return $subscription->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes']);
     }

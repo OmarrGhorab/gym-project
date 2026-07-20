@@ -16,6 +16,7 @@ class MemberVisit extends Model
     protected $fillable = [
         'member_id',
         'subscription_id',
+        'subscription_addon_id',
         'check_in_at',
         'check_in_latitude',
         'check_in_longitude',
@@ -60,6 +61,11 @@ class MemberVisit extends Model
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    public function subscriptionAddon(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionAddon::class, 'subscription_addon_id');
     }
 
     public function creator(): BelongsTo

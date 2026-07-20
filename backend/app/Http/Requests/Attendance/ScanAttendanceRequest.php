@@ -17,6 +17,7 @@ class ScanAttendanceRequest extends FormRequest
         return [
             'qr_token' => ['nullable', 'string', 'max:255', 'required_without:employee_id'],
             'employee_id' => ['nullable', 'integer', 'exists:employees,id', 'required_without:qr_token'],
+            'scan_method' => ['nullable', 'string', 'in:qr,scanner,manual'],
             'attendance_date' => ['nullable', 'date'],
             'check_in_at' => ['nullable', 'date'],
             'check_out_at' => ['nullable', 'date'],

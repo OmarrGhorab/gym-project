@@ -19,6 +19,8 @@ class ScanMemberVisitRequest extends FormRequest
             'member_id' => ['nullable', 'integer', 'exists:members,id'],
             'phone' => ['nullable', 'string', 'max:30'],
             'name' => ['nullable', 'string', 'max:150'],
+            'scan_method' => ['nullable', 'string', 'in:qr,scanner,manual,phone,name,member_id'],
+            'subscription_addon_id' => ['nullable', 'integer', 'exists:subscription_addons,id'],
             'check_in_at' => ['nullable', 'date'],
             'check_out_at' => ['nullable', 'date'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],

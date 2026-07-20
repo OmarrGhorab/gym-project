@@ -3,7 +3,6 @@
 namespace App\Actions\MemberVisits;
 
 use App\Actions\Attendance\ResolveAttendanceIdentity;
-use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\User;
 use App\Support\Geofence;
@@ -30,15 +29,21 @@ final class CheckInMemberVisit
             $this->autoCloseStaleVisits->handle($checkIn);
             $this->ensureMemberCanCheckIn->handle($member);
 
+            // Hard-deny outside membership access window / no sessions / expired / inactive.
             $subscription = $this->visitSubscription->consume($member, $checkIn);
-            $subscriptionStatus = $subscription ? 'allowed' : 'blocked';
-            $status = $subscriptionStatus === 'allowed' && $location['location_status'] === 'outside'
-                ? 'flagged'
-                : $subscriptionStatus;
+
+            $addonId = isset($data['subscription_addon_id']) ? (int) $data['subscription_addon_id'] : 0;
+            $addon = null;
+            if ($addonId > 0) {
+                $addon = $this->visitSubscription->consumeAddon($member, $checkIn, $addonId);
+            }
+
+            $status = $location['location_status'] === 'outside' ? 'flagged' : 'allowed';
 
             return MemberVisit::create([
                 'member_id' => $member->id,
-                'subscription_id' => $subscription?->id,
+                'subscription_id' => $subscription->id,
+                'subscription_addon_id' => $addon?->id,
                 'check_in_at' => $checkIn,
                 'check_in_latitude' => $location['latitude'],
                 'check_in_longitude' => $location['longitude'],
@@ -47,30 +52,30 @@ final class CheckInMemberVisit
                 'check_in_location_status' => $location['location_status'],
                 'status' => $status,
                 'scan_method' => $this->scanMethod($data),
-                'alert_reason' => $this->alertReason($member, $checkIn, $subscription !== null, $location['location_status']),
+                'alert_reason' => $status === 'flagged'
+                    ? 'Visit location is outside the configured gym geofence.'
+                    : null,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $user->id,
             ]);
         });
 
-        return $visit->load(['member.latestSubscription.plan', 'subscription.plan', 'creator']);
-    }
-
-    private function alertReason(Member $member, Carbon $checkIn, bool $hasSubscription, ?string $locationStatus): ?string
-    {
-        if ($locationStatus === 'outside') {
-            return 'Visit location is outside the configured gym geofence.';
-        }
-
-        if ($hasSubscription) {
-            return null;
-        }
-
-        return $this->visitSubscription->alertReason($member, $checkIn);
+        return $visit->load([
+            'member.latestSubscription.plan',
+            'subscription.plan',
+            'subscriptionAddon.plan',
+            'creator',
+        ]);
     }
 
     private function scanMethod(array $data): string
     {
+        $requested = strtolower(trim((string) ($data['scan_method'] ?? '')));
+
+        if (in_array($requested, ['qr', 'scanner', 'manual', 'phone', 'name', 'member_id'], true)) {
+            return $requested;
+        }
+
         if (! empty($data['qr_token'])) {
             return 'qr';
         }

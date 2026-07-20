@@ -53,12 +53,47 @@ test('dues list returns subscriptions with outstanding balances only', function 
     ]);
 
     $response = $this->getJson('/api/v1/payments/dues')
-        ->assertStatus(200);
+        ->assertStatus(200)
+        ->assertJsonPath('meta.outstanding_dues_count', 1)
+        ->assertJsonPath('meta.outstanding_dues_total', '200.00');
 
     $ids = collect($response->json('data'))->pluck('subscription.id')->all();
 
     expect($ids)->toContain($dueSubscription->id)
         ->not->toContain($paidSubscription->id);
+});
+
+test('dues list excludes stopped subscriptions even when package price exceeds payments', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    $stopped = Subscription::factory()->stopped()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '300.00',
+    ]);
+
+    // Full refund nets payments to 0 — old dues logic would re-open balance on stopped rows.
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $stopped->id,
+        'amount' => '300.00',
+        'status' => 'paid',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $stopped->id,
+        'amount' => '-300.00',
+        'status' => 'refunded',
+    ]);
+
+    $this->getJson('/api/v1/payments/dues')
+        ->assertOk()
+        ->assertJsonPath('meta.outstanding_dues_count', 0);
 });
 
 test('dues list includes unpaid add-on service balances in the package total', function (): void {

@@ -16,6 +16,7 @@ import { IncomeBreakdown } from "./_components/income-breakdown";
 import { LedgerTab } from "./_components/ledger-tab";
 import { OverviewKpis } from "./_components/overview-kpis";
 import { QuickActions } from "./_components/quick-actions";
+import { ShiftDesk } from "./_components/shift-desk";
 import { TransactionsOverviewCard } from "./_components/transactions-overview-card";
 import { UpcomingTransactions } from "./_components/upcoming-transactions";
 import { Wallet } from "./_components/wallet";
@@ -58,6 +59,9 @@ export default async function Page({
     quickActionPermissions.canViewPayments ||
     quickActionPermissions.canCollectDue ||
     quickActionPermissions.canViewExpenses;
+  const canOperateShiftDesk = quickActionPermissions.canRecordExpense || quickActionPermissions.canCollectDue;
+  const canReviewShiftDesk =
+    quickActionPermissions.canUpdateExpense || (user ? canAccess(user, "settings.manage") : false);
   const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
   return (
     <div className="flex flex-col gap-4">
@@ -65,6 +69,19 @@ export default async function Page({
         <h1 className="text-3xl tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm">{formattedDate}</p>
       </div>
+
+      {quickActionPermissions.canViewExpenses ||
+      quickActionPermissions.canViewPayments ||
+      quickActionPermissions.canCollectDue ? (
+        <ShiftDesk
+          currentSession={data.shiftDesk.current}
+          pendingSessions={data.shiftDesk.pending}
+          shifts={data.shiftDesk.shifts}
+          requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
+          canOperate={canOperateShiftDesk}
+          canReview={canReviewShiftDesk}
+        />
+      ) : null}
 
       <Tabs defaultValue="30-days" className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

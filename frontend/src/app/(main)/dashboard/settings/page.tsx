@@ -68,6 +68,40 @@ export default async function Page() {
                 hint={t("reminderDaysHint")}
               />
             </div>
+
+            <div className="grid gap-3 rounded-lg border p-3">
+              <div>
+                <p className="font-medium text-sm">{t("shiftHandoverSettings")}</p>
+                <p className="text-muted-foreground text-xs">{t("shiftHandoverSettingsHelp")}</p>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="shifts.handover_auto_accept"
+                    name="shifts.handover_auto_accept"
+                    defaultChecked={settings.shifts?.handover_auto_accept ?? false}
+                  />
+                  <Label htmlFor="shifts.handover_auto_accept">{t("handoverAutoAccept")}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="shifts.handover_auto_accept_on_match_only"
+                    name="shifts.handover_auto_accept_on_match_only"
+                    defaultChecked={settings.shifts?.handover_auto_accept_on_match_only ?? true}
+                  />
+                  <Label htmlFor="shifts.handover_auto_accept_on_match_only">{t("handoverAutoAcceptMatchOnly")}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="shifts.require_handover_to_open"
+                    name="shifts.require_handover_to_open"
+                    defaultChecked={settings.shifts?.require_handover_to_open ?? true}
+                  />
+                  <Label htmlFor="shifts.require_handover_to_open">{t("requireHandoverToOpen")}</Label>
+                </div>
+              </div>
+            </div>
+
             <Button type="submit" className="w-full">
               {t("saveSettings")}
             </Button>

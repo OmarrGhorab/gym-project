@@ -19,6 +19,7 @@ class SubscriptionObserver
             );
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');
+            Cache::forget('dashboard:summary:v3');
         });
     }
 
@@ -27,6 +28,7 @@ class SubscriptionObserver
         DB::afterCommit(function () {
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');
+            Cache::forget('dashboard:summary:v3');
         });
     }
 
@@ -35,6 +37,7 @@ class SubscriptionObserver
         DB::afterCommit(function () {
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');
+            Cache::forget('dashboard:summary:v3');
         });
     }
 }

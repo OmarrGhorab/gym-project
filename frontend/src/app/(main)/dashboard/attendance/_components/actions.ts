@@ -36,7 +36,15 @@ export async function scanMemberVisit(
     };
   }
 
-  const payload = scanPayload(input, ["qr_token", "member_id", "phone", "name", "notes"]);
+  const payload = scanPayload(input, [
+    "qr_token",
+    "member_id",
+    "phone",
+    "name",
+    "notes",
+    "scan_method",
+    "subscription_addon_id",
+  ]);
 
   return mutateScan("/member-visits/check-in", payload, "Member check-in recorded.", "POST", values);
 }
@@ -58,7 +66,7 @@ export async function scanStaffAttendance(
     };
   }
 
-  const payload = scanPayload(input, ["qr_token", "employee_id", "attendance_date", "notes"]);
+  const payload = scanPayload(input, ["qr_token", "employee_id", "attendance_date", "notes", "scan_method"]);
 
   return mutateScan(
     direction === "check-out" ? "/attendance/check-out" : "/attendance/check-in",
@@ -140,11 +148,23 @@ async function mutateScan(
   values: Record<string, string>,
 ): Promise<AttendanceActionResult> {
   let result: Awaited<
-    ReturnType<typeof serverApiFetch<{ schedule_status?: string | null; approval_status?: string | null }>>
+    ReturnType<
+      typeof serverApiFetch<{
+        schedule_status?: string | null;
+        approval_status?: string | null;
+        status?: string | null;
+        subscription?: {
+          sessions_remaining?: number | null;
+        } | null;
+        subscription_addon?: {
+          sessions_remaining?: number | null;
+        } | null;
+      }>
+    >
   >;
 
   try {
-    result = await serverApiFetch<{ schedule_status?: string | null; approval_status?: string | null }>(path, {
+    result = await serverApiFetch(path, {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
@@ -165,12 +185,15 @@ async function mutateScan(
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/payroll");
 
+  const apiMessage = typeof result.message === "string" && result.message.trim() ? result.message : successMessage;
+  const message =
+    result.data?.schedule_status === "off_shift"
+      ? "Recorded with warning: this scan is outside the assigned shift."
+      : apiMessage;
+
   return {
     ok: true,
-    message:
-      result.data?.schedule_status === "off_shift"
-        ? "Recorded with warning: this scan is outside the assigned shift."
-        : successMessage,
+    message,
     errors: {},
     values,
   };
@@ -181,11 +204,20 @@ function scanPayload(input: FormData, fields: string[]) {
 
   for (const field of fields) {
     const value = input.get(field);
-    if (value === null || String(value).trim() === "") {
+    if (value === null || String(value).trim() === "" || String(value).trim() === "none") {
       continue;
     }
 
-    payload[field] = field.endsWith("_id") ? Number(value) : String(value);
+    if (field.endsWith("_id")) {
+      const id = Number(value);
+      if (!Number.isFinite(id) || id <= 0) {
+        continue;
+      }
+      payload[field] = id;
+      continue;
+    }
+
+    payload[field] = String(value);
   }
 
   for (const field of ["latitude", "longitude", "accuracy_meters"]) {

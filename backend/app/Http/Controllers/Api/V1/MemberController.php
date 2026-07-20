@@ -44,6 +44,9 @@ final class MemberController extends ApiController
 
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
+        $monthStart = Carbon::now()->startOfMonth()->toDateTimeString();
+        $monthEnd = Carbon::now()->endOfMonth()->toDateTimeString();
+
         $members = QueryBuilder::for(Member::withTotalPaid()->with([
             'latestSubscription.plan',
             'latestSubscription.payments',
@@ -51,6 +54,11 @@ final class MemberController extends ApiController
             'latestSubscription.addons.coach',
             'latestSubscription.addons.payments',
             'coach',
+        ])->withCount([
+            'visits as visits_this_month' => function ($query) use ($monthStart, $monthEnd): void {
+                $query->whereBetween('check_in_at', [$monthStart, $monthEnd])
+                    ->whereIn('status', ['allowed', 'flagged']);
+            },
         ]))
             ->allowedFilters(
                 AllowedFilter::exact('status'),

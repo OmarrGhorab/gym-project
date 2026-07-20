@@ -4,15 +4,18 @@ namespace App\Actions\Reports;
 
 use App\Actions\Dashboard\SalesTodayReport;
 use App\Actions\Dashboard\TopProductsReport;
-use App\Actions\Reminders\FindExpiringSubscriptions;
 use App\Models\Member;
-use App\Models\Subscription;
+use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardSummary
 {
+    public function __construct(
+        private readonly MembershipMetrics $metrics,
+    ) {}
+
     /**
      * Get the dashboard summary (cached).
      *
@@ -20,29 +23,18 @@ class DashboardSummary
      */
     public function execute(): array
     {
-        return Cache::remember('dashboard:summary:v2', 60, function () {
-            // 1. Active subscriptions count
-            $activeSubscriptions = Subscription::query()
-                ->where('status', 'active')
-                ->count();
-
-            // 2. Revenue MTD
+        // Bump cache key when payload shape changes so clients never read stale fields.
+        return Cache::remember('dashboard:summary:v3', 60, function () {
             $now = Carbon::now();
             $startOfMonth = $now->copy()->startOfMonth()->toDateTimeString();
-            $endOfToday = Carbon::now()->endOfDay()->toDateTimeString();
-            $revenueMtd = DB::table('payments')
-                ->whereIn('status', ['paid', 'partial'])
-                ->whereBetween('paid_at', [$startOfMonth, $endOfToday])
-                ->sum('amount');
-            $revenueMtdStr = number_format((float) $revenueMtd, 2, '.', '');
-            $previousRevenue = DB::table('payments')
-                ->whereIn('status', ['paid', 'partial'])
-                ->whereBetween('paid_at', [
-                    $now->copy()->subMonthNoOverflow()->startOfMonth()->toDateTimeString(),
-                    $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString(),
-                ])
-                ->sum('amount');
-            $revenueGrowthRate = $this->growthRate((float) $revenueMtd, (float) $previousRevenue);
+            $endOfToday = $now->copy()->endOfDay()->toDateTimeString();
+            $metrics = $this->metrics->snapshot($now);
+
+            $previousRevenue = $this->metrics->paymentsTotalMtd(
+                null,
+                $now->copy()->subMonthNoOverflow()->startOfMonth()->toDateTimeString(),
+                $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString(),
+            );
 
             $newMembersThisMonth = Member::query()
                 ->whereBetween('created_at', [$startOfMonth, $endOfToday])
@@ -53,29 +45,11 @@ class DashboardSummary
                     $now->copy()->subMonthNoOverflow()->endOfMonth()->toDateTimeString(),
                 ])
                 ->count();
-            $newMembersGrowthRate = $this->growthRate($newMembersThisMonth, $newMembersPreviousMonth);
 
-            // 3. Expiring soon count
-            $today = Carbon::today();
-            $end = $today->copy()->addDays(app(FindExpiringSubscriptions::class)->reminderDays());
-            $expiringSoon = Subscription::query()
-                ->where('status', 'active')
-                ->withoutLaterActiveRenewal()
-                ->whereBetween('end_date', [$today->toDateString(), $end->toDateString()])
-                ->count();
-
-            // 4. Sales today (reuse shared action)
             $salesTodayReport = app(SalesTodayReport::class)->execute();
-            $salesTodayData = [
-                'count' => $salesTodayReport['count'],
-                'revenue' => $salesTodayReport['revenue'],
-            ];
-
-            // 5. Top products (week) (reuse shared action)
             $topProducts = app(TopProductsReport::class)->execute(5, 'week');
 
-            // 6. Captain leaderboard
-            $currentMonth = Carbon::now()->format('Y-m');
+            $currentMonth = $now->format('Y-m');
             $captainLeaderboard = DB::table('commissions')
                 ->join('employees', 'commissions.employee_id', '=', 'employees.id')
                 ->join('users', 'employees.user_id', '=', 'users.id')
@@ -96,14 +70,22 @@ class DashboardSummary
                 ->toArray();
 
             return [
-                'active_subscriptions' => $activeSubscriptions,
-                'revenue_mtd' => $revenueMtdStr,
-                'revenue_growth_rate' => $revenueGrowthRate,
+                'active_subscriptions' => $metrics['active_subscriptions'],
+                'frozen_subscriptions' => $metrics['frozen_subscriptions'],
+                'revenue_mtd' => $metrics['revenue_mtd'],
+                'subscription_revenue_mtd' => $metrics['subscription_revenue_mtd'],
+                'subscription_revenue_live' => $metrics['subscription_revenue_live'],
+                'outstanding_dues_total' => $metrics['outstanding_dues_total'],
+                'outstanding_dues_count' => $metrics['outstanding_dues_count'],
+                'revenue_growth_rate' => $this->growthRate((float) $metrics['revenue_mtd'], $previousRevenue),
                 'new_members_this_month' => $newMembersThisMonth,
                 'new_members_previous_month' => $newMembersPreviousMonth,
-                'new_members_growth_rate' => $newMembersGrowthRate,
-                'expiring_soon' => $expiringSoon,
-                'sales_today' => $salesTodayData,
+                'new_members_growth_rate' => $this->growthRate($newMembersThisMonth, $newMembersPreviousMonth),
+                'expiring_soon' => $metrics['expiring_soon'],
+                'sales_today' => [
+                    'count' => $salesTodayReport['count'],
+                    'revenue' => $salesTodayReport['revenue'],
+                ],
                 'top_products' => $topProducts,
                 'captain_leaderboard' => $captainLeaderboard,
             ];

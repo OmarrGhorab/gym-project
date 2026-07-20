@@ -17,6 +17,7 @@ class SubscriptionAddonObserver
             );
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');
+            Cache::forget('dashboard:summary:v3');
         });
     }
 
@@ -25,6 +26,7 @@ class SubscriptionAddonObserver
         DB::afterCommit(function (): void {
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');
+            Cache::forget('dashboard:summary:v3');
         });
     }
 }

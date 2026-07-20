@@ -16,6 +16,8 @@ use Spatie\Permission\PermissionRegistrar;
  * Role matrix:
  *   Admin      — all HR & Finance permissions
  *   Manager    — all HR & Finance permissions
+ *   Cashier    — reports.view, expenses.view/create, attendance.view/create (shift desk)
+ *   Captain    — reports.view, expenses.view/create, attendance.view/create (shift desk)
  *   Accountant — reports.view, expenses.*, attendance.view, payroll.view, commissions.view
  *
  * Idempotent — uses firstOrCreate.
@@ -43,6 +45,8 @@ class HrFinanceAccessSeeder extends Seeder
         // Retrieve existing roles or create them.
         $admin = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_ADMIN, 'guard_name' => 'web']);
         $manager = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_MANAGER, 'guard_name' => 'web']);
+        $cashier = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_CASHIER, 'guard_name' => 'web']);
+        $captain = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_CAPTAIN, 'guard_name' => 'web']);
         $accountant = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_ACCOUNTANT, 'guard_name' => 'web']);
 
         // Admin — all permissions.
@@ -50,6 +54,17 @@ class HrFinanceAccessSeeder extends Seeder
 
         // Manager — all permissions.
         $manager->givePermissionTo(HrFinancePermissions::ALL_PERMISSIONS);
+
+        // Front-desk / floor staff — enough to open Finance, run shift desk, take money.
+        $shiftDeskStaffPermissions = [
+            PosPermissions::PERM_REPORTS_VIEW,
+            HrFinancePermissions::PERM_EXPENSES_VIEW,
+            HrFinancePermissions::PERM_EXPENSES_CREATE,
+            HrFinancePermissions::PERM_ATTENDANCE_VIEW,
+            HrFinancePermissions::PERM_ATTENDANCE_CREATE,
+        ];
+        $cashier->givePermissionTo($shiftDeskStaffPermissions);
+        $captain->givePermissionTo($shiftDeskStaffPermissions);
 
         // Accountant — reports.view (reused), expenses.*, payroll.view, commissions.view.
         $accountant->givePermissionTo([

@@ -350,7 +350,7 @@ test('admin can view subscription summary', function (): void {
         'price_paid' => '100.00',
     ]);
     $addonPlan = Plan::factory()->active()->create(['category' => 'nutrition']);
-    SubscriptionAddon::create([
+    $addon = SubscriptionAddon::create([
         'subscription_id' => $activeSubscription->id,
         'member_id' => $member->id,
         'plan_id' => $addonPlan->id,
@@ -359,17 +359,48 @@ test('admin can view subscription summary', function (): void {
         'status' => 'active',
         'price_paid' => '75.00',
     ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $activeSubscription->id,
+        'amount' => '100.00',
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
+    Payment::factory()->create([
+        'payable_type' => SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '75.00',
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
+
+    $stopped = Subscription::factory()->stopped()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '50.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $stopped->id,
+        'amount' => '50.00',
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $stopped->id,
+        'amount' => '-50.00',
+        'status' => 'refunded',
+        'paid_at' => now(),
+    ]);
+
     Subscription::factory()->expired()->create([
         'member_id' => $member->id,
         'plan_id' => $plan->id,
         'price_paid' => '200.00',
     ]);
-    Subscription::factory()->stopped()->create([
-        'member_id' => $member->id,
-        'plan_id' => $plan->id,
-        'price_paid' => '50.00',
-    ]);
 
+    // Revenue = net collected on active/frozen only (100 + 75). Stopped/expired ignored.
     $this->getJson('/api/v1/subscriptions/summary')
         ->assertStatus(200)
         ->assertJsonPath('data.total', 3)
@@ -377,7 +408,8 @@ test('admin can view subscription summary', function (): void {
         ->assertJsonPath('data.expired', 1)
         ->assertJsonPath('data.stopped', 1)
         ->assertJsonPath('data.expiring_soon', 1)
-        ->assertJsonPath('data.revenue', '425.00');
+        ->assertJsonPath('data.revenue', '175.00')
+        ->assertJsonPath('data.outstanding_dues_count', 0);
 });
 
 test('subscription summary can filter by status', function (): void {
@@ -385,15 +417,30 @@ test('subscription summary can filter by status', function (): void {
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
 
-    Subscription::factory()->active()->create(['price_paid' => '100.00']);
-    Subscription::factory()->expired()->create(['price_paid' => '200.00']);
+    $active = Subscription::factory()->active()->create(['price_paid' => '100.00']);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $active->id,
+        'amount' => '100.00',
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
+    $expired = Subscription::factory()->expired()->create(['price_paid' => '200.00']);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $expired->id,
+        'amount' => '200.00',
+        'status' => 'paid',
+        'paid_at' => now(),
+    ]);
 
+    // Filter status=expired has no active/frozen rows → net tracked revenue is 0.
     $this->getJson('/api/v1/subscriptions/summary?filter[status]=expired')
         ->assertStatus(200)
         ->assertJsonPath('data.total', 1)
         ->assertJsonPath('data.active', 0)
         ->assertJsonPath('data.expired', 1)
-        ->assertJsonPath('data.revenue', '200.00');
+        ->assertJsonPath('data.revenue', '0.00');
 });
 
 test('admin can show a subscription', function (): void {

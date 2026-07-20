@@ -11,12 +11,27 @@ import { FormSelect, FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 import { deactivateShift, saveShift, updateSettings } from "../../settings/_components/actions";
 import type { DashboardSettings, EmployeeShift } from "../../settings/_components/data";
 import { SettingsActionButton, SettingsActionForm } from "../../settings/_components/settings-action-form";
 
-export async function StaffOperations({ settings, shifts }: { settings: DashboardSettings; shifts: EmployeeShift[] }) {
+type StaffEmployeeOption = {
+  id: number;
+  name: string;
+  shift?: { id: number } | null;
+};
+
+export async function StaffOperations({
+  settings,
+  shifts,
+}: {
+  settings: DashboardSettings;
+  shifts: EmployeeShift[];
+  /** @deprecated kept for call-site compatibility; weekly weekday off days do not need employee lists */
+  employees?: StaffEmployeeOption[];
+}) {
   const t = await getTranslations("Dashboard.settings");
   const payroll = settings.payroll ?? { default_pay_day: 30, schedule_mode: "fixed" as const };
   const payrollScheduleMode = payroll.schedule_mode;
@@ -106,7 +121,7 @@ export async function StaffOperations({ settings, shifts }: { settings: Dashboar
             <p className="text-muted-foreground text-xs">{t("shiftFormHint")}</p>
             <SettingsActionForm
               action={saveShift}
-              className="grid items-end gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(14rem,1.15fr)_minmax(10rem,1fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
+              className="grid items-end gap-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
             >
               <input type="hidden" name="id" value="0" />
               <CompactField label={t("shiftName")}>
@@ -126,7 +141,6 @@ export async function StaffOperations({ settings, shifts }: { settings: Dashboar
                   defaultValue={settings.attendance.default_grace_minutes}
                 />
               </CompactField>
-              <ShiftPolicyFields offDays={[]} bonusEnabled={false} bonusAmount="0.00" t={t} />
               <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
                 <Checkbox id="new-shift-active" name="is_active" defaultChecked />
                 <Label htmlFor="new-shift-active">{t("active")}</Label>
@@ -136,13 +150,16 @@ export async function StaffOperations({ settings, shifts }: { settings: Dashboar
                   {t("createShift")}
                 </Button>
               </div>
+              <div className="lg:col-span-2 2xl:col-span-6">
+                <ShiftPolicyFields offDays={[]} bonusEnabled={false} bonusAmount="0.00" t={t} />
+              </div>
             </SettingsActionForm>
 
             {shifts.map((shift) => (
               <SettingsActionForm
                 key={`edit-${shift.id}`}
                 action={saveShift}
-                className="grid items-end gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(14rem,1.15fr)_minmax(10rem,1fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
+                className="grid items-end gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
               >
                 <input type="hidden" name="id" value={shift.id} />
                 <CompactField label={t("shiftName")}>
@@ -157,13 +174,6 @@ export async function StaffOperations({ settings, shifts }: { settings: Dashboar
                 <CompactField label={t("graceMinutes")}>
                   <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
                 </CompactField>
-                <ShiftPolicyFields
-                  offDays={shift.off_days}
-                  bonusEnabled={shift.off_day_bonus_enabled}
-                  bonusAmount={shift.off_day_bonus_amount}
-                  t={t}
-                  shiftId={shift.id}
-                />
                 <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
                   <Checkbox id={`shift-${shift.id}-active`} name="is_active" defaultChecked={shift.is_active} />
                   <Label htmlFor={`shift-${shift.id}-active`}>{t("active")}</Label>
@@ -175,6 +185,15 @@ export async function StaffOperations({ settings, shifts }: { settings: Dashboar
                   <SettingsActionButton action={deactivateShift} formData={{ id: String(shift.id) }}>
                     {t("deactivate")}
                   </SettingsActionButton>
+                </div>
+                <div className="lg:col-span-2 2xl:col-span-6">
+                  <ShiftPolicyFields
+                    offDays={shift.off_days}
+                    bonusEnabled={shift.off_day_bonus_enabled}
+                    bonusAmount={shift.off_day_bonus_amount}
+                    t={t}
+                    shiftId={shift.id}
+                  />
                 </div>
               </SettingsActionForm>
             ))}
@@ -194,14 +213,15 @@ function CompactField({ children, label }: { children: React.ReactNode; label: s
   );
 }
 
+/** Fixed weekly off days: 0=Sunday … 6=Saturday (matches backend Carbon / PHP weekday numbers). */
 const weekDays = [
-  { labelKey: "weekdays.sun", value: 0 },
-  { labelKey: "weekdays.mon", value: 1 },
-  { labelKey: "weekdays.tue", value: 2 },
-  { labelKey: "weekdays.wed", value: 3 },
-  { labelKey: "weekdays.thu", value: 4 },
-  { labelKey: "weekdays.fri", value: 5 },
-  { labelKey: "weekdays.sat", value: 6 },
+  { labelKey: "weekday0", value: 0 },
+  { labelKey: "weekday1", value: 1 },
+  { labelKey: "weekday2", value: 2 },
+  { labelKey: "weekday3", value: 3 },
+  { labelKey: "weekday4", value: 4 },
+  { labelKey: "weekday5", value: 5 },
+  { labelKey: "weekday6", value: 6 },
 ] as const;
 
 function ShiftPolicyFields({
@@ -218,21 +238,37 @@ function ShiftPolicyFields({
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
-    <>
-      <CompactField label={t("offDays")}>
-        <div className="flex min-h-9 flex-wrap gap-2 rounded-md border px-2 py-1.5">
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-2 sm:col-span-2">
+        <div className="font-medium text-muted-foreground text-xs">{t("offDays")}</div>
+        <p className="text-muted-foreground text-xs">{t("offDaysHelp")}</p>
+        <div className="flex flex-wrap gap-2">
           {weekDays.map((day) => {
             const id = `shift-${shiftId}-off-day-${day.value}`;
+            const selected = offDays.includes(day.value);
 
             return (
-              <label className="flex cursor-pointer items-center gap-1 text-xs" htmlFor={id} key={day.value}>
-                <Checkbox id={id} name="off_days" value={String(day.value)} checked={offDays.includes(day.value)} />
+              <label
+                key={day.value}
+                htmlFor={id}
+                className={cn(
+                  "inline-flex cursor-pointer select-none items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                  "hover:bg-muted has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary has-[[data-checked]]:text-primary-foreground",
+                )}
+              >
+                <Checkbox
+                  id={id}
+                  name="off_days"
+                  value={String(day.value)}
+                  defaultChecked={selected}
+                  className="size-3.5"
+                />
                 <span>{t(day.labelKey)}</span>
               </label>
             );
           })}
         </div>
-      </CompactField>
+      </div>
       <CompactField label={t("offDayBonus")}>
         <div className="grid gap-2">
           <label
@@ -249,7 +285,7 @@ function ShiftPolicyFields({
           <Input name="off_day_bonus_amount" type="number" min={0} step="0.01" defaultValue={bonusAmount} />
         </div>
       </CompactField>
-    </>
+    </div>
   );
 }
 

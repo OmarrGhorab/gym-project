@@ -9,19 +9,24 @@ class PaymentObserver
 {
     public function created(Payment $payment): void
     {
-        Cache::forget('dashboard:summary:v1');
-        Cache::forget('dashboard:summary:v2');
+        $this->forgetDashboardSummary();
     }
 
     public function updated(Payment $payment): void
     {
-        Cache::forget('dashboard:summary:v1');
-        Cache::forget('dashboard:summary:v2');
+        $this->forgetDashboardSummary();
     }
 
     public function deleted(Payment $payment): void
     {
+        $this->forgetDashboardSummary();
+    }
+
+    private function forgetDashboardSummary(): void
+    {
         Cache::forget('dashboard:summary:v1');
         Cache::forget('dashboard:summary:v2');
+            Cache::forget('dashboard:summary:v3');
+        Cache::forget('dashboard:summary:v3');
     }
 }

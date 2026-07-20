@@ -20,6 +20,11 @@ export type DashboardSettings = {
     default_pay_day: number;
     schedule_mode: "fixed" | "per_employee";
   };
+  shifts?: {
+    handover_auto_accept: boolean;
+    handover_auto_accept_on_match_only: boolean;
+    require_handover_to_open: boolean;
+  };
   receipt_template: string;
   reminder_days: number[];
   vat_rate: number;
@@ -35,6 +40,18 @@ export type EmployeeShift = {
   off_day_bonus_enabled: boolean;
   off_day_bonus_amount: string;
   is_active: boolean;
+  off_rotation?: {
+    id: number;
+    off_weekday: number;
+    rotation_start_date: string | null;
+    employee_order: number[];
+    is_active: boolean;
+  } | null;
+  rotation_preview?: Array<{
+    week_start: string;
+    off_date: string;
+    employee_id: number | null;
+  }>;
 };
 
 export type ViolationRule = {
@@ -70,6 +87,11 @@ const emptySettings: DashboardSettings = {
   payroll: {
     default_pay_day: 30,
     schedule_mode: "fixed",
+  },
+  shifts: {
+    handover_auto_accept: false,
+    handover_auto_accept_on_match_only: true,
+    require_handover_to_open: true,
   },
   receipt_template: "default",
   reminder_days: [7],

@@ -19,6 +19,7 @@ class Expense extends Model
         'description',
         'date',
         'created_by',
+        'shift_session_id',
     ];
 
     protected $casts = [

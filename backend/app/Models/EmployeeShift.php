@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -44,5 +45,10 @@ class EmployeeShift extends Model
     public function employees(): HasMany
     {
         return $this->hasMany(Employee::class, 'shift_id');
+    }
+
+    public function offRotation(): HasOne
+    {
+        return $this->hasOne(ShiftOffRotation::class, 'employee_shift_id');
     }
 }

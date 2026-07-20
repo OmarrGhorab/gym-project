@@ -37,6 +37,7 @@ export type PlanRow = {
   access_ends_at: string | null;
   max_freeze_days: number;
   access_grace_days: number;
+  cancellation_grace_days: number;
   min_freeze_days: number;
   freeze_requires_approval: boolean;
   created_at: string | null;

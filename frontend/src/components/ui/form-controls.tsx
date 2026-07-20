@@ -75,9 +75,15 @@ export function FormSelect({
 }: FormSelectProps) {
   const errorId = React.useId();
   const t = useTranslations("Dashboard.formControls");
-  const initialValue = defaultValue === null || defaultValue === undefined || defaultValue === "" ? null : String(defaultValue);
+  const initialValue =
+    defaultValue === null || defaultValue === undefined || defaultValue === "" ? null : String(defaultValue);
   const isControlled = controlledValue !== undefined;
-  const currentValue = controlledValue === null || controlledValue === undefined || controlledValue === "" ? null : String(controlledValue);
+  const currentValue =
+    controlledValue === null || controlledValue === undefined || controlledValue === ""
+      ? null
+      : String(controlledValue);
+  // Always drive Combobox as controlled so Base UI never sees a changing defaultValue
+  // when options load/change after mount (common with FormSelect + async option lists).
   const [internalValue, setInternalValue] = React.useState<string | null>(initialValue);
   const [query, setQuery] = React.useState("");
   const value = isControlled ? currentValue : internalValue;
@@ -86,10 +92,12 @@ export function FormSelect({
       return null;
     }
 
-    return options.find((option) => option.value === value) ?? {
-      label: controlledSelectedLabel ?? value,
-      value,
-    };
+    return (
+      options.find((option) => option.value === value) ?? {
+        label: controlledSelectedLabel ?? value,
+        value,
+      }
+    );
   }, [controlledSelectedLabel, options, value]);
 
   React.useEffect(() => {
@@ -109,9 +117,9 @@ export function FormSelect({
       autoHighlight
       disabled={disabled}
       id={id}
-      isItemEqualToValue={(left, right) => left.value === right.value}
-      itemToStringLabel={(option) => getOptionSearchText(option.label)}
-      itemToStringValue={(option) => option.value}
+      isItemEqualToValue={(left, right) => left?.value === right?.value}
+      itemToStringLabel={(option) => getOptionSearchText(option?.label)}
+      itemToStringValue={(option) => option?.value ?? ""}
       items={options}
       name={name}
       onInputValueChange={(nextQuery) => setQuery(nextQuery)}
@@ -126,8 +134,7 @@ export function FormSelect({
         onValueChange?.(nextValue);
       }}
       required={required}
-      value={isControlled ? selectedOption : undefined}
-      defaultValue={isControlled ? undefined : selectedOption}
+      value={selectedOption}
     >
       <ComboboxInput
         aria-describedby={error ? errorId : undefined}

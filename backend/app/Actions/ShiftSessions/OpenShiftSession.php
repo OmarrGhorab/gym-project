@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Actions\ShiftSessions;
+
+use App\Models\EmployeeShift;
+use App\Models\Setting;
+use App\Models\ShiftSession;
+use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class OpenShiftSession
+{
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function handle(array $data, User $user): ShiftSession
+    {
+        return DB::transaction(function () use ($data, $user): ShiftSession {
+            $shift = EmployeeShift::query()->findOrFail($data['employee_shift_id']);
+
+            $alreadyOpen = ShiftSession::query()
+                ->where('employee_shift_id', $shift->id)
+                ->where('status', ShiftSession::STATUS_OPEN)
+                ->exists();
+
+            if ($alreadyOpen) {
+                throw ValidationException::withMessages([
+                    'employee_shift_id' => 'This shift already has an open session.',
+                ]);
+            }
+
+            $requireHandover = (bool) $this->setting('shifts.require_handover_to_open', true);
+            $previous = ShiftSession::query()
+                ->whereIn('status', [
+                    ShiftSession::STATUS_PENDING_HANDOVER,
+                    ShiftSession::STATUS_PENDING_ADMIN,
+                    ShiftSession::STATUS_DISPUTED,
+                ])
+                ->orderByDesc('closed_at')
+                ->first();
+
+            if ($requireHandover && $previous && empty($data['force_open'])) {
+                throw ValidationException::withMessages([
+                    'previous_session' => 'Previous shift session #'.$previous->id.' must be handed over before opening a new one.',
+                ]);
+            }
+
+            $lastResolved = ShiftSession::query()
+                ->whereIn('status', [ShiftSession::STATUS_ACCEPTED, ShiftSession::STATUS_AUTO_ACCEPTED])
+                ->orderByDesc('closed_at')
+                ->first();
+
+            $openingFloat = array_key_exists('opening_float', $data)
+                ? bcadd((string) $data['opening_float'], '0.00', 2)
+                : bcadd((string) ($lastResolved?->counted_cash ?? $lastResolved?->expected_cash ?? '0.00'), '0.00', 2);
+
+            $businessDate = isset($data['business_date'])
+                ? Carbon::parse($data['business_date'])->toDateString()
+                : Carbon::today()->toDateString();
+
+            return ShiftSession::query()->create([
+                'employee_shift_id' => $shift->id,
+                'business_date' => $businessDate,
+                'opened_at' => now(),
+                'opened_by' => $user->id,
+                'status' => ShiftSession::STATUS_OPEN,
+                'opening_float' => $openingFloat,
+                'previous_session_id' => $lastResolved?->id ?? $previous?->id,
+            ])->load(['shift', 'openedBy']);
+        });
+    }
+
+    private function setting(string $key, mixed $default = null): mixed
+    {
+        $row = Setting::query()->where('key', $key)->first();
+
+        if (! $row) {
+            return $default;
+        }
+
+        $value = $row->value;
+
+        if (is_array($value) && array_key_exists('value', $value)) {
+            return $value['value'];
+        }
+
+        return $value ?? $default;
+    }
+}

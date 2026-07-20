@@ -13,50 +13,106 @@ type ApiEnvelope<T> = {
 
 type ApiErrorDetails = Record<string, string[] | string | undefined>;
 
-const apiEnvelopeSchema = z.object({
-  data: z.unknown(),
-  message: z.string().optional(),
-  meta: z.record(z.string(), z.unknown()).optional(),
-});
-
-const apiErrorPayloadSchema = apiEnvelopeSchema.extend({
-  error: z
-    .object({
-      details: z.record(z.string(), z.union([z.array(z.string()), z.string()])).optional(),
-      message: z.string().optional(),
-    })
-    .optional(),
-});
+/**
+ * Backend success: { data, message?, meta? }
+ * Backend errors:  { error: { code, message, details } }  (no data key)
+ * Also accept Laravel-style: { message, errors }
+ */
+const apiPayloadSchema = z
+  .object({
+    data: z.unknown().optional(),
+    message: z.string().optional(),
+    meta: z.record(z.string(), z.unknown()).optional(),
+    error: z
+      .object({
+        code: z.string().optional(),
+        // Object map, empty object, or rarely an array — keep loose so we never mask the real message.
+        details: z.unknown().optional(),
+        message: z.string().optional(),
+      })
+      .optional(),
+    // Laravel default validation shape (if any route skips our exception map)
+    errors: z.unknown().optional(),
+  })
+  .passthrough();
 
 export async function serverApiFetch<T>(path: string, init: RequestInit = {}): Promise<ApiEnvelope<T>> {
   const token = await requireAuth();
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-      ...init.headers,
-    },
-    cache: "no-store",
-  });
+  let response: Response;
 
-  const rawPayload: unknown = await response.json().catch(() => ({}));
-  const parsedPayload = apiErrorPayloadSchema.safeParse(rawPayload);
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        ...init.headers,
+      },
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? `Could not reach the API (${error.message}).`
+        : "Could not reach the API.",
+    );
+  }
+
+  const rawText = await response.text();
+  let rawPayload: unknown = {};
+
+  if (rawText.trim()) {
+    try {
+      rawPayload = JSON.parse(rawText);
+    } catch {
+      throw new Error(
+        response.ok
+          ? "The API returned a non-JSON response."
+          : `API error ${response.status}: ${rawText.slice(0, 180).trim() || response.statusText}`,
+      );
+    }
+  }
+
+  const parsedPayload = apiPayloadSchema.safeParse(rawPayload);
 
   if (!parsedPayload.success) {
-    throw new Error("The API returned an invalid response.");
+    throw new Error(
+      response.ok
+        ? "The API returned an invalid response."
+        : getApiErrorMessage(
+            typeof rawPayload === "object" && rawPayload && "message" in rawPayload
+              ? String((rawPayload as { message?: unknown }).message ?? response.statusText)
+              : `API error ${response.status}`,
+            typeof rawPayload === "object" && rawPayload && "errors" in rawPayload
+              ? ((rawPayload as { errors?: ApiErrorDetails }).errors ?? undefined)
+              : undefined,
+          ),
+    );
   }
 
   const payload = parsedPayload.data;
 
   if (!response.ok) {
+    const details = normalizeErrorDetails(payload.error?.details ?? payload.errors);
     throw new Error(
-      getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, payload.error?.details),
+      getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, details),
     );
   }
 
-  return payload as ApiEnvelope<T>;
+  return {
+    data: payload.data as T,
+    message: payload.message,
+    meta: payload.meta,
+  };
+}
+
+function normalizeErrorDetails(details: unknown): ApiErrorDetails | undefined {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return undefined;
+  }
+
+  return details as ApiErrorDetails;
 }
 
 function getApiErrorMessage(message: string, details?: ApiErrorDetails) {

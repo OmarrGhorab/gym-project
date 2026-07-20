@@ -18,7 +18,9 @@ class UpgradeSubscriptionRequest extends FormRequest
     {
         return [
             'plan_id' => ['required', 'integer', 'exists:plans,id'],
+            'credit_mode' => ['nullable', 'string', 'in:full_difference,day_proration'],
             'discount' => ['nullable', 'numeric', 'min:0'],
+            'amount_due' => ['nullable', 'numeric', 'min:0'],
             'payment.amount' => ['required', 'numeric', 'min:0'],
             'payment.method' => ['required', 'string', 'max:50'],
             'payment.paid_at' => ['nullable', 'date'],

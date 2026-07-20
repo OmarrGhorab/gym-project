@@ -43,11 +43,15 @@ class SettingResource extends JsonResource
                 'gym_radius_meters' => isset($settings['attendance.gym_radius_meters']) ? (int) $settings['attendance.gym_radius_meters'] : 150,
                 'default_grace_minutes' => isset($settings['attendance.default_grace_minutes']) ? (int) $settings['attendance.default_grace_minutes'] : 15,
             ],
+            'shifts' => [
+                'handover_auto_accept' => (bool) ($settings['shifts.handover_auto_accept'] ?? false),
+                'handover_auto_accept_on_match_only' => (bool) ($settings['shifts.handover_auto_accept_on_match_only'] ?? true),
+                'require_handover_to_open' => (bool) ($settings['shifts.require_handover_to_open'] ?? true),
+            ],
         ];
     }
 
     /**
-     * @param  mixed  $value
      * @return array<int, int>
      */
     private function normalizeReminderDays(mixed $value): array

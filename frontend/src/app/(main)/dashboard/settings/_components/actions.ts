@@ -26,6 +26,9 @@ const settingsSchema = z.object({
   reminder_days: z
     .array(z.coerce.number().int().min(0, "Reminder days cannot be negative."))
     .min(1, "Add at least one reminder day."),
+  shifts_handover_auto_accept: z.boolean(),
+  shifts_handover_auto_accept_on_match_only: z.boolean(),
+  shifts_require_handover_to_open: z.boolean(),
 });
 
 const shiftSchema = z.object({
@@ -77,6 +80,13 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
     payroll_default_pay_day: input.get("payroll.default_pay_day") || "30",
     payroll_schedule_mode: input.get("payroll.schedule_mode") || "fixed",
     reminder_days: parseReminderDays(input.get("reminder_days")),
+    shifts_handover_auto_accept:
+      input.get("shifts.handover_auto_accept") === "on" || input.get("shifts.handover_auto_accept") === "true",
+    shifts_handover_auto_accept_on_match_only:
+      input.get("shifts.handover_auto_accept_on_match_only") === "on" ||
+      input.get("shifts.handover_auto_accept_on_match_only") === "true",
+    shifts_require_handover_to_open:
+      input.get("shifts.require_handover_to_open") === "on" || input.get("shifts.require_handover_to_open") === "true",
   });
 
   if (!parsed.success) {
@@ -93,6 +103,11 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
     payroll: {
       default_pay_day: parsed.data.payroll_default_pay_day,
       schedule_mode: parsed.data.payroll_schedule_mode,
+    },
+    shifts: {
+      handover_auto_accept: parsed.data.shifts_handover_auto_accept,
+      handover_auto_accept_on_match_only: parsed.data.shifts_handover_auto_accept_on_match_only,
+      require_handover_to_open: parsed.data.shifts_require_handover_to_open,
     },
     reminder_days: parsed.data.reminder_days,
   };
@@ -111,6 +126,8 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/infrastructure");
+  revalidatePath("/dashboard/finance");
+  revalidatePath("/dashboard/academy/staff");
 
   return { ok: true, message: "Settings saved.", errors: {} };
 }
@@ -157,9 +174,111 @@ export async function saveShift(input: FormData): Promise<SettingsActionResult> 
   }
 
   revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/academy/staff");
   revalidatePath("/dashboard/attendance");
 
   return { ok: true, message: id > 0 ? "Shift saved." : "Shift created.", errors: {} };
+}
+
+export async function saveShiftOffRotation(input: FormData): Promise<SettingsActionResult> {
+  const shiftId = z.coerce.number().int().positive("Shift is required.").safeParse(input.get("shift_id"));
+  const employeeOrder = input
+    .getAll("employee_order")
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  const parsed = z
+    .object({
+      is_active: z.boolean(),
+      off_weekday: z.coerce.number().int().min(0).max(6),
+      rotation_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid start date."),
+    })
+    .safeParse({
+      is_active: input.get("is_active") === "on" || input.get("is_active") === "true",
+      off_weekday: input.get("off_weekday") || "5",
+      rotation_start_date: input.get("rotation_start_date") || "",
+    });
+
+  if (!shiftId.success) {
+    return { ok: false, message: "Shift is required.", errors: { shift_id: ["Shift is required."] } };
+  }
+
+  if (!parsed.success) {
+    return invalidResult("Please fix the rotation fields.", parsed.error);
+  }
+
+  if (employeeOrder.length === 0) {
+    return {
+      ok: false,
+      message: "Select at least one employee for the rotation order.",
+      errors: { employee_order: ["Select at least one employee."] },
+    };
+  }
+
+  try {
+    await serverApiFetch(`/attendance/shifts/${shiftId.data}/off-rotation`, {
+      body: JSON.stringify({
+        employee_order: employeeOrder,
+        is_active: parsed.data.is_active,
+        off_weekday: parsed.data.off_weekday,
+        rotation_start_date: parsed.data.rotation_start_date,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+  } catch (error) {
+    return errorResult(error, "Could not save off-day rotation.");
+  }
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/academy/staff");
+  revalidatePath("/dashboard/attendance");
+
+  return { ok: true, message: "Off-day rotation saved.", errors: {} };
+}
+
+export async function saveOffDayOverride(input: FormData): Promise<SettingsActionResult> {
+  const parsed = z
+    .object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
+      employee_id: z.coerce.number().int().positive("Employee is required."),
+      notes: z.string().trim().max(1000).optional(),
+      type: z.enum(["off", "work"]),
+    })
+    .safeParse({
+      date: input.get("date") || "",
+      employee_id: input.get("employee_id"),
+      notes: input.get("notes") || undefined,
+      type: input.get("type") || "off",
+    });
+
+  if (!parsed.success) {
+    return invalidResult("Please fix the off-day override fields.", parsed.error);
+  }
+
+  try {
+    await serverApiFetch("/attendance/off-day-overrides", {
+      body: JSON.stringify({
+        date: parsed.data.date,
+        employee_id: parsed.data.employee_id,
+        notes: parsed.data.notes || null,
+        type: parsed.data.type,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+  } catch (error) {
+    return errorResult(error, "Could not save off-day override.");
+  }
+
+  revalidatePath("/dashboard/academy/staff");
+  revalidatePath("/dashboard/attendance");
+
+  return { ok: true, message: "Off-day override saved.", errors: {} };
 }
 
 export async function deactivateShift(input: FormData): Promise<SettingsActionResult> {
@@ -178,6 +297,7 @@ export async function deactivateShift(input: FormData): Promise<SettingsActionRe
   }
 
   revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/academy/staff");
   revalidatePath("/dashboard/attendance");
 
   return { ok: true, message: "Shift deactivated.", errors: {} };

@@ -24,9 +24,12 @@ final class ApiResponse
         array $meta = [],
         int $status = 200,
     ): JsonResponse {
+        // Preserve explicit null (e.g. "no open shift session"). Only coerce
+        // undefined-style emptiness when callers omit data entirely is already null.
+        // Empty array stays []; empty object is not used as a null stand-in.
         return response()->json([
-            'data' => $data ?? (object) [],
-            'meta' => (object) $meta,
+            'data' => $data,
+            'meta' => empty($meta) ? (object) [] : $meta,
             'message' => $message,
         ], $status);
     }

@@ -15,10 +15,10 @@ use Spatie\Permission\PermissionRegistrar;
  * Role matrix:
  *   Admin      — all membership permissions
  *   Manager    — all membership permissions except *.delete
- *   Cashier    — members.view/create/update, subscriptions.view/create/renew,
- *                payments.view/create
+ *   Cashier    — members.view/create/update, subscriptions.view/create/renew/upgrade,
+ *                payments.view/create (shift desk money + sell memberships)
  *   Accountant — payments.view, members.view, subscriptions.view, dashboard.view
- *   Captain    — subscriptions.view
+ *   Captain    — subscriptions.view (+ shift desk perms added in RoleMatrixSeeder)
  *
  * Idempotent — uses firstOrCreate so re-running does not create duplicates.
  * Roles themselves are created by FoundationAccessSeeder (which must run first).
@@ -55,8 +55,7 @@ class MembershipAccessSeeder extends Seeder
         ));
         $manager->givePermissionTo($managerPermissions);
 
-        // Cashier — sell subscriptions and receive payments; cannot manage plans
-        // or access reporting/dashboard.
+        // Cashier — sell subscriptions, receive payments, and run shift desk money tracking.
         $cashier->givePermissionTo([
             MembershipPermissions::PERM_MEMBERS_VIEW,
             MembershipPermissions::PERM_MEMBERS_CREATE,
@@ -67,6 +66,7 @@ class MembershipAccessSeeder extends Seeder
             MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE,
             MembershipPermissions::PERM_PAYMENTS_VIEW,
             MembershipPermissions::PERM_PAYMENTS_CREATE,
+            MembershipPermissions::PERM_DASHBOARD_VIEW,
         ]);
 
         // Accountant — read-only reporting: dues, revenue, member/subscription
