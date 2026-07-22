@@ -51,4 +51,16 @@ Route::prefix('reports')->group(function (): void {
 
     Route::get('/employees', [ReportController::class, 'employees'])
         ->middleware('permission:reports.view');
+
+    Route::get('/classes-plans', [ReportController::class, 'classesPlans'])
+        ->middleware('permission:reports.view');
+
+    Route::get('/products-finance', [ReportController::class, 'productsFinance'])
+        ->middleware('permission:reports.view');
+
+    Route::get('/subs-shifts', [ReportController::class, 'subsShifts'])
+        ->middleware('permission:reports.view');
+
+    Route::get('/income-outcome', [ReportController::class, 'incomeOutcome'])
+        ->middleware('permission:reports.view');
 });

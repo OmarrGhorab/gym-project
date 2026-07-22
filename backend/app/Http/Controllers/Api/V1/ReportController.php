@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Reports\ClassesPlansReport;
 use App\Actions\Reports\CoachExtraPlansReport;
 use App\Actions\Reports\EmployeePerformanceReport;
 use App\Actions\Reports\FinanceDashboardSummary;
 use App\Actions\Reports\FinancialReport;
+use App\Actions\Reports\IncomeOutcomeReport;
 use App\Actions\Reports\InventoryLogisticsSummary;
 use App\Actions\Reports\LiveAttendanceSummary;
 use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
+use App\Actions\Reports\ProductsFinanceReport;
 use App\Actions\Reports\StaffAcademySummary;
+use App\Actions\Reports\SubsShiftsReport;
 use App\Actions\Reports\SystemHealthSummary;
 use App\Actions\Settings\StoreSetting;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
@@ -232,6 +236,66 @@ final class ReportController extends ApiController
                 'prev_cursor' => $report->previousCursor()?->encode(),
                 'per_page' => $report->perPage(),
             ]
+        );
+    }
+
+    public function classesPlans(Request $request, ClassesPlansReport $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'plan_id' => ['nullable', 'integer', 'exists:plans,id'],
+            'status' => ['nullable', 'string'],
+        ]);
+
+        return $this->success(
+            data: $action->execute($validated),
+            message: 'Classes and plans report retrieved',
+        );
+    }
+
+    public function productsFinance(Request $request, ProductsFinanceReport $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'category' => ['nullable', 'string'],
+            'search' => ['nullable', 'string'],
+            'payment_method' => ['nullable', 'string'],
+        ]);
+
+        return $this->success(
+            data: $action->execute($validated),
+            message: 'Products finance report retrieved',
+        );
+    }
+
+    public function subsShifts(Request $request, SubsShiftsReport $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'created_by' => ['nullable', 'integer'],
+            'status' => ['nullable', 'string'],
+        ]);
+
+        return $this->success(
+            data: $action->execute($validated),
+            message: 'Subscriptions and shifts report retrieved',
+        );
+    }
+
+    public function incomeOutcome(Request $request, IncomeOutcomeReport $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'group_by' => ['nullable', 'string', Rule::in(['day', 'month'])],
+        ]);
+
+        return $this->success(
+            data: $action->execute($validated),
+            message: 'Income vs outcome report retrieved',
         );
     }
 

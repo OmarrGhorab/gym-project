@@ -4,6 +4,7 @@ import {
   ChartBar,
   CheckSquare,
   ClipboardList,
+  FileSpreadsheet,
   Forklift,
   Gauge,
   GraduationCap,
@@ -67,6 +68,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Overview",
         url: "/dashboard/default",
         icon: LayoutDashboard,
+      },
+      {
+        id: "reports",
+        title: "Reports Hub",
+        url: "/dashboard/reports",
+        icon: FileSpreadsheet,
       },
       {
         id: "crm",

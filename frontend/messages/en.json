@@ -10,6 +10,7 @@
       },
       "items": {
         "default": "Overview",
+        "reports": "Reports Hub",
         "crm": "Memberships",
         "finance": "Finance",
         "analytics": "Live Analytics",
