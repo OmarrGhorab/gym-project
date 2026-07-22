@@ -42,7 +42,14 @@ final class ClassesPlansReport
             $expiringSoonCount = Subscription::query()
                 ->where('plan_id', $plan->id)
                 ->where('status', 'active')
-                ->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                ->where(function ($q) {
+                    $q->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                        ->orWhere(function ($sq) {
+                            $sq->whereNotNull('sessions_total')
+                                ->where('sessions_total', '>', 0)
+                                ->where('sessions_remaining', '<=', 3);
+                        });
+                })
                 ->count();
 
             return [
@@ -65,6 +72,21 @@ final class ClassesPlansReport
                 if ($status === 'expiring_soon') {
                     $q->where('status', 'active')
                         ->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()]);
+                } elseif ($status === 'low_sessions') {
+                    $q->where('status', 'active')
+                        ->whereNotNull('sessions_total')
+                        ->where('sessions_total', '>', 0)
+                        ->where('sessions_remaining', '<=', 3);
+                } elseif ($status === 'ending_soon') {
+                    $q->where('status', 'active')
+                        ->where(function ($sq) {
+                            $sq->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                                ->orWhere(function ($ssq) {
+                                    $ssq->whereNotNull('sessions_total')
+                                        ->where('sessions_total', '>', 0)
+                                        ->where('sessions_remaining', '<=', 3);
+                                });
+                        });
                 } else {
                     $q->where('status', $status);
                 }
@@ -85,30 +107,84 @@ final class ClassesPlansReport
             ->where('status', 'active')
             ->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
             ->count();
+        $totalLowSessions = Subscription::query()
+            ->where('status', 'active')
+            ->whereNotNull('sessions_total')
+            ->where('sessions_total', '>', 0)
+            ->where('sessions_remaining', '<=', 3)
+            ->count();
+
         $periodNewSubs = Subscription::query()->whereBetween('created_at', [$from, $to])->count();
         $periodTotalRevenue = (float) Subscription::query()->whereBetween('created_at', [$from, $to])->sum('price_paid');
 
-        $subscriptions = $subscriptionsQuery->limit(100)->get()->map(fn (Subscription $sub): array => [
-            'id' => $sub->id,
-            'member_name' => $sub->member?->name ?? 'Unknown Member',
-            'plan_name' => $sub->plan?->name ?? 'Unknown Plan',
-            'start_date' => $sub->start_date?->toDateString(),
-            'end_date' => $sub->end_date?->toDateString(),
-            'status' => $sub->status,
-            'price_paid' => number_format((float) $sub->price_paid, 2, '.', ''),
-            'sold_by' => $sub->soldBy?->name ?? 'System',
-            'created_at' => $sub->created_at?->toIso8601String(),
-        ])->values()->all();
+        $formatSub = function (Subscription $sub): array {
+            $daysLeft = $sub->end_date ? (int) Carbon::today()->diffInDays($sub->end_date, false) : null;
+            $hasLowSessions = $sub->sessions_total !== null && $sub->sessions_total > 0 && $sub->sessions_remaining <= 3;
+            $isExpiringSoon = $daysLeft !== null && $daysLeft >= 0 && $daysLeft <= 7;
+
+            $attentionReason = 'normal';
+            if ($sub->status === 'expired' || ($daysLeft !== null && $daysLeft < 0)) {
+                $attentionReason = 'expired';
+            } elseif ($hasLowSessions && $isExpiringSoon) {
+                $attentionReason = 'both';
+            } elseif ($hasLowSessions) {
+                $attentionReason = 'low_sessions';
+            } elseif ($isExpiringSoon) {
+                $attentionReason = 'expiring_soon';
+            }
+
+            return [
+                'id' => $sub->id,
+                'member_name' => $sub->member?->name ?? 'Unknown Member',
+                'plan_name' => $sub->plan?->name ?? 'Unknown Plan',
+                'start_date' => $sub->start_date?->toDateString(),
+                'end_date' => $sub->end_date?->toDateString(),
+                'days_left' => $daysLeft,
+                'sessions_remaining' => $sub->sessions_remaining,
+                'sessions_total' => $sub->sessions_total,
+                'sessions_text' => $sub->sessions_total !== null && $sub->sessions_total > 0
+                    ? "{$sub->sessions_remaining} / {$sub->sessions_total}"
+                    : 'Unlimited',
+                'status' => $sub->status,
+                'attention_reason' => $attentionReason,
+                'price_paid' => number_format((float) $sub->price_paid, 2, '.', ''),
+                'sold_by' => $sub->soldBy?->name ?? 'System',
+                'created_at' => $sub->created_at?->toIso8601String(),
+            ];
+        };
+
+        $subscriptions = $subscriptionsQuery->limit(100)->get()->map($formatSub)->values()->all();
+
+        $endingSoonList = Subscription::query()
+            ->with(['member:id,name', 'plan:id,name', 'soldBy:id,name'])
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                    ->orWhere(function ($sq) {
+                        $sq->whereNotNull('sessions_total')
+                            ->where('sessions_total', '>', 0)
+                            ->where('sessions_remaining', '<=', 3);
+                    });
+            })
+            ->when($planId, fn ($q) => $q->where('plan_id', $planId))
+            ->latest('end_date')
+            ->get()
+            ->map($formatSub)
+            ->values()
+            ->all();
 
         return [
             'totals' => [
                 'active_members' => $totalActive,
                 'expired_members' => $totalExpired,
                 'expiring_soon' => $totalExpiringSoon,
+                'low_sessions' => $totalLowSessions,
+                'ending_soon_total' => count($endingSoonList),
                 'new_subscriptions_period' => $periodNewSubs,
                 'total_revenue_period' => number_format($periodTotalRevenue, 2, '.', ''),
             ],
             'plans_summary' => $plansTable,
+            'ending_soon_members' => $endingSoonList,
             'subscriptions' => $subscriptions,
         ];
     }

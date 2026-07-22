@@ -219,25 +219,64 @@ function ClassesPlansView({
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const plansSummary = (data.plans_summary as Record<string, unknown>[]) ?? [];
   const subscriptions = (data.subscriptions as Record<string, unknown>[]) ?? [];
+  const endingSoonMembers = (data.ending_soon_members as Record<string, unknown>[]) ?? [];
 
   function handleExport() {
-    const headers = ["Member Name", "Plan Name", "Start Date", "End Date", "Status", "Price Paid", "Sold By"];
+    const headers = [
+      "Member Name",
+      "Plan Name",
+      "Start Date",
+      "End Date",
+      "Days Left",
+      "Sessions Left",
+      "Status",
+      "Attention Reason",
+      "Price Paid",
+      "Sold By",
+    ];
     const rows = subscriptions.map((s) => [
       String(s.member_name ?? ""),
       String(s.plan_name ?? ""),
       String(s.start_date ?? ""),
       String(s.end_date ?? ""),
+      String(s.days_left ?? "N/A"),
+      String(s.sessions_text ?? "Unlimited"),
       String(s.status ?? ""),
+      String(s.attention_reason ?? "normal"),
       String(s.price_paid ?? "0.00"),
       String(s.sold_by ?? ""),
     ]);
     onExport("classes_plans_report", headers, rows);
   }
 
+  function handleExportEndingSoon() {
+    const headers = [
+      "Member Name",
+      "Plan Name",
+      "End Date",
+      "Days Left",
+      "Sessions Remaining",
+      "Reason",
+      "Price Paid",
+      "Sold By",
+    ];
+    const rows = endingSoonMembers.map((s) => [
+      String(s.member_name ?? ""),
+      String(s.plan_name ?? ""),
+      String(s.end_date ?? ""),
+      String(s.days_left ?? "N/A"),
+      String(s.sessions_text ?? "Unlimited"),
+      String(s.attention_reason ?? "ending_soon"),
+      String(s.price_paid ?? "0.00"),
+      String(s.sold_by ?? ""),
+    ]);
+    onExport("ending_soon_members_report", headers, rows);
+  }
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Active Members</CardDescription>
@@ -248,9 +287,17 @@ function ClassesPlansView({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Expiring Soon (7 Days)</CardDescription>
+            <CardDescription>Ending Soon (Date/Sessions)</CardDescription>
             <CardTitle className="text-2xl text-amber-600 dark:text-amber-400">
-              {String(totals.expiring_soon ?? 0)}
+              {String(totals.ending_soon_total ?? totals.expiring_soon ?? 0)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Low Sessions (≤ 3)</CardDescription>
+            <CardTitle className="text-2xl text-amber-600 dark:text-amber-400">
+              {String(totals.low_sessions ?? 0)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -270,6 +317,106 @@ function ClassesPlansView({
         </Card>
       </div>
 
+      {/* Dedicated Members Ending Soon or Low Sessions Table */}
+      <Card className="border-amber-500/30 bg-amber-500/5">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg text-amber-700 dark:text-amber-300 flex items-center gap-2">
+              Members Finishing Plan or Low Sessions
+            </CardTitle>
+            <CardDescription>Members whose plan ends within 7 days or have ≤ 3 remaining sessions</CardDescription>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleExportEndingSoon}>
+            <Download className="size-4 me-1.5" /> Export Ending List
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>End Date</TableHead>
+                <TableHead>Days Left</TableHead>
+                <TableHead>Sessions (Remaining / Total)</TableHead>
+                <TableHead>Attention Reason</TableHead>
+                <TableHead>Price Paid</TableHead>
+                <TableHead>Sold By</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {endingSoonMembers.map((sub) => {
+                const daysLeft = sub.days_left !== null && sub.days_left !== undefined ? Number(sub.days_left) : null;
+                const reason = String(sub.attention_reason ?? "ending_soon");
+
+                return (
+                  <TableRow key={String(sub.id)}>
+                    <TableCell className="font-medium">{String(sub.member_name)}</TableCell>
+                    <TableCell>{String(sub.plan_name)}</TableCell>
+                    <TableCell>{String(sub.end_date ?? "N/A")}</TableCell>
+                    <TableCell>
+                      {daysLeft !== null ? (
+                        <Badge
+                          variant="outline"
+                          className={
+                            daysLeft <= 3
+                              ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                          }
+                        >
+                          {daysLeft} days
+                        </Badge>
+                      ) : (
+                        "N/A"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          Number(sub.sessions_remaining) <= 3 && Number(sub.sessions_total) > 0
+                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
+                            : ""
+                        }
+                      >
+                        {String(sub.sessions_text ?? "Unlimited")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          reason === "both"
+                            ? "bg-rose-500/10 text-rose-600 border-rose-500/20 font-semibold"
+                            : reason === "low_sessions"
+                              ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                        }
+                      >
+                        {reason === "both"
+                          ? "Low Sessions & Expiring Soon"
+                          : reason === "low_sessions"
+                            ? "Low Sessions (≤ 3)"
+                            : "Expiring Soon (Date)"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>EGP {String(sub.price_paid)}</TableCell>
+                    <TableCell>{String(sub.sold_by)}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {endingSoonMembers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
+                    No members currently ending plan or low on sessions.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
       {/* Plans Breakdown Table */}
       <Card>
         <CardHeader>
@@ -284,7 +431,7 @@ function ClassesPlansView({
                 <TableHead>Price</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Active Members</TableHead>
-                <TableHead>Expiring Soon</TableHead>
+                <TableHead>Ending / Low Sessions</TableHead>
                 <TableHead>Expired</TableHead>
                 <TableHead>New Subs (Period)</TableHead>
                 <TableHead className="text-end">Revenue (Period)</TableHead>
@@ -332,7 +479,7 @@ function ClassesPlansView({
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-lg">Subscriptions & Members Details</CardTitle>
-            <CardDescription>Individual subscription breakdown</CardDescription>
+            <CardDescription>Individual subscription breakdown and session tracking</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <FormSelect
@@ -342,7 +489,9 @@ function ClassesPlansView({
               options={[
                 { label: "All Statuses", value: "" },
                 { label: "Active", value: "active" },
-                { label: "Expiring Soon", value: "expiring_soon" },
+                { label: "Ending Soon (Date & Sessions)", value: "ending_soon" },
+                { label: "Low Sessions (≤ 3 Left)", value: "low_sessions" },
+                { label: "Expiring by Date (7 Days)", value: "expiring_soon" },
                 { label: "Expired", value: "expired" },
                 { label: "Stopped", value: "stopped" },
               ]}
@@ -361,28 +510,74 @@ function ClassesPlansView({
                 <TableHead>Plan</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>End Date</TableHead>
+                <TableHead>Days Left</TableHead>
+                <TableHead>Sessions (Remaining / Total)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Price Paid</TableHead>
                 <TableHead>Sold By</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {subscriptions.map((sub) => (
-                <TableRow key={String(sub.id)}>
-                  <TableCell className="font-medium">{String(sub.member_name)}</TableCell>
-                  <TableCell>{String(sub.plan_name)}</TableCell>
-                  <TableCell>{String(sub.start_date ?? "N/A")}</TableCell>
-                  <TableCell>{String(sub.end_date ?? "N/A")}</TableCell>
-                  <TableCell>
-                    <Badge variant={sub.status === "active" ? "default" : "secondary"}>{String(sub.status)}</Badge>
-                  </TableCell>
-                  <TableCell>EGP {String(sub.price_paid)}</TableCell>
-                  <TableCell>{String(sub.sold_by)}</TableCell>
-                </TableRow>
-              ))}
+              {subscriptions.map((sub) => {
+                const daysLeft = sub.days_left !== null && sub.days_left !== undefined ? Number(sub.days_left) : null;
+                const reason = String(sub.attention_reason ?? "normal");
+
+                return (
+                  <TableRow key={String(sub.id)}>
+                    <TableCell className="font-medium">{String(sub.member_name)}</TableCell>
+                    <TableCell>{String(sub.plan_name)}</TableCell>
+                    <TableCell>{String(sub.start_date ?? "N/A")}</TableCell>
+                    <TableCell>{String(sub.end_date ?? "N/A")}</TableCell>
+                    <TableCell>
+                      {daysLeft !== null ? (
+                        <Badge
+                          variant="outline"
+                          className={
+                            daysLeft <= 3
+                              ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                              : daysLeft <= 7
+                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                : ""
+                          }
+                        >
+                          {daysLeft} days
+                        </Badge>
+                      ) : (
+                        "N/A"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          Number(sub.sessions_remaining) <= 3 && Number(sub.sessions_total) > 0
+                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
+                            : ""
+                        }
+                      >
+                        {String(sub.sessions_text ?? "Unlimited")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={sub.status === "active" ? "default" : "secondary"}
+                        className={
+                          reason === "low_sessions" || reason === "expiring_soon" || reason === "both"
+                            ? "bg-amber-500 text-white"
+                            : ""
+                        }
+                      >
+                        {String(sub.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>EGP {String(sub.price_paid)}</TableCell>
+                    <TableCell>{String(sub.sold_by)}</TableCell>
+                  </TableRow>
+                );
+              })}
               {subscriptions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-6 text-center text-muted-foreground">
                     No subscriptions match selected filters.
                   </TableCell>
                 </TableRow>
