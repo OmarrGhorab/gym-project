@@ -195,8 +195,7 @@ export async function getDefaultDashboardData(
   const membersMeta = getPaginationMeta("meta" in membersResult ? membersResult.meta : undefined, members.length);
 
   // Prefer dashboard/summary MembershipMetrics totals; only fill detail payloads from extra endpoints.
-  const summaryActive =
-    summaryResult.data.active_subscriptions ?? getCount(activeSubscriptionsResult.data) ?? 0;
+  const summaryActive = summaryResult.data.active_subscriptions ?? getCount(activeSubscriptionsResult.data) ?? 0;
 
   return {
     summary: {

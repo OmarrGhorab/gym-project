@@ -2,8 +2,11 @@
 
 namespace App\Actions\Subscriptions;
 
+use App\Actions\ShiftSessions\ResolveOpenShiftSession;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionRefund;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +20,7 @@ class UpgradeSubscription
 
     public function __construct(
         private readonly CreateSubscription $createSubscription,
+        private readonly ResolveOpenShiftSession $openShiftSession,
     ) {}
 
     /**
@@ -103,6 +107,30 @@ class UpgradeSubscription
                 : max('0.00', $amountDue);
 
             $lockedSubscription->update(['status' => 'stopped']);
+
+            $excessCredit = bcsub((string) $baseCredit, (string) $newPlanPrice, 2);
+            if (bccomp($excessCredit, '0.00', 2) === 1) {
+                SubscriptionRefund::query()->create([
+                    'subscription_id' => $lockedSubscription->id,
+                    'amount' => $excessCredit,
+                    'method' => (string) ($data['payment']['method'] ?? 'cash'),
+                    'reason' => 'Plan downgrade refund difference',
+                    'created_by' => $seller->id,
+                    'refunded_at' => now(),
+                ]);
+
+                Payment::query()->create([
+                    'payable_type' => Subscription::class,
+                    'payable_id' => $lockedSubscription->id,
+                    'amount' => bcmul($excessCredit, '-1', 2),
+                    'method' => (string) ($data['payment']['method'] ?? 'cash'),
+                    'status' => Payment::STATUS_REFUNDED,
+                    'paid_at' => now(),
+                    'due_date' => null,
+                    'created_by' => $seller->id,
+                    'shift_session_id' => $this->openShiftSession->current()?->id,
+                ]);
+            }
 
             $startDate = Carbon::today();
             $newSubscription = $this->createSubscription->handle([

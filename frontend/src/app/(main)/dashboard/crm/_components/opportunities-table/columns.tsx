@@ -379,18 +379,22 @@ function SubscriptionActions({
     : changePlanTarget === "main"
       ? t("selectMainPlan")
       : t("selectExtraPlan");
+  const changePlanDetails =
+    selectedChangePlan && changePlanTarget === "main" && changePlanMode === "upgrade"
+      ? calculatePlanChangeDetails({
+          creditMode: changePlanCreditMode,
+          newPrice: selectedChangePlan.price,
+          paidTotal: subscription.paidTotal,
+          startDate: subscription.startDate,
+          endDate: subscription.endDate,
+          extraDiscount: changePlanDiscount,
+        })
+      : null;
   const suggestedChangePlanAmount =
     selectedChangePlan == null
       ? ""
-      : changePlanTarget === "main"
-        ? calculateUpgradePaymentAmount({
-            creditMode: changePlanCreditMode,
-            newPrice: selectedChangePlan.price,
-            paidTotal: subscription.paidTotal,
-            startDate: subscription.startDate,
-            endDate: subscription.endDate,
-            extraDiscount: changePlanDiscount,
-          })
+      : changePlanDetails
+        ? changePlanDetails.amountDue
         : String(Math.max(0, selectedChangePlan.price - Number(changePlanDiscount || 0)).toFixed(2));
   const changePlanPaymentAmount = changePlanAmountOverride ?? suggestedChangePlanAmount;
 
@@ -1166,6 +1170,53 @@ function SubscriptionActions({
                       ? t("creditModeFullDifferenceHint")
                       : t("creditModeDayProrationHint")}
                   </p>
+                  {changePlanDetails ? (
+                    <div
+                      className={
+                        changePlanDetails.isDowngrade
+                          ? "mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
+                          : "mt-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm"
+                      }
+                    >
+                      <div
+                        className={
+                          changePlanDetails.isDowngrade
+                            ? "flex items-center justify-between font-semibold text-amber-700 dark:text-amber-400"
+                            : "flex items-center justify-between font-semibold text-blue-700 dark:text-blue-400"
+                        }
+                      >
+                        <span>{changePlanDetails.isDowngrade ? t("downgradeRefund") : t("upgradeDifference")}</span>
+                        <span className="text-base font-bold">
+                          {changePlanDetails.isDowngrade
+                            ? `-${changePlanDetails.refundAmount} EGP`
+                            : `+${changePlanDetails.amountDue} EGP`}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                        <div>
+                          <span>{t("oldPlanCredit")}: </span>
+                          <strong className="text-foreground">{changePlanDetails.credit} EGP</strong>
+                        </div>
+                        <div>
+                          <span>{t("newPlanCost")}: </span>
+                          <strong className="text-foreground">{changePlanDetails.newPrice} EGP</strong>
+                        </div>
+                        <div>
+                          <span>{changePlanDetails.isDowngrade ? t("returnToMember") : t("paymentAmount")}: </span>
+                          <strong className="text-foreground">
+                            {changePlanDetails.isDowngrade
+                              ? `${changePlanDetails.refundAmount} EGP`
+                              : `${changePlanDetails.amountDue} EGP`}
+                          </strong>
+                        </div>
+                      </div>
+                      {subscription.paidTotal === 0 ? (
+                        <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                          {t("unpaidCreditNote")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </label>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1180,6 +1231,11 @@ function SubscriptionActions({
                     value={changePlanPaymentAmount}
                     onChange={(event) => setChangePlanAmountOverride(event.currentTarget.value)}
                   />
+                  {changePlanDetails?.isDowngrade ? (
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                      {t("downgradePaymentNotice", { refund: `${changePlanDetails.refundAmount}` })}
+                    </p>
+                  ) : null}
                 </label>
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("change-plan-discount")}>
                   {t("discount")}
@@ -1221,11 +1277,7 @@ function SubscriptionActions({
                 <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
                   {t("cancel")}
                 </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={pendingAction !== null || !selectedChangePlan}
-                >
+                <Button type="submit" size="sm" disabled={pendingAction !== null || !selectedChangePlan}>
                   {pendingAction === "change_plan"
                     ? t("working")
                     : changePlanTarget === "main"
@@ -1579,7 +1631,7 @@ function getDialogDescription(mode: DialogMode, t: CrmT) {
   }
 }
 
-function calculateUpgradePaymentAmount({
+function calculatePlanChangeDetails({
   creditMode,
   newPrice,
   paidTotal,
@@ -1594,7 +1646,7 @@ function calculateUpgradePaymentAmount({
   endDate: string | null;
   extraDiscount: string;
 }) {
-  const price = Number.isFinite(newPrice) ? newPrice : 0;
+  const price = Number.isFinite(newPrice) ? Math.max(0, newPrice) : 0;
   const paid = Number.isFinite(paidTotal) ? Math.max(0, paidTotal) : 0;
   const extra = Number(extraDiscount || 0);
   const extraSafe = Number.isFinite(extra) ? Math.max(0, extra) : 0;
@@ -1613,9 +1665,44 @@ function calculateUpgradePaymentAmount({
     credit = remainingDays > 0 ? (paid / totalDays) * remainingDays : 0;
   }
 
-  const amountDue = Math.max(0, price - Math.min(price, credit + extraSafe));
+  const effectiveCredit = credit + extraSafe;
+  const amountDue = Math.max(0, price - effectiveCredit);
+  const refundAmount = Math.max(0, effectiveCredit - price);
 
-  return amountDue.toFixed(2);
+  return {
+    credit: credit.toFixed(2),
+    newPrice: price.toFixed(2),
+    amountDue: amountDue.toFixed(2),
+    refundAmount: refundAmount.toFixed(2),
+    isDowngrade: effectiveCredit > price,
+    isUpgrade: price > effectiveCredit,
+    isEqual: price === effectiveCredit,
+  };
+}
+
+function calculateUpgradePaymentAmount({
+  creditMode,
+  newPrice,
+  paidTotal,
+  startDate,
+  endDate,
+  extraDiscount,
+}: {
+  creditMode: "full_difference" | "day_proration";
+  newPrice: number;
+  paidTotal: number;
+  startDate: string | null;
+  endDate: string | null;
+  extraDiscount: string;
+}) {
+  return calculatePlanChangeDetails({
+    creditMode,
+    newPrice,
+    paidTotal,
+    startDate,
+    endDate,
+    extraDiscount,
+  }).amountDue;
 }
 
 function formatPlanOptionLabel(

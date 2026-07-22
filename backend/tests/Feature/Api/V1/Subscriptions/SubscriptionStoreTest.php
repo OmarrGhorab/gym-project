@@ -1,10 +1,10 @@
 <?php
 
+use App\Models\Employee;
+use App\Models\EmployeePlanCommissionRule;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Plan;
-use App\Models\Employee;
-use App\Models\EmployeePlanCommissionRule;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use App\Models\User;

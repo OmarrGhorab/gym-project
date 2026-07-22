@@ -5,10 +5,10 @@ use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\User;
-use Illuminate\Support\Carbon;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Laravel\Sanctum\Sanctum;
 

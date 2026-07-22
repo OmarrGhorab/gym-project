@@ -182,7 +182,7 @@ class SubscriptionResource extends JsonResource
             return 'stopped';
         }
 
-        if (bccomp($packageBalance, '0.00', 2) === 0 && bccomp($packagePaidTotal, '0.00', 2) === 1) {
+        if (bccomp($packageBalance, '0.00', 2) <= 0) {
             return 'paid';
         }
 

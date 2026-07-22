@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Reminders\FindExpiringSubscriptions;
+use App\Actions\Reports\MembershipMetrics;
 use App\Actions\Subscriptions\AddSubscriptionAddon;
 use App\Actions\Subscriptions\CancelSubscription;
 use App\Actions\Subscriptions\CreateSubscription;
@@ -17,9 +19,10 @@ use App\Http\Requests\Subscriptions\RenewSubscriptionRequest;
 use App\Http\Requests\Subscriptions\StoreSubscriptionRequest;
 use App\Http\Requests\Subscriptions\UnfreezeSubscriptionRequest;
 use App\Http\Requests\Subscriptions\UpgradeSubscriptionRequest;
-use App\Actions\Reports\MembershipMetrics;
 use App\Http\Resources\SubscriptionResource;
+use App\Models\Payment;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -109,22 +112,22 @@ class SubscriptionController extends ApiController
             ->withoutLaterActiveRenewal()
             ->whereBetween('end_date', [
                 now()->toDateString(),
-                now()->copy()->addDays(max(1, (int) app(\App\Actions\Reminders\FindExpiringSubscriptions::class)->reminderDays()))->toDateString(),
+                now()->copy()->addDays(max(1, (int) app(FindExpiringSubscriptions::class)->reminderDays()))->toDateString(),
             ])
             ->count();
 
         $liveIds = (clone $baseQuery)->whereIn('status', ['active', 'frozen'])->select('id');
-        $baseNet = (float) \App\Models\Payment::query()
+        $baseNet = (float) Payment::query()
             ->revenue()
             ->where('payable_type', Subscription::class)
             ->whereIn('payable_id', $liveIds)
             ->sum('amount');
-        $addonNet = (float) \App\Models\Payment::query()
+        $addonNet = (float) Payment::query()
             ->revenue()
-            ->where('payable_type', \App\Models\SubscriptionAddon::class)
+            ->where('payable_type', SubscriptionAddon::class)
             ->whereIn(
                 'payable_id',
-                \App\Models\SubscriptionAddon::query()->whereIn('subscription_id', $liveIds)->select('id'),
+                SubscriptionAddon::query()->whereIn('subscription_id', $liveIds)->select('id'),
             )
             ->sum('amount');
 

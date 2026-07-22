@@ -3,7 +3,6 @@
 namespace App\Actions\Commissions;
 
 use App\Models\Commission;
-use App\Models\Employee;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
@@ -47,6 +46,7 @@ final class BackfillCommissions
 
                     if ($exists) {
                         $alreadyPresent++;
+
                         continue;
                     }
 
@@ -89,6 +89,7 @@ final class BackfillCommissions
 
                     if ($exists) {
                         $alreadyPresent++;
+
                         continue;
                     }
 
@@ -132,6 +133,7 @@ final class BackfillCommissions
 
                     if ($exists) {
                         $alreadyPresent++;
+
                         continue;
                     }
 

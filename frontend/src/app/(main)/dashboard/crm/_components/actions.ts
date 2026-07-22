@@ -182,7 +182,11 @@ export async function changeMembershipPlan(
   if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
   if (!parsedInput.success) return invalidResult("Please fix the highlighted plan fields.", parsedInput.error);
 
-  return mutateSubscription(`/subscriptions/${parsedId.data}/${mode}`, "Main membership plan changed.", parsedInput.data);
+  return mutateSubscription(
+    `/subscriptions/${parsedId.data}/${mode}`,
+    "Main membership plan changed.",
+    parsedInput.data,
+  );
 }
 
 export type AddMembershipExtraInput = {

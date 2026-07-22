@@ -60,6 +60,15 @@ export default async function Page({ searchParams }: PageProps) {
             >
               {t("staffManagement")}
             </Button>
+            <Button
+              className="h-8"
+              nativeButton={false}
+              render={<Link href="/dashboard/academy/coach-extra-plans" />}
+              size="sm"
+              variant="outline"
+            >
+              Coach Add-on Report
+            </Button>
             {canViewReports ? (
               <>
                 <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy">

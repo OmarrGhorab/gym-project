@@ -53,9 +53,7 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
     });
   } catch (error) {
     throw new Error(
-      error instanceof Error
-        ? `Could not reach the API (${error.message}).`
-        : "Could not reach the API.",
+      error instanceof Error ? `Could not reach the API (${error.message}).` : "Could not reach the API.",
     );
   }
 
@@ -95,9 +93,7 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
 
   if (!response.ok) {
     const details = normalizeErrorDetails(payload.error?.details ?? payload.errors);
-    throw new Error(
-      getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, details),
-    );
+    throw new Error(getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, details));
   }
 
   return {

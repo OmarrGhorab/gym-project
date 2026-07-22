@@ -2,6 +2,7 @@
 
 namespace App\Actions\PurchaseOrders;
 
+use App\Models\GymTask;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
@@ -70,7 +71,7 @@ final class ReceivePurchaseOrder
             ]);
 
             if ($allReceived && $purchaseOrder->expected_at && $receivedAt->lt($purchaseOrder->expected_at->startOfDay())) {
-                \App\Models\GymTask::query()->create([
+                GymTask::query()->create([
                     'title' => 'Purchase Order '.$purchaseOrder->reference.' received early',
                     'description' => 'Purchase order '.$purchaseOrder->reference.' from '.$purchaseOrder->supplier_name.' was received on '.$receivedAt->toDateString().' but was expected on '.$purchaseOrder->expected_at->toDateString().'.',
                     'status' => 'planned',

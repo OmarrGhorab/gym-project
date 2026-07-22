@@ -7,11 +7,13 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionRefund;
 use App\Models\User;
+use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -224,4 +226,54 @@ test('cancel with full refund reduces financial report revenue', function (): vo
         'revenue_source' => 'subscriptions',
     ]);
     expect($after['meta']['totals']['revenue'])->toBe('0.00');
+});
+
+test('admin cancellation dispatches operational notification with refund amount, staff actor, and days in plan', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['name' => 'Admin Staff']);
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create([
+        'name' => 'VIP Monthly',
+        'cancellation_grace_days' => 5,
+    ]);
+    $member = Member::factory()->active()->create(['name' => 'John Doe']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-08',
+        'price_paid' => '500.00',
+        'cancellation_grace_days' => 5,
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '500.00',
+        'status' => 'paid',
+    ]);
+
+    // TestNow is set to '2026-06-10' in beforeEach, so start date June 8 to June 10 = 3 days in plan
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/cancel", [
+        'refund_amount' => '400.00',
+    ])->assertStatus(200);
+
+    Notification::assertSentTo(
+        [$user],
+        OperationalNotification::class,
+        function (OperationalNotification $notification) use ($subscription, $user): bool {
+            $data = $notification->toArray($user);
+
+            return $data['category'] === 'membership.cancelled_refund'
+                && $data['subscription_id'] === $subscription->id
+                && $data['member_name'] === 'John Doe'
+                && $data['plan_name'] === 'VIP Monthly'
+                && $data['refund_amount'] === '400.00'
+                && $data['cancelled_by'] === $user->id
+                && $data['cancelled_by_name'] === 'Admin Staff'
+                && $data['days_in_plan'] === 3
+                && str_contains((string) $data['body'], 'John Doe cancelled VIP Monthly after 3 day(s) in plan — refund EGP 400.00 by Admin Staff.');
+        }
+    );
 });

@@ -11,9 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { closeShiftSession, openShiftSession, reviewShiftHandover, submitShiftHandover } from "./actions";
+import { closeShiftSession, reviewShiftHandover, submitShiftHandover } from "./actions";
 
 export type ShiftDeskShift = {
   id: number;
@@ -66,19 +65,22 @@ export type ShiftDeskSession = {
     };
   } | null;
   shift?: { id: number; name: string } | null;
+  previous_session_id?: number | null;
+  opened_by?: { id: number; name: string } | null;
+  closed_by?: { id: number; name: string } | null;
 };
 
 export function ShiftDesk({
   currentSession,
-  pendingSessions,
-  shifts,
-  requireHandoverToOpen = true,
+  pendingSessions = [],
+  shifts: _shifts = [],
+  requireHandoverToOpen: _requireHandoverToOpen = true,
   canOperate,
   canReview,
 }: {
   currentSession: ShiftDeskSession | null;
-  pendingSessions: ShiftDeskSession[];
-  shifts: ShiftDeskShift[];
+  pendingSessions?: ShiftDeskSession[];
+  shifts?: ShiftDeskShift[];
   requireHandoverToOpen?: boolean;
   canOperate: boolean;
   canReview: boolean;
@@ -86,19 +88,6 @@ export function ShiftDesk({
   const t = useTranslations("Dashboard.finance");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [shiftId, setShiftId] = useState(shifts[0] ? String(shifts[0].id) : "");
-  const [openingFloat, setOpeningFloat] = useState("0.00");
-  const [forceOpen, setForceOpen] = useState(false);
-
-  useEffect(() => {
-    if (shifts.length === 0) {
-      return;
-    }
-
-    if (!shifts.some((shift) => String(shift.id) === shiftId)) {
-      setShiftId(String(shifts[0].id));
-    }
-  }, [shifts, shiftId]);
   const [counted, setCounted] = useState({
     cash: "0.00",
     card: "0.00",
@@ -140,52 +129,102 @@ export function ShiftDesk({
     const paymentCount = live?.payment_count ?? 0;
     const expenseCount = live?.expense_count ?? 0;
     const shiftName = currentSession.shift?.name ?? t("unknownShift");
+    const openedByStaff = currentSession.opened_by?.name ?? "Staff";
     const hasMoney = paymentCount > 0 || expenseCount > 0 || Number(live?.expenses ?? 0) > 0;
+
     sessionBody = (
-      <div className="grid gap-3 rounded-lg border p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="grid gap-4 rounded-xl border bg-card/50 p-4 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
           <div>
-            <p className="font-medium text-sm">
-              {shiftName} · #{currentSession.id}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {t("shiftStatus")}:{" "}
-              <span className="font-medium text-foreground">{currentSession.status || "open"}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-base">{shiftName}</span>
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-600 text-xs dark:bg-emerald-500/20 dark:text-emerald-400">
+                #{currentSession.id} · {currentSession.status || "open"}
+              </span>
+            </div>
+            <p className="mt-1 text-muted-foreground text-xs">
+              Staff on duty: <span className="font-medium text-foreground">{openedByStaff}</span>
+              {currentSession.previous_session_id ? (
+                <>
+                  {" "}
+                  · Handed over from session{" "}
+                  <span className="font-medium text-foreground">#{currentSession.previous_session_id}</span>
+                </>
+              ) : null}
             </p>
           </div>
           {canOperate && currentSession.status === "open" ? (
-            <Button size="sm" disabled={pending} onClick={() => run(() => closeShiftSession(currentSession.id))}>
-              {t("closeSession")}
+            <Button
+              size="sm"
+              variant="default"
+              disabled={pending}
+              onClick={() => run(() => closeShiftSession(currentSession.id))}
+            >
+              {t("closeSession")} & Prepare Handover
             </Button>
           ) : null}
         </div>
-        <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
-          <Metric label={t("openingFloat")} value={moneyLabel(currentSession.opening_float, "0.00")} />
-          <Metric label={t("shiftCash")} value={moneyLabel(live?.cash, currentSession.expected_cash)} />
-          <Metric label={t("shiftCard")} value={moneyLabel(live?.card, currentSession.expected_card)} />
-          <Metric label={t("shiftBank")} value={moneyLabel(live?.bank, currentSession.expected_bank)} />
-          <Metric
-            label={t("shiftExpensesLabel")}
-            value={moneyLabel(live?.expenses, currentSession.expected_expenses)}
-          />
+
+        {/* Section 1: Received from Previous Shift */}
+        <div className="space-y-1.5">
+          <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+            Received from Previous Shift
+          </p>
+          <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <Metric label={t("openingFloat")} value={moneyLabel(currentSession.opening_float, "0.00")} />
+            <Metric
+              label="Handover Source"
+              value={
+                currentSession.previous_session_id ? `Session #${currentSession.previous_session_id}` : "Initial float"
+              }
+            />
+            <Metric label="Opened By" value={openedByStaff} />
+          </div>
         </div>
-        <div className="grid gap-2 rounded-md border border-dashed bg-muted/20 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <Metric label={t("shiftCollections")} value={moneyLabel(live?.collections, "0.00")} />
-          <Metric label={t("shiftNet")} value={moneyLabel(live?.net, currentSession.expected_net)} />
-          <Metric label={t("shiftRefunds")} value={moneyLabel(live?.refunds, "0.00")} />
-          <Metric
-            label={t("shiftSubscriptionRevenue")}
-            value={moneyLabel(live?.by_source?.subscriptions, "0.00")}
-          />
-          <Metric label={t("shiftAddonRevenue")} value={moneyLabel(live?.by_source?.addons, "0.00")} />
-          <Metric label={t("shiftPosRevenue")} value={moneyLabel(live?.by_source?.pos, "0.00")} />
+
+        {/* Section 2: Current Shift Statistics */}
+        <div className="space-y-1.5">
+          <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+            Current Shift Performance & Revenue
+          </p>
+          <div className="grid gap-2 rounded-lg border border-dashed bg-muted/20 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <Metric label={t("shiftSubscriptionRevenue")} value={moneyLabel(live?.by_source?.subscriptions, "0.00")} />
+            <Metric label={t("shiftAddonRevenue")} value={moneyLabel(live?.by_source?.addons, "0.00")} />
+            <Metric label={t("shiftPosRevenue")} value={moneyLabel(live?.by_source?.pos, "0.00")} />
+            <Metric label={t("shiftCollections")} value={moneyLabel(live?.collections, "0.00")} />
+            <Metric
+              label={t("shiftExpensesLabel")}
+              value={moneyLabel(live?.expenses, currentSession.expected_expenses)}
+            />
+            <Metric label={t("shiftRefunds")} value={moneyLabel(live?.refunds, "0.00")} />
+          </div>
         </div>
-        <p className="text-muted-foreground text-xs">
-          {t("shiftTrackingHelpDetailed", {
-            payments: paymentCount,
-            expenses: expenseCount,
-          })}
-        </p>
+
+        {/* Section 3: To Hand Over to Next Shift */}
+        <div className="space-y-1.5">
+          <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+            To Hand Over to Next Shift (System Totals)
+          </p>
+          <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <Metric
+              label="Expected Cash in Drawer (incl. Float)"
+              value={moneyLabel(live?.cash, currentSession.expected_cash)}
+            />
+            <Metric label="Expected Card Receipts" value={moneyLabel(live?.card, currentSession.expected_card)} />
+            <Metric label="Expected Bank Transfers" value={moneyLabel(live?.bank, currentSession.expected_bank)} />
+            <Metric label="Net Session Balance" value={moneyLabel(live?.net, currentSession.expected_net)} />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
+          <p className="text-muted-foreground">
+            {t("shiftTrackingHelpDetailed", {
+              payments: paymentCount,
+              expenses: expenseCount,
+            })}
+          </p>
+        </div>
+
         {!hasMoney ? (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-900 text-xs dark:text-amber-100">
             {t("shiftOpenNoPaymentsHint")}
@@ -193,78 +232,16 @@ export function ShiftDesk({
         ) : null}
       </div>
     );
-  } else if (canOperate) {
-    sessionBody = (
-      <div className="grid gap-3 rounded-lg border border-dashed p-3">
-        {shifts.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("noShiftsConfigured")}</p>
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-[1fr_10rem_auto]">
-              <div className="grid gap-1.5">
-                <Label>{t("shift")}</Label>
-                <Select value={shiftId} onValueChange={(value) => setShiftId(value ?? "")}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t("selectShift")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {shifts.map((shift) => (
-                        <SelectItem key={shift.id} value={String(shift.id)}>
-                          {shift.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="opening-float">{t("openingFloat")}</Label>
-                <Input
-                  id="opening-float"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={openingFloat}
-                  onChange={(event) => setOpeningFloat(event.currentTarget.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  disabled={pending || !shiftId}
-                  onClick={() =>
-                    run(() =>
-                      openShiftSession({
-                        employee_shift_id: Number(shiftId),
-                        opening_float: openingFloat,
-                        force_open: forceOpen || !requireHandoverToOpen,
-                      }),
-                    )
-                  }
-                >
-                  {t("openSession")}
-                </Button>
-              </div>
-            </div>
-            {requireHandoverToOpen ? (
-              <label className="flex items-center gap-2 text-muted-foreground text-xs">
-                <input
-                  type="checkbox"
-                  checked={forceOpen}
-                  onChange={(event) => setForceOpen(event.currentTarget.checked)}
-                />
-                {t("forceOpenDespitePending")}
-              </label>
-            ) : null}
-          </>
-        )}
-      </div>
-    );
   } else {
     sessionBody = (
-      <p className="text-muted-foreground text-sm">
-        {t("noOpenSession")} {t("shiftDeskNeedPermission")}
-      </p>
+      <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4 text-center">
+        <p className="font-medium text-foreground text-sm">
+          Shift desk is active and managed dynamically by system shift schedules.
+        </p>
+        <p className="text-muted-foreground text-xs">
+          Shift sessions auto-start based on your assigned shift schedule and current operational hours.
+        </p>
+      </div>
     );
   }
 
@@ -324,8 +301,7 @@ export function ShiftDesk({
                         #{session.id} · {session.shift?.name ?? t("shift")}
                       </p>
                       <p className="text-muted-foreground text-xs">
-                        {t("shiftStatus")}:{" "}
-                        <span className="font-medium text-foreground">{session.status}</span>
+                        {t("shiftStatus")}: <span className="font-medium text-foreground">{session.status}</span>
                       </p>
                     </div>
                   </div>
@@ -462,7 +438,12 @@ function moneyLabel(primary: string | null | undefined, fallback: string | null 
     }
   }
 
-  const raw = primary != null && primary !== "" && primary !== "—" ? primary : fallback != null && fallback !== "" ? fallback : "0.00";
+  let raw = "0.00";
+  if (primary != null && primary !== "" && primary !== "—") {
+    raw = primary;
+  } else if (fallback != null && fallback !== "") {
+    raw = fallback;
+  }
   if (raw === "—") {
     return "—";
   }

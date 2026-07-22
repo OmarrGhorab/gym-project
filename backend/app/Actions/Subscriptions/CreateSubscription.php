@@ -141,7 +141,7 @@ class CreateSubscription
                 }
             }
 
-            return $subscription->load(['member', 'plan', 'soldBy', 'payments', 'addons.plan', 'addons.coach', 'addons.payments']);
+            return $subscription->fresh(['member', 'plan', 'soldBy', 'payments', 'addons.plan', 'addons.coach', 'addons.payments']) ?? $subscription;
         });
     }
 

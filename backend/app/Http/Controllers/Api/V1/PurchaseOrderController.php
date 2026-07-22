@@ -10,8 +10,10 @@ use App\Http\Resources\PurchaseOrderResource;
 use App\Models\PurchaseOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
+use Symfony\Component\HttpFoundation\Response;
 
 class PurchaseOrderController extends ApiController
 {
@@ -86,14 +88,14 @@ class PurchaseOrderController extends ApiController
             ->setStatusCode(200);
     }
 
-    public function streamImage(Request $request, PurchaseOrder $purchaseOrder): \Symfony\Component\HttpFoundation\Response
+    public function streamImage(Request $request, PurchaseOrder $purchaseOrder): Response
     {
         $request->user()->can('products.view') || abort(403);
 
-        if (! $purchaseOrder->image || ! \Illuminate\Support\Facades\Storage::disk('local')->exists($purchaseOrder->image)) {
+        if (! $purchaseOrder->image || ! Storage::disk('local')->exists($purchaseOrder->image)) {
             abort(404, 'Purchase order image not found');
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->response($purchaseOrder->image);
+        return Storage::disk('local')->response($purchaseOrder->image);
     }
 }

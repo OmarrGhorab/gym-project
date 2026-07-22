@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Employee;
 use App\Models\Member;
 use App\Models\Payment;
-use App\Models\Employee;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionFreeze;

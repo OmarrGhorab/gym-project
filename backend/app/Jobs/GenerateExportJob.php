@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Actions\Export\BuildExport;
+use App\Exports\MembersExport;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,7 +47,7 @@ class GenerateExportJob implements ShouldQueue
             $filename = "exports/{$this->exportId}.{$this->format}";
             $disk = Config::get('export.disk', 'local');
 
-            if ($this->resource === 'members' && $this->format === 'pdf' && $exportClass instanceof \App\Exports\MembersExport) {
+            if ($this->resource === 'members' && $this->format === 'pdf' && $exportClass instanceof MembersExport) {
                 $builder->storeMembersPdf($exportClass, $filename);
             } else {
                 Excel::store($exportClass, $filename, $disk, $writerType);

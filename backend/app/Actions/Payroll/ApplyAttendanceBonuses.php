@@ -11,7 +11,9 @@ use Illuminate\Support\Carbon;
 final class ApplyAttendanceBonuses
 {
     private const CLEAN_ATTENDANCE_BONUS_RATE = '0.0200';
+
     private const COACH_PERFORMANCE_BONUS_RATE = '0.0300';
+
     private const COACH_PERFORMANCE_MIN_ADDONS = 1;
 
     public function execute(Payroll $payroll): Payroll

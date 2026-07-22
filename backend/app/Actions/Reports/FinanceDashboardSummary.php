@@ -184,8 +184,8 @@ final class FinanceDashboardSummary
             ->all();
     }
 
-     /**
-      * @return array<int, array{period: string, revenue: string, expenses: string, net_profit: string}>
+    /**
+     * @return array<int, array{period: string, revenue: string, expenses: string, net_profit: string}>
      */
     private function monthlyChart(Carbon $from, Carbon $to, string $groupBy): array
     {

@@ -17,5 +17,9 @@ export function unwrapList<T>(payload: T[] | PaginatedData<T> | null | undefined
     return payload;
   }
 
-  return payload.data;
+  if (Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  return [];
 }

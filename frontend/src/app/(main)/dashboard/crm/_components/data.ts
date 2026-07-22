@@ -196,29 +196,20 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
     revenue_source: "subscriptions",
   });
 
-  const [
-    dashboard,
-    subscriptionSummary,
-    expiringSoon,
-    dues,
-    subscriptions,
-    salesReport,
-    plans,
-    coaches,
-    settings,
-  ] = await Promise.all([
-    safeApiFetch<DashboardSummaryResponse>("/dashboard/summary"),
-    safeApiFetch<SubscriptionSummaryResponse>("/subscriptions/summary"),
-    safeApiFetch<SubscriptionResource[]>("/dashboard/expiring-soon"),
-    safeApiFetch<DueResource[] | PaginatedData<DueResource>>("/payments/dues?per_page=100"),
-    safeApiFetch<SubscriptionResource[]>("/subscriptions?sort=-end_date&page=1&per_page=100"),
-    safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/reports/financial?${salesParams.toString()}`),
-    safeApiFetch<PlanResource[] | PaginatedData<PlanResource>>("/plans?filter[is_active]=1&sort=name&per_page=100"),
-    safeApiFetch<CoachOptionResource[] | PaginatedData<CoachOptionResource>>(
-      "/employees?filter[status]=active&per_page=100&sort=name",
-    ),
-    safeApiFetch<SettingsResponse>("/settings"),
-  ]);
+  const [dashboard, subscriptionSummary, expiringSoon, dues, subscriptions, salesReport, plans, coaches, settings] =
+    await Promise.all([
+      safeApiFetch<DashboardSummaryResponse>("/dashboard/summary"),
+      safeApiFetch<SubscriptionSummaryResponse>("/subscriptions/summary"),
+      safeApiFetch<SubscriptionResource[]>("/dashboard/expiring-soon"),
+      safeApiFetch<DueResource[] | PaginatedData<DueResource>>("/payments/dues?per_page=100"),
+      safeApiFetch<SubscriptionResource[]>("/subscriptions?sort=-end_date&page=1&per_page=100"),
+      safeApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/reports/financial?${salesParams.toString()}`),
+      safeApiFetch<PlanResource[] | PaginatedData<PlanResource>>("/plans?filter[is_active]=1&sort=name&per_page=100"),
+      safeApiFetch<CoachOptionResource[] | PaginatedData<CoachOptionResource>>(
+        "/employees?filter[status]=active&per_page=100&sort=name",
+      ),
+      safeApiFetch<SettingsResponse>("/settings"),
+    ]);
 
   const dashboardData = dashboard.data ?? {};
   const subscriptionSummaryData = subscriptionSummary.data ?? {};
@@ -238,8 +229,7 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const reminderDays = normalizeReminderDays(settings.data?.reminder_days);
 
   // Authoritative totals from backend (MembershipMetrics) — never re-sum partial table pages.
-  const activeSubscriptions =
-    dashboardData.active_subscriptions ?? subscriptionSummaryData.active ?? 0;
+  const activeSubscriptions = dashboardData.active_subscriptions ?? subscriptionSummaryData.active ?? 0;
   const expiringCount = dashboardData.expiring_soon ?? subscriptionSummaryData.expiring_soon ?? 0;
   const outstandingDuesTotal = Number(
     dashboardData.outstanding_dues_total ??
@@ -251,13 +241,9 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
   const outstandingDuesCount = Number(
     dashboardData.outstanding_dues_count ??
       subscriptionSummaryData.outstanding_dues_count ??
-      (typeof duesMeta.outstanding_dues_count === "number"
-        ? duesMeta.outstanding_dues_count
-        : latestDueRows.length),
+      (typeof duesMeta.outstanding_dues_count === "number" ? duesMeta.outstanding_dues_count : latestDueRows.length),
   );
-  const subscriptionRevenue = Number(
-    dashboardData.subscription_revenue_live ?? subscriptionSummaryData.revenue ?? 0,
-  );
+  const subscriptionRevenue = Number(dashboardData.subscription_revenue_live ?? subscriptionSummaryData.revenue ?? 0);
   const renewalTarget = Math.max(activeSubscriptions, expiringCount, 1);
 
   return {
@@ -392,14 +378,18 @@ function mapSubscriptionToPipeline(
   // Closed subs must not show leftover calendar days from the original end_date.
   const isClosed = subscription.status === "stopped" || subscription.status === "expired";
   const daysLeft = isClosed ? null : (subscription.days_left ?? getDaysUntil(subscription.end_date));
-  const paidTotal = Number(subscription.package_paid_total ?? matchingDue?.paid_total ?? subscription.paid_total ?? 0);
+  const rawPaidTotal = Number(
+    subscription.package_paid_total ?? matchingDue?.paid_total ?? subscription.paid_total ?? 0,
+  );
+  const matchingPlan = plans.find((plan) => plan.id === subscription.plan?.id);
+  const packageValue = Number(
+    matchingPlan?.price ?? subscription.package_price_paid ?? matchingDue?.price_paid ?? subscription.price_paid ?? 0,
+  );
+  const paidTotal = rawPaidTotal > 0 ? rawPaidTotal : packageValue;
   const collectedPaidTotal = Number(
-    subscription.collected_paid_total ?? subscription.package_paid_total ?? subscription.paid_total ?? 0,
+    subscription.collected_paid_total ?? subscription.package_paid_total ?? subscription.paid_total ?? paidTotal,
   );
   const refundTotal = Number(subscription.refund_total ?? 0);
-  const packageValue = Number(
-    subscription.package_price_paid ?? matchingDue?.price_paid ?? subscription.price_paid ?? 0,
-  );
 
   return {
     id: String(subscription.id),

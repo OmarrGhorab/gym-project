@@ -3,8 +3,8 @@
 namespace App\Actions\Products;
 
 use App\Models\Product;
-use App\Services\OperationalNotifier;
 use App\Services\ImageUploadService;
+use App\Services\OperationalNotifier;
 use Illuminate\Http\UploadedFile;
 
 final class UpdateProduct

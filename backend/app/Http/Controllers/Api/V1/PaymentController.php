@@ -10,6 +10,7 @@ use App\Http\Resources\PaymentResource;
 use App\Models\Payment;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PaymentController extends ApiController
 {
@@ -38,7 +39,7 @@ class PaymentController extends ApiController
         );
     }
 
-    public function dues(\Illuminate\Http\Request $request): JsonResponse
+    public function dues(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Payment::class);
 

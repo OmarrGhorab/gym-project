@@ -378,7 +378,7 @@ export async function deactivateMember(input: FormData): Promise<void> {
   revalidatePath("/dashboard/crm");
 }
 
-export async function cancelMemberSubscription(input: FormData): Promise<MemberFormState> {
+export async function cancelMemberSubscription(_state: MemberFormState, input: FormData): Promise<MemberFormState> {
   const subscriptionId = z.coerce.number().int().min(1).safeParse(input.get("subscription_id"));
   const values = getFormValues(input);
 

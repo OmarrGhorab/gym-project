@@ -1,11 +1,14 @@
 <?php
 
+use App\Models\GymTask;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\PosAccessSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function (): void {
@@ -81,14 +84,14 @@ test('cashier cannot create purchase orders', function (): void {
 });
 
 test('manager can create a purchase order with an image and stream it', function (): void {
-    \Illuminate\Support\Facades\Storage::fake('local');
+    Storage::fake('local');
 
     $manager = User::factory()->create();
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
     Sanctum::actingAs($manager);
 
     $product = Product::factory()->create();
-    $file = \Illuminate\Http\UploadedFile::fake()->image('invoice.png');
+    $file = UploadedFile::fake()->image('invoice.png');
 
     $createResponse = $this->postJson('/api/v1/purchase-orders', [
         'supplier_name' => 'Gym Supplier',
@@ -109,7 +112,7 @@ test('manager can create a purchase order with an image and stream it', function
     expect($imagePath)->not->toBeNull();
     expect($imageUrl)->toContain("/api/v1/purchase-orders/{$purchaseOrderId}/image");
 
-    \Illuminate\Support\Facades\Storage::disk('local')->assertExists($imagePath);
+    Storage::disk('local')->assertExists($imagePath);
 
     // Assert we can stream the image
     $this->get("/api/v1/purchase-orders/{$purchaseOrderId}/image")
@@ -142,7 +145,7 @@ test('receiving a purchase order before the expected date creates a gym task', f
     $purchaseOrderId = $createResponse->json('data.id');
     $itemId = $createResponse->json('data.items.0.id');
 
-    expect(\App\Models\GymTask::query()->where('category', 'inventory')->count())->toBe(0);
+    expect(GymTask::query()->where('category', 'inventory')->count())->toBe(0);
 
     $this->postJson("/api/v1/purchase-orders/{$purchaseOrderId}/receive", [
         'items' => [
@@ -154,8 +157,8 @@ test('receiving a purchase order before the expected date creates a gym task', f
     ])->assertOk();
 
     // Verify task was created
-    expect(\App\Models\GymTask::query()->where('category', 'inventory')->count())->toBe(1);
-    $task = \App\Models\GymTask::query()->where('category', 'inventory')->first();
+    expect(GymTask::query()->where('category', 'inventory')->count())->toBe(1);
+    $task = GymTask::query()->where('category', 'inventory')->first();
     expect($task->title)->toContain('received early');
     expect($task->status)->toBe('planned');
 });

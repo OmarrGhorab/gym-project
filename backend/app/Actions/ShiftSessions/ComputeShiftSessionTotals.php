@@ -9,7 +9,6 @@ use App\Models\ShiftSession;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 class ComputeShiftSessionTotals
 {

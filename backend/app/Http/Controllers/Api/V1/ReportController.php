@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Reports\CoachExtraPlansReport;
 use App\Actions\Reports\EmployeePerformanceReport;
 use App\Actions\Reports\FinanceDashboardSummary;
 use App\Actions\Reports\FinancialReport;
@@ -17,6 +18,7 @@ use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
 use App\Http\Requests\Reports\UpdateOperationsCalendarEventRequest;
 use App\Models\AttendanceViolation;
+use App\Models\Employee;
 use App\Models\OperationsCalendarEvent;
 use App\Models\Payroll;
 use App\Models\Product;
@@ -24,8 +26,8 @@ use App\Models\Subscription;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 
 final class ReportController extends ApiController
@@ -95,6 +97,20 @@ final class ReportController extends ApiController
         return $this->success(
             data: $action->execute($validated),
             message: 'Staff academy summary retrieved',
+        );
+    }
+
+    public function coachExtraPlans(Request $request, CoachExtraPlansReport $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
+        ]);
+
+        return $this->success(
+            data: $action->execute($validated),
+            message: 'Coach extra plans report retrieved',
         );
     }
 
@@ -454,7 +470,7 @@ final class ReportController extends ApiController
 
     /**
      * @param  Collection<int, OperationsCalendarEvent>  $events
-     * @return Collection<int, \App\Models\Employee>
+     * @return Collection<int, Employee>
      */
     private function employeesByIdForCalendarEvents(Collection $events): Collection
     {
@@ -469,7 +485,7 @@ final class ReportController extends ApiController
             return collect();
         }
 
-        return \App\Models\Employee::query()
+        return Employee::query()
             ->whereIn('id', $ids->all())
             ->get(['id', 'name', 'role'])
             ->keyBy('id');
@@ -490,7 +506,7 @@ final class ReportController extends ApiController
         }
 
         if (! $employeesById && $assignedIds->isNotEmpty()) {
-            $employeesById = \App\Models\Employee::query()
+            $employeesById = Employee::query()
                 ->whereIn('id', $assignedIds->all())
                 ->get(['id', 'name', 'role'])
                 ->keyBy('id');

@@ -72,10 +72,14 @@ class ShiftSessionController extends ApiController
         $this->authorizeFinanceView($request);
 
         $session = ShiftSession::query()
-            ->with(['shift', 'openedBy'])
+            ->with(['shift', 'openedBy', 'closedBy'])
             ->where('status', ShiftSession::STATUS_OPEN)
             ->orderByDesc('opened_at')
             ->first();
+
+        if (! $session) {
+            $session = $this->autoEnsureCurrentSession($request);
+        }
 
         if (! $session) {
             return $this->success(data: null, message: 'No open shift session');
@@ -93,6 +97,65 @@ class ShiftSessionController extends ApiController
             ),
             message: 'Current shift session retrieved',
         );
+    }
+
+    private function autoEnsureCurrentSession(Request $request): ?ShiftSession
+    {
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        $employeeShiftId = $user->employee?->shift_id;
+        $employeeShift = null;
+
+        if ($employeeShiftId) {
+            $employeeShift = EmployeeShift::query()
+                ->where('id', $employeeShiftId)
+                ->where('is_active', true)
+                ->first();
+        }
+
+        if (! $employeeShift) {
+            $now = now()->format('H:i:s');
+            $employeeShift = EmployeeShift::query()
+                ->where('is_active', true)
+                ->where(function ($q) use ($now) {
+                    $q->where(function ($sub) use ($now) {
+                        $sub->whereRaw('TIME(starts_at) <= ?', [$now])
+                            ->whereRaw('TIME(ends_at) >= ?', [$now]);
+                    })
+                        ->orWhere(function ($sub) use ($now) {
+                            $sub->whereRaw('TIME(starts_at) > TIME(ends_at)')
+                                ->where(function ($inner) use ($now) {
+                                    $inner->whereRaw('TIME(starts_at) <= ?', [$now])
+                                        ->orWhereRaw('TIME(ends_at) >= ?', [$now]);
+                                });
+                        });
+                })
+                ->orderBy('starts_at')
+                ->first();
+        }
+
+        if (! $employeeShift) {
+            $employeeShift = EmployeeShift::query()
+                ->where('is_active', true)
+                ->orderBy('starts_at')
+                ->first();
+        }
+
+        if (! $employeeShift) {
+            return null;
+        }
+
+        try {
+            return app(OpenShiftSession::class)->handle([
+                'employee_shift_id' => $employeeShift->id,
+                'force_open' => true,
+            ], $user);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function store(Request $request, OpenShiftSession $action, ComputeShiftSessionTotals $totals): JsonResponse

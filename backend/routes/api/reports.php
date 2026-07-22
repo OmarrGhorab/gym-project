@@ -28,6 +28,9 @@ Route::prefix('reports')->group(function (): void {
     Route::get('/staff-academy', [ReportController::class, 'staffAcademy'])
         ->middleware('permission:reports.view');
 
+    Route::get('/coach-extra-plans', [ReportController::class, 'coachExtraPlans'])
+        ->middleware('permission:reports.view');
+
     Route::get('/inventory-logistics', [ReportController::class, 'inventoryLogistics'])
         ->middleware('permission:reports.view');
 

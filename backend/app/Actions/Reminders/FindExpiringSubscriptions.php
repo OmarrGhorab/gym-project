@@ -67,7 +67,6 @@ class FindExpiringSubscriptions
     }
 
     /**
-     * @param  mixed  $value
      * @return array<int, int>
      */
     private function normalizeReminderDays(mixed $value): array

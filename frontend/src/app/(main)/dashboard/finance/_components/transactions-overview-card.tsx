@@ -70,13 +70,17 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
                 <ChartTooltipContent
                   active={active}
                   label={label}
-                  payload={payload?.map((item) => ({
-                    ...item,
-                    value:
-                      typeof item.value === "number"
-                        ? formatCurrency(item.value, { currency: "EGP", noDecimals: true })
-                        : item.value,
-                  }))}
+                  payload={payload?.map((item) =>
+                    item
+                      ? {
+                          ...item,
+                          value:
+                            typeof item.value === "number"
+                              ? formatCurrency(item.value, { currency: "EGP", noDecimals: true })
+                              : item.value,
+                        }
+                      : item,
+                  )}
                 />
               )}
             />

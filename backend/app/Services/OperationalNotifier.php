@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 
@@ -196,19 +197,28 @@ class OperationalNotifier
     {
         $subscription->loadMissing(['member:id,name', 'plan:id,name']);
 
+        $startDate = $subscription->start_date?->copy()->startOfDay()
+            ?? Carbon::parse($subscription->created_at)->startOfDay();
+        $today = Carbon::today();
+        $daysInPlan = $startDate->gt($today) ? 0 : (int) $startDate->diffInDays($today) + 1;
+
+        $memberName = $subscription->member?->name ?? 'Member';
+        $planName = $subscription->plan?->name ?? 'a plan';
+        $formattedRefund = number_format((float) $refundAmount, 2, '.', '');
+
         $this->notifyAdmins(
             title: 'Membership cancelled with refund',
-            body: ($subscription->member?->name ?? 'Member').' cancelled '.($subscription->plan?->name ?? 'a plan')
-                .' — refund EGP '.number_format((float) $refundAmount, 2, '.', '').' by '.$actor->name.'.',
+            body: "{$memberName} cancelled {$planName} after {$daysInPlan} day(s) in plan — refund EGP {$formattedRefund} by {$actor->name}.",
             category: 'membership.cancelled_refund',
             url: '/dashboard/crm',
             severity: 'warning',
             extra: [
                 'subscription_id' => $subscription->id,
                 'member_id' => $subscription->member_id,
-                'member_name' => $subscription->member?->name,
-                'plan_name' => $subscription->plan?->name,
-                'refund_amount' => number_format((float) $refundAmount, 2, '.', ''),
+                'member_name' => $memberName,
+                'plan_name' => $planName,
+                'days_in_plan' => $daysInPlan,
+                'refund_amount' => $formattedRefund,
                 'cancelled_by' => $actor->id,
                 'cancelled_by_name' => $actor->name,
             ],

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\PaymentFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -65,8 +66,8 @@ class Payment extends Model
     /**
      * Payments that count toward net revenue (collections + refunds as negatives).
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<static>
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     public function scopeRevenue($query)
     {
@@ -76,8 +77,8 @@ class Payment extends Model
     /**
      * Payments that count as money collected (excludes refund rows).
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<static>
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     public function scopeCollected($query)
     {

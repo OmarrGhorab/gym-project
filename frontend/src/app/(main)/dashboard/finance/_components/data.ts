@@ -141,6 +141,9 @@ export type FinanceShiftSession = {
     };
   } | null;
   shift?: { id: number; name: string } | null;
+  previous_session_id?: number | null;
+  opened_by?: { id: number; name: string } | null;
+  closed_by?: { id: number; name: string } | null;
 };
 
 export type FinancePageData = FinanceDashboardData & {
@@ -260,9 +263,22 @@ export async function getFinanceDashboardData(
     name: String(shift.name ?? `Shift #${shift.id}`),
   }));
 
+  const summary = summaryResult.data ?? emptyFinanceData;
+  const totals = { ...emptyFinanceData.totals, ...(summary.totals ?? {}) };
+  const upcoming = {
+    dues: Array.isArray(summary.upcoming?.dues) ? summary.upcoming.dues : [],
+    pending_payroll: Array.isArray(summary.upcoming?.pending_payroll) ? summary.upcoming.pending_payroll : [],
+    recent_expenses: Array.isArray(summary.upcoming?.recent_expenses) ? summary.upcoming.recent_expenses : [],
+  };
+
   return {
-    ...summaryResult.data,
-    chart: chartResult.data,
+    ...emptyFinanceData,
+    ...summary,
+    totals,
+    upcoming,
+    revenue_sources: Array.isArray(summary.revenue_sources) ? summary.revenue_sources : [],
+    payment_methods: Array.isArray(summary.payment_methods) ? summary.payment_methods : [],
+    chart: Array.isArray(chartResult.data) ? chartResult.data : [],
     duesLedger: unwrapList(duesResult.data).map(normalizeDue),
     expensesLedger: unwrapList(expensesResult.data),
     paymentsLedger: unwrapList(paymentsResult.data),
@@ -270,14 +286,17 @@ export async function getFinanceDashboardData(
       current: normalizeCurrentSession(currentSession.data),
       pending,
       shifts: shiftOptions,
-      // Default false so first open works without hunting for "force open".
-      requireHandoverToOpen: Boolean(settings.data.shifts?.require_handover_to_open),
+      requireHandoverToOpen: Boolean(
+        settings.data && "shifts" in settings.data ? settings.data.shifts?.require_handover_to_open : false,
+      ),
     },
   };
 }
 
 /** API sometimes encodes JSON null as {} — treat empty objects as no open session. */
-function normalizeCurrentSession(value: FinanceShiftSession | null | undefined | Record<string, never>): FinanceShiftSession | null {
+function normalizeCurrentSession(
+  value: FinanceShiftSession | null | undefined | Record<string, never>,
+): FinanceShiftSession | null {
   if (value == null) {
     return null;
   }

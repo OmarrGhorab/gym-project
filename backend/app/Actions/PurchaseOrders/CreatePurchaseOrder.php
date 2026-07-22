@@ -3,6 +3,8 @@
 namespace App\Actions\PurchaseOrders;
 
 use App\Models\PurchaseOrder;
+use App\Services\ImageUploadService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 final class CreatePurchaseOrder
@@ -17,8 +19,8 @@ final class CreatePurchaseOrder
             $subtotal = $items->sum(fn (array $item): float => (float) $item['unit_cost'] * (int) $item['quantity_ordered']);
 
             $imagePath = null;
-            if (isset($data['image']) && $data['image'] instanceof \Illuminate\Http\UploadedFile) {
-                $service = app(\App\Services\ImageUploadService::class);
+            if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
+                $service = app(ImageUploadService::class);
                 $imagePath = $service->store($data['image'], 'purchase_orders');
             }
 

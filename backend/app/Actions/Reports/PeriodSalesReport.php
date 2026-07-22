@@ -166,7 +166,7 @@ class PeriodSalesReport
         while ($current->greaterThanOrEqualTo($start)) {
             $date = $current->toDateString();
             $sales = $salesRows->get($date);
-            $row = new stdClass();
+            $row = new stdClass;
             $row->date = $date;
             $row->revenue = number_format((float) ($sales->revenue ?? 0), 2, '.', '');
             $row->sales_count = (int) ($sales->sales_count ?? 0);

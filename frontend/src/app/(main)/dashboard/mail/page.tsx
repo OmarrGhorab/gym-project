@@ -131,6 +131,7 @@ const notificationCategoryOptions = [
   "attendance.warning",
   "expenses.created",
   "inventory.low_stock",
+  "membership.cancelled_refund",
   "membership.expiring_soon",
   "membership.subscription_created",
   "payroll.paid",

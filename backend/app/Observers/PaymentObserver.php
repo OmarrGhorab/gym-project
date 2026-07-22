@@ -26,7 +26,7 @@ class PaymentObserver
     {
         Cache::forget('dashboard:summary:v1');
         Cache::forget('dashboard:summary:v2');
-            Cache::forget('dashboard:summary:v3');
+        Cache::forget('dashboard:summary:v3');
         Cache::forget('dashboard:summary:v3');
     }
 }

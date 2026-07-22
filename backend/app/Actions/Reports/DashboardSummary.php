@@ -5,7 +5,6 @@ namespace App\Actions\Reports;
 use App\Actions\Dashboard\SalesTodayReport;
 use App\Actions\Dashboard\TopProductsReport;
 use App\Models\Member;
-use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;

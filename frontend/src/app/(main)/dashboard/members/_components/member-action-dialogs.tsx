@@ -431,10 +431,17 @@ export function MemberActionsMenu({
       <MemberSubscriptionDialog
         member={member}
         plans={plans}
+        staff={staff}
         open={subscriptionOpen}
         onOpenChange={setSubscriptionOpen}
       />
-      <MemberChangePlanDialog member={member} plans={plans} open={changePlanOpen} onOpenChange={setChangePlanOpen} />
+      <MemberChangePlanDialog
+        member={member}
+        plans={plans}
+        staff={staff}
+        open={changePlanOpen}
+        onOpenChange={setChangePlanOpen}
+      />
       <MemberCancelSubscriptionDialog member={member} open={cancelOpen} onOpenChange={setCancelOpen} />
       <MemberPaymentDialog
         due={due}
@@ -612,11 +619,13 @@ function MemberSubscriptionDialog({
   onOpenChange,
   open,
   plans,
+  staff = [],
 }: {
   member: MemberRow;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   plans: PlanRow[];
+  staff?: StaffOption[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
   return (
@@ -627,6 +636,7 @@ function MemberSubscriptionDialog({
         onCancel={() => onOpenChange(false)}
         open={open}
         plans={plans}
+        staff={staff}
         submitLabel={t("addSubscription")}
         title={t("addSubscription")}
         description={t("addSubscriptionDescription", { name: member.name })}
@@ -641,11 +651,13 @@ function MemberChangePlanDialog({
   onOpenChange,
   open,
   plans,
+  staff = [],
 }: {
   member: MemberRow;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   plans: PlanRow[];
+  staff?: StaffOption[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
   return (
@@ -656,6 +668,7 @@ function MemberChangePlanDialog({
         onCancel={() => onOpenChange(false)}
         open={open}
         plans={plans}
+        staff={staff}
         submitLabel={t("changePlan")}
         title={t("changePlan")}
         description={t("changePlanDescription", {
@@ -790,6 +803,7 @@ function SubscriptionFormContent({
   onCancel,
   open,
   plans,
+  staff = [],
   submitLabel,
   title,
 }: {
@@ -800,6 +814,7 @@ function SubscriptionFormContent({
   onCancel: () => void;
   open: boolean;
   plans: PlanRow[];
+  staff?: StaffOption[];
   submitLabel: string;
   title: string;
 }) {
@@ -833,21 +848,23 @@ function SubscriptionFormContent({
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
     : "0";
   let suggestedPaymentAmount = "";
+  let planChangeDetails: ReturnType<typeof calculatePlanChangeDetails> | null = null;
   if (selectedPlan) {
     if (kind === "change") {
-      suggestedPaymentAmount = calculateUpgradePaymentAmount({
+      planChangeDetails = calculatePlanChangeDetails({
         creditMode,
         newPrice: selectedPlan.price,
-        paidTotal: Number(currentSubscription?.paid_total ?? currentSubscription?.price_paid ?? 0),
+        paidTotal: getEffectiveSubscriptionPaidTotal(currentSubscription),
         startDate: currentSubscription?.start_date ?? null,
         endDate: currentSubscription?.end_date ?? null,
         extraDiscount: normalizedDiscount,
       });
+      suggestedPaymentAmount = planChangeDetails.amountDue;
     } else {
       suggestedPaymentAmount = calculatePaymentAmount(selectedPlan.price, normalizedDiscount);
     }
   }
-  const paymentAmount = paymentAmountOverride ?? suggestedPaymentAmount;
+  const paymentAmount = paymentAmountOverride ?? (suggestedPaymentAmount !== "" ? suggestedPaymentAmount : "0.00");
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -940,7 +957,10 @@ function SubscriptionFormContent({
               id="plan_id"
               name="plan_id"
               defaultValue={selectedPlanId}
-              onValueChange={setSelectedPlanId}
+              onValueChange={(value) => {
+                setSelectedPlanId(value);
+                setPaymentAmountOverride(null);
+              }}
               required
               placeholder={t("selectPlan")}
               error={fieldError(state, "plan_id")}
@@ -993,6 +1013,54 @@ function SubscriptionFormContent({
               <p className="text-muted-foreground text-xs">
                 {creditMode === "full_difference" ? t("creditModeFullDifferenceHint") : t("creditModeDayProrationHint")}
               </p>
+              {planChangeDetails ? (
+                <div
+                  className={
+                    planChangeDetails.isDowngrade
+                      ? "mt-1 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
+                      : "mt-1 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm"
+                  }
+                >
+                  <div
+                    className={
+                      planChangeDetails.isDowngrade
+                        ? "flex items-center justify-between font-semibold text-amber-700 dark:text-amber-400"
+                        : "flex items-center justify-between font-semibold text-blue-700 dark:text-blue-400"
+                    }
+                  >
+                    <span>{planChangeDetails.isDowngrade ? t("downgradeRefund") : t("upgradeDifference")}</span>
+                    <span className="text-base font-bold">
+                      {planChangeDetails.isDowngrade
+                        ? `-${planChangeDetails.refundAmount} EGP`
+                        : `+${planChangeDetails.amountDue} EGP`}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                    <div>
+                      <span>{t("oldPlanCredit")}: </span>
+                      <strong className="text-foreground">{planChangeDetails.credit} EGP</strong>
+                    </div>
+                    <div>
+                      <span>{t("newPlanCost")}: </span>
+                      <strong className="text-foreground">{planChangeDetails.newPrice} EGP</strong>
+                    </div>
+                    <div>
+                      <span>{planChangeDetails.isDowngrade ? t("returnToMember") : t("paymentAmount")}: </span>
+                      <strong className="text-foreground">
+                        {planChangeDetails.isDowngrade
+                          ? `${planChangeDetails.refundAmount} EGP`
+                          : `${planChangeDetails.amountDue} EGP`}
+                      </strong>
+                    </div>
+                  </div>
+                  {Number(currentSubscription?.paid_total ?? 0) === 0 &&
+                  Number(currentSubscription?.price_paid ?? 0) > 0 ? (
+                    <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                      {t("unpaidCreditNote")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div className="grid gap-2">
@@ -1010,6 +1078,11 @@ function SubscriptionFormContent({
               onChange={kind === "change" ? (event) => setPaymentAmountOverride(event.currentTarget.value) : undefined}
               aria-invalid={Boolean(fieldError(state, "payment_amount"))}
             />
+            {kind === "change" && planChangeDetails?.isDowngrade ? (
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                {t("downgradePaymentNotice", { refund: `${planChangeDetails.refundAmount}` })}
+              </p>
+            ) : null}
             <FieldError errors={state.errors.payment_amount} />
           </div>
           <div className="grid gap-2">
@@ -1072,7 +1145,7 @@ function SubscriptionFormContent({
             </div>
             {addons.map((addon, index) => {
               const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id) ?? servicePlans[0];
-              const coachOptions = getPlanCoachOptions(addonPlan).map((employee) => ({
+              const coachOptions = getPlanCoachOptions(addonPlan, plans, staff).map((employee) => ({
                 value: String(employee.id),
                 label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
               }));
@@ -1083,7 +1156,7 @@ function SubscriptionFormContent({
               const coachCommission = calculateAddonCoachCommissionPreview({
                 addonPayment,
                 basePayment: paymentAmount,
-                coachId: addon.coach_id,
+                coachId: addon.coach_id || coachOptions[0]?.value || "",
                 plan: addonPlan,
               });
 
@@ -1102,6 +1175,8 @@ function SubscriptionFormContent({
                                   ...item,
                                   coach_id: getDefaultCoachIdForPlan(
                                     servicePlans.find((plan) => String(plan.id) === value),
+                                    plans,
+                                    staff,
                                   ),
                                   plan_id: value ?? "",
                                 }
@@ -1120,7 +1195,7 @@ function SubscriptionFormContent({
                     <Label>{t("coach")}</Label>
                     <FormSelect
                       name={`addons.${index}.coach_id`}
-                      value={addon.coach_id}
+                      value={addon.coach_id || coachOptions[0]?.value || ""}
                       onValueChange={(value) =>
                         setAddons((current) =>
                           current.map((item, itemIndex) =>
@@ -1226,7 +1301,7 @@ function SubscriptionFormContent({
                   ...current,
                   {
                     _key: `addon-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
-                    coach_id: getDefaultCoachIdForPlan(servicePlans[0]),
+                    coach_id: getDefaultCoachIdForPlan(servicePlans[0], plans, staff),
                     discountType: "fixed",
                     discountValue: "0",
                     payment_method: "cash",
@@ -1258,12 +1333,43 @@ function SubscriptionFormContent({
   );
 }
 
-function getPlanCoachOptions(plan: PlanRow | undefined): PlanAssignedEmployee[] {
-  return getAssignedEmployees(plan);
+function getPlanCoachOptions(
+  plan: PlanRow | undefined,
+  allPlans?: PlanRow[],
+  staff?: StaffOption[],
+): PlanAssignedEmployee[] {
+  const planCoaches = getAssignedEmployees(plan);
+  if (planCoaches.length > 0) {
+    return planCoaches;
+  }
+
+  const assigned = new Map<number, PlanAssignedEmployee>();
+
+  if (allPlans) {
+    for (const p of allPlans) {
+      for (const coach of getAssignedEmployees(p)) {
+        assigned.set(coach.id, coach);
+      }
+    }
+  }
+
+  if (staff) {
+    for (const member of staff) {
+      if (!assigned.has(member.id)) {
+        assigned.set(member.id, {
+          id: member.id,
+          name: member.name,
+          role: member.role ?? null,
+        });
+      }
+    }
+  }
+
+  return Array.from(assigned.values());
 }
 
-function getDefaultCoachIdForPlan(plan: PlanRow | undefined): string {
-  const [firstCoach] = getPlanCoachOptions(plan);
+function getDefaultCoachIdForPlan(plan: PlanRow | undefined, allPlans?: PlanRow[], staff?: StaffOption[]): string {
+  const [firstCoach] = getPlanCoachOptions(plan, allPlans, staff);
 
   return firstCoach ? String(firstCoach.id) : "";
 }
@@ -1452,7 +1558,32 @@ function calculatePaymentAmount(price: string, discount: string) {
   return Number.isFinite(amount) ? amount.toFixed(2) : "";
 }
 
-function calculateUpgradePaymentAmount({
+function getEffectiveSubscriptionPaidTotal(
+  subscription?: {
+    paid_total?: string | number | null;
+    price_paid?: string | number | null;
+    package_paid_total?: string | number | null;
+    package_price_paid?: string | number | null;
+  } | null,
+): number {
+  if (!subscription) {
+    return 0;
+  }
+
+  const paidTotalNum = Number(subscription.package_paid_total ?? subscription.paid_total ?? 0);
+  if (Number.isFinite(paidTotalNum) && paidTotalNum > 0) {
+    return paidTotalNum;
+  }
+
+  const pricePaidNum = Number(subscription.package_price_paid ?? subscription.price_paid ?? 0);
+  if (Number.isFinite(pricePaidNum) && pricePaidNum > 0) {
+    return pricePaidNum;
+  }
+
+  return 0;
+}
+
+function calculatePlanChangeDetails({
   creditMode,
   newPrice,
   paidTotal,
@@ -1467,7 +1598,7 @@ function calculateUpgradePaymentAmount({
   endDate: string | null;
   extraDiscount: string;
 }) {
-  const price = Number(newPrice || 0);
+  const price = Math.max(0, Number(newPrice || 0));
   const paid = Math.max(0, Number.isFinite(paidTotal) ? paidTotal : 0);
   const extra = Math.max(0, Number(extraDiscount || 0));
   let credit = paid;
@@ -1486,9 +1617,44 @@ function calculateUpgradePaymentAmount({
     }
   }
 
-  const amountDue = Math.max(0, price - Math.min(price, credit + extra));
+  const effectiveCredit = credit + extra;
+  const amountDue = Math.max(0, price - effectiveCredit);
+  const refundAmount = Math.max(0, effectiveCredit - price);
 
-  return Number.isFinite(amountDue) ? amountDue.toFixed(2) : "";
+  return {
+    credit: credit.toFixed(2),
+    newPrice: price.toFixed(2),
+    amountDue: Number.isFinite(amountDue) ? amountDue.toFixed(2) : "0.00",
+    refundAmount: Number.isFinite(refundAmount) ? refundAmount.toFixed(2) : "0.00",
+    isDowngrade: effectiveCredit > price,
+    isUpgrade: price > effectiveCredit,
+    isEqual: price === effectiveCredit,
+  };
+}
+
+function calculateUpgradePaymentAmount({
+  creditMode,
+  newPrice,
+  paidTotal,
+  startDate,
+  endDate,
+  extraDiscount,
+}: {
+  creditMode: "full_difference" | "day_proration";
+  newPrice: string;
+  paidTotal: number;
+  startDate: string | null;
+  endDate: string | null;
+  extraDiscount: string;
+}) {
+  return calculatePlanChangeDetails({
+    creditMode,
+    newPrice,
+    paidTotal,
+    startDate,
+    endDate,
+    extraDiscount,
+  }).amountDue;
 }
 
 function calculateDiscountAmount(price: string, discountValue: string, discountType: "fixed" | "percent") {

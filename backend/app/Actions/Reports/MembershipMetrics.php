@@ -7,7 +7,7 @@ use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Single source of truth for membership / dashboard KPI totals.
@@ -138,7 +138,7 @@ final class MembershipMetrics
     /**
      * Base query for live dues rows with paid/price aggregates.
      *
-     * @return \Illuminate\Database\Eloquent\Builder<Subscription>
+     * @return Builder<Subscription>
      */
     public function duesQuery()
     {

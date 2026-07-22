@@ -97,7 +97,6 @@ class Member extends Model
     /**
      * @return HasMany<Subscription, $this>
      */
-
     public function coach(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'coach_id');
@@ -127,6 +126,7 @@ class Member extends Model
     {
         return $this->hasMany(MemberBooking::class);
     }
+
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
@@ -193,10 +193,8 @@ class Member extends Model
                                             ->whereColumn('subscription_addons.member_id', 'members.id'),
                                     );
                             });
-                    })
-                ,
+                    }),
                 'total_paid',
             );
     }
 }
-
