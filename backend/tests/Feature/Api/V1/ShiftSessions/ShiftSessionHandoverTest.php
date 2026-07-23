@@ -26,7 +26,10 @@ test('staff can open close and submit matching handover for admin review', funct
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
 
-    $shift = EmployeeShift::factory()->create();
+    $shift = EmployeeShift::factory()->create([
+        'starts_at' => '06:00:00',
+        'ends_at' => '11:00:00',
+    ]);
 
     $open = $this->postJson('/api/v1/shift-sessions', [
         'employee_shift_id' => $shift->id,

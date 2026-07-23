@@ -32,8 +32,13 @@ final class PayrollController extends ApiController
             $query->where('employee_id', $request->input('employee_id'));
         }
 
+        $perPage = min((int) $request->integer('per_page', 100), 200);
+        if ($perPage < 1) {
+            $perPage = 100;
+        }
+
         $payroll = $query->latest()
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
         $payroll->getCollection()->each(function (Payroll $row) use ($payrollGenerator): void {
             if ($row->status === 'pending') {

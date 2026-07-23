@@ -64,11 +64,46 @@ export type ShiftDeskSession = {
       expenses?: string;
     };
   } | null;
-  shift?: { id: number; name: string } | null;
+  shift?: { id: number; name: string; starts_at?: string; ends_at?: string } | null;
   previous_session_id?: number | null;
   opened_by?: { id: number; name: string } | null;
   closed_by?: { id: number; name: string } | null;
 };
+
+function checkShiftTimeStatus(endsAt?: string, startsAt?: string) {
+  if (!endsAt) {
+    return { canClose: true, formattedEnd: null };
+  }
+
+  const [endHStr, endMStr = "0"] = endsAt.split(":");
+  const endH = Number(endHStr);
+  const endM = Number(endMStr);
+
+  if (!Number.isFinite(endH)) {
+    return { canClose: true, formattedEnd: null };
+  }
+
+  const period = endH >= 12 ? "PM" : "AM";
+  const displayHour = endH % 12 || 12;
+  const formattedEnd = `${displayHour}:${String(endM).padStart(2, "0")} ${period}`;
+
+  const now = new Date();
+  const endTime = new Date();
+  endTime.setHours(endH, endM, 0, 0);
+
+  if (startsAt) {
+    const [startHStr] = startsAt.split(":");
+    const startH = Number(startHStr);
+    if (Number.isFinite(startH) && endH < startH) {
+      endTime.setDate(endTime.getDate() + 1);
+    }
+  }
+
+  return {
+    canClose: now >= endTime,
+    formattedEnd,
+  };
+}
 
 export function ShiftDesk({
   currentSession,
@@ -132,6 +167,8 @@ export function ShiftDesk({
     const openedByStaff = currentSession.opened_by?.name ?? "Staff";
     const hasMoney = paymentCount > 0 || expenseCount > 0 || Number(live?.expenses ?? 0) > 0;
 
+    const shiftTimeStatus = checkShiftTimeStatus(currentSession.shift?.ends_at, currentSession.shift?.starts_at);
+
     sessionBody = (
       <div className="grid gap-4 rounded-xl border bg-card/50 p-4 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
@@ -154,14 +191,26 @@ export function ShiftDesk({
             </p>
           </div>
           {canOperate && currentSession.status === "open" ? (
-            <Button
-              size="sm"
-              variant="default"
-              disabled={pending}
-              onClick={() => run(() => closeShiftSession(currentSession.id))}
-            >
-              {t("closeSession")} & Prepare Handover
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                size="sm"
+                variant={shiftTimeStatus.canClose ? "default" : "outline"}
+                disabled={!shiftTimeStatus.canClose || pending}
+                title={
+                  !shiftTimeStatus.canClose && shiftTimeStatus.formattedEnd
+                    ? `Cannot close shift before scheduled end time (${shiftTimeStatus.formattedEnd})`
+                    : undefined
+                }
+                onClick={() => run(() => closeShiftSession(currentSession.id))}
+              >
+                {t("closeSession")} & Prepare Handover
+              </Button>
+              {!shiftTimeStatus.canClose && shiftTimeStatus.formattedEnd ? (
+                <span className="font-medium text-[11px] text-amber-600 dark:text-amber-400">
+                  🔒 Shift active until {shiftTimeStatus.formattedEnd}
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
 

@@ -24,7 +24,7 @@ export type PayrollRow = {
 export async function getPayrollPageData(month: string) {
   try {
     const result = await serverApiFetch<PayrollRow[] | PaginatedData<PayrollRow>>(
-      `/payroll?month=${encodeURIComponent(month)}&sort=-created_at&page=1`,
+      `/payroll?month=${encodeURIComponent(month)}&per_page=100&sort=-created_at`,
     );
 
     return unwrapList(result.data);

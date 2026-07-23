@@ -107,23 +107,18 @@ final class CalculateCommission
                 || $user->hasRole(FoundationPermissions::ROLE_ADMIN);
 
             if ($hasPermission) {
-                $plan = $subscription->plan;
-                $rate = $plan && $plan->commission_rate !== null && bccomp((string) $plan->commission_rate, '0.0000', 4) > 0
-                    ? (string) $plan->commission_rate
-                    : '0.0100'; // Default 1% commission on subscription creation, renewal, or plan change
+                $rate = '0.0100'; // Cashier / Sales Rep gets 1% of the sale itself
 
-                if (bccomp($rate, '0.0000', 4) > 0) {
-                    $specs[] = [
-                        'employee' => $salesEmployee,
-                        'commission_type' => 'subscription_sale',
-                        'calculation_type' => 'percentage',
-                        'rate' => $rate,
-                        'rule_value' => bcmul($rate, '100', 4),
-                        'amount' => bcmul($base, $rate, 2),
-                        'month' => $month,
-                        'rule_id' => null,
-                    ];
-                }
+                $specs[] = [
+                    'employee' => $salesEmployee,
+                    'commission_type' => 'subscription_sale',
+                    'calculation_type' => 'percentage',
+                    'rate' => $rate,
+                    'rule_value' => '1.0000',
+                    'amount' => bcmul($base, $rate, 2),
+                    'month' => $month,
+                    'rule_id' => null,
+                ];
             }
         }
 
@@ -183,23 +178,18 @@ final class CalculateCommission
                 || $user->hasRole(FoundationPermissions::ROLE_ADMIN);
 
             if ($hasPermission) {
-                $plan = $addon->plan;
-                $rate = $plan && $plan->commission_rate !== null && bccomp((string) $plan->commission_rate, '0.0000', 4) > 0
-                    ? (string) $plan->commission_rate
-                    : '0.0100';
+                $rate = '0.0100'; // Cashier / Sales Rep gets 1% of the addon sale itself
 
-                if (bccomp($rate, '0.0000', 4) > 0) {
-                    $specs[] = [
-                        'employee' => $salesEmployee,
-                        'commission_type' => 'subscription_addon_sale',
-                        'calculation_type' => 'percentage',
-                        'rate' => $rate,
-                        'rule_value' => bcmul($rate, '100', 4),
-                        'amount' => bcmul($base, $rate, 2),
-                        'month' => $month,
-                        'rule_id' => null,
-                    ];
-                }
+                $specs[] = [
+                    'employee' => $salesEmployee,
+                    'commission_type' => 'subscription_addon_sale',
+                    'calculation_type' => 'percentage',
+                    'rate' => $rate,
+                    'rule_value' => '1.0000',
+                    'amount' => bcmul($base, $rate, 2),
+                    'month' => $month,
+                    'rule_id' => null,
+                ];
             }
         }
 

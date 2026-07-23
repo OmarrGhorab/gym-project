@@ -140,7 +140,7 @@ export type FinanceShiftSession = {
       expenses?: string;
     };
   } | null;
-  shift?: { id: number; name: string } | null;
+  shift?: { id: number; name: string; starts_at?: string; ends_at?: string } | null;
   previous_session_id?: number | null;
   opened_by?: { id: number; name: string } | null;
   closed_by?: { id: number; name: string } | null;

@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Actions\Commissions\CalculateCommission;
 use App\Jobs\CalculateCommissionJob;
 use App\Models\Subscription;
 use App\Services\OperationalNotifier;
@@ -13,6 +14,9 @@ class SubscriptionObserver
     public function created(Subscription $subscription): void
     {
         DB::afterCommit(function () use ($subscription) {
+            app(CalculateCommission::class)->forSource(
+                $subscription->fresh(['plan']) ?? $subscription
+            );
             CalculateCommissionJob::dispatch(Subscription::class, $subscription->id);
             app(OperationalNotifier::class)->newSubscription(
                 $subscription->fresh(['member:id,name', 'plan:id,name', 'soldBy:id,name']) ?? $subscription,

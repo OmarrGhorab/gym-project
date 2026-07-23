@@ -62,7 +62,7 @@ class CloseShiftSession
                     $shiftEndTime->addDay();
                 }
 
-                if (now()->lessThan($shiftEndTime) && ! $isAdmin) {
+                if (now()->lessThan($shiftEndTime)) {
                     $formattedTime = $shiftEndTime->format('g:i A');
                     throw ValidationException::withMessages([
                         'session' => "Shift cannot be closed before its scheduled end time ({$formattedTime}).",
