@@ -28,6 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
+
 import { markAllSidebarNotificationsRead, markSidebarNotificationRead } from "./notification-actions";
 
 export type NotificationRow = {
@@ -183,6 +185,7 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
           {visibleNotifications.length > 0 ? (
             visibleNotifications.map((notification) => {
               const Icon = iconForNotification(notification);
+              const phone = (notification.data.member_phone ?? notification.data.phone) as string | undefined;
 
               return (
                 <DropdownMenuItem key={notification.id} className="items-start gap-3 py-2">
@@ -193,21 +196,24 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
                       {notificationBody(notification.data)}
                     </span>
                   </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 shrink-0 gap-1.5 px-2 text-xs"
-                    disabled={isPending}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      markRead(notification);
-                    }}
-                  >
-                    <Check className="size-3.5" />
-                    {labels.markRead}
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {phone ? <WhatsAppNotificationButton phone={phone} data={notification.data} size="sm" /> : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      disabled={isPending}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        markRead(notification);
+                      }}
+                    >
+                      <Check className="size-3.5" />
+                      {labels.markRead}
+                    </Button>
+                  </div>
                 </DropdownMenuItem>
               );
             })

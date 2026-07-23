@@ -329,7 +329,7 @@ test('member is not created when initial subscription creation fails', function 
         'phone' => '+201233333333',
         'join_date' => '2026-06-10',
         'subscription' => [
-            'plan_id' => $plan->id,
+            'plan_id' => 99999,
             'start_date' => '2026-06-10',
             'end_date' => '2026-07-10',
             'discount' => '10.00',

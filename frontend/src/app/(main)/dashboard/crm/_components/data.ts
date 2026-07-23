@@ -129,6 +129,8 @@ type SubscriptionResource = {
     id: number;
     end_date?: string | null;
     price_paid?: string | number | null;
+    sessions_total?: number | null;
+    sessions_remaining?: number | null;
     plan?: {
       name?: string | null;
     } | null;
@@ -382,8 +384,13 @@ function mapSubscriptionToPipeline(
     subscription.package_paid_total ?? matchingDue?.paid_total ?? subscription.paid_total ?? 0,
   );
   const matchingPlan = plans.find((plan) => plan.id === subscription.plan?.id);
+  const addonsTotal = (subscription.addons ?? []).reduce((sum, a) => sum + Number(a.price_paid ?? 0), 0);
+  const baseValue = Number(matchingPlan?.price ?? subscription.price_paid ?? 0);
   const packageValue = Number(
-    matchingPlan?.price ?? subscription.package_price_paid ?? matchingDue?.price_paid ?? subscription.price_paid ?? 0,
+    subscription.package_price_paid ??
+      (baseValue > 0 || addonsTotal > 0
+        ? baseValue + addonsTotal
+        : (matchingDue?.price_paid ?? subscription.price_paid ?? 0)),
   );
   const paidTotal = rawPaidTotal > 0 ? rawPaidTotal : packageValue;
   const collectedPaidTotal = Number(
@@ -406,6 +413,8 @@ function mapSubscriptionToPipeline(
       coach: addon.coach?.name ?? null,
       price: Number(addon.price_paid ?? 0),
       endDate: addon.end_date ?? null,
+      sessionsTotal: addon.sessions_total ?? null,
+      sessionsRemaining: addon.sessions_remaining ?? null,
     })),
     planOptions: plans.map((plan) => {
       const category = plan.category ?? "gym_access";

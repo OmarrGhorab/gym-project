@@ -31,6 +31,8 @@ final class StoreMemberVisit
             $addon = null;
             if ($addonId > 0) {
                 $addon = $this->visitSubscription->consumeAddon($member, $checkIn, $addonId);
+            } else {
+                $addon = $this->visitSubscription->autoConsumeActiveAddon($member, $checkIn, $subscription);
             }
 
             return MemberVisit::create([

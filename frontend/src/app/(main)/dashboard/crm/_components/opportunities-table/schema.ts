@@ -16,6 +16,8 @@ export const membershipPipelineSchema = z.object({
       coach: z.string().nullable(),
       price: z.number(),
       endDate: z.string().nullable(),
+      sessionsTotal: z.number().nullable().optional(),
+      sessionsRemaining: z.number().nullable().optional(),
     }),
   ),
   planOptions: z.array(

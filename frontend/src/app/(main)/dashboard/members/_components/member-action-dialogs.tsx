@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { canAccess } from "@/lib/authorization";
+import { formatCurrency } from "@/lib/utils";
 
 import { recordMembershipPayment } from "../../crm/_components/actions";
 import type { PlanRow } from "../../plans/_components/data";
@@ -467,9 +468,29 @@ function MemberCancelSubscriptionDialog({
   const router = useRouter();
   const [state, submit, pending] = useActionState(cancelMemberSubscription, initialMemberFormState);
   const subscription = member.latest_subscription;
+
   const defaultRefund = String(
-    subscription?.default_refund_amount ?? subscription?.paid_total ?? subscription?.price_paid ?? "0",
+    subscription?.default_refund_amount ??
+      subscription?.package_paid_total ??
+      subscription?.paid_total ??
+      subscription?.price_paid ??
+      "0",
   );
+  const [refundAmount, setRefundAmount] = React.useState(defaultRefund);
+
+  React.useEffect(() => {
+    if (subscription) {
+      setRefundAmount(
+        String(
+          subscription.default_refund_amount ??
+            subscription.package_paid_total ??
+            subscription.paid_total ??
+            subscription.price_paid ??
+            "0",
+        ),
+      );
+    }
+  }, [subscription]);
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -484,6 +505,11 @@ function MemberCancelSubscriptionDialog({
   if (!subscription) {
     return null;
   }
+
+  const mainPlanPrice = Number(subscription.price_paid ?? 0);
+  const addons = subscription.addons ?? [];
+  const addonsTotal = addons.reduce((sum, a) => sum + Number(a.price_paid ?? 0), 0);
+  const packageTotal = Number(subscription.package_paid_total ?? mainPlanPrice + addonsTotal);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -504,6 +530,84 @@ function MemberCancelSubscriptionDialog({
               {state.message}
             </div>
           ) : null}
+
+          <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs">
+            <div className="font-semibold text-foreground text-xs uppercase tracking-wider">
+              Subscription & Attendance Summary
+            </div>
+
+            <div className="flex justify-between border-b pb-1.5 pt-1">
+              <span className="text-muted-foreground">Main Plan ({subscription.plan_name ?? t("noPlan")}):</span>
+              <span className="font-medium tabular-nums">{formatCurrency(mainPlanPrice, { currency: "EGP" })}</span>
+            </div>
+
+            {addons.map((addon) => (
+              <div key={addon.id} className="flex justify-between border-b pb-1.5">
+                <span className="text-muted-foreground">+ Extra: {addon.plan?.name ?? "Addon"}</span>
+                <span className="font-medium tabular-nums">
+                  {formatCurrency(Number(addon.price_paid ?? 0), { currency: "EGP" })}
+                </span>
+              </div>
+            ))}
+
+            <div className="flex justify-between pt-1 font-semibold text-foreground">
+              <span>Total Package Paid:</span>
+              <span className="tabular-nums">{formatCurrency(packageTotal, { currency: "EGP" })}</span>
+            </div>
+
+            <div className="mt-2 grid gap-1 rounded-sm border bg-background p-2">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Member Visits (This Month):</span>
+                <span className="font-medium text-foreground">{member.visits_this_month ?? 0} visit(s)</span>
+              </div>
+              {addons.map((addon) => (
+                <div key={addon.id} className="flex justify-between text-muted-foreground">
+                  <span>{addon.plan?.name ?? "Extra Plan"} Sessions:</span>
+                  <span className="font-medium text-foreground">
+                    {addon.sessions_remaining !== null && addon.sessions_remaining !== undefined
+                      ? `${
+                          addon.sessions_total ? addon.sessions_total - addon.sessions_remaining : 0
+                        } attended (${addon.sessions_remaining}/${addon.sessions_total ?? "—"} remaining)`
+                      : "Unlimited"}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <span className="w-full font-medium text-[11px] text-muted-foreground">Quick Select Refund:</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => setRefundAmount(packageTotal.toFixed(2))}
+              >
+                Full Package ({formatCurrency(packageTotal, { currency: "EGP", noDecimals: true })})
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => setRefundAmount(mainPlanPrice.toFixed(2))}
+              >
+                Main Plan Only ({formatCurrency(mainPlanPrice, { currency: "EGP", noDecimals: true })})
+              </Button>
+              {addonsTotal > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setRefundAmount(addonsTotal.toFixed(2))}
+                >
+                  Extras Only ({formatCurrency(addonsTotal, { currency: "EGP", noDecimals: true })})
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
           <div className="grid gap-2">
             <Label htmlFor="refund_amount">{t("refundAmount")}</Label>
             <Input
@@ -512,7 +616,8 @@ function MemberCancelSubscriptionDialog({
               type="number"
               min="0"
               step="0.01"
-              defaultValue={defaultRefund}
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
               required
             />
             <FieldError errors={state.errors.refund_amount} />

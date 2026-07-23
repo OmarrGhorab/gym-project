@@ -47,6 +47,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
 import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
+import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 
 import {
   addMembershipExtra,
@@ -245,7 +246,21 @@ export function getOpportunitiesColumns(
       header: t("member"),
       cell: ({ row }) => (
         <div className="grid gap-0.5">
-          <span className="font-medium text-sm">{row.original.member ?? t("notLinked")}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-sm">{row.original.member ?? t("notLinked")}</span>
+            {row.original.memberPhone ? (
+              <WhatsAppNotificationButton
+                phone={row.original.memberPhone}
+                data={{
+                  member_name: row.original.member,
+                  plan_name: row.original.plan,
+                  end_date: row.original.endDate,
+                }}
+                size="sm"
+                className="h-6 px-1.5 text-[11px]"
+              />
+            ) : null}
+          </div>
           <span className="text-muted-foreground text-xs">
             {row.original.memberId ? t("memberNumber", { id: row.original.memberId }) : t("notLinked")}
           </span>
@@ -265,7 +280,24 @@ export function getOpportunitiesColumns(
     {
       accessorKey: "plan",
       header: t("plan"),
-      cell: ({ row }) => <div className="text-sm">{row.original.plan ?? t("noPlan")}</div>,
+      cell: ({ row }) => {
+        const addons = row.original.addons ?? [];
+
+        return (
+          <div className="grid gap-1">
+            <div className="font-medium text-sm">{row.original.plan ?? t("noPlan")}</div>
+            {addons.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {addons.map((addon) => (
+                  <Badge key={addon.id} variant="outline" className="px-1.5 py-0 font-normal text-[11px]">
+                    + {addon.name}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       id: "period",
@@ -978,6 +1010,88 @@ function SubscriptionActions({
                   })}
                 </p>
               </div>
+
+              {(() => {
+                const addonsTotal = subscription.addons.reduce((sum, a) => sum + (a.price || 0), 0);
+                const mainPlanPrice = Math.max(0, subscription.value - addonsTotal);
+
+                return (
+                  <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs">
+                    <div className="font-semibold text-foreground text-xs uppercase tracking-wider">
+                      Subscription & Sessions Summary
+                    </div>
+
+                    <div className="flex justify-between border-b pb-1.5 pt-1">
+                      <span className="text-muted-foreground">Main Plan ({subscription.plan ?? t("noPlan")}):</span>
+                      <span className="font-medium tabular-nums font-mono">
+                        {formatCurrency(mainPlanPrice, { currency: "EGP" })}
+                      </span>
+                    </div>
+
+                    {subscription.addons.map((addon) => (
+                      <div key={addon.id} className="grid gap-0.5 border-b pb-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">+ Extra: {addon.name}</span>
+                          <span className="font-medium tabular-nums font-mono">
+                            {formatCurrency(addon.price, { currency: "EGP" })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-muted-foreground pl-2">
+                          <span>Coach: {addon.coach ?? "Unassigned"}</span>
+                          <span className="font-medium text-foreground">
+                            {addon.sessionsRemaining !== null && addon.sessionsRemaining !== undefined
+                              ? `${
+                                  addon.sessionsTotal ? addon.sessionsTotal - addon.sessionsRemaining : 0
+                                } attended (${addon.sessionsRemaining}/${addon.sessionsTotal ?? "—"} remaining)`
+                              : "Unlimited"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex justify-between pt-1 font-semibold text-foreground">
+                      <span>Total Package Paid:</span>
+                      <span className="tabular-nums font-mono">
+                        {formatCurrency(subscription.paidTotal, { currency: "EGP" })}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="w-full font-medium text-[11px] text-muted-foreground">Quick Select Refund:</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => setCancelRefundAmount(subscription.paidTotal.toFixed(2))}
+                      >
+                        Full Package ({formatCurrency(subscription.paidTotal, { currency: "EGP", noDecimals: true })})
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => setCancelRefundAmount(mainPlanPrice.toFixed(2))}
+                      >
+                        Main Plan Only ({formatCurrency(mainPlanPrice, { currency: "EGP", noDecimals: true })})
+                      </Button>
+                      {addonsTotal > 0 ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => setCancelRefundAmount(addonsTotal.toFixed(2))}
+                        >
+                          Extras Only ({formatCurrency(addonsTotal, { currency: "EGP", noDecimals: true })})
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <label className="grid gap-1.5 text-sm" htmlFor={fieldId("cancel-refund-amount")}>
                 {t("refundAmount")}
                 <Input

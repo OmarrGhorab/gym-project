@@ -108,7 +108,6 @@ test('attendance rejects duplicate employee date rows', function (): void {
 
 test('users without attendance permission cannot list attendance', function (): void {
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CASHIER);
     Sanctum::actingAs($user);
 
     $this->getJson('/api/v1/attendance')

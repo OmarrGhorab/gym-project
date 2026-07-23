@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Actions\ShiftSessions\ComputeShiftSessionTotals;
 use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\Expense;
@@ -10,6 +11,7 @@ use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\ShiftSession;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
@@ -51,7 +53,7 @@ class OperationalNotifier
 
     public function newSubscription(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name', 'plan:id,name', 'soldBy:id,name']);
+        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name']);
 
         $this->notifyAdmins(
             title: 'New subscription member',
@@ -63,6 +65,7 @@ class OperationalNotifier
                 'subscription_id' => $subscription->id,
                 'member_id' => $subscription->member_id,
                 'member_name' => $subscription->member?->name,
+                'member_phone' => $subscription->member?->phone,
                 'plan_name' => $subscription->plan?->name,
                 'sold_by' => $subscription->soldBy?->name,
                 'end_date' => $subscription->end_date?->toDateString(),
@@ -72,7 +75,7 @@ class OperationalNotifier
 
     public function subscriptionEndingSoon(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name', 'plan:id,name']);
+        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
 
         $this->notifyAdmins(
             title: 'Membership almost finished',
@@ -84,6 +87,7 @@ class OperationalNotifier
                 'subscription_id' => $subscription->id,
                 'member_id' => $subscription->member_id,
                 'member_name' => $subscription->member?->name,
+                'member_phone' => $subscription->member?->phone,
                 'plan_name' => $subscription->plan?->name,
                 'end_date' => $subscription->end_date?->toDateString(),
             ],
@@ -92,7 +96,7 @@ class OperationalNotifier
 
     public function subscriptionSessionsFinished(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name', 'plan:id,name']);
+        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
 
         $this->notifyAdmins(
             title: 'Membership total sessions finished',
@@ -104,8 +108,52 @@ class OperationalNotifier
                 'subscription_id' => $subscription->id,
                 'member_id' => $subscription->member_id,
                 'member_name' => $subscription->member?->name,
+                'member_phone' => $subscription->member?->phone,
                 'plan_name' => $subscription->plan?->name,
                 'sessions_total' => $subscription->sessions_total,
+                'sessions_remaining' => 0,
+            ],
+        );
+    }
+
+    public function subscriptionSessionsLow(Subscription $subscription): void
+    {
+        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
+
+        $this->notifyAdmins(
+            title: 'Membership sessions running low',
+            body: ($subscription->member?->name ?? 'Member').' has only '.$subscription->sessions_remaining.' session(s) remaining for '.($subscription->plan?->name ?? 'the plan').'.',
+            category: 'membership.sessions_low',
+            url: '/dashboard/crm',
+            severity: 'info',
+            extra: [
+                'subscription_id' => $subscription->id,
+                'member_id' => $subscription->member_id,
+                'member_name' => $subscription->member?->name,
+                'member_phone' => $subscription->member?->phone,
+                'plan_name' => $subscription->plan?->name,
+                'sessions_remaining' => $subscription->sessions_remaining,
+            ],
+        );
+    }
+
+    public function addonSessionsFinished(SubscriptionAddon $addon): void
+    {
+        $addon->loadMissing(['member:id,name,phone', 'plan:id,name']);
+
+        $this->notifyAdmins(
+            title: 'Extra plan total sessions finished',
+            body: ($addon->member?->name ?? 'Member').' has finished all '.($addon->sessions_total ?? 0).' sessions for '.($addon->plan?->name ?? 'the extra plan').'.',
+            category: 'membership.addon_sessions_finished',
+            url: '/dashboard/crm',
+            severity: 'warning',
+            extra: [
+                'addon_id' => $addon->id,
+                'member_id' => $addon->member_id,
+                'member_name' => $addon->member?->name,
+                'member_phone' => $addon->member?->phone,
+                'plan_name' => $addon->plan?->name,
+                'sessions_total' => $addon->sessions_total,
                 'sessions_remaining' => 0,
             ],
         );
@@ -194,20 +242,40 @@ class OperationalNotifier
 
     public function shiftHandoverPending(ShiftSession $session, bool $matches): void
     {
-        $session->loadMissing(['shift', 'closedBy', 'receivedBy']);
+        $session->loadMissing(['shift', 'openedBy', 'closedBy', 'receivedBy']);
+        $totals = app(ComputeShiftSessionTotals::class)->handle($session);
+
+        $shiftName = $session->shift?->name ?? 'Shift';
+        $closedByName = $session->closedBy?->name ?? 'Staff';
+
+        $body = "{$shiftName} session #{$session->id} closed by {$closedByName}. ".
+            "Subscriptions: EGP {$totals['by_source']['subscriptions']}, ".
+            "Products: EGP {$totals['by_source']['pos']}, ".
+            "Addons: EGP {$totals['by_source']['addons']}. ".
+            "Cash: EGP {$totals['cash']}, Card: EGP {$totals['card']}. ".
+            ($matches ? 'Handover matched.' : 'Handover variance detected.');
 
         $this->notifyAdmins(
-            title: 'Shift handover needs review',
-            body: ($session->shift?->name ?? 'Shift').' session #'.$session->id
-                .' is '.($matches ? 'matched and ' : 'mismatched and ')
-                .'waiting for admin acceptance.',
+            title: 'Shift handover: '.$shiftName,
+            body: $body,
             category: 'shifts.handover_pending',
             url: '/dashboard/finance',
             severity: $matches ? 'info' : 'warning',
             extra: [
                 'shift_session_id' => $session->id,
                 'shift_name' => $session->shift?->name,
+                'closed_by' => $closedByName,
                 'matches' => $matches,
+                'opening_float' => number_format((float) $session->opening_float, 2, '.', ''),
+                'subscriptions_revenue' => number_format((float) $totals['by_source']['subscriptions'], 2, '.', ''),
+                'products_revenue' => number_format((float) $totals['by_source']['pos'], 2, '.', ''),
+                'addons_revenue' => number_format((float) $totals['by_source']['addons'], 2, '.', ''),
+                'total_collections' => number_format((float) $totals['collections'], 2, '.', ''),
+                'cash' => number_format((float) $totals['cash'], 2, '.', ''),
+                'card' => number_format((float) $totals['card'], 2, '.', ''),
+                'bank' => number_format((float) $totals['bank'], 2, '.', ''),
+                'expenses' => number_format((float) $totals['expenses'], 2, '.', ''),
+                'expected_net' => number_format((float) $totals['net'], 2, '.', ''),
                 'expected_cash' => number_format((float) $session->expected_cash, 2, '.', ''),
                 'counted_cash' => number_format((float) $session->counted_cash, 2, '.', ''),
             ],

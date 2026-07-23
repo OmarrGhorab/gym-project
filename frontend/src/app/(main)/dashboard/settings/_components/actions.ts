@@ -180,7 +180,11 @@ export async function saveShift(input: FormData): Promise<SettingsActionResult> 
   return { ok: true, message: id > 0 ? "Shift saved." : "Shift created.", errors: {} };
 }
 
-export async function saveShiftOffRotation(input: FormData): Promise<SettingsActionResult> {
+export async function saveShiftOffRotation(
+  prevStateOrInput: SettingsActionResult | FormData,
+  formDataInput?: FormData,
+): Promise<SettingsActionResult> {
+  const input = formDataInput instanceof FormData ? formDataInput : (prevStateOrInput as FormData);
   const shiftId = z.coerce.number().int().positive("Shift is required.").safeParse(input.get("shift_id"));
   const employeeOrder = input
     .getAll("employee_order")

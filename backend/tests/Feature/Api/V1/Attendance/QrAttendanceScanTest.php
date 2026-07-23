@@ -10,6 +10,7 @@ use App\Models\MemberVisit;
 use App\Models\Payroll;
 use App\Models\Setting;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\AttendanceRulesSeeder;
@@ -442,4 +443,37 @@ test('reviewing violation without amount applies salary based estimate', functio
         ->assertJsonPath('data.deduction_amount', '150.00');
 
     expect($violation->fresh()->deduction_amount)->toBe('150.00');
+});
+
+test('member check in automatically decrements sessions from active extra-on plan addon', function (): void {
+    actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-ADDON99']);
+    $subscription = Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => null,
+    ]);
+
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $subscription->plan_id,
+        'status' => 'active',
+        'price_paid' => '100.00',
+        'sessions_total' => 12,
+        'sessions_remaining' => 12,
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-ADDON99',
+        'check_in_at' => '2026-06-26 10:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed')
+        ->assertJsonPath('data.subscription_id', $subscription->id)
+        ->assertJsonPath('data.subscription_addon_id', $addon->id);
+
+    expect($addon->fresh()->sessions_remaining)->toBe(11);
 });

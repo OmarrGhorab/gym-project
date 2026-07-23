@@ -36,6 +36,8 @@ final class CheckInMemberVisit
             $addon = null;
             if ($addonId > 0) {
                 $addon = $this->visitSubscription->consumeAddon($member, $checkIn, $addonId);
+            } else {
+                $addon = $this->visitSubscription->autoConsumeActiveAddon($member, $checkIn, $subscription);
             }
 
             $status = $location['location_status'] === 'outside' ? 'flagged' : 'allowed';

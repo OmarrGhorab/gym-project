@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 
 import { markNotificationRead } from "./_components/actions";
 import { getNotificationsPageData } from "./_components/data";
@@ -200,9 +201,11 @@ function NotificationPayloadActions({
 }) {
   const payslipUrl = safeRelativeHref(data.payslip_url);
   const url = safeRelativeHref(data.url);
+  const phone = (data.member_phone ?? data.phone) as string | undefined;
 
   return (
     <>
+      {phone ? <WhatsAppNotificationButton phone={phone} data={data} size="sm" /> : null}
       {payslipUrl ? (
         <Button size="sm" variant="outline" render={<a href={payslipUrl} />}>
           <Download data-icon="inline-start" />

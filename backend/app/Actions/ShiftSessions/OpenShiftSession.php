@@ -52,13 +52,19 @@ class OpenShiftSession
                 ->orderByDesc('closed_at')
                 ->first();
 
-            $openingFloat = array_key_exists('opening_float', $data)
-                ? bcadd((string) $data['opening_float'], '0.00', 2)
-                : bcadd((string) ($lastResolved?->counted_cash ?? $lastResolved?->expected_cash ?? '0.00'), '0.00', 2);
-
             $businessDate = isset($data['business_date'])
                 ? Carbon::parse($data['business_date'])->toDateString()
                 : Carbon::today()->toDateString();
+
+            // On a new calendar business day, reset starting float to 0.00 (unless explicitly provided)
+            $isNewDay = $lastResolved && $lastResolved->business_date !== $businessDate;
+            $defaultFloat = ($isNewDay || ! $lastResolved)
+                ? '0.00'
+                : (string) ($lastResolved->counted_cash ?? $lastResolved->expected_cash ?? '0.00');
+
+            $openingFloat = array_key_exists('opening_float', $data) && $data['opening_float'] !== null && $data['opening_float'] !== ''
+                ? bcadd((string) $data['opening_float'], '0.00', 2)
+                : bcadd($defaultFloat, '0.00', 2);
 
             return ShiftSession::query()->create([
                 'employee_shift_id' => $shift->id,

@@ -29,7 +29,7 @@ export default async function Page() {
         users={data.users}
         permissions={employeePermissions}
       />
-      <StaffOperations settings={data.settings} shifts={data.shifts} />
+      <StaffOperations settings={data.settings} shifts={data.shifts} employees={data.employees} />
     </div>
   );
 }

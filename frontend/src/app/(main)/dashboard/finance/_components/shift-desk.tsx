@@ -351,9 +351,10 @@ export function ShiftDesk({
                               min="0"
                               step="0.01"
                               value={counted[field]}
-                              onChange={(event) =>
-                                setCounted((current) => ({ ...current, [field]: event.currentTarget.value }))
-                              }
+                              onChange={(event) => {
+                                const val = event.target.value;
+                                setCounted((current) => ({ ...current, [field]: val }));
+                              }}
                             />
                           </div>
                         ))}

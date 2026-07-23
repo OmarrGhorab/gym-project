@@ -24,8 +24,8 @@ class SubscriptionResource extends JsonResource
         $status = $this->effectiveStatus();
         $cancellationGraceDays = $this->cancellationGraceDays();
         $cancellationGraceEndsOn = $this->cancellationGraceEndsOn($cancellationGraceDays);
-        // Default refund is money collected (before any refund rows), not net after refunds.
-        $defaultRefundAmount = $this->collectedPaidTotal();
+        // Default refund is money collected for the entire package (before any refund rows), not net after refunds.
+        $defaultRefundAmount = $this->packageCollectedPaidTotal();
         $canCancelWithRefund = in_array($status, ['active', 'frozen'], true)
             && Carbon::today()->lte($cancellationGraceEndsOn)
             && $this->refundsLoadedEmpty();

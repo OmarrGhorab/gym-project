@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\Expense;
 use App\Models\Payment;
@@ -74,11 +75,40 @@ test('staff can open close and submit matching handover for admin review', funct
         ->assertStatus(200)
         ->assertJsonPath('data.status', 'pending_admin');
 
-    $this->postJson("/api/v1/shift-sessions/{$sessionId}/review", [
+    $review = $this->postJson("/api/v1/shift-sessions/{$sessionId}/review", [
         'decision' => 'accepted',
-    ])
-        ->assertStatus(200)
-        ->assertJsonPath('data.status', 'accepted');
+    ])->assertStatus(200);
+
+    expect($review->json('data.status'))->toBe(ShiftSession::STATUS_ACCEPTED);
+});
+
+test('new business date automatically resets starting cash float to 0', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $shift = EmployeeShift::factory()->create();
+
+    ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => '2026-07-22',
+        'status' => ShiftSession::STATUS_ACCEPTED,
+        'opened_at' => now()->subDays(2),
+        'opened_by' => $user->id,
+        'opening_float' => '100.00',
+        'counted_cash' => '500.00',
+        'expected_cash' => '500.00',
+        'closed_at' => now()->subDay(),
+        'closed_by' => $user->id,
+    ]);
+
+    $openDay2 = $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'business_date' => '2026-07-23',
+        'force_open' => true,
+    ])->assertStatus(201);
+
+    expect($openDay2->json('data.opening_float'))->toBe('0.00');
 });
 
 test('auto accept setting accepts matching handover without admin', function (): void {
@@ -114,6 +144,54 @@ test('auto accept setting accepts matching handover without admin', function ():
     ])
         ->assertStatus(200)
         ->assertJsonPath('data.status', 'auto_accepted');
+});
+
+test('non assigned employee cannot close shift session', function (): void {
+    $shiftOwnerUser = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $otherUser->assignRole(FoundationPermissions::ROLE_CASHIER);
+
+    $differentShift = EmployeeShift::factory()->create();
+    Employee::factory()->create(['user_id' => $otherUser->id, 'shift_id' => $differentShift->id]);
+
+    Sanctum::actingAs($otherUser);
+
+    $shift = EmployeeShift::factory()->create();
+    $session = ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => now()->toDateString(),
+        'opened_at' => now()->subHours(4),
+        'opened_by' => $shiftOwnerUser->id,
+        'status' => ShiftSession::STATUS_OPEN,
+        'opening_float' => '0.00',
+    ]);
+
+    $this->postJson("/api/v1/shift-sessions/{$session->id}/close")
+        ->assertStatus(422);
+});
+
+test('staff cannot close shift session before scheduled shift end time', function (): void {
+    $shiftUser = User::factory()->create();
+    $shiftUser->assignRole(FoundationPermissions::ROLE_CASHIER);
+
+    Sanctum::actingAs($shiftUser);
+
+    $shift = EmployeeShift::factory()->create([
+        'starts_at' => '08:00:00',
+        'ends_at' => '23:59:00',
+    ]);
+
+    $session = ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => now()->toDateString(),
+        'opened_at' => now()->subMinutes(30),
+        'opened_by' => $shiftUser->id,
+        'status' => ShiftSession::STATUS_OPEN,
+        'opening_float' => '0.00',
+    ]);
+
+    $this->postJson("/api/v1/shift-sessions/{$session->id}/close")
+        ->assertStatus(422);
 });
 
 test('require handover blocks opening a new session', function (): void {

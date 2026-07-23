@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { deactivateShift, saveShift, updateSettings } from "../../settings/_components/actions";
 import type { DashboardSettings, EmployeeShift } from "../../settings/_components/data";
 import { SettingsActionButton, SettingsActionForm } from "../../settings/_components/settings-action-form";
+import { ShiftRotationManager } from "./shift-rotation-manager";
 
 type StaffEmployeeOption = {
   id: number;
@@ -24,13 +25,13 @@ type StaffEmployeeOption = {
 };
 
 export async function StaffOperations({
+  employees = [],
   settings,
   shifts,
 }: {
+  employees?: StaffEmployeeOption[];
   settings: DashboardSettings;
   shifts: EmployeeShift[];
-  /** @deprecated kept for call-site compatibility; weekly weekday off days do not need employee lists */
-  employees?: StaffEmployeeOption[];
 }) {
   const t = await getTranslations("Dashboard.settings");
   const payroll = settings.payroll ?? { default_pay_day: 30, schedule_mode: "fixed" as const };
@@ -155,48 +156,53 @@ export async function StaffOperations({
               </div>
             </SettingsActionForm>
 
-            {shifts.map((shift) => (
-              <SettingsActionForm
-                key={`edit-${shift.id}`}
-                action={saveShift}
-                className="grid items-end gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
-              >
-                <input type="hidden" name="id" value={shift.id} />
-                <CompactField label={t("shiftName")}>
-                  <Input name="name" defaultValue={shift.name} />
-                </CompactField>
-                <CompactField label={t("startsAt")}>
-                  <FormTimePicker name="starts_at" defaultValue={shift.starts_at.slice(0, 5)} />
-                </CompactField>
-                <CompactField label={t("endsAt")}>
-                  <FormTimePicker name="ends_at" defaultValue={shift.ends_at.slice(0, 5)} />
-                </CompactField>
-                <CompactField label={t("graceMinutes")}>
-                  <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
-                </CompactField>
-                <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
-                  <Checkbox id={`shift-${shift.id}-active`} name="is_active" defaultChecked={shift.is_active} />
-                  <Label htmlFor={`shift-${shift.id}-active`}>{t("active")}</Label>
-                </div>
-                <div className="flex items-end justify-end gap-2 lg:self-end 2xl:justify-start">
-                  <Button type="submit" size="sm" className="min-w-16">
-                    {t("save")}
-                  </Button>
-                  <SettingsActionButton action={deactivateShift} formData={{ id: String(shift.id) }}>
-                    {t("deactivate")}
-                  </SettingsActionButton>
-                </div>
-                <div className="lg:col-span-2 2xl:col-span-6">
-                  <ShiftPolicyFields
-                    offDays={shift.off_days}
-                    bonusEnabled={shift.off_day_bonus_enabled}
-                    bonusAmount={shift.off_day_bonus_amount}
-                    t={t}
-                    shiftId={shift.id}
-                  />
-                </div>
-              </SettingsActionForm>
-            ))}
+            {shifts.map((shift) => {
+              const shiftEmployees = (employees ?? []).filter((emp) => emp.shift?.id === shift.id);
+
+              return (
+                <SettingsActionForm
+                  key={`edit-${shift.id}`}
+                  action={saveShift}
+                  className="grid items-end gap-3 border-t pt-3 lg:grid-cols-2 2xl:grid-cols-[minmax(10rem,1fr)_minmax(16rem,1.25fr)_minmax(16rem,1.25fr)_minmax(8rem,.8fr)_minmax(5rem,auto)_minmax(7rem,auto)]"
+                >
+                  <input type="hidden" name="id" value={shift.id} />
+                  <CompactField label={t("shiftName")}>
+                    <Input name="name" defaultValue={shift.name} />
+                  </CompactField>
+                  <CompactField label={t("startsAt")}>
+                    <FormTimePicker name="starts_at" defaultValue={shift.starts_at.slice(0, 5)} />
+                  </CompactField>
+                  <CompactField label={t("endsAt")}>
+                    <FormTimePicker name="ends_at" defaultValue={shift.ends_at.slice(0, 5)} />
+                  </CompactField>
+                  <CompactField label={t("graceMinutes")}>
+                    <Input name="grace_minutes" type="number" min={0} defaultValue={shift.grace_minutes} />
+                  </CompactField>
+                  <div className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted lg:self-end">
+                    <Checkbox id={`shift-${shift.id}-active`} name="is_active" defaultChecked={shift.is_active} />
+                    <Label htmlFor={`shift-${shift.id}-active`}>{t("active")}</Label>
+                  </div>
+                  <div className="flex items-end justify-end gap-2 lg:self-end 2xl:justify-start">
+                    <Button type="submit" size="sm" className="min-w-16">
+                      {t("save")}
+                    </Button>
+                    <SettingsActionButton action={deactivateShift} formData={{ id: String(shift.id) }}>
+                      {t("deactivate")}
+                    </SettingsActionButton>
+                  </div>
+                  <div className="lg:col-span-2 2xl:col-span-6">
+                    <ShiftPolicyFields
+                      assignedEmployees={shiftEmployees}
+                      offDays={shift.off_days}
+                      bonusEnabled={shift.off_day_bonus_enabled}
+                      bonusAmount={shift.off_day_bonus_amount}
+                      t={t}
+                      shiftId={shift.id}
+                    />
+                  </div>
+                </SettingsActionForm>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -225,12 +231,14 @@ const weekDays = [
 ] as const;
 
 function ShiftPolicyFields({
+  assignedEmployees = [],
   bonusAmount,
   bonusEnabled,
   offDays,
   shiftId = "new",
   t,
 }: {
+  assignedEmployees?: StaffEmployeeOption[];
   bonusAmount: string;
   bonusEnabled: boolean;
   offDays: number[];
@@ -240,8 +248,19 @@ function ShiftPolicyFields({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="grid gap-2 sm:col-span-2">
-        <div className="font-medium text-muted-foreground text-xs">{t("offDays")}</div>
-        <p className="text-muted-foreground text-xs">{t("offDaysHelp")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-1">
+          <div className="font-medium text-muted-foreground text-xs">{t("offDays")}</div>
+          <Badge
+            variant="outline"
+            className="border-blue-500/30 font-normal text-[11px] text-blue-600 dark:text-blue-400"
+          >
+            Supports Weekly Rotation & Fixed Off Days
+          </Badge>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Select the weekly off-day(s) for this shift. Staff assigned to this shift automatically rotate taking this
+          off-weekday week by week.
+        </p>
         <div className="flex flex-wrap gap-2">
           {weekDays.map((day) => {
             const id = `shift-${shiftId}-off-day-${day.value}`;
@@ -269,6 +288,18 @@ function ShiftPolicyFields({
           })}
         </div>
       </div>
+
+      {typeof shiftId === "number" ? (
+        <div className="sm:col-span-2">
+          <ShiftRotationManager
+            assignedEmployees={assignedEmployees}
+            offDays={offDays}
+            shiftId={shiftId}
+            shiftName={`Shift #${shiftId}`}
+          />
+        </div>
+      ) : null}
+
       <CompactField label={t("offDayBonus")}>
         <div className="grid gap-2">
           <label

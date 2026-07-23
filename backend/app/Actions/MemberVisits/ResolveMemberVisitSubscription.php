@@ -61,8 +61,11 @@ final class ResolveMemberVisitSubscription
                 $subscription->decrement('sessions_remaining');
                 $subscription->refresh();
 
-                if ((int) $subscription->sessions_remaining === 0) {
+                $remaining = (int) $subscription->sessions_remaining;
+                if ($remaining === 0) {
                     app(OperationalNotifier::class)->subscriptionSessionsFinished($subscription);
+                } elseif ($remaining <= 2) {
+                    app(OperationalNotifier::class)->subscriptionSessionsLow($subscription);
                 }
             }
 
@@ -158,6 +161,50 @@ final class ResolveMemberVisitSubscription
         }
 
         return $addon;
+    }
+
+    /**
+     * Automatically find and consume one session from an active extra-on plan addon
+     * attached to the member or subscription package.
+     */
+    public function autoConsumeActiveAddon(Member $member, Carbon $checkIn, Subscription $subscription): ?SubscriptionAddon
+    {
+        $activeAddons = SubscriptionAddon::query()
+            ->with('plan')
+            ->where('member_id', $member->id)
+            ->where(function ($q) use ($subscription) {
+                $q->where('subscription_id', $subscription->id)
+                    ->orWhereNull('subscription_id');
+            })
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', 'active');
+            })
+            ->where(function ($q) use ($checkIn) {
+                $q->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $checkIn->toDateString());
+            })
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($activeAddons as $candidate) {
+            if ($candidate->sessions_remaining !== null && (int) $candidate->sessions_remaining < 1) {
+                continue;
+            }
+
+            if ($candidate->sessions_remaining !== null) {
+                $candidate->decrement('sessions_remaining');
+                $candidate->refresh();
+
+                if ((int) $candidate->sessions_remaining === 0) {
+                    $candidate->update(['status' => 'expired']);
+                    app(OperationalNotifier::class)->addonSessionsFinished($candidate);
+                }
+            }
+
+            return $candidate;
+        }
+
+        return null;
     }
 
     public function alertReason(Member $member, Carbon $checkIn): string
