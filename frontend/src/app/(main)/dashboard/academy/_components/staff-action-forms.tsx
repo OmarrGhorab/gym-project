@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 
 import { type AcademyActionResult, backfillCommissions, deleteEmployee, saveEmployee } from "./actions";
 import type { AcademyEmployee } from "./data";
+import { StaffQrDialog } from "./employee-performance-table";
 
 type ShiftOption = {
   id: number;
@@ -205,8 +206,9 @@ export function EmployeeActionForm({
             />
           </FormField>
         ) : null}
-        {canSubmit || canDelete ? (
-          <div className="flex gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6">
+
+        {canSubmit || canDelete || employee ? (
+          <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6">
             {canSubmit ? (
               <Button type="submit" size="sm" disabled={pending}>
                 {isNew ? t("create") : t("save")}
@@ -216,6 +218,14 @@ export function EmployeeActionForm({
               <Button formAction={remove} type="submit" size="sm" variant="outline" disabled={pending}>
                 {t("delete")}
               </Button>
+            ) : null}
+            {employee ? (
+              <StaffQrDialog
+                employeeName={employee.name}
+                payload={
+                  employee.attendance_qr ?? (employee.attendance_code ? `employee:${employee.attendance_code}` : null)
+                }
+              />
             ) : null}
           </div>
         ) : null}

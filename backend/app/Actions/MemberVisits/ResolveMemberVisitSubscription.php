@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Services\OperationalNotifier;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -59,6 +60,10 @@ final class ResolveMemberVisitSubscription
             if ($subscription->sessions_remaining !== null) {
                 $subscription->decrement('sessions_remaining');
                 $subscription->refresh();
+
+                if ((int) $subscription->sessions_remaining === 0) {
+                    app(OperationalNotifier::class)->subscriptionSessionsFinished($subscription);
+                }
             }
 
             return $subscription;

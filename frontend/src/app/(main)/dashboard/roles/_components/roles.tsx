@@ -498,6 +498,7 @@ function permissionActionLabel(permission: string) {
     "export.reports": "Export reports",
     "export.attendance": "Export attendance",
     "export.member-visits": "Export member visits",
+    "commissions.earn_sales": "Earn sales commission",
   };
 
   if (permissionLabels[permission]) {
@@ -507,7 +508,7 @@ function permissionActionLabel(permission: string) {
   const action = permission.split(".").at(-1) ?? permission;
 
   return action
-    .split("-")
+    .split(/[-_]/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }

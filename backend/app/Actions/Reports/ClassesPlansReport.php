@@ -66,7 +66,7 @@ final class ClassesPlansReport
         })->values()->all();
 
         $subscriptionsQuery = Subscription::query()
-            ->with(['member:id,name', 'plan:id,name', 'soldBy:id,name'])
+            ->with(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name'])
             ->when($planId, fn ($q) => $q->where('plan_id', $planId))
             ->when($statusFilter, function ($q, $status) {
                 if ($status === 'expiring_soon') {
@@ -96,7 +96,7 @@ final class ClassesPlansReport
 
         if ($subscriptionsQuery->count() === 0 && ! $statusFilter) {
             $subscriptionsQuery = Subscription::query()
-                ->with(['member:id,name', 'plan:id,name', 'soldBy:id,name'])
+                ->with(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name'])
                 ->when($planId, fn ($q) => $q->where('plan_id', $planId))
                 ->latest();
         }
@@ -136,6 +136,7 @@ final class ClassesPlansReport
             return [
                 'id' => $sub->id,
                 'member_name' => $sub->member?->name ?? 'Unknown Member',
+                'member_phone' => $sub->member?->phone,
                 'plan_name' => $sub->plan?->name ?? 'Unknown Plan',
                 'start_date' => $sub->start_date?->toDateString(),
                 'end_date' => $sub->end_date?->toDateString(),
@@ -156,7 +157,7 @@ final class ClassesPlansReport
         $subscriptions = $subscriptionsQuery->limit(100)->get()->map($formatSub)->values()->all();
 
         $endingSoonList = Subscription::query()
-            ->with(['member:id,name', 'plan:id,name', 'soldBy:id,name'])
+            ->with(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name'])
             ->where('status', 'active')
             ->where(function ($q) {
                 $q->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])

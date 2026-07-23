@@ -19,6 +19,8 @@ final class HrFinancePermissions
 
     public const PERM_COMMISSIONS_BACKFILL = 'commissions.backfill';
 
+    public const PERM_COMMISSIONS_EARN_SALES = 'commissions.earn_sales';
+
     public const PERM_PAYROLL_VIEW = 'payroll.view';
 
     public const PERM_PAYROLL_GENERATE = 'payroll.generate';
@@ -49,6 +51,7 @@ final class HrFinancePermissions
         self::PERM_EMPLOYEES_DELETE,
         self::PERM_COMMISSIONS_VIEW,
         self::PERM_COMMISSIONS_BACKFILL,
+        self::PERM_COMMISSIONS_EARN_SALES,
         self::PERM_PAYROLL_VIEW,
         self::PERM_PAYROLL_GENERATE,
         self::PERM_PAYROLL_PAY,

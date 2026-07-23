@@ -14,8 +14,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import { createPlan, type PlanFormState, updatePlan } from "./actions";
-import type { PlanEmployeeOption, PlanRow } from "./data";
+import { Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+import { createPlan, createPlanCategoryAction, type PlanFormState, updatePlan } from "./actions";
+import type { PlanCategoryOption, PlanEmployeeOption, PlanRow } from "./data";
 
 const initialPlanFormState: PlanFormState = {
   ok: false,
@@ -24,6 +35,7 @@ const initialPlanFormState: PlanFormState = {
 };
 
 type PlanFormProps = {
+  categories?: PlanCategoryOption[];
   employees: PlanEmployeeOption[];
   mode?: "create" | "edit";
   onSuccess?: () => void;
@@ -71,10 +83,76 @@ function normalizeEmployeeRule(value: unknown, index: number): PlanEmployeeCommi
   };
 }
 
-export function PlanCreateForm({ employees, mode = "create", onSuccess, plan }: PlanFormProps) {
+export function PlanCreateForm({ categories = [], employees, mode = "create", onSuccess, plan }: PlanFormProps) {
   const t = useTranslations("Dashboard.plans");
   const formRef = React.useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(mode === "edit" ? updatePlan : createPlan, initialPlanFormState);
+
+  const [localCategories, setLocalCategories] = React.useState<PlanCategoryOption[]>(categories);
+  const [newCatOpen, setNewCatOpen] = React.useState(false);
+  const [newCatName, setNewCatName] = React.useState("");
+  const [newCatDesc, setNewCatDesc] = React.useState("");
+  const [isCreatingCat, setIsCreatingCat] = React.useState(false);
+
+  React.useEffect(() => {
+    if (categories && categories.length > 0) {
+      setLocalCategories(categories);
+    }
+  }, [categories]);
+
+  const computedCategoryOptions = React.useMemo(() => {
+    const defaultList = [
+      { label: "Gym access", value: "gym_access" },
+      { label: "Personal training", value: "personal_training" },
+      { label: "Classes", value: "classes" },
+      { label: "Fitness Studio", value: "fitness_studio" },
+      { label: "Jiu-Jitsu", value: "jiu_jitsu" },
+      { label: "Nutrition", value: "nutrition" },
+      { label: "Recovery", value: "recovery" },
+    ];
+
+    const map = new Map<string, string>();
+    for (const c of localCategories) {
+      map.set(c.slug, c.name);
+    }
+    for (const d of defaultList) {
+      if (!map.has(d.value)) {
+        map.set(d.value, d.label);
+      }
+    }
+
+    return Array.from(map.entries()).map(([value, label]) => ({ label, value }));
+  }, [localCategories]);
+
+  async function handleCreateCategory() {
+    if (!newCatName.trim()) {
+      toast.error("Category name is required.");
+      return;
+    }
+
+    setIsCreatingCat(true);
+    const result = await createPlanCategoryAction(newCatName.trim(), newCatDesc.trim() || undefined);
+    setIsCreatingCat(false);
+
+    if (result.ok && result.data) {
+      toast.success(`Category "${result.data.name}" added successfully!`);
+      const newCat: PlanCategoryOption = {
+        description: newCatDesc.trim() || null,
+        id: result.data.id,
+        is_active: true,
+        name: result.data.name,
+        slug: result.data.slug,
+      };
+      setLocalCategories((prev) => [...prev, newCat]);
+      setCategory(result.data.slug);
+      setNewCatName("");
+      setNewCatDesc("");
+      setNewCatOpen(false);
+    } else {
+      toast.error(result.error || "Failed to create category");
+    }
+  }
+
   const initialUnlimitedSessions = state.values.is_unlimited_sessions
     ? state.values.is_unlimited_sessions === "on"
     : Boolean(plan?.is_unlimited_sessions);
@@ -220,24 +298,63 @@ export function PlanCreateForm({ employees, mode = "create", onSuccess, plan }: 
           onValueChange={(value) => setPlanType(value || "membership")}
           error={fieldError(state, "type")}
           options={[
-            { value: "membership", label: t("planTypes.membership") },
-            { value: "offer", label: t("planTypes.offer") },
+            { label: t("planTypes.membership"), value: "membership" },
+            { label: t("planTypes.offer"), value: "offer" },
+            { label: "Fitness Studio (Jiu-Jitsu & Classes - No Gym Access)", value: "fitness_studio" },
           ]}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="category">{t("category")}</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="category">{t("category")}</Label>
+          <Dialog open={newCatOpen} onOpenChange={setNewCatOpen}>
+            <DialogTrigger render={<Button size="xs" variant="ghost" className="h-6 gap-1 text-xs text-primary" />}>
+              <Plus className="size-3" /> Add Category
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Custom Category</DialogTitle>
+                <DialogDescription>Create a new plan category (e.g. Jiu-Jitsu, Pilates, Boxing)</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div className="space-y-1">
+                  <Label htmlFor="new_cat_name">Category Name</Label>
+                  <Input
+                    id="new_cat_name"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="e.g. Jiu-Jitsu, Muay Thai"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="new_cat_desc">Description (Optional)</Label>
+                  <Input
+                    id="new_cat_desc"
+                    value={newCatDesc}
+                    onChange={(e) => setNewCatDesc(e.target.value)}
+                    placeholder="Brief details about this category..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setNewCatOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" disabled={isCreatingCat} onClick={handleCreateCategory}>
+                  {isCreatingCat ? "Saving..." : "Save Category"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
         <FormSelect
           id="category"
           name="category"
           value={category}
           onValueChange={(value) => setCategory(value || "gym_access")}
           error={fieldError(state, "category")}
-          options={planCategoryOptions.map((value) => ({
-            value,
-            label: t(`categories.${value}`),
-          }))}
+          options={computedCategoryOptions}
         />
       </div>
 

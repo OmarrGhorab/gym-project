@@ -63,6 +63,7 @@ export function AttendanceActionPanels({ correctionRecord, defaultAttendanceDate
 
 function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const t = useTranslations("Dashboard.attendance");
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
   const location = useGpsLocation();
   const [qrToken, setQrToken] = useState("");
@@ -100,6 +101,18 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   );
   const membershipSessions = selectedMember?.latest_subscription?.sessions_remaining;
 
+  useEffect(() => {
+    if (state.ok && state.message) {
+      setQrToken("");
+      setSelectedMember(null);
+      setMemberLookupSource(null);
+      setSelectedAddonId("none");
+      if (formRef.current) {
+        formRef.current.reset();
+      }
+    }
+  }, [state]);
+
   return (
     <Card className="xl:col-span-6">
       <CardHeader>
@@ -110,7 +123,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
         <CardDescription>{t("memberStationDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-3 md:grid-cols-2">
+        <form ref={formRef} action={action} className="grid gap-3 md:grid-cols-2">
           <input type="hidden" name="direction" value="check-in" />
           <input type="hidden" name="scan_method" value={scanMethod} />
           <input type="hidden" name="member_id" value={selectedMember ? String(selectedMember.id) : ""} />
@@ -127,10 +140,14 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
               label={t("scannerDevice")}
               help={t("scannerDeviceHelp")}
               onScan={(value) => {
-                setQrToken(value);
+                const cleanValue = normalizeArabicKeyboardLayout(value);
+                setQrToken(cleanValue);
                 selectMember(null, null);
                 setScanMethod("scanner");
                 toast.success(t("scannerCaptured"));
+                setTimeout(() => {
+                  formRef.current?.requestSubmit();
+                }, 80);
               }}
             />
           ) : null}
@@ -278,12 +295,24 @@ function StaffScanCard({
   employees: EmployeeOption[];
 }) {
   const t = useTranslations("Dashboard.attendance");
+  const staffFormRef = useRef<HTMLFormElement | null>(null);
   const [state, action, pending] = useActionState(scanStaffAttendance, initialState);
   const location = useGpsLocation();
   const [scanValue, setScanValue] = useState("");
   const [scanMethod, setScanMethod] = useState<"qr" | "scanner" | "manual">("scanner");
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption | null>(null);
   const [lookupEmployees, setLookupEmployees] = useState(employees);
+
+  useEffect(() => {
+    if (state.ok && state.message) {
+      setScanValue("");
+      setSelectedEmployee(null);
+      if (staffFormRef.current) {
+        staffFormRef.current.reset();
+      }
+    }
+  }, [state]);
+
   const selectEmployee = useCallback((employee: EmployeeOption | null) => {
     setSelectedEmployee(employee);
 
@@ -334,7 +363,7 @@ function StaffScanCard({
         <CardDescription>{t("staffStationDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-3 md:grid-cols-2">
+        <form ref={staffFormRef} action={action} className="grid gap-3 md:grid-cols-2">
           <input type="hidden" name="attendance_date" value={defaultAttendanceDate} />
           <input type="hidden" name="scan_method" value={scanMethod} />
           <FieldGroup>
@@ -348,10 +377,14 @@ function StaffScanCard({
               label={t("scannerDevice")}
               help={t("scannerDeviceHelp")}
               onScan={(value) => {
-                setScanValue(value);
+                const cleanValue = normalizeArabicKeyboardLayout(value);
+                setScanValue(cleanValue);
                 setSelectedEmployee(null);
                 setScanMethod("scanner");
                 toast.success(t("scannerCaptured"));
+                setTimeout(() => {
+                  staffFormRef.current?.requestSubmit();
+                }, 80);
               }}
             />
           ) : null}
@@ -925,6 +958,68 @@ function ScanSourceToggle({
   );
 }
 
+function normalizeArabicKeyboardLayout(text: string): string {
+  const arToEn: Record<string, string> = {
+    ض: "q",
+    ص: "w",
+    ث: "e",
+    ق: "r",
+    ف: "t",
+    غ: "y",
+    ع: "u",
+    ه: "i",
+    خ: "o",
+    ح: "p",
+    ج: "[",
+    د: "]",
+    ش: "a",
+    س: "s",
+    ي: "d",
+    ب: "f",
+    ل: "g",
+    ا: "h",
+    ت: "j",
+    ن: "k",
+    م: "l",
+    ك: ";",
+    ط: "'",
+    ئ: "z",
+    ء: "x",
+    ؤ: "c",
+    ر: "v",
+    لا: "b",
+    ى: "n",
+    ة: "m",
+    و: ",",
+    ز: ".",
+    ظ: "/",
+    "َ": "Q",
+    "ً": "W",
+    "ُ": "E",
+    "ٌ": "R",
+    لإ: "T",
+    إ: "Y",
+    "‘": "U",
+    "÷": "I",
+    "×": "O",
+    "؛": "P",
+    "ِ": "A",
+    "ٍ": "S",
+    أ: "H",
+    ـ: "J",
+    "،": "K",
+    لأ: "G",
+    آ: "N",
+    "’": "M",
+    لآ: "B",
+  };
+
+  return text
+    .split("")
+    .map((char) => arToEn[char] || char)
+    .join("");
+}
+
 function HardwareScannerInput({
   help,
   id,
@@ -970,7 +1065,8 @@ function HardwareScannerInput({
             }
 
             event.preventDefault();
-            const value = buffer.trim();
+            const rawValue = buffer.trim();
+            const value = normalizeArabicKeyboardLayout(rawValue);
 
             if (!value) {
               return;

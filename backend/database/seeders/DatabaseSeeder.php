@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
         $this->call(GymStaffSeeder::class);
 
         // Catalog + members so cashiers can sell/renew subscriptions and POS
+        $this->call(PlanCategorySeeder::class);
         $this->call(PlanSeeder::class);
         $this->call(ProductSeeder::class);
         $this->call(MemberSeeder::class);

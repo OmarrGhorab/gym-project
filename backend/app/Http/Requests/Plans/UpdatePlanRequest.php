@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Plans;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 final class UpdatePlanRequest extends FormRequest
 {
@@ -25,8 +24,8 @@ final class UpdatePlanRequest extends FormRequest
             'duration_months' => ['nullable', 'integer', 'min:1'],
             'sessions_count' => ['nullable', 'required_if:is_unlimited_sessions,false', 'integer', 'min:1'],
             'is_unlimited_sessions' => ['sometimes', 'boolean'],
-            'type' => ['required', 'string', 'in:membership,offer'],
-            'category' => ['required', 'string', Rule::in(['gym_access', 'personal_training', 'classes', 'nutrition', 'recovery'])],
+            'type' => ['required', 'string', 'in:membership,offer,fitness_studio'],
+            'category' => ['required', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
             'valid_from' => ['nullable', 'required_if:type,offer', 'date'],
             'valid_to' => ['nullable', 'required_if:type,offer', 'date', 'after_or_equal:valid_from'],

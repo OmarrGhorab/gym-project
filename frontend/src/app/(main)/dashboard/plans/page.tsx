@@ -22,7 +22,7 @@ import { PlanCreateForm } from "./_components/plan-create-form";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.plans");
-  const { employees, plans } = await getPlansPageData();
+  const { categories, employees, plans } = await getPlansPageData();
   const active = plans.filter((plan) => plan.is_active).length;
   const sellable = plans.filter((plan) => plan.is_sellable).length;
 
@@ -33,7 +33,7 @@ export default async function Page() {
           <h1 className="text-3xl tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <PlanCreateDialog employees={employees} />
+        <PlanCreateDialog categories={categories} employees={employees} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -68,8 +68,15 @@ export default async function Page() {
                       <div className="font-medium">{plan.name}</div>
                       <div className="line-clamp-1 text-muted-foreground text-xs">{plan.description}</div>
                     </TableCell>
-                    <TableCell>{plan.type}</TableCell>
-                    <TableCell>{t(`categories.${plan.category}`)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={plan.type === "fitness_studio" ? "default" : "outline"}
+                        className={plan.type === "fitness_studio" ? "bg-purple-600 text-white" : ""}
+                      >
+                        {plan.type === "fitness_studio" ? "Fitness Studio" : plan.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{plan.category}</TableCell>
                     <TableCell>{formatCurrency(Number(plan.price), { currency: "EGP", noDecimals: true })}</TableCell>
                     <TableCell>
                       {plan.duration_months
@@ -99,7 +106,7 @@ export default async function Page() {
                               <DialogTitle>{t("editPlan")}</DialogTitle>
                               <DialogDescription>{t("editDescription")}</DialogDescription>
                             </DialogHeader>
-                            <PlanCreateForm employees={employees} mode="edit" plan={plan} />
+                            <PlanCreateForm categories={categories} employees={employees} mode="edit" plan={plan} />
                           </DialogContent>
                         </Dialog>
                         <form action={deletePlan}>

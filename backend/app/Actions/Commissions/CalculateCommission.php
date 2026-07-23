@@ -8,6 +8,8 @@ use App\Models\EmployeePlanCommissionRule;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Support\FoundationPermissions;
+use App\Support\HrFinancePermissions;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -98,20 +100,30 @@ final class CalculateCommission
         $salesEmployee = $this->resolveSalesEmployee($subscription->sold_by_user_id, $subscription);
 
         if ($salesEmployee !== null) {
-            $plan = $subscription->plan;
-            $rate = $plan && $plan->commission_rate !== null ? (string) $plan->commission_rate : '0.0000';
+            $user = $salesEmployee->user;
+            $hasPermission = ! $user
+                || $user->roles()->count() === 0
+                || $user->hasPermissionTo(HrFinancePermissions::PERM_COMMISSIONS_EARN_SALES)
+                || $user->hasRole(FoundationPermissions::ROLE_ADMIN);
 
-            if (bccomp($rate, '0.0000', 4) > 0) {
-                $specs[] = [
-                    'employee' => $salesEmployee,
-                    'commission_type' => 'subscription_sale',
-                    'calculation_type' => 'percentage',
-                    'rate' => $rate,
-                    'rule_value' => bcmul($rate, '100', 4),
-                    'amount' => bcmul($base, $rate, 2),
-                    'month' => $month,
-                    'rule_id' => null,
-                ];
+            if ($hasPermission) {
+                $plan = $subscription->plan;
+                $rate = $plan && $plan->commission_rate !== null && bccomp((string) $plan->commission_rate, '0.0000', 4) > 0
+                    ? (string) $plan->commission_rate
+                    : '0.0100'; // Default 1% commission on subscription creation, renewal, or plan change
+
+                if (bccomp($rate, '0.0000', 4) > 0) {
+                    $specs[] = [
+                        'employee' => $salesEmployee,
+                        'commission_type' => 'subscription_sale',
+                        'calculation_type' => 'percentage',
+                        'rate' => $rate,
+                        'rule_value' => bcmul($rate, '100', 4),
+                        'amount' => bcmul($base, $rate, 2),
+                        'month' => $month,
+                        'rule_id' => null,
+                    ];
+                }
             }
         }
 
@@ -164,20 +176,30 @@ final class CalculateCommission
         $salesEmployee = $this->resolveSalesEmployee($addon->sold_by_user_id, $addon);
 
         if ($salesEmployee !== null) {
-            $plan = $addon->plan;
-            $rate = $plan && $plan->commission_rate !== null ? (string) $plan->commission_rate : '0.0000';
+            $user = $salesEmployee->user;
+            $hasPermission = ! $user
+                || $user->roles()->count() === 0
+                || $user->hasPermissionTo(HrFinancePermissions::PERM_COMMISSIONS_EARN_SALES)
+                || $user->hasRole(FoundationPermissions::ROLE_ADMIN);
 
-            if (bccomp($rate, '0.0000', 4) > 0) {
-                $specs[] = [
-                    'employee' => $salesEmployee,
-                    'commission_type' => 'subscription_addon_sale',
-                    'calculation_type' => 'percentage',
-                    'rate' => $rate,
-                    'rule_value' => bcmul($rate, '100', 4),
-                    'amount' => bcmul($base, $rate, 2),
-                    'month' => $month,
-                    'rule_id' => null,
-                ];
+            if ($hasPermission) {
+                $plan = $addon->plan;
+                $rate = $plan && $plan->commission_rate !== null && bccomp((string) $plan->commission_rate, '0.0000', 4) > 0
+                    ? (string) $plan->commission_rate
+                    : '0.0100';
+
+                if (bccomp($rate, '0.0000', 4) > 0) {
+                    $specs[] = [
+                        'employee' => $salesEmployee,
+                        'commission_type' => 'subscription_addon_sale',
+                        'calculation_type' => 'percentage',
+                        'rate' => $rate,
+                        'rule_value' => bcmul($rate, '100', 4),
+                        'amount' => bcmul($base, $rate, 2),
+                        'month' => $month,
+                        'rule_id' => null,
+                    ];
+                }
             }
         }
 
@@ -205,6 +227,10 @@ final class CalculateCommission
             }
         }
 
+        if ($specs === []) {
+            Log::info("Skipping commission for source {$addon->id} (type: ".SubscriptionAddon::class.') - no eligible commission rules found.');
+        }
+
         return $specs;
     }
 
@@ -216,7 +242,7 @@ final class CalculateCommission
             return null;
         }
 
-        $employee = Employee::where('user_id', $userId)->first();
+        $employee = Employee::with('user')->where('user_id', $userId)->first();
 
         if (! $employee) {
             Log::info("Skipping commission for source {$source->id} (type: ".get_class($source).") - user {$userId} is not linked to any employee.");

@@ -23,9 +23,7 @@ const planInputSchema = z
     ),
     access_grace_days: z.coerce.number().int().min(0, "Access grace days cannot be negative."),
     cancellation_grace_days: z.coerce.number().int().min(0, "Cancellation grace days cannot be negative."),
-    category: z.enum(["gym_access", "personal_training", "classes", "nutrition", "recovery"], {
-      error: "Plan category is required.",
-    }),
+    category: z.string().trim().min(1, "Plan category is required."),
     description: z.string().trim().max(5000).optional(),
     duration_basis: z.enum(["days", "months"]).default("days"),
     duration_days: z.coerce.number().int().min(1, "Duration days must be at least 1."),
@@ -43,8 +41,8 @@ const planInputSchema = z
       (value) => (String(value ?? "").trim() === "" ? null : value),
       z.coerce.number().int().min(1, "Sessions count must be at least 1.").nullable(),
     ),
-    type: z.enum(["membership", "offer"], {
-      error: "Plan type must be Membership or Offer.",
+    type: z.enum(["membership", "offer", "fitness_studio"], {
+      error: "Plan type must be Membership, Offer, or Fitness Studio.",
     }),
     valid_from: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
     valid_to: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
@@ -337,5 +335,18 @@ async function deleteRemovedRules(planId: number, ruleIds: number[]) {
         method: "DELETE",
       });
     }
+  }
+}
+
+export async function createPlanCategoryAction(name: string, description?: string) {
+  try {
+    const res = await serverApiFetch<{ id: number; name: string; slug: string }>("/plan-categories", {
+      body: JSON.stringify({ description, name }),
+      method: "POST",
+    });
+    revalidatePath("/dashboard/plans");
+    return { data: res.data, ok: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to create category", ok: false };
   }
 }

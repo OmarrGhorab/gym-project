@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
 import { Banknote, BarChart3, Calendar, Download, FileSpreadsheet, Filter, Package, Search, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -216,6 +217,7 @@ function ClassesPlansView({
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
 }) {
+  const locale = useLocale();
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const plansSummary = (data.plans_summary as Record<string, unknown>[]) ?? [];
   const subscriptions = (data.subscriptions as Record<string, unknown>[]) ?? [];
@@ -342,12 +344,51 @@ function ClassesPlansView({
                 <TableHead>Attention Reason</TableHead>
                 <TableHead>Price Paid</TableHead>
                 <TableHead>Sold By</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {endingSoonMembers.map((sub) => {
                 const daysLeft = sub.days_left !== null && sub.days_left !== undefined ? Number(sub.days_left) : null;
                 const reason = String(sub.attention_reason ?? "ending_soon");
+
+                const isSessionsFinished =
+                  sub.sessions_total !== null && Number(sub.sessions_total) > 0 && Number(sub.sessions_remaining) <= 0;
+                const isMonthFinished = daysLeft !== null && daysLeft <= 0;
+
+                const finishedSessionsButNotMonth = isSessionsFinished && !isMonthFinished;
+                const finishedMonthButNotSessions = isMonthFinished && !isSessionsFinished;
+                const finishedBoth = isMonthFinished && isSessionsFinished;
+
+                const showWhatsApp = finishedSessionsButNotMonth || finishedMonthButNotSessions || finishedBoth;
+
+                let whatsappUrl = "";
+                if (showWhatsApp && sub.member_phone) {
+                  let cleanPhone = String(sub.member_phone).replace(/\D/g, "");
+                  if (cleanPhone.startsWith("01") && cleanPhone.length === 11) {
+                    cleanPhone = "2" + cleanPhone;
+                  }
+
+                  let message = "";
+                  if (locale === "ar") {
+                    if (finishedSessionsButNotMonth) {
+                      message = `مرحباً ${sub.member_name}، لقد انتهت جميع الجلسات الخاصة باشتراكك (${sub.plan_name})، ولكن فترة الاشتراك لا تزال نشطة. هل تود تجديد الاشتراك أو شحن جلسات إضافية؟`;
+                    } else if (finishedMonthButNotSessions) {
+                      message = `مرحباً ${sub.member_name}، لقد انتهت فترة صلاحية اشتراكك في (${sub.plan_name})، ولكن لا يزال لديك جلسات غير مستخدمة (${sub.sessions_text}). هل تود تجديد اشتراكك؟`;
+                    } else if (finishedBoth) {
+                      message = `مرحباً ${sub.member_name}، لقد انتهت فترة اشتراكك في (${sub.plan_name}) ونفدت جميع الجلسات. هل تود تجديد اشتراكك؟`;
+                    }
+                  } else {
+                    if (finishedSessionsButNotMonth) {
+                      message = `Hello ${sub.member_name}, we noticed that you have finished all sessions of your subscription (${sub.plan_name}), but your membership time is still active. Would you like to renew or top up?`;
+                    } else if (finishedMonthButNotSessions) {
+                      message = `Hello ${sub.member_name}, we noticed that your subscription to ${sub.plan_name} has expired, but you still have unused sessions (${sub.sessions_text}) remaining. Would you like to renew your plan?`;
+                    } else if (finishedBoth) {
+                      message = `Hello ${sub.member_name}, your subscription to ${sub.plan_name} has expired and you have finished all sessions. Would you like to renew your plan?`;
+                    }
+                  }
+                  whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                }
 
                 return (
                   <TableRow key={String(sub.id)}>
@@ -402,12 +443,29 @@ function ClassesPlansView({
                     </TableCell>
                     <TableCell>EGP {String(sub.price_paid)}</TableCell>
                     <TableCell>{String(sub.sold_by)}</TableCell>
+                    <TableCell className="text-right">
+                      {whatsappUrl ? (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 h-7 px-2.5 font-medium inline-flex items-center gap-1.5"
+                          render={<a href={whatsappUrl} target="_blank" rel="noopener noreferrer" />}
+                        >
+                          <svg className="size-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                          </svg>
+                          WhatsApp
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-xs font-normal">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {endingSoonMembers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="py-6 text-center text-muted-foreground">
                     No members currently ending plan or low on sessions.
                   </TableCell>
                 </TableRow>

@@ -18,6 +18,14 @@ export type PlanEmployeeOption = {
   plan_commission_rules?: PlanCommissionRuleRow[];
 };
 
+export type PlanCategoryOption = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+};
+
 export type PlanRow = {
   id: number;
   name: string;
@@ -57,24 +65,27 @@ export type PlanRow = {
 };
 
 export type PlansPageData = {
+  categories: PlanCategoryOption[];
   employees: PlanEmployeeOption[];
   plans: PlanRow[];
 };
 
 export async function getPlansPageData(): Promise<PlansPageData> {
   try {
-    const [result, employeesResult] = await Promise.all([
+    const [result, employeesResult, categoriesResult] = await Promise.all([
       serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?sort=name&per_page=100"),
       serverApiFetch<PlanEmployeeOption[] | PaginatedData<PlanEmployeeOption>>(
         "/employees?filter[status]=active&per_page=100",
       ).catch(() => ({ data: [] as PlanEmployeeOption[] })),
+      serverApiFetch<PlanCategoryOption[]>("/plan-categories").catch(() => ({ data: [] as PlanCategoryOption[] })),
     ]);
 
     return {
+      categories: Array.isArray(categoriesResult.data) ? categoriesResult.data : [],
       employees: unwrapList(employeesResult.data as PlanEmployeeOption[] | PaginatedData<PlanEmployeeOption>),
       plans: unwrapList(result.data),
     };
   } catch {
-    return { employees: [], plans: [] };
+    return { categories: [], employees: [], plans: [] };
   }
 }

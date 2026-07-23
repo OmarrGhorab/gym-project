@@ -90,6 +90,27 @@ class OperationalNotifier
         );
     }
 
+    public function subscriptionSessionsFinished(Subscription $subscription): void
+    {
+        $subscription->loadMissing(['member:id,name', 'plan:id,name']);
+
+        $this->notifyAdmins(
+            title: 'Membership total sessions finished',
+            body: ($subscription->member?->name ?? 'Member').' has finished all '.($subscription->sessions_total ?? 0).' total sessions for '.($subscription->plan?->name ?? 'the plan').'.',
+            category: 'membership.sessions_finished',
+            url: '/dashboard/crm',
+            severity: 'warning',
+            extra: [
+                'subscription_id' => $subscription->id,
+                'member_id' => $subscription->member_id,
+                'member_name' => $subscription->member?->name,
+                'plan_name' => $subscription->plan?->name,
+                'sessions_total' => $subscription->sessions_total,
+                'sessions_remaining' => 0,
+            ],
+        );
+    }
+
     public function payrollReady(Payroll $payroll): void
     {
         $payroll->loadMissing('employee.user');

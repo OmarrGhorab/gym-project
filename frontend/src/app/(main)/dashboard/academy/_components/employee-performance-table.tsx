@@ -111,7 +111,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
   );
 }
 
-function StaffQrDialog({ employeeName, payload }: { employeeName: string; payload: string | null }) {
+export function StaffQrDialog({ employeeName, payload }: { employeeName: string; payload: string | null }) {
   const t = useTranslations("Dashboard.academy");
   const qrUrl = payload
     ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payload)}`

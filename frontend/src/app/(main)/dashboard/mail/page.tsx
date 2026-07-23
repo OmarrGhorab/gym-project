@@ -133,6 +133,7 @@ const notificationCategoryOptions = [
   "inventory.low_stock",
   "membership.cancelled_refund",
   "membership.expiring_soon",
+  "membership.sessions_finished",
   "membership.subscription_created",
   "payroll.paid",
   "payroll.ready",

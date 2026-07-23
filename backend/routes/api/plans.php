@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\PlanCategoryController;
 use App\Http\Controllers\Api\V1\PlanController;
 use App\Support\MembershipPermissions;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,15 @@ use Illuminate\Support\Facades\Route;
 | PlanPolicy (US2 — T036).
 |
 */
+
+Route::get('plan-categories', [PlanCategoryController::class, 'index'])
+    ->middleware('permission:'.MembershipPermissions::PERM_PLANS_VIEW);
+Route::post('plan-categories', [PlanCategoryController::class, 'store'])
+    ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_CREATE]);
+Route::put('plan-categories/{planCategory}', [PlanCategoryController::class, 'update'])
+    ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_UPDATE]);
+Route::delete('plan-categories/{planCategory}', [PlanCategoryController::class, 'destroy'])
+    ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_PLANS_DELETE]);
 
 Route::prefix('plans')->group(function (): void {
     Route::get('/', [PlanController::class, 'index'])

@@ -101,3 +101,29 @@ test('unlinked user transactions do not trigger commission creation', function (
 
     expect($commission)->toBeNull();
 });
+
+test('employee selling or renewing subscription defaults to 1% commission when plan rate is unconfigured', function (): void {
+    $user = User::factory()->create();
+    $employee = Employee::factory()->create([
+        'role' => 'cashier',
+        'user_id' => $user->id,
+        'base_salary' => '5000.00',
+    ]);
+
+    $plan = Plan::factory()->create(['commission_rate' => null]);
+
+    $subscription = Subscription::factory()->create([
+        'sold_by_user_id' => $user->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '1000.00',
+    ]);
+
+    $commission = Commission::where('source_type', Subscription::class)
+        ->where('source_id', $subscription->id)
+        ->first();
+
+    expect($commission)->not->toBeNull();
+    expect($commission->employee_id)->toBe($employee->id);
+    expect($commission->rate)->toBe('0.0100');
+    expect($commission->amount)->toBe('10.00');
+});
