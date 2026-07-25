@@ -29,7 +29,9 @@ export type MemberRow = {
   updated_at?: string | null;
   latest_subscription: {
     id: number;
+    plan_id?: number | null;
     plan_name: string | null;
+    plan?: { id: number; name: string; price: string | number } | null;
     start_date: string | null;
     end_date: string | null;
     status: string;

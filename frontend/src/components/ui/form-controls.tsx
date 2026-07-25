@@ -87,17 +87,42 @@ export function FormSelect({
   const [internalValue, setInternalValue] = React.useState<string | null>(initialValue);
   const [query, setQuery] = React.useState("");
   const value = isControlled ? currentValue : internalValue;
+
+  // Retain known options across async search / option updates so selected labels never fallback to raw IDs
+  const knownOptionsMap = React.useRef<Map<string, FormSelectOption>>(new Map());
+
+  React.useEffect(() => {
+    for (const opt of options) {
+      if (opt && opt.value) {
+        knownOptionsMap.current.set(opt.value, opt);
+      }
+    }
+  }, [options]);
+
   const selectedOption = React.useMemo(() => {
     if (!value) {
       return null;
     }
 
-    return (
-      options.find((option) => option.value === value) ?? {
-        label: controlledSelectedLabel ?? value,
+    const foundInProps = options.find((option) => option.value === value);
+    if (foundInProps) {
+      knownOptionsMap.current.set(value, foundInProps);
+      return foundInProps;
+    }
+
+    const cached = knownOptionsMap.current.get(value);
+    if (cached) {
+      return cached;
+    }
+
+    if (controlledSelectedLabel) {
+      return {
+        label: controlledSelectedLabel,
         value,
-      }
-    );
+      };
+    }
+
+    return null;
   }, [controlledSelectedLabel, options, value]);
 
   React.useEffect(() => {
@@ -119,13 +144,17 @@ export function FormSelect({
       filter={onSearchChange ? null : undefined}
       id={id}
       isItemEqualToValue={(left, right) => left?.value === right?.value}
-      itemToStringLabel={(option) => getOptionSearchText(option?.label)}
+      itemToStringLabel={(option) => getOptionDisplayLabel(option?.label)}
       itemToStringValue={(option) => option?.value ?? ""}
       items={options}
       name={name}
       onInputValueChange={(nextQuery) => setQuery(nextQuery)}
       onValueChange={(option) => {
         const nextValue = option?.value ?? "";
+
+        if (option?.value) {
+          knownOptionsMap.current.set(option.value, option);
+        }
 
         if (!isControlled) {
           setInternalValue(option?.value ?? null);
@@ -168,16 +197,20 @@ export function FormSelect({
   );
 }
 
-function getOptionSearchText(label: React.ReactNode): string {
+function getOptionDisplayLabel(label: React.ReactNode): string {
   if (typeof label === "string" || typeof label === "number") {
-    return String(label).toLowerCase();
+    return String(label);
   }
 
   if (Array.isArray(label)) {
-    return label.map(getOptionSearchText).join(" ");
+    return label.map(getOptionDisplayLabel).join(" ");
   }
 
   return "";
+}
+
+function getOptionSearchText(label: React.ReactNode): string {
+  return getOptionDisplayLabel(label).toLowerCase();
 }
 
 type FormDatePickerProps = {

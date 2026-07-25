@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     params.set("filter[q]", query);
   }
 
-  const response = await fetch(`${API_BASE_URL}/employees?${params.toString()}`, {
+  const response = await fetch(`${API_BASE_URL}/attendance/employee-options?${params.toString()}`, {
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,

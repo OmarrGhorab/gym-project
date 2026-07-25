@@ -46,6 +46,7 @@ import {
   createMemberSubscription,
   deactivateMember,
   fetchMemberDetails,
+  reactivateMember,
   updateMember,
   uploadMemberPhoto,
 } from "./actions";
@@ -941,16 +942,18 @@ function SubscriptionFormContent({
     [isStudioPlanItem, plans],
   );
 
-  const [planCategoryTab, setPlanCategoryTab] = React.useState<"gym_access" | "fitness_studio">("gym_access");
+  const [planCategoryTab, setPlanCategoryTab] = React.useState<"gym_access" | "extra_on" | "fitness_studio">(
+    "gym_access",
+  );
   const availablePlans = React.useMemo(() => {
-    if (kind === "change") {
-      return plans;
-    }
     if (planCategoryTab === "fitness_studio") {
       return studioPlans.length > 0 ? studioPlans : plans;
     }
-    return basePlans;
-  }, [basePlans, kind, planCategoryTab, plans, studioPlans]);
+    if (planCategoryTab === "extra_on") {
+      return servicePlans.length > 0 ? servicePlans : plans;
+    }
+    return basePlans.length > 0 ? basePlans : plans;
+  }, [basePlans, planCategoryTab, plans, servicePlans, studioPlans]);
 
   const initialPlan = availablePlans[0] ?? basePlans[0];
   const currentSubscription = member.latest_subscription;
@@ -961,7 +964,6 @@ function SubscriptionFormContent({
   const [startDate, setStartDate] = React.useState(defaultStartDate);
   const [discountType, setDiscountType] = React.useState<"fixed" | "percent">("fixed");
   const [discountValue, setDiscountValue] = React.useState("0");
-  const [creditMode, setCreditMode] = React.useState<"full_difference" | "day_proration">("full_difference");
   const [paymentAmountOverride, setPaymentAmountOverride] = React.useState<string | null>(null);
   const [addons, setAddons] = React.useState<
     Array<{
@@ -980,18 +982,30 @@ function SubscriptionFormContent({
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
     : "0";
   let suggestedPaymentAmount = "";
-  let planChangeDetails: ReturnType<typeof calculatePlanChangeDetails> | null = null;
+  let priceDifference = 0;
+  let oldPlanPrice = 0;
+
+  const currentPlan = plans.find((p) => {
+    if (currentSubscription?.plan_name && p.name === currentSubscription.plan_name) {
+      return true;
+    }
+    if (currentSubscription?.plan_id && p.id === currentSubscription.plan_id) {
+      return true;
+    }
+    return false;
+  });
+
   if (selectedPlan) {
     if (kind === "change") {
-      planChangeDetails = calculatePlanChangeDetails({
-        creditMode,
-        newPrice: selectedPlan.price,
-        paidTotal: getEffectiveSubscriptionPaidTotal(currentSubscription),
-        startDate: currentSubscription?.start_date ?? null,
-        endDate: currentSubscription?.end_date ?? null,
-        extraDiscount: normalizedDiscount,
-      });
-      suggestedPaymentAmount = planChangeDetails.amountDue;
+      oldPlanPrice = Number(
+        getEffectiveSubscriptionPaidTotal(currentSubscription) ||
+          currentPlan?.price ||
+          currentSubscription?.price_paid ||
+          0,
+      );
+      const newPlanPrice = Number(selectedPlan.price);
+      priceDifference = newPlanPrice - oldPlanPrice;
+      suggestedPaymentAmount = priceDifference.toFixed(2);
     } else {
       suggestedPaymentAmount = calculatePaymentAmount(selectedPlan.price, normalizedDiscount);
     }
@@ -1015,27 +1029,43 @@ function SubscriptionFormContent({
     router.refresh();
   }, [onCancel, router, state.message, state.ok, submitLabel]);
 
+  const wasOpenRef = React.useRef(false);
   React.useEffect(() => {
-    if (!initialPlan) {
-      return;
+    if (open && !wasOpenRef.current) {
+      const currentPlanId = currentPlan ? String(currentPlan.id) : "";
+
+      let defaultTab: "gym_access" | "extra_on" | "fitness_studio" = "gym_access";
+      if (currentPlan) {
+        if (isStudioPlanItem(currentPlan)) {
+          defaultTab = "fitness_studio";
+        } else if (currentPlan.category !== "gym_access" && currentPlan.category) {
+          defaultTab = "extra_on";
+        }
+      }
+
+      setPlanCategoryTab(defaultTab);
+
+      let targetPlans = basePlans.length > 0 ? basePlans : plans;
+      if (defaultTab === "fitness_studio") {
+        targetPlans = studioPlans.length > 0 ? studioPlans : plans;
+      } else if (defaultTab === "extra_on") {
+        targetPlans = servicePlans.length > 0 ? servicePlans : plans;
+      }
+
+      if (kind === "change" && currentPlanId) {
+        setSelectedPlanId(currentPlanId);
+      } else {
+        setSelectedPlanId(targetPlans[0] ? String(targetPlans[0].id) : "");
+      }
+
+      setStartDate(defaultStartDate);
+      setDiscountType("fixed");
+      setDiscountValue("0");
+      setPaymentAmountOverride(null);
+      setAddons([]);
     }
-
-    setSelectedPlanId(String(initialPlan.id));
-  }, [initialPlan]);
-
-  React.useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setSelectedPlanId(initialPlan ? String(initialPlan.id) : "");
-    setStartDate(defaultStartDate);
-    setDiscountType("fixed");
-    setDiscountValue("0");
-    setCreditMode("full_difference");
-    setPaymentAmountOverride(null);
-    setAddons([]);
-  }, [defaultStartDate, initialPlan, open]);
+    wasOpenRef.current = open;
+  }, [basePlans, currentPlan, defaultStartDate, isStudioPlanItem, kind, open, plans, servicePlans, studioPlans]);
 
   return (
     <DialogContent className="sm:max-w-2xl">
@@ -1090,44 +1120,62 @@ function SubscriptionFormContent({
           </div>
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          {kind === "create" ? (
-            <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/20 p-1 text-sm sm:col-span-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPlanCategoryTab("gym_access");
-                  const firstGym = basePlans[0];
-                  if (firstGym) {
-                    setSelectedPlanId(String(firstGym.id));
-                  }
-                }}
-                className={
-                  planCategoryTab === "gym_access"
-                    ? "rounded-md bg-background px-3 py-2 font-medium text-foreground shadow-sm"
-                    : "rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+          <div className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/20 p-1 text-xs sm:col-span-2 sm:text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setPlanCategoryTab("gym_access");
+                const firstGym = basePlans[0] ?? plans[0];
+                if (firstGym) {
+                  setSelectedPlanId(String(firstGym.id));
                 }
-              >
-                Main Gym Membership
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPlanCategoryTab("fitness_studio");
-                  const firstStudio = studioPlans[0];
-                  if (firstStudio) {
-                    setSelectedPlanId(String(firstStudio.id));
-                  }
-                }}
-                className={
-                  planCategoryTab === "fitness_studio"
-                    ? "rounded-md bg-background px-3 py-2 font-medium text-foreground shadow-sm"
-                    : "rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+                setPaymentAmountOverride(null);
+              }}
+              className={
+                planCategoryTab === "gym_access"
+                  ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
+                  : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
+              }
+            >
+              Main plans
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlanCategoryTab("extra_on");
+                const firstExtra = servicePlans[0] ?? plans[0];
+                if (firstExtra) {
+                  setSelectedPlanId(String(firstExtra.id));
                 }
-              >
-                Fitness Studio Membership
-              </button>
-            </div>
-          ) : null}
+                setPaymentAmountOverride(null);
+              }}
+              className={
+                planCategoryTab === "extra_on"
+                  ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
+                  : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
+              }
+            >
+              Extra-on plan
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlanCategoryTab("fitness_studio");
+                const firstStudio = studioPlans[0] ?? plans[0];
+                if (firstStudio) {
+                  setSelectedPlanId(String(firstStudio.id));
+                }
+                setPaymentAmountOverride(null);
+              }}
+              className={
+                planCategoryTab === "fitness_studio"
+                  ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
+                  : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
+              }
+            >
+              Fitness studio plans
+            </button>
+          </div>
           <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="plan_id">{kind === "create" ? t("plan") : t("newPlan")}</Label>
             <FormSelect
@@ -1191,70 +1239,32 @@ function SubscriptionFormContent({
           ) : null}
           {kind === "change" ? (
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="credit_mode">{t("creditMode")}</Label>
-              <input type="hidden" name="credit_mode" value={creditMode} />
-              <FormSelect
-                id="credit_mode"
-                name="credit_mode_select"
-                value={creditMode}
-                onValueChange={(value) => {
-                  setCreditMode((value as "full_difference" | "day_proration") || "full_difference");
-                  setPaymentAmountOverride(null);
-                }}
-                options={[
-                  { value: "full_difference", label: t("creditModeFullDifference") },
-                  { value: "day_proration", label: t("creditModeDayProration") },
-                ]}
-              />
-              <p className="text-muted-foreground text-xs">
-                {creditMode === "full_difference" ? t("creditModeFullDifferenceHint") : t("creditModeDayProrationHint")}
-              </p>
-              {planChangeDetails ? (
-                <div
-                  className={
-                    planChangeDetails.isDowngrade
-                      ? "mt-1 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm"
-                      : "mt-1 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm"
-                  }
-                >
-                  <div
-                    className={
-                      planChangeDetails.isDowngrade
-                        ? "flex items-center justify-between font-semibold text-amber-700 dark:text-amber-400"
-                        : "flex items-center justify-between font-semibold text-blue-700 dark:text-blue-400"
-                    }
-                  >
-                    <span>{planChangeDetails.isDowngrade ? t("downgradeRefund") : t("upgradeDifference")}</span>
+              <input type="hidden" name="credit_mode" value="full_difference" />
+              {selectedPlan && currentSubscription ? (
+                <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm">
+                  <div className="flex items-center justify-between font-semibold text-blue-700 dark:text-blue-400">
+                    <span>Price difference (Suggested)</span>
                     <span className="font-bold text-base">
-                      {planChangeDetails.isDowngrade
-                        ? `-${planChangeDetails.refundAmount} EGP`
-                        : `+${planChangeDetails.amountDue} EGP`}
+                      {priceDifference >= 0
+                        ? `+${priceDifference.toFixed(2)} EGP`
+                        : `${priceDifference.toFixed(2)} EGP`}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-muted-foreground text-xs">
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-muted-foreground text-xs">
                     <div>
-                      <span>{t("oldPlanCredit")}: </span>
-                      <strong className="text-foreground">{planChangeDetails.credit} EGP</strong>
-                    </div>
-                    <div>
-                      <span>{t("newPlanCost")}: </span>
-                      <strong className="text-foreground">{planChangeDetails.newPrice} EGP</strong>
-                    </div>
-                    <div>
-                      <span>{planChangeDetails.isDowngrade ? t("returnToMember") : t("paymentAmount")}: </span>
+                      <span>Current plan: </span>
                       <strong className="text-foreground">
-                        {planChangeDetails.isDowngrade
-                          ? `${planChangeDetails.refundAmount} EGP`
-                          : `${planChangeDetails.amountDue} EGP`}
+                        {currentSubscription.plan_name ?? currentPlan?.name ?? "Current"} ({oldPlanPrice.toFixed(2)}{" "}
+                        EGP)
+                      </strong>
+                    </div>
+                    <div>
+                      <span>New plan: </span>
+                      <strong className="text-foreground">
+                        {selectedPlan.name} ({Number(selectedPlan.price).toFixed(2)} EGP)
                       </strong>
                     </div>
                   </div>
-                  {Number(currentSubscription?.paid_total ?? 0) === 0 &&
-                  Number(currentSubscription?.price_paid ?? 0) > 0 ? (
-                    <p className="mt-2 font-medium text-amber-700 text-xs dark:text-amber-400">
-                      {t("unpaidCreditNote")}
-                    </p>
-                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1265,18 +1275,16 @@ function SubscriptionFormContent({
             <Input
               id="payment_amount"
               name="payment_amount"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
               required
               value={paymentAmount}
               readOnly={kind === "create"}
               onChange={kind === "change" ? (event) => setPaymentAmountOverride(event.currentTarget.value) : undefined}
               aria-invalid={Boolean(fieldError(state, "payment_amount"))}
             />
-            {kind === "change" && planChangeDetails?.isDowngrade ? (
-              <p className="font-medium text-amber-700 text-xs dark:text-amber-400">
-                {t("downgradePaymentNotice", { refund: `${planChangeDetails.refundAmount}` })}
+            {kind === "change" ? (
+              <p className="text-muted-foreground text-xs">
+                Enter price difference (+ for extra payment, - for refund).
               </p>
             ) : null}
             <FieldError errors={state.errors.payment_amount} />
@@ -1716,29 +1724,37 @@ function DeactivateMemberItem({ member }: { member: MemberRow }) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
+  const isActive = member.status === "active";
 
   return (
     <DropdownMenuItem
-      variant="destructive"
-      disabled={pending || member.status !== "active"}
+      variant={isActive ? "destructive" : "default"}
+      disabled={pending}
       onClick={(event) => {
         event.preventDefault();
         const formData = new FormData();
         formData.set("id", String(member.id));
+        formData.set("name", member.name);
+        formData.set("phone", member.phone);
         startTransition(async () => {
           try {
-            await deactivateMember(formData);
-            toast.success(t("memberDeactivated"));
+            if (isActive) {
+              await deactivateMember(formData);
+              toast.success(t("memberDeactivated"));
+            } else {
+              await reactivateMember(formData);
+              toast.success("Member reactivated successfully.");
+            }
             router.refresh();
           } catch (error) {
-            toast.error(t("deactivateFailed"), {
+            toast.error(isActive ? t("deactivateFailed") : "Reactivation failed.", {
               description: error instanceof Error ? error.message : t("pleaseTryAgain"),
             });
           }
         });
       }}
     >
-      {t("deactivate")}
+      {isActive ? t("deactivate") : "Reactivate member"}
     </DropdownMenuItem>
   );
 }

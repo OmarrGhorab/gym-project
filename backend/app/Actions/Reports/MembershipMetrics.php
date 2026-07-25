@@ -71,28 +71,18 @@ final class MembershipMetrics
     }
 
     /**
-     * Net collected on currently active + frozen memberships (payments include refund negatives).
+     * Net collected on memberships (payments include refund negatives).
      */
     public function liveMembershipNetCollected(): float
     {
-        $liveIds = Subscription::query()
-            ->whereIn('status', ['active', 'frozen'])
-            ->select('id');
-
         $base = (float) Payment::query()
             ->revenue()
             ->where('payable_type', Subscription::class)
-            ->whereIn('payable_id', $liveIds)
             ->sum('amount');
-
-        $addonIds = SubscriptionAddon::query()
-            ->whereIn('subscription_id', $liveIds)
-            ->select('id');
 
         $addons = (float) Payment::query()
             ->revenue()
             ->where('payable_type', SubscriptionAddon::class)
-            ->whereIn('payable_id', $addonIds)
             ->sum('amount');
 
         return max(0.0, $base + $addons);

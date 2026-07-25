@@ -111,5 +111,20 @@ test('users without attendance permission cannot list attendance', function (): 
     Sanctum::actingAs($user);
 
     $this->getJson('/api/v1/attendance')
-        ->assertStatus(403);
+        ->assertForbidden();
+});
+
+test('attendance users can fetch active employee options', function (): void {
+    $cashier = User::factory()->create();
+    $cashier->assignRole(FoundationPermissions::ROLE_CASHIER);
+    Sanctum::actingAs($cashier);
+
+    Employee::factory()->create(['name' => 'Active Staff Option', 'status' => 'active']);
+    Employee::factory()->create(['name' => 'Inactive Staff Option', 'status' => 'inactive']);
+
+    $response = $this->getJson('/api/v1/attendance/employee-options?filter[status]=active&per_page=100')
+        ->assertOk()
+        ->assertJsonCount(1, 'data');
+
+    expect($response->json('data.0.name'))->toBe('Active Staff Option');
 });

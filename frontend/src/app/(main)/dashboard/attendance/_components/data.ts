@@ -170,7 +170,7 @@ export async function getAttendancePageData({
   }
 
   const [employees, members, memberVisits, records, shifts, summary, violations] = await Promise.all([
-    safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/employees?filter[status]=active&per_page=100", []),
+    safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
     safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
     safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
       `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=8`,

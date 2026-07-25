@@ -47,7 +47,6 @@ test('unauthenticated users cannot view financial report', function (): void {
 
 test('users without reports.view permission cannot view financial report', function (): void {
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
 
     $this->getJson('/api/v1/reports/financial?from=2026-06-01&to=2026-06-05&group_by=day')

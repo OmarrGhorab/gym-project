@@ -333,7 +333,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     birth_date: member.birth_date ?? null,
     plan: subscription?.plan_name ?? null,
     planEndsAt: subscription?.end_date ?? null,
-    status: member.membership_status ?? null,
+    status: member.status === "inactive" ? "inactive" : (member.membership_status ?? member.status ?? null),
     billing: member.billing_status ?? "unknown",
     totalPaid: subscription?.package_paid_total ?? member.total_paid ?? "0.00",
     joined: member.join_date ?? member.created_at?.slice(0, 10) ?? null,

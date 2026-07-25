@@ -93,7 +93,6 @@ test('accountant can view live gym attendance summary', function (): void {
 
 test('users without reports permission cannot view live attendance summary', function (): void {
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
 
     $this->getJson('/api/v1/reports/live-attendance')

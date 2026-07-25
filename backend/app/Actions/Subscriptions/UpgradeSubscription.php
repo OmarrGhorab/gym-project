@@ -53,12 +53,6 @@ class UpgradeSubscription
                 ]);
             }
 
-            if ($newPlan->category !== 'gym_access') {
-                throw ValidationException::withMessages([
-                    'plan_id' => 'Main membership can only be changed to a gym access plan. Use Add extra for services (PT, classes, nutrition, recovery).',
-                ]);
-            }
-
             if ($lockedSubscription->plan_id === $newPlan->id) {
                 throw ValidationException::withMessages([
                     'plan_id' => 'Use the renew endpoint to extend the same plan.',
@@ -80,15 +74,10 @@ class UpgradeSubscription
                 ? $this->calculateRemainingCredit($lockedSubscription)
                 : $this->calculateFullDifferenceCredit($lockedSubscription);
 
-            $totalDiscount = min($newPlanPrice, $baseCredit + $extraDiscount);
-            $amountDue = bcsub((string) $newPlanPrice, (string) $totalDiscount, 2);
-
-            // Paying more than the computed due amount means the staff is intentionally
-            // skipping/reducing credit — only apply the explicit extra discount.
-            if (bccomp($submittedPaymentAmount, $amountDue, 2) === 1) {
-                $totalDiscount = min($newPlanPrice, $extraDiscount);
-                $amountDue = bcsub((string) $newPlanPrice, (string) $totalDiscount, 2);
-            }
+            $netPrice = max(0.0, $newPlanPrice - $extraDiscount);
+            $appliedCredit = min($baseCredit, $netPrice);
+            $remainingDue = max(0.0, $netPrice - $appliedCredit);
+            $excessCredit = max(0.0, $baseCredit - $netPrice);
 
             // Explicit amount_due override from staff/admin (bounded 0..new plan price).
             if (array_key_exists('amount_due', $data) && $data['amount_due'] !== null && $data['amount_due'] !== '') {
@@ -98,21 +87,20 @@ class UpgradeSubscription
                         'amount_due' => 'Amount due must be between 0 and the new plan price.',
                     ]);
                 }
-                $amountDue = $overrideDue;
-                $totalDiscount = (float) bcsub((string) $newPlanPrice, $amountDue, 2);
+                $remainingDue = (float) $overrideDue;
             }
 
-            $paymentAmount = bccomp($submittedPaymentAmount, '0.00', 2) === 1
-                ? $submittedPaymentAmount
-                : max('0.00', $amountDue);
+            $cashPaymentAmount = bccomp($submittedPaymentAmount, '0.00', 2) === 1
+                ? (float) $submittedPaymentAmount
+                : $remainingDue;
 
             $lockedSubscription->update(['status' => 'stopped']);
 
-            $excessCredit = bcsub((string) $baseCredit, (string) $newPlanPrice, 2);
-            if (bccomp($excessCredit, '0.00', 2) === 1) {
+            if ($excessCredit > 0) {
+                $excessCreditStr = number_format($excessCredit, 2, '.', '');
                 SubscriptionRefund::query()->create([
                     'subscription_id' => $lockedSubscription->id,
-                    'amount' => $excessCredit,
+                    'amount' => $excessCreditStr,
                     'method' => (string) ($data['payment']['method'] ?? 'cash'),
                     'reason' => 'Plan downgrade refund difference',
                     'created_by' => $seller->id,
@@ -122,7 +110,7 @@ class UpgradeSubscription
                 Payment::query()->create([
                     'payable_type' => Subscription::class,
                     'payable_id' => $lockedSubscription->id,
-                    'amount' => bcmul($excessCredit, '-1', 2),
+                    'amount' => bcmul($excessCreditStr, '-1', 2),
                     'method' => (string) ($data['payment']['method'] ?? 'cash'),
                     'status' => Payment::STATUS_REFUNDED,
                     'paid_at' => now(),
@@ -138,13 +126,27 @@ class UpgradeSubscription
                 'plan_id' => $newPlan->id,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $newPlan->endDateFrom($startDate)->toDateString(),
-                'discount' => $totalDiscount,
+                'discount' => $extraDiscount,
                 'payment' => [
-                    'amount' => $paymentAmount,
+                    'amount' => number_format($cashPaymentAmount, 2, '.', ''),
                     'method' => $data['payment']['method'],
                     'paid_at' => $data['payment']['paid_at'] ?? null,
                 ],
             ], $seller);
+
+            if ($appliedCredit > 0) {
+                Payment::query()->create([
+                    'payable_type' => Subscription::class,
+                    'payable_id' => $newSubscription->id,
+                    'amount' => number_format($appliedCredit, 2, '.', ''),
+                    'method' => (string) ($data['payment']['method'] ?? 'cash'),
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'due_date' => null,
+                    'created_by' => $seller->id,
+                    'shift_session_id' => $this->openShiftSession->current()?->id,
+                ]);
+            }
 
             $newSubscription->update([
                 'upgraded_from_subscription_id' => $lockedSubscription->id,

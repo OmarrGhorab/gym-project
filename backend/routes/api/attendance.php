@@ -19,6 +19,9 @@ Route::prefix('attendance')->group(function (): void {
     Route::get('/shifts', [AttendanceController::class, 'shifts'])
         ->middleware('permission:attendance.view');
 
+    Route::get('/employee-options', [AttendanceController::class, 'employeeOptions'])
+        ->middleware('permission:attendance.view');
+
     Route::get('/shifts/manage', [AttendanceController::class, 'manageShifts'])
         ->middleware('permission:settings.manage');
 

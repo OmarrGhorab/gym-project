@@ -18,10 +18,12 @@ use App\Http\Requests\Attendance\UpdateEmployeeShiftRequest;
 use App\Http\Resources\AttendanceResource;
 use App\Http\Resources\AttendanceViolationResource;
 use App\Http\Resources\AttendanceViolationRuleResource;
+use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\EmployeeShiftResource;
 use App\Models\Attendance;
 use App\Models\AttendanceViolation;
 use App\Models\AttendanceViolationRule;
+use App\Models\Employee;
 use App\Models\EmployeeOffDayOverride;
 use App\Models\EmployeeShift;
 use App\Models\ShiftOffRotation;
@@ -77,6 +79,43 @@ final class AttendanceController extends ApiController
         return $this->success(
             data: EmployeeShiftResource::collection(EmployeeShift::query()->where('is_active', true)->orderBy('starts_at')->get())->resolve(),
             message: 'Employee shifts retrieved',
+        );
+    }
+
+    public function employeeOptions(Request $request): JsonResponse
+    {
+        ($request->user()->can('attendance.view') || $request->user()->can('attendance.create')) || abort(403);
+
+        $perPage = min(max((int) $request->integer('per_page', 100), 1), 100);
+
+        $query = Employee::query()
+            ->where('status', 'active')
+            ->with(['user.roles', 'shift']);
+
+        $search = trim((string) ($request->input('filter.q') ?? $request->input('q') ?? ''));
+
+        if ($search !== '') {
+            $attendanceCode = str_starts_with($search, 'employee:') ? substr($search, 9) : $search;
+
+            $query->where(function ($builder) use ($attendanceCode, $search): void {
+                $builder->where('name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
+
+                if (ctype_digit($search)) {
+                    $builder->orWhere('id', (int) $search);
+                }
+
+                if ($attendanceCode !== '') {
+                    $builder->orWhere('attendance_code', $attendanceCode);
+                }
+            });
+        }
+
+        $employees = $query->orderBy('name')->paginate($perPage);
+
+        return $this->success(
+            data: EmployeeResource::collection($employees->getCollection())->resolve(),
+            message: 'Employee options retrieved',
         );
     }
 

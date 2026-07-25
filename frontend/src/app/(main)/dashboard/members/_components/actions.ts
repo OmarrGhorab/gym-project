@@ -333,15 +333,23 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
     };
   }
 
+  const rawPaymentAmount = String(parsed.data.payment_amount ?? "0");
+  const numPaymentAmount = Number.parseFloat(rawPaymentAmount);
+  const safePaymentAmount = Number.isNaN(numPaymentAmount) || numPaymentAmount < 0 ? "0.00" : rawPaymentAmount;
+
+  const rawAmountDue = String(parsed.data.amount_due ?? rawPaymentAmount);
+  const numAmountDue = Number.parseFloat(rawAmountDue);
+  const safeAmountDue = Number.isNaN(numAmountDue) || numAmountDue < 0 ? "0.00" : rawAmountDue;
+
   try {
     await serverApiFetch(`/subscriptions/${subscriptionId.data}/upgrade`, {
       body: JSON.stringify({
         plan_id: parsed.data.plan_id,
         credit_mode: parsed.data.credit_mode,
-        amount_due: parsed.data.amount_due ?? parsed.data.payment_amount,
+        amount_due: safeAmountDue,
         discount: parsed.data.discount ?? "0",
         payment: {
-          amount: parsed.data.payment_amount,
+          amount: safePaymentAmount,
           method: parsed.data.payment_method,
         },
       }),
@@ -353,7 +361,7 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not change plan.",
+      message: error instanceof Error ? error.message : "Failed to change subscription plan.",
       errors: {},
       values,
     };
@@ -378,6 +386,29 @@ export async function deactivateMember(input: FormData): Promise<void> {
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/default");
+  revalidatePath("/dashboard");
+}
+
+export async function reactivateMember(input: FormData): Promise<void> {
+  const memberId = memberIdSchema.parse(input.get("id"));
+
+  await serverApiFetch(`/members/${memberId}`, {
+    body: JSON.stringify({
+      name: input.get("name"),
+      phone: input.get("phone"),
+      status: "active",
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "PUT",
+  });
+
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/default");
+  revalidatePath("/dashboard");
 }
 
 export async function cancelMemberSubscription(_state: MemberFormState, input: FormData): Promise<MemberFormState> {

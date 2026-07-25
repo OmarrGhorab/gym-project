@@ -138,6 +138,8 @@ final class EmployeeController extends ApiController
 
     public function performance(EmployeePerformanceRequest $request, Employee $employee, EmployeePerformanceReport $action): JsonResponse
     {
+        $request->user()->can('reports.view') || abort(403);
+
         $params = $request->validated();
         $params['employee_id'] = $employee->id;
 

@@ -24,7 +24,7 @@ afterEach(function (): void {
     Carbon::setTestNow();
 });
 
-test('upgrade rejects extra service plans that are not gym access', function (): void {
+test('admin can switch main plan to a fitness studio plan', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
@@ -35,10 +35,10 @@ test('upgrade rejects extra service plans that are not gym access', function ():
         'duration_days' => 30,
         'category' => 'gym_access',
     ]);
-    $ptPlan = Plan::factory()->active()->create([
+    $studioPlan = Plan::factory()->active()->create([
         'price' => '1800.00',
         'duration_days' => 30,
-        'category' => 'personal_training',
+        'category' => 'fitness_studio',
     ]);
     $subscription = Subscription::factory()->active()->create([
         'member_id' => $member->id,
@@ -53,9 +53,9 @@ test('upgrade rejects extra service plans that are not gym access', function ():
     ]);
 
     $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
-        'plan_id' => $ptPlan->id,
-        'payment' => ['amount' => '1800.00', 'method' => 'cash'],
-    ])->assertStatus(422);
+        'plan_id' => $studioPlan->id,
+        'payment' => ['amount' => '1500.00', 'method' => 'cash'],
+    ])->assertStatus(201);
 });
 
 test('admin can add an extra service plan without changing the main membership', function (): void {
@@ -144,7 +144,8 @@ test('admin can upgrade a subscription with full plan price difference by defaul
         ->assertJsonPath('data.start_date', '2026-06-10')
         ->assertJsonPath('data.end_date', '2026-07-10')
         ->assertJsonPath('data.days_left', 30)
-        ->assertJsonPath('data.price_paid', '300.00');
+        ->assertJsonPath('data.price_paid', '600.00')
+        ->assertJsonPath('data.paid_total', '600.00');
 
     $subscription->refresh();
     expect($subscription->status)->toBe('stopped')
@@ -202,7 +203,8 @@ test('admin can upgrade a subscription to a new plan with day-prorated credit', 
         ->assertJsonPath('data.start_date', '2026-06-10')
         ->assertJsonPath('data.end_date', '2026-07-10')
         ->assertJsonPath('data.days_left', 30)
-        ->assertJsonPath('data.price_paid', '390.00');
+        ->assertJsonPath('data.price_paid', '600.00')
+        ->assertJsonPath('data.paid_total', '600.00');
 
     $subscription->refresh();
     expect($subscription->status)->toBe('stopped')
@@ -352,7 +354,9 @@ test('upgrade with full credit coverage allows zero payment', function (): void 
         ],
     ])
         ->assertStatus(201)
-        ->assertJsonPath('data.price_paid', '0.00');
+        ->assertJsonPath('data.price_paid', '600.00')
+        ->assertJsonPath('data.paid_total', '600.00')
+        ->assertJsonPath('data.balance', '0.00');
 });
 
 test('admin can override amount due on upgrade', function (): void {
@@ -390,7 +394,8 @@ test('admin can override amount due on upgrade', function (): void {
         ],
     ])
         ->assertStatus(201)
-        ->assertJsonPath('data.price_paid', '200.00');
+        ->assertJsonPath('data.price_paid', '600.00')
+        ->assertJsonPath('data.paid_total', '500.00');
 });
 
 test('upgrade rejects same plan and suggests renew', function (): void {

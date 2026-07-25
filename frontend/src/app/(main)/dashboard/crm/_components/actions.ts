@@ -182,11 +182,22 @@ export async function changeMembershipPlan(
   if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
   if (!parsedInput.success) return invalidResult("Please fix the highlighted plan fields.", parsedInput.error);
 
-  return mutateSubscription(
-    `/subscriptions/${parsedId.data}/${mode}`,
-    "Main membership plan changed.",
-    parsedInput.data,
-  );
+  const rawAmount = String(parsedInput.data.payment.amount ?? "0");
+  const numAmount = Number.parseFloat(rawAmount);
+  const safeAmount = Number.isNaN(numAmount) || numAmount < 0 ? "0.00" : rawAmount;
+
+  const rawDue = String(parsedInput.data.amount_due ?? rawAmount);
+  const numDue = Number.parseFloat(rawDue);
+  const safeDue = Number.isNaN(numDue) || numDue < 0 ? "0.00" : rawDue;
+
+  return mutateSubscription(`/subscriptions/${parsedId.data}/${mode}`, "Main membership plan changed.", {
+    ...parsedInput.data,
+    amount_due: safeDue,
+    payment: {
+      ...parsedInput.data.payment,
+      amount: safeAmount,
+    },
+  });
 }
 
 export type AddMembershipExtraInput = {

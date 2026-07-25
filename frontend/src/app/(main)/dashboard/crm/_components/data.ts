@@ -245,7 +245,12 @@ export async function getMembershipDashboardData(): Promise<MembershipDashboardD
       subscriptionSummaryData.outstanding_dues_count ??
       (typeof duesMeta.outstanding_dues_count === "number" ? duesMeta.outstanding_dues_count : latestDueRows.length),
   );
-  const subscriptionRevenue = Number(dashboardData.subscription_revenue_live ?? subscriptionSummaryData.revenue ?? 0);
+  const subscriptionRevenue = Number(
+    dashboardData.subscription_revenue_mtd ??
+      dashboardData.subscription_revenue_live ??
+      subscriptionSummaryData.revenue ??
+      0,
+  );
   const renewalTarget = Math.max(activeSubscriptions, expiringCount, 1);
 
   return {

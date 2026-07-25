@@ -61,6 +61,8 @@ final class ReportController extends ApiController
 
     public function liveAttendance(Request $request, LiveAttendanceSummary $action): JsonResponse
     {
+        $request->user()->can('reports.view') || abort(403);
+
         return $this->success(
             data: $action->execute($request->validate([
                 'date' => ['nullable', 'date'],
