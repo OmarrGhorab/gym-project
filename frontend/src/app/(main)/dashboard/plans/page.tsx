@@ -28,6 +28,8 @@ type PageProps = {
     search?: string;
     status?: string;
     type?: string;
+    created_from?: string;
+    created_to?: string;
   }>;
 };
 
@@ -38,8 +40,17 @@ export default async function Page({ searchParams }: PageProps) {
     search: resolvedSearchParams.search?.trim() || undefined,
     status: resolvedSearchParams.status || undefined,
     type: resolvedSearchParams.type || undefined,
+    created_from: resolvedSearchParams.created_from || undefined,
+    created_to: resolvedSearchParams.created_to || undefined,
   };
   const { categories, employees, plans } = await getPlansPageData(query);
+  const planTypeLabels: Record<string, string> = {
+    extra_service: t("planTypes.extraService"),
+    fitness_studio: t("planTypes.fitnessStudio"),
+    membership: t("planTypes.membership"),
+    membership_extra_service: t("planTypes.membershipExtraService"),
+    offer: t("planTypes.offer"),
+  };
   const active = plans.filter((plan) => plan.is_active).length;
   const sellable = plans.filter((plan) => plan.is_sellable).length;
 
@@ -93,7 +104,7 @@ export default async function Page({ searchParams }: PageProps) {
                         variant={plan.type === "fitness_studio" ? "default" : "outline"}
                         className={plan.type === "fitness_studio" ? "bg-purple-600 text-white" : ""}
                       >
-                        {plan.type === "fitness_studio" ? "Fitness Studio" : plan.type}
+                        {planTypeLabels[plan.type] ?? plan.type}
                       </Badge>
                     </TableCell>
                     <TableCell>{plan.category}</TableCell>

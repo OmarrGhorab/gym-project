@@ -103,6 +103,34 @@ export function MemberDetailsDialog({
           <Metric label={t("outstanding")} value={history?.totals.outstanding_balance ?? "0"} />
         </div>
 
+        {member.latest_subscription ? (
+          <div className="rounded-lg border p-3">
+            <h3 className="mb-2 font-medium text-sm">{t("subscription")}</h3>
+            <div className="grid gap-2 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{member.latest_subscription.plan_name ?? t("noActivePlan")}</span>
+                <span className="tabular-nums">
+                  {t("paid")}: {formatCurrency(Number(member.latest_subscription.paid_total ?? 0), { currency: "EGP" })}
+                </span>
+              </div>
+              {(member.latest_subscription.addons ?? [])
+                .filter((addon) => addon.status !== "stopped" && addon.status !== "cancelled")
+                .map((addon) => (
+                  <div
+                    key={addon.id}
+                    className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-muted-foreground"
+                  >
+                    <span>+ {addon.plan?.name ?? t("addon")}</span>
+                    <span className="tabular-nums">
+                      {t("paid")}:{" "}
+                      {formatCurrency(Number(addon.paid_total ?? addon.price_paid ?? 0), { currency: "EGP" })}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="rounded-lg border p-3">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">

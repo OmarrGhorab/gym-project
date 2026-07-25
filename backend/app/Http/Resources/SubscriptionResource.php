@@ -79,7 +79,7 @@ class SubscriptionResource extends JsonResource
     {
         // Net of refunds (refunded rows store negative amounts).
         return $this->payments
-            ->filter(fn ($payment): bool => in_array($payment->status, Payment::REVENUE_STATUSES, true))
+            ->filter(fn ($payment): bool => in_array($payment->status, Payment::SETTLEMENT_STATUSES, true))
             ->reduce(
                 fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
                 '0.00',
@@ -100,7 +100,7 @@ class SubscriptionResource extends JsonResource
             fn (string $carry, $addon): string => bcadd(
                 $carry,
                 $addon->payments
-                    ->filter(fn ($payment): bool => in_array($payment->status, ['paid', 'partial'], true))
+                    ->filter(fn ($payment): bool => in_array($payment->status, Payment::SETTLEMENT_STATUSES, true))
                     ->reduce(
                         fn (string $paymentCarry, $payment): string => bcadd($paymentCarry, (string) $payment->amount, 2),
                         '0.00',
@@ -155,7 +155,9 @@ class SubscriptionResource extends JsonResource
             return '0.00';
         }
 
-        $balance = bcsub((string) ($this->price_paid ?? '0.00'), $this->collectedPaidTotal(), 2);
+        // Upgrade credit settles a subscription balance but is not newly
+        // collected cash, so use settlement total rather than collections.
+        $balance = bcsub((string) ($this->price_paid ?? '0.00'), $this->paidTotal(), 2);
 
         return bccomp($balance, '0.00', 2) === 1 ? $balance : '0.00';
     }
@@ -166,7 +168,7 @@ class SubscriptionResource extends JsonResource
             return '0.00';
         }
 
-        $balance = bcsub($this->packagePricePaid(), $this->packageCollectedPaidTotal(), 2);
+        $balance = bcsub($this->packagePricePaid(), $this->packagePaidTotal(), 2);
 
         return bccomp($balance, '0.00', 2) === 1 ? $balance : '0.00';
     }

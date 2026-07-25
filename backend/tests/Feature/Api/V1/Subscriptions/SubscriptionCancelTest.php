@@ -180,6 +180,62 @@ test('cancel rejects refund amount above paid total', function (): void {
     ])->assertStatus(422);
 });
 
+test('cancel allows refunding full package price including add-ons', function (): void {
+    Carbon::setTestNow('2026-06-10 12:00:00');
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create(['cancellation_grace_days' => 5]);
+    $addonPlan = Plan::factory()->active()->create(['price' => '2500.00']);
+    $member = Member::factory()->active()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-10',
+        'price_paid' => '800.00',
+        'cancellation_grace_days' => 5,
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '800.00',
+        'status' => 'paid',
+    ]);
+
+    $addon = \App\Models\SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $addonPlan->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
+        'price_paid' => '2500.00',
+        'status' => 'active',
+        'sold_by_user_id' => $user->id,
+        'created_by' => $user->id,
+    ]);
+    Payment::factory()->create([
+        'payable_type' => \App\Models\SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '2500.00',
+        'status' => 'paid',
+    ]);
+
+    $response = $this->postJson("/api/v1/subscriptions/{$subscription->id}/cancel", [
+        'refund_amount' => '2500.00',
+    ]);
+
+    $response->assertOk();
+    $this->assertDatabaseHas('subscription_refunds', [
+        'subscription_id' => $subscription->id,
+        'amount' => '2500.00',
+    ]);
+    $this->assertDatabaseHas('subscription_addons', [
+        'id' => $addon->id,
+        'status' => 'stopped',
+    ]);
+});
+
 test('cancel with full refund reduces financial report revenue', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

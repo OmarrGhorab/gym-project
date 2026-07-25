@@ -41,8 +41,8 @@ const planInputSchema = z
       (value) => (String(value ?? "").trim() === "" ? null : value),
       z.coerce.number().int().min(1, "Sessions count must be at least 1.").nullable(),
     ),
-    type: z.enum(["membership", "offer", "fitness_studio"], {
-      error: "Plan type must be Membership, Offer, or Fitness Studio.",
+    type: z.enum(["membership", "offer", "fitness_studio", "extra_service", "membership_extra_service"], {
+      error: "Plan type must be Membership, Offer, Fitness Studio, Extra service, or Membership + extra service.",
     }),
     valid_from: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
     valid_to: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
@@ -338,10 +338,15 @@ async function deleteRemovedRules(planId: number, ruleIds: number[]) {
   }
 }
 
-export async function createPlanCategoryAction(name: string, description?: string) {
+export async function createPlanCategoryAction(
+  name: string,
+  planScope: "gym_access" | "extra_service" | "fitness_studio",
+  description?: string,
+) {
   try {
     const res = await serverApiFetch<{ id: number; name: string; slug: string }>("/plan-categories", {
-      body: JSON.stringify({ description, name }),
+      body: JSON.stringify({ description, name, plan_scope: planScope }),
+      headers: { "Content-Type": "application/json" },
       method: "POST",
     });
     revalidatePath("/dashboard/plans");

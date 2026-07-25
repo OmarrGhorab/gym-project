@@ -6,6 +6,7 @@ use App\Actions\Reminders\FindExpiringSubscriptions;
 use App\Actions\Reports\MembershipMetrics;
 use App\Actions\Subscriptions\AddSubscriptionAddon;
 use App\Actions\Subscriptions\CancelSubscription;
+use App\Actions\Subscriptions\CancelSubscriptionAddon;
 use App\Actions\Subscriptions\CreateSubscription;
 use App\Actions\Subscriptions\FreezeSubscription;
 use App\Actions\Subscriptions\RenewSubscription;
@@ -243,6 +244,20 @@ class SubscriptionController extends ApiController
 
         return (new SubscriptionResource($cancelled))
             ->withMessage('Subscription cancelled with refund')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function cancelAddon(
+        CancelSubscriptionRequest $request,
+        Subscription $subscription,
+        SubscriptionAddon $addon,
+        CancelSubscriptionAddon $action,
+    ): JsonResponse {
+        $updated = $action->handle($subscription, $addon, $request->validated(), $request->user());
+
+        return (new SubscriptionResource($updated))
+            ->withMessage('Extra service cancelled with refund')
             ->response()
             ->setStatusCode(200);
     }

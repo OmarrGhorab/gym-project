@@ -25,7 +25,7 @@ final class StorePlanRequest extends FormRequest
             'duration_months' => ['nullable', 'integer', 'min:1'],
             'sessions_count' => ['nullable', 'required_if:is_unlimited_sessions,false', 'integer', 'min:1'],
             'is_unlimited_sessions' => ['sometimes', 'boolean'],
-            'type' => ['required', 'string', 'in:membership,offer,fitness_studio'],
+            'type' => ['required', 'string', 'in:membership,offer,fitness_studio,extra_service,membership_extra_service'],
             'category' => ['required', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
             'valid_from' => ['nullable', 'required_if:type,offer', 'date'],

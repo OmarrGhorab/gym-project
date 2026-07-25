@@ -13,6 +13,7 @@ final class PlanCategory extends Model
     protected $fillable = [
         'name',
         'slug',
+        'plan_scope',
         'description',
         'is_active',
     ];

@@ -29,7 +29,7 @@ class CancelSubscription
         return DB::transaction(function () use ($subscription, $data, $actor): Subscription {
             $locked = Subscription::query()
                 ->lockForUpdate()
-                ->with(['payments', 'plan', 'member', 'refunds'])
+                ->with(['payments', 'plan', 'member', 'refunds', 'addons.payments'])
                 ->findOrFail($subscription->id);
 
             if (! in_array($locked->status, ['active', 'frozen'], true)) {
@@ -47,9 +47,10 @@ class CancelSubscription
             $graceDays = $this->graceDays($locked);
             $graceEndsOn = $this->graceEndsOn($locked, $graceDays);
 
-            if (Carbon::today()->gt($graceEndsOn)) {
+            $isForced = ! empty($data['force']);
+            if (! $isForced && Carbon::today()->gt($graceEndsOn)) {
                 throw ValidationException::withMessages([
-                    'subscription' => 'Cancellation with refund is only allowed within the grace period (until '.$graceEndsOn->toDateString().'). Use stop instead.',
+                    'subscription' => 'Cancellation with refund is only allowed within the grace period (until '.$graceEndsOn->toDateString().'). Use stop or enable force refund.',
                 ]);
             }
 
@@ -105,7 +106,15 @@ class CancelSubscription
                 'sessions_remaining' => 0,
             ]);
 
-            $fresh = $locked->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes', 'refunds']);
+            foreach ($locked->addons as $addon) {
+                $addon->update([
+                    'status' => 'stopped',
+                    'end_date' => Carbon::today()->toDateString(),
+                    'sessions_remaining' => 0,
+                ]);
+            }
+
+            $fresh = $locked->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes', 'refunds', 'addons']);
 
             $this->notifier->subscriptionCancelled($fresh, $refundAmount, $actor);
 
@@ -141,19 +150,37 @@ class CancelSubscription
         return $this->paidTotal($subscription);
     }
 
-    private function paidTotal(Subscription $subscription): string
+    public function paidTotal(Subscription $subscription): string
     {
-        $fromPayments = $subscription->payments
+        $subscription->loadMissing(['payments', 'addons.payments']);
+
+        $mainPaid = $subscription->payments
             ->filter(fn ($payment): bool => in_array($payment->status, Payment::COLLECTED_STATUSES, true))
             ->reduce(
                 fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
                 '0.00',
             );
 
-        if (bccomp($fromPayments, '0.00', 2) === 1) {
-            return $fromPayments;
+        if (bccomp($mainPaid, '0.00', 2) === 0 && $subscription->price_paid) {
+            $mainPaid = bcadd((string) $subscription->price_paid, '0.00', 2);
         }
 
-        return bcadd((string) ($subscription->price_paid ?? '0.00'), '0.00', 2);
+        $addonsPaid = '0.00';
+        foreach ($subscription->addons as $addon) {
+            $aPayments = $addon->payments
+                ->filter(fn ($payment): bool => in_array($payment->status, Payment::COLLECTED_STATUSES, true))
+                ->reduce(
+                    fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
+                    '0.00',
+                );
+
+            if (bccomp($aPayments, '0.00', 2) === 0 && $addon->price_paid) {
+                $aPayments = bcadd((string) $addon->price_paid, '0.00', 2);
+            }
+
+            $addonsPaid = bcadd($addonsPaid, $aPayments, 2);
+        }
+
+        return bcadd($mainPaid, $addonsPaid, 2);
     }
 }

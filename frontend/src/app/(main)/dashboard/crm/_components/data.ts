@@ -129,6 +129,7 @@ type SubscriptionResource = {
     id: number;
     end_date?: string | null;
     price_paid?: string | number | null;
+    paid_total?: string | number | null;
     sessions_total?: number | null;
     sessions_remaining?: number | null;
     plan?: {
@@ -398,6 +399,7 @@ function mapSubscriptionToPipeline(
         : (matchingDue?.price_paid ?? subscription.price_paid ?? 0)),
   );
   const paidTotal = rawPaidTotal > 0 ? rawPaidTotal : packageValue;
+  const mainPlanPaidTotal = Number(subscription.paid_total ?? 0);
   const collectedPaidTotal = Number(
     subscription.collected_paid_total ?? subscription.package_paid_total ?? subscription.paid_total ?? paidTotal,
   );
@@ -417,6 +419,7 @@ function mapSubscriptionToPipeline(
       name: addon.plan?.name ?? "",
       coach: addon.coach?.name ?? null,
       price: Number(addon.price_paid ?? 0),
+      paidTotal: Number(addon.paid_total ?? 0),
       endDate: addon.end_date ?? null,
       sessionsTotal: addon.sessions_total ?? null,
       sessionsRemaining: addon.sessions_remaining ?? null,
@@ -433,6 +436,8 @@ function mapSubscriptionToPipeline(
           plan.duration_months === null || plan.duration_months === undefined ? null : Number(plan.duration_months),
         category,
         kind: category === "gym_access" ? ("main" as const) : ("extra" as const),
+        sessionsCount: plan.sessions_count ?? null,
+        isUnlimitedSessions: Boolean(plan.is_unlimited_sessions),
       };
     }),
     coachOptions: coaches.map((coach) => ({
@@ -446,10 +451,13 @@ function mapSubscriptionToPipeline(
     health: subscription.renewal_health ?? "active",
     healthReason: subscription.renewal_health_reason ?? "active_no_balance",
     paidTotal,
+    mainPlanPaidTotal,
     collectedPaidTotal,
     refundTotal,
     value: packageValue,
     balance,
+    sessionsTotal: subscription.sessions_total ?? null,
+    sessionsRemaining: subscription.sessions_remaining ?? null,
     startDate: subscription.start_date ?? null,
     endDate: subscription.end_date ?? null,
     canCancelWithRefund: Boolean(subscription.can_cancel_with_refund),

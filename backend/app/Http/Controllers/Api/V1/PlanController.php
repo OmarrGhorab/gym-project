@@ -35,6 +35,8 @@ final class PlanController extends ApiController
             ->allowedFilters(
                 AllowedFilter::exact('type'),
                 AllowedFilter::exact('is_active'),
+                AllowedFilter::callback('created_from', fn ($query, string $value) => $query->whereDate('created_at', '>=', $value)),
+                AllowedFilter::callback('created_to', fn ($query, string $value) => $query->whereDate('created_at', '<=', $value)),
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
                     $query->where(function ($q) use ($value): void {

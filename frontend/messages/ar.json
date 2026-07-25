@@ -416,6 +416,7 @@
       "planPrice": "سعر الخطة",
       "balance": "الرصيد",
       "balanceDue": "الرصيد المستحق",
+      "paid": "مدفوع",
       "paidTotal": "إجمالي المدفوع",
       "paidOfValue": "{paid} مدفوع من {value}",
       "actions": "الإجراءات",
@@ -1253,11 +1254,15 @@
       "type": "النوع",
       "planTypes": {
         "membership": "عضوية",
-        "offer": "عرض"
+        "offer": "عرض",
+        "fitnessStudio": "استوديو لياقة (بدون دخول الجيم)",
+        "extraService": "خدمة إضافية مستقلة",
+        "membershipExtraService": "عضوية + خدمة إضافية"
       },
       "category": "الفئة",
       "categories": {
         "gym_access": "دخول الجيم",
+        "fitness_studio": "استوديو لياقة",
         "personal_training": "تدريب شخصي",
         "classes": "الحصص",
         "nutrition": "تغذية",
@@ -1294,8 +1299,8 @@
       "descriptionField": "الوصف",
       "planEmployees": "موظفو الخطة",
       "planEmployeesDescription": "اربط مدربًا أو أكثر أو موظفين بهذه الخطة وحدد العمولة التي يحصل عليها كل واحد من اشتراكات هذه الخطة.",
-      "serviceCoaches": "مدربو الخدمة والعمولة",
-      "serviceCoachesDescription": "حدد المدربين الذين يقدمون هذه الخدمة الإضافية والعمولة التي يحصلون عليها كل مرة يشتريها عضو.",
+      "serviceCoaches": "المدربون والعمولة",
+      "serviceCoachesDescription": "حدد المدربين لهذه الخدمة أو الخطة المجمعة والعمولة التي يحصلون عليها كل مرة يشتريها عضو.",
       "basePlanCommissionHelp": "خطط دخول الجيم هي العضوية الأساسية. أضف التغذية أو التدريب الشخصي أو الحصص أو الاستشفاء كخدمات منفصلة لتحديد المدربين والعمولات.",
       "addPlanEmployee": "إضافة موظف للخطة",
       "addServiceCoach": "إضافة مدرب للخدمة",

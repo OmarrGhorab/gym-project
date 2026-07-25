@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\WrapsApiResponse;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -87,7 +88,7 @@ final class MemberResource extends JsonResource
 
         $payments = $latestSubscription->payments;
 
-        if ($payments->contains(fn ($payment): bool => in_array($payment->status, ['paid', 'partial'], true))) {
+        if ($payments->contains(fn ($payment): bool => in_array($payment->status, Payment::SETTLEMENT_STATUSES, true))) {
             return 'paid';
         }
 

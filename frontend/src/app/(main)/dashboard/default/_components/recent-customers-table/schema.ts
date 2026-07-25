@@ -29,6 +29,26 @@ export const recentCustomersSchema = z.object({
       package_paid_total: z.string().nullable().optional(),
       package_price_paid: z.string().nullable().optional(),
       package_balance: z.string().nullable().optional(),
+      price_paid: z.string().nullable().optional(),
+      paid_total: z.string().nullable().optional(),
+      balance: z.string().nullable().optional(),
+      addons: z
+        .array(
+          z.object({
+            id: z.number(),
+            status: z.string().optional(),
+            end_date: z.string().nullable(),
+            price_paid: z.string().optional(),
+            paid_total: z.string().optional(),
+            plan: z
+              .object({
+                id: z.number(),
+                name: z.string().nullable(),
+              })
+              .optional(),
+          }),
+        )
+        .optional(),
     })
     .nullable()
     .optional(),

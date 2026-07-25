@@ -150,6 +150,23 @@ test('admin can create a plan and receives 201 with plan resource', function ():
     $this->assertDatabaseHas('plans', ['name' => 'Monthly Membership']);
 });
 
+test('admin can create membership with an extra service plan type', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/plans', [
+        'name' => 'Membership with Personal Training',
+        'price' => '750.00',
+        'duration_days' => 30,
+        'sessions_count' => 8,
+        'type' => 'membership_extra_service',
+        'category' => 'personal_training',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.type', 'membership_extra_service');
+});
+
 test('cashier without plans.create permission gets 403 on plan store', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CASHIER);

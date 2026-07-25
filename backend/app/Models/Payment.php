@@ -22,7 +22,13 @@ class Payment extends Model
     /** Statuses that represent money collected toward a payable (exclude refunds). */
     public const COLLECTED_STATUSES = ['paid', 'partial'];
 
+    /** Non-cash value transferred from a prior subscription during an upgrade. */
+    public const STATUS_CREDIT = 'credit';
+
     public const STATUS_REFUNDED = 'refunded';
+
+    /** Statuses that settle a payable balance, including plan-change credit. */
+    public const SETTLEMENT_STATUSES = ['paid', 'partial', 'credit', 'refunded'];
 
     protected $fillable = [
         'payable_type',

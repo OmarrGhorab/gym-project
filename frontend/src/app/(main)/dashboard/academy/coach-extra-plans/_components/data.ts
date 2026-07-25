@@ -7,6 +7,8 @@ export type CoachExtraPlanMember = {
   member_code: string;
   member_phone: string;
   plan_name: string;
+  plan_category?: string;
+  coach_name?: string;
   start_date: string | null;
   end_date: string | null;
   status: string;

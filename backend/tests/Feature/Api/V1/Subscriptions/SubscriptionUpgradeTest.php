@@ -52,7 +52,7 @@ test('admin can switch main plan to a fitness studio plan', function (): void {
         'status' => 'paid',
     ]);
 
-    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+    $response = $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
         'plan_id' => $studioPlan->id,
         'payment' => ['amount' => '1500.00', 'method' => 'cash'],
     ])->assertStatus(201);
@@ -131,7 +131,7 @@ test('admin can upgrade a subscription with full plan price difference by defaul
     ]);
 
     // Full difference: 600 - 300 paid credit = 300.00 due
-    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+    $response = $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
         'plan_id' => $vipPlan->id,
         'payment' => [
             'amount' => '300.00',
@@ -146,6 +146,18 @@ test('admin can upgrade a subscription with full plan price difference by defaul
         ->assertJsonPath('data.days_left', 30)
         ->assertJsonPath('data.price_paid', '600.00')
         ->assertJsonPath('data.paid_total', '600.00');
+
+    $newSubscriptionId = $response->json('data.id');
+    expect(Payment::query()
+        ->where('payable_type', Subscription::class)
+        ->where('payable_id', $newSubscriptionId)
+        ->revenue()
+        ->sum('amount'))->toEqual('300.00')
+        ->and(Payment::query()
+            ->where('payable_type', Subscription::class)
+            ->where('payable_id', $newSubscriptionId)
+            ->where('status', Payment::STATUS_CREDIT)
+            ->sum('amount'))->toEqual('300.00');
 
     $subscription->refresh();
     expect($subscription->status)->toBe('stopped')

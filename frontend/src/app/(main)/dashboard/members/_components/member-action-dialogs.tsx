@@ -6,7 +6,18 @@ import { useActionState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { CreditCard, ImageUp, MoreHorizontal, Receipt, UserPlus } from "lucide-react";
+import {
+  Ban,
+  Camera,
+  CreditCard,
+  Eye,
+  ImageUp,
+  MoreHorizontal,
+  Pencil,
+  PlusCircle,
+  Receipt,
+  UserPlus,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -309,15 +320,6 @@ export function MemberActionsMenu({
   const canAddPayment = canAccess(currentUser, "payments.create");
   const canUpdateMember = canAccess(currentUser, "members.update");
   const canDeleteMember = canAccess(currentUser, "members.delete");
-  const canCancelWithRefund = Boolean(member.latest_subscription?.can_cancel_with_refund);
-  const hasInlineSubscriptionAction = member.latest_subscription ? canChangePlan : canAddSubscription;
-  const hasMutatingMenuAction =
-    canUpdateMember ||
-    canAddSubscription ||
-    canChangePlan ||
-    canAddPayment ||
-    canDeleteMember ||
-    (canCancelSubscription && canCancelWithRefund);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -349,33 +351,12 @@ export function MemberActionsMenu({
     };
   }, [detailsOpen, member.id, resolvedLabels]);
 
+  const hasActiveSubscription = member.latest_subscription?.status === "active";
+  const hasCurrentSubscription = hasActiveSubscription || member.latest_subscription?.status === "frozen";
+
   return (
     <>
-      <div className="flex justify-end gap-2">
-        {hasInlineSubscriptionAction ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (member.latest_subscription) {
-                setChangePlanOpen(true);
-                return;
-              }
-
-              setSubscriptionOpen(true);
-            }}
-          >
-            <CreditCard data-icon="inline-start" />
-            {member.latest_subscription ? resolvedLabels.changePlan : resolvedLabels.addSubscription}
-          </Button>
-        ) : null}
-        {canAddPayment && (due || member.latest_subscription) ? (
-          <Button type="button" size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>
-            <Receipt data-icon="inline-start" />
-            {resolvedLabels.addPayment}
-          </Button>
-        ) : null}
+      <div className="flex justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -384,35 +365,59 @@ export function MemberActionsMenu({
           >
             <MoreHorizontal />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setDetailsOpen(true)}>{resolvedLabels.viewDetails}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
+                <Eye className="mr-2 size-4 text-muted-foreground" />
+                {resolvedLabels.viewDetails}
+              </DropdownMenuItem>
               {canUpdateMember ? (
                 <>
-                  <DropdownMenuItem onClick={() => setEditOpen(true)}>{resolvedLabels.editMember}</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{resolvedLabels.uploadPhoto}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="mr-2 size-4 text-muted-foreground" />
+                    {resolvedLabels.editMember}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setPhotoOpen(true)}>
+                    <Camera className="mr-2 size-4 text-muted-foreground" />
+                    {resolvedLabels.uploadPhoto}
+                  </DropdownMenuItem>
                 </>
               ) : null}
-              {canAddSubscription ? (
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {canChangePlan && hasActiveSubscription ? (
+                <DropdownMenuItem onClick={() => setChangePlanOpen(true)}>
+                  <CreditCard className="mr-2 size-4 text-blue-600 dark:text-blue-400" />
+                  {resolvedLabels.changePlan}
+                </DropdownMenuItem>
+              ) : null}
+              {canAddSubscription && !hasCurrentSubscription ? (
                 <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>
+                  <PlusCircle className="mr-2 size-4 text-emerald-600 dark:text-emerald-400" />
                   {resolvedLabels.addSubscription}
                 </DropdownMenuItem>
               ) : null}
-              {canChangePlan && member.latest_subscription ? (
-                <DropdownMenuItem onClick={() => setChangePlanOpen(true)}>{resolvedLabels.changePlan}</DropdownMenuItem>
+              {canAddPayment && due && Number.parseFloat(due.balance) > 0 ? (
+                <DropdownMenuItem onClick={() => setPaymentOpen(true)}>
+                  <Receipt className="mr-2 size-4 text-amber-600 dark:text-amber-400" />
+                  {resolvedLabels.addPayment}
+                </DropdownMenuItem>
               ) : null}
-              {canCancelSubscription && canCancelWithRefund && member.latest_subscription ? (
-                <DropdownMenuItem onClick={() => setCancelOpen(true)}>{t("cancelWithRefund")}</DropdownMenuItem>
-              ) : null}
-              {canAddPayment && (due || member.latest_subscription) ? (
-                <DropdownMenuItem onClick={() => setPaymentOpen(true)}>{resolvedLabels.addPayment}</DropdownMenuItem>
+              {canCancelSubscription && hasActiveSubscription ? (
+                <DropdownMenuItem onClick={() => setCancelOpen(true)}>
+                  <Ban className="mr-2 size-4 text-rose-600 dark:text-rose-400" />
+                  {t("cancelWithRefund")}
+                </DropdownMenuItem>
               ) : null}
             </DropdownMenuGroup>
-            {canDeleteMember && hasMutatingMenuAction ? <DropdownMenuSeparator /> : null}
             {canDeleteMember ? (
-              <DropdownMenuGroup>
-                <DeactivateMemberItem member={member} />
-              </DropdownMenuGroup>
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DeactivateMemberItem member={member} />
+                </DropdownMenuGroup>
+              </>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -478,9 +483,11 @@ function MemberCancelSubscriptionDialog({
       "0",
   );
   const [refundAmount, setRefundAmount] = React.useState(defaultRefund);
+  const [refundAddonId, setRefundAddonId] = React.useState<string>("");
 
   React.useEffect(() => {
     if (subscription) {
+      setRefundAddonId("");
       setRefundAmount(
         String(
           subscription.default_refund_amount ??
@@ -526,6 +533,8 @@ function MemberCancelSubscriptionDialog({
         </DialogHeader>
         <form action={submit} className="grid gap-4">
           <input type="hidden" name="subscription_id" value={String(subscription.id)} />
+          <input type="hidden" name="refund_addon_id" value={refundAddonId} />
+          <input type="hidden" name="force" value="true" />
           {state.message && !state.ok ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
               {state.message}
@@ -544,7 +553,10 @@ function MemberCancelSubscriptionDialog({
 
             {addons.map((addon) => (
               <div key={addon.id} className="flex justify-between border-b pb-1.5">
-                <span className="text-muted-foreground">+ Extra: {addon.plan?.name ?? "Addon"}</span>
+                <span className="text-muted-foreground">
+                  + Extra: {addon.plan?.name ?? "Addon"}
+                  {addon.coach?.name ? ` (${addon.coach.name})` : ""}
+                </span>
                 <span className="font-medium tabular-nums">
                   {formatCurrency(Number(addon.price_paid ?? 0), { currency: "EGP" })}
                 </span>
@@ -556,20 +568,40 @@ function MemberCancelSubscriptionDialog({
               <span className="tabular-nums">{formatCurrency(packageTotal, { currency: "EGP" })}</span>
             </div>
 
-            <div className="mt-2 grid gap-1 rounded-sm border bg-background p-2">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Member Visits (This Month):</span>
-                <span className="font-medium text-foreground">{member.visits_this_month ?? 0} visit(s)</span>
+            <div className="mt-2 grid gap-1.5 rounded-sm border bg-background p-2.5">
+              <div className="font-semibold text-[11px] text-foreground uppercase tracking-wider">
+                Member Session Attendance Details
               </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Total Gym Visits (This Month):</span>
+                <span className="font-semibold text-foreground">{member.visits_this_month ?? 0} visit(s)</span>
+              </div>
+
+              <div className="flex justify-between text-muted-foreground">
+                <span>Main Plan Sessions:</span>
+                <span className="font-medium text-foreground">
+                  {subscription.sessions_remaining !== null && subscription.sessions_remaining !== undefined
+                    ? `${
+                        subscription.sessions_total
+                          ? Math.max(0, subscription.sessions_total - subscription.sessions_remaining)
+                          : 0
+                      } attended (${subscription.sessions_remaining}/${subscription.sessions_total ?? "—"} remaining)`
+                    : "Unlimited sessions"}
+                </span>
+              </div>
+
               {addons.map((addon) => (
                 <div key={addon.id} className="flex justify-between text-muted-foreground">
-                  <span>{addon.plan?.name ?? "Extra Plan"} Sessions:</span>
+                  <span>
+                    {addon.plan?.name ?? "Extra Plan"}
+                    {addon.coach?.name ? ` (${addon.coach.name})` : ""}:
+                  </span>
                   <span className="font-medium text-foreground">
                     {addon.sessions_remaining !== null && addon.sessions_remaining !== undefined
                       ? `${
-                          addon.sessions_total ? addon.sessions_total - addon.sessions_remaining : 0
+                          addon.sessions_total ? Math.max(0, addon.sessions_total - addon.sessions_remaining) : 0
                         } attended (${addon.sessions_remaining}/${addon.sessions_total ?? "—"} remaining)`
-                      : "Unlimited"}
+                      : "Unlimited sessions"}
                   </span>
                 </div>
               ))}
@@ -582,7 +614,10 @@ function MemberCancelSubscriptionDialog({
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={() => setRefundAmount(packageTotal.toFixed(2))}
+                onClick={() => {
+                  setRefundAddonId("");
+                  setRefundAmount(packageTotal.toFixed(2));
+                }}
               >
                 Full Package ({formatCurrency(packageTotal, { currency: "EGP", noDecimals: true })})
               </Button>
@@ -591,21 +626,28 @@ function MemberCancelSubscriptionDialog({
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={() => setRefundAmount(mainPlanPrice.toFixed(2))}
+                onClick={() => {
+                  setRefundAddonId("");
+                  setRefundAmount(mainPlanPrice.toFixed(2));
+                }}
               >
                 Main Plan Only ({formatCurrency(mainPlanPrice, { currency: "EGP", noDecimals: true })})
               </Button>
-              {addonsTotal > 0 ? (
+              {addons.map((addon) => (
                 <Button
+                  key={addon.id}
                   type="button"
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs"
-                  onClick={() => setRefundAmount(addonsTotal.toFixed(2))}
+                  onClick={() => {
+                    setRefundAddonId(String(addon.id));
+                    setRefundAmount(String(addon.paid_total ?? addon.price_paid ?? "0"));
+                  }}
                 >
-                  Extras Only ({formatCurrency(addonsTotal, { currency: "EGP", noDecimals: true })})
+                  Refund {addon.plan?.name ?? "Extra"}
                 </Button>
-              ) : null}
+              ))}
             </div>
           </div>
 
@@ -752,7 +794,7 @@ function MemberSubscriptionDialog({
   );
 }
 
-function MemberChangePlanDialog({
+export function MemberChangePlanDialog({
   member,
   onOpenChange,
   open,
@@ -941,22 +983,32 @@ function SubscriptionFormContent({
     () => plans.filter((plan) => plan.category !== "gym_access" && !isStudioPlanItem(plan)),
     [isStudioPlanItem, plans],
   );
+  const currentSubscription = member.latest_subscription;
+  const currentPlan = plans.find((plan) => {
+    if (currentSubscription?.plan_id && plan.id === currentSubscription.plan_id) {
+      return true;
+    }
 
-  const [planCategoryTab, setPlanCategoryTab] = React.useState<"gym_access" | "extra_on" | "fitness_studio">(
-    "gym_access",
-  );
+    return Boolean(currentSubscription?.plan_name && plan.name === currentSubscription.plan_name);
+  });
+  const currentPlanId = currentPlan ? String(currentPlan.id) : "";
+
+  const [planCategoryTab, setPlanCategoryTab] = React.useState<"gym_access" | "fitness_studio">("gym_access");
   const availablePlans = React.useMemo(() => {
-    if (planCategoryTab === "fitness_studio") {
-      return studioPlans.length > 0 ? studioPlans : plans;
+    let plansInTab = planCategoryTab === "fitness_studio" ? studioPlans : basePlans;
+
+    if (plansInTab.length === 0) {
+      plansInTab = plans;
     }
-    if (planCategoryTab === "extra_on") {
-      return servicePlans.length > 0 ? servicePlans : plans;
+
+    if (kind === "change" && currentPlanId) {
+      return plansInTab.filter((plan) => String(plan.id) !== currentPlanId);
     }
-    return basePlans.length > 0 ? basePlans : plans;
-  }, [basePlans, planCategoryTab, plans, servicePlans, studioPlans]);
+
+    return plansInTab;
+  }, [basePlans, currentPlanId, kind, planCategoryTab, plans, studioPlans]);
 
   const initialPlan = availablePlans[0] ?? basePlans[0];
-  const currentSubscription = member.latest_subscription;
   const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);
   const [state, submit, pending] = useActionState(action, initialMemberFormState);
   const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
@@ -985,26 +1037,12 @@ function SubscriptionFormContent({
   let priceDifference = 0;
   let oldPlanPrice = 0;
 
-  const currentPlan = plans.find((p) => {
-    if (currentSubscription?.plan_name && p.name === currentSubscription.plan_name) {
-      return true;
-    }
-    if (currentSubscription?.plan_id && p.id === currentSubscription.plan_id) {
-      return true;
-    }
-    return false;
-  });
-
   if (selectedPlan) {
     if (kind === "change") {
-      oldPlanPrice = Number(
-        getEffectiveSubscriptionPaidTotal(currentSubscription) ||
-          currentPlan?.price ||
-          currentSubscription?.price_paid ||
-          0,
-      );
-      const newPlanPrice = Number(selectedPlan.price);
-      priceDifference = newPlanPrice - oldPlanPrice;
+      oldPlanPrice =
+        currentSubscription?.status === "active" ? getMainPlanPaidTotal(currentSubscription, currentPlan) : 0;
+      const discountedPlanPrice = Math.max(0, Number(selectedPlan.price) - Number(normalizedDiscount));
+      priceDifference = discountedPlanPrice - oldPlanPrice;
       suggestedPaymentAmount = priceDifference.toFixed(2);
     } else {
       suggestedPaymentAmount = calculatePaymentAmount(selectedPlan.price, normalizedDiscount);
@@ -1032,15 +1070,9 @@ function SubscriptionFormContent({
   const wasOpenRef = React.useRef(false);
   React.useEffect(() => {
     if (open && !wasOpenRef.current) {
-      const currentPlanId = currentPlan ? String(currentPlan.id) : "";
-
-      let defaultTab: "gym_access" | "extra_on" | "fitness_studio" = "gym_access";
-      if (currentPlan) {
-        if (isStudioPlanItem(currentPlan)) {
-          defaultTab = "fitness_studio";
-        } else if (currentPlan.category !== "gym_access" && currentPlan.category) {
-          defaultTab = "extra_on";
-        }
+      let defaultTab: "gym_access" | "fitness_studio" = "gym_access";
+      if (currentPlan && isStudioPlanItem(currentPlan)) {
+        defaultTab = "fitness_studio";
       }
 
       setPlanCategoryTab(defaultTab);
@@ -1048,24 +1080,65 @@ function SubscriptionFormContent({
       let targetPlans = basePlans.length > 0 ? basePlans : plans;
       if (defaultTab === "fitness_studio") {
         targetPlans = studioPlans.length > 0 ? studioPlans : plans;
-      } else if (defaultTab === "extra_on") {
-        targetPlans = servicePlans.length > 0 ? servicePlans : plans;
       }
 
-      if (kind === "change" && currentPlanId) {
-        setSelectedPlanId(currentPlanId);
-      } else {
-        setSelectedPlanId(targetPlans[0] ? String(targetPlans[0].id) : "");
-      }
+      const selectablePlans =
+        kind === "change" && currentPlanId
+          ? targetPlans.filter((plan) => String(plan.id) !== currentPlanId)
+          : targetPlans;
+      setSelectedPlanId(selectablePlans[0] ? String(selectablePlans[0].id) : "");
 
       setStartDate(defaultStartDate);
       setDiscountType("fixed");
       setDiscountValue("0");
       setPaymentAmountOverride(null);
-      setAddons([]);
+
+      if (kind === "change" && currentSubscription?.addons && currentSubscription.addons.length > 0) {
+        const initialAddons = currentSubscription.addons
+          .filter((a) => a.status !== "stopped" && a.status !== "cancelled")
+          .map((addon, index) => {
+            const matchingPlan = plans.find(
+              (p) =>
+                (addon.plan?.id && p.id === addon.plan.id) ||
+                (addon.plan?.name && p.name.toLowerCase() === addon.plan.name.toLowerCase()),
+            );
+            let planId = "";
+            if (matchingPlan) {
+              planId = String(matchingPlan.id);
+            } else if (addon.plan?.id) {
+              planId = String(addon.plan.id);
+            }
+            const coachId = addon.coach?.id ? String(addon.coach.id) : "";
+
+            return {
+              _key: `addon-${addon.id || index}-${index}`,
+              plan_id: planId,
+              coach_id: coachId,
+              discountType: "fixed" as const,
+              discountValue: "0",
+              payment_method: "cash" as const,
+            };
+          })
+          .filter((item) => item.plan_id !== "");
+
+        setAddons(initialAddons);
+      } else {
+        setAddons([]);
+      }
     }
     wasOpenRef.current = open;
-  }, [basePlans, currentPlan, defaultStartDate, isStudioPlanItem, kind, open, plans, servicePlans, studioPlans]);
+  }, [
+    basePlans,
+    currentPlan,
+    currentPlanId,
+    currentSubscription,
+    defaultStartDate,
+    isStudioPlanItem,
+    kind,
+    open,
+    plans,
+    studioPlans,
+  ]);
 
   return (
     <DialogContent className="sm:max-w-2xl">
@@ -1119,15 +1192,20 @@ function SubscriptionFormContent({
             {state.message}
           </div>
         ) : null}
+        {kind === "change" && currentSubscription ? <CurrentMembershipSummary member={member} /> : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/20 p-1 text-xs sm:col-span-2 sm:text-sm">
+          <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1 text-xs sm:col-span-2 sm:text-sm">
             <button
               type="button"
               onClick={() => {
                 setPlanCategoryTab("gym_access");
-                const firstGym = basePlans[0] ?? plans[0];
+                const gymPlans =
+                  kind === "change" ? basePlans.filter((plan) => String(plan.id) !== currentPlanId) : basePlans;
+                const firstGym = gymPlans[0] ?? (kind === "change" ? undefined : plans[0]);
                 if (firstGym) {
                   setSelectedPlanId(String(firstGym.id));
+                } else {
+                  setSelectedPlanId("");
                 }
                 setPaymentAmountOverride(null);
               }}
@@ -1142,28 +1220,14 @@ function SubscriptionFormContent({
             <button
               type="button"
               onClick={() => {
-                setPlanCategoryTab("extra_on");
-                const firstExtra = servicePlans[0] ?? plans[0];
-                if (firstExtra) {
-                  setSelectedPlanId(String(firstExtra.id));
-                }
-                setPaymentAmountOverride(null);
-              }}
-              className={
-                planCategoryTab === "extra_on"
-                  ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
-                  : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
-              }
-            >
-              Extra-on plan
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 setPlanCategoryTab("fitness_studio");
-                const firstStudio = studioPlans[0] ?? plans[0];
+                const studioPlansForChange =
+                  kind === "change" ? studioPlans.filter((plan) => String(plan.id) !== currentPlanId) : studioPlans;
+                const firstStudio = studioPlansForChange[0] ?? (kind === "change" ? undefined : plans[0]);
                 if (firstStudio) {
                   setSelectedPlanId(String(firstStudio.id));
+                } else {
+                  setSelectedPlanId("");
                 }
                 setPaymentAmountOverride(null);
               }}
@@ -1263,6 +1327,11 @@ function SubscriptionFormContent({
                       <strong className="text-foreground">
                         {selectedPlan.name} ({Number(selectedPlan.price).toFixed(2)} EGP)
                       </strong>
+                      {Number(normalizedDiscount) > 0 ? (
+                        <span className="block">
+                          After discount: {(Number(selectedPlan.price) - Number(normalizedDiscount)).toFixed(2)} EGP
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1340,185 +1409,183 @@ function SubscriptionFormContent({
             <FieldError errors={state.errors.discount} />
           </div>
         </div>
-        {kind === "create" ? (
-          <div className="grid gap-3 rounded-lg border border-dashed p-4">
-            <div className="space-y-1">
-              <Label>{t("addSubscriptionExtra")}</Label>
-              <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraDescription")}</p>
-              <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraNote")}</p>
-            </div>
-            {addons.map((addon, index) => {
-              const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id) ?? servicePlans[0];
-              const coachOptions = getPlanCoachOptions(addonPlan, plans, staff).map((employee) => ({
-                value: String(employee.id),
-                label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
-              }));
-              const addonDiscount = addonPlan
-                ? calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType)
-                : "0";
-              const addonPayment = addonPlan ? calculatePaymentAmount(addonPlan.price, addonDiscount) : "0";
-              const coachCommission = calculateAddonCoachCommissionPreview({
-                addonPayment,
-                basePayment: paymentAmount,
-                coachId: addon.coach_id || coachOptions[0]?.value || "",
-                plan: addonPlan,
-              });
+        <div className="grid gap-3 rounded-lg border border-dashed p-4">
+          <div className="space-y-1">
+            <Label>{t("addSubscriptionExtra")}</Label>
+            <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraDescription")}</p>
+            <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraNote")}</p>
+          </div>
+          {addons.map((addon, index) => {
+            const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id) ?? servicePlans[0];
+            const coachOptions = getPlanCoachOptions(addonPlan, plans, staff).map((employee) => ({
+              value: String(employee.id),
+              label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+            }));
+            const addonDiscount = addonPlan
+              ? calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType)
+              : "0";
+            const addonPayment = addonPlan ? calculatePaymentAmount(addonPlan.price, addonDiscount) : "0";
+            const coachCommission = calculateAddonCoachCommissionPreview({
+              addonPayment,
+              basePayment: paymentAmount,
+              coachId: addon.coach_id || coachOptions[0]?.value || "",
+              plan: addonPlan,
+            });
 
-              return (
-                <div key={addon._key} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-2">
-                  <div className="grid gap-2 lg:col-span-2">
-                    <Label>{t("extraService")}</Label>
+            return (
+              <div key={addon._key} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-2">
+                <div className="grid gap-2 lg:col-span-2">
+                  <Label>{t("extraService")}</Label>
+                  <FormSelect
+                    name={`addons.${index}.plan_id`}
+                    value={addon.plan_id}
+                    onValueChange={(value) =>
+                      setAddons((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                coach_id: getDefaultCoachIdForPlan(
+                                  servicePlans.find((plan) => String(plan.id) === value),
+                                  plans,
+                                  staff,
+                                ),
+                                plan_id: value ?? "",
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                    contentClassName="w-[28rem] max-w-[calc(100vw-2rem)]"
+                    options={servicePlans.map((plan) => ({
+                      value: String(plan.id),
+                      label: `${plan.name} - ${plan.price} EGP`,
+                    }))}
+                  />
+                </div>
+                <div className="grid gap-2 lg:col-span-2">
+                  <Label>{t("coach")}</Label>
+                  <FormSelect
+                    name={`addons.${index}.coach_id`}
+                    value={addon.coach_id || coachOptions[0]?.value || ""}
+                    onValueChange={(value) =>
+                      setAddons((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, coach_id: value ?? "" } : item,
+                        ),
+                      )
+                    }
+                    contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
+                    options={coachOptions}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("discount")}</Label>
+                  <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
                     <FormSelect
-                      name={`addons.${index}.plan_id`}
-                      value={addon.plan_id}
+                      name={`addons.${index}.discount_type`}
+                      value={addon.discountType}
                       onValueChange={(value) =>
                         setAddons((current) =>
                           current.map((item, itemIndex) =>
                             itemIndex === index
-                              ? {
-                                  ...item,
-                                  coach_id: getDefaultCoachIdForPlan(
-                                    servicePlans.find((plan) => String(plan.id) === value),
-                                    plans,
-                                    staff,
-                                  ),
-                                  plan_id: value ?? "",
-                                }
-                              : item,
-                          ),
-                        )
-                      }
-                      contentClassName="w-[28rem] max-w-[calc(100vw-2rem)]"
-                      options={servicePlans.map((plan) => ({
-                        value: String(plan.id),
-                        label: `${plan.name} - ${plan.price} EGP`,
-                      }))}
-                    />
-                  </div>
-                  <div className="grid gap-2 lg:col-span-2">
-                    <Label>{t("coach")}</Label>
-                    <FormSelect
-                      name={`addons.${index}.coach_id`}
-                      value={addon.coach_id || coachOptions[0]?.value || ""}
-                      onValueChange={(value) =>
-                        setAddons((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index ? { ...item, coach_id: value ?? "" } : item,
-                          ),
-                        )
-                      }
-                      contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
-                      options={coachOptions}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>{t("discount")}</Label>
-                    <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
-                      <FormSelect
-                        name={`addons.${index}.discount_type`}
-                        value={addon.discountType}
-                        onValueChange={(value) =>
-                          setAddons((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index
-                                ? { ...item, discountType: (value as "fixed" | "percent") ?? "fixed" }
-                                : item,
-                            ),
-                          )
-                        }
-                        options={[
-                          { value: "fixed", label: t("fixedAmount") },
-                          { value: "percent", label: t("percent") },
-                        ]}
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={addon.discountValue}
-                        onChange={(event) => {
-                          const nextValue = event.currentTarget.value;
-
-                          setAddons((current) =>
-                            current.map((item, itemIndex) =>
-                              itemIndex === index ? { ...item, discountValue: nextValue } : item,
-                            ),
-                          );
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>{t("paymentMethod")}</Label>
-                    <FormSelect
-                      name={`addons.${index}.payment_method`}
-                      value={addon.payment_method}
-                      onValueChange={(value) =>
-                        setAddons((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index
-                              ? { ...item, payment_method: (value as "cash" | "card" | "bank_transfer") || "cash" }
+                              ? { ...item, discountType: (value as "fixed" | "percent") ?? "fixed" }
                               : item,
                           ),
                         )
                       }
                       options={[
-                        { value: "cash", label: t("cash") },
-                        { value: "card", label: t("card") },
-                        { value: "bank_transfer", label: t("bankTransfer") },
+                        { value: "fixed", label: t("fixedAmount") },
+                        { value: "percent", label: t("percent") },
                       ]}
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>{t("addonCharge")}</Label>
-                    <Input value={addonPayment} readOnly />
-                    <p className="text-muted-foreground text-xs">{t("addonChargeHelp")}</p>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>{t("addonCoachCommission")}</Label>
-                    <Input value={coachCommission.amount} readOnly />
-                    <p className="text-muted-foreground text-xs">
-                      {coachCommission.isPercentage
-                        ? t("addonCoachCommissionPercentHelp")
-                        : t("addonCoachCommissionFixedHelp")}
-                    </p>
-                  </div>
-                  <div className="flex items-end lg:justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() => setAddons((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                    >
-                      {t("delete")}
-                    </Button>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={addon.discountValue}
+                      onChange={(event) => {
+                        const nextValue = event.currentTarget.value;
+
+                        setAddons((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, discountValue: nextValue } : item,
+                          ),
+                        );
+                      }}
+                    />
                   </div>
                 </div>
-              );
-            })}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() =>
-                setAddons((current) => [
-                  ...current,
-                  {
-                    _key: `addon-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
-                    coach_id: getDefaultCoachIdForPlan(servicePlans[0], plans, staff),
-                    discountType: "fixed",
-                    discountValue: "0",
-                    payment_method: "cash",
-                    plan_id: servicePlans[0] ? String(servicePlans[0].id) : "",
-                  },
-                ])
-              }
-              disabled={servicePlans.length === 0}
-            >
-              {t("addSubscriptionExtra")}
-            </Button>
-          </div>
-        ) : null}
+                <div className="grid gap-2">
+                  <Label>{t("paymentMethod")}</Label>
+                  <FormSelect
+                    name={`addons.${index}.payment_method`}
+                    value={addon.payment_method}
+                    onValueChange={(value) =>
+                      setAddons((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, payment_method: (value as "cash" | "card" | "bank_transfer") || "cash" }
+                            : item,
+                        ),
+                      )
+                    }
+                    options={[
+                      { value: "cash", label: t("cash") },
+                      { value: "card", label: t("card") },
+                      { value: "bank_transfer", label: t("bankTransfer") },
+                    ]}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("addonCharge")}</Label>
+                  <Input value={addonPayment} readOnly />
+                  <p className="text-muted-foreground text-xs">{t("addonChargeHelp")}</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("addonCoachCommission")}</Label>
+                  <Input value={coachCommission.amount} readOnly />
+                  <p className="text-muted-foreground text-xs">
+                    {coachCommission.isPercentage
+                      ? t("addonCoachCommissionPercentHelp")
+                      : t("addonCoachCommissionFixedHelp")}
+                  </p>
+                </div>
+                <div className="flex items-end lg:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setAddons((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    {t("delete")}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() =>
+              setAddons((current) => [
+                ...current,
+                {
+                  _key: `addon-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
+                  coach_id: getDefaultCoachIdForPlan(servicePlans[0], plans, staff),
+                  discountType: "fixed",
+                  discountValue: "0",
+                  payment_method: "cash",
+                  plan_id: servicePlans[0] ? String(servicePlans[0].id) : "",
+                },
+              ])
+            }
+            disabled={servicePlans.length === 0}
+          >
+            {t("addSubscriptionExtra")}
+          </Button>
+        </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             {t("cancel")}
@@ -1526,7 +1593,10 @@ function SubscriptionFormContent({
           <Button
             type="submit"
             disabled={
-              pending || basePlans.length === 0 || (kind === "change" && currentSubscription?.status !== "active")
+              pending ||
+              basePlans.length === 0 ||
+              (kind === "change" && currentSubscription?.status !== "active") ||
+              (kind === "change" && !selectedPlanId)
             }
           >
             {pending ? t("saving") : submitLabel}
@@ -1759,6 +1829,64 @@ function DeactivateMemberItem({ member }: { member: MemberRow }) {
   );
 }
 
+function CurrentMembershipSummary({ member }: { member: MemberRow }) {
+  const subscription = member.latest_subscription;
+
+  if (!subscription) {
+    return null;
+  }
+
+  const startedOn = parseDateOnly(subscription.start_date ?? "");
+  const daysInPlan = startedOn ? Math.max(0, Math.floor((Date.now() - startedOn.getTime()) / 86_400_000)) : null;
+  const sessionsUsed =
+    subscription.sessions_total !== null &&
+    subscription.sessions_total !== undefined &&
+    subscription.sessions_remaining !== null &&
+    subscription.sessions_remaining !== undefined
+      ? Math.max(0, subscription.sessions_total - subscription.sessions_remaining)
+      : null;
+  const activeAddons = (subscription.addons ?? []).filter(
+    (addon) => addon.status !== "stopped" && addon.status !== "cancelled",
+  );
+  const amountPaid = Number(subscription.paid_total ?? subscription.price_paid ?? 0);
+
+  return (
+    <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-xs sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <p className="font-semibold text-foreground">Current membership</p>
+        <p className="text-muted-foreground">
+          {subscription.plan_name ?? "Current plan"} · {amountPaid.toFixed(2)} EGP paid
+        </p>
+      </div>
+      <SummaryItem label="Purchased" value={subscription.start_date ?? "—"} />
+      <SummaryItem label="Ends" value={subscription.end_date ?? "—"} />
+      <SummaryItem label="Time in plan" value={daysInPlan === null ? "—" : `${daysInPlan} day(s)`} />
+      <SummaryItem label="Gym visits this month" value={`${member.visits_this_month ?? 0}`} />
+      <SummaryItem
+        label="Plan sessions"
+        value={
+          sessionsUsed === null
+            ? "Unlimited / not session-based"
+            : `${sessionsUsed} attended · ${subscription.sessions_remaining}/${subscription.sessions_total} remaining`
+        }
+      />
+      <SummaryItem
+        label="Active extras"
+        value={activeAddons.length > 0 ? activeAddons.map((addon) => addon.plan?.name ?? "Extra").join(", ") : "None"}
+      />
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-0.5">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
 function calculatePlanEndDate(startDate: string, plan: PlanRow) {
   const parsedStart = parseDateOnly(startDate);
 
@@ -1780,29 +1908,42 @@ function calculatePaymentAmount(price: string, discount: string) {
   return Number.isFinite(amount) ? amount.toFixed(2) : "";
 }
 
-function getEffectiveSubscriptionPaidTotal(
+function getMainPlanPaidTotal(
   subscription?: {
+    status?: string | null;
     paid_total?: string | number | null;
     price_paid?: string | number | null;
-    package_paid_total?: string | number | null;
-    package_price_paid?: string | number | null;
+    addons?: Array<{
+      price_paid?: string | number | null;
+      plan?: { id?: number; name?: string | null; price?: string | number | null } | null;
+    }>;
   } | null,
+  currentPlan?: PlanRow | null,
 ): number {
-  if (!subscription) {
+  if (
+    !subscription ||
+    subscription.status === "stopped" ||
+    subscription.status === "cancelled" ||
+    subscription.status === "inactive"
+  ) {
     return 0;
   }
 
-  const paidTotalNum = Number(subscription.package_paid_total ?? subscription.paid_total ?? 0);
-  if (Number.isFinite(paidTotalNum) && paidTotalNum > 0) {
-    return paidTotalNum;
+  // An upgrade credits what the member actually paid for the previous plan.
+  // The current catalog price can change after a subscription is sold, so it
+  // is only a last-resort fallback when historical payment data is unavailable.
+  if (subscription.paid_total !== undefined && subscription.paid_total !== null) {
+    const paidTotal = Number(subscription.paid_total);
+    return Number.isFinite(paidTotal) ? Math.max(0, paidTotal) : 0;
   }
 
-  const pricePaidNum = Number(subscription.package_price_paid ?? subscription.price_paid ?? 0);
-  if (Number.isFinite(pricePaidNum) && pricePaidNum > 0) {
-    return pricePaidNum;
+  if (subscription.price_paid !== undefined && subscription.price_paid !== null) {
+    const pricePaid = Number(subscription.price_paid);
+    return Number.isFinite(pricePaid) ? Math.max(0, pricePaid) : 0;
   }
 
-  return 0;
+  const catalogPrice = Number(currentPlan?.price ?? 0);
+  return Number.isFinite(catalogPrice) ? Math.max(0, catalogPrice) : 0;
 }
 
 function calculatePlanChangeDetails({

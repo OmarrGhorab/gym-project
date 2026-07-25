@@ -341,6 +341,16 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
   const numAmountDue = Number.parseFloat(rawAmountDue);
   const safeAmountDue = Number.isNaN(numAmountDue) || numAmountDue < 0 ? "0.00" : rawAmountDue;
 
+  let addons: unknown[] = [];
+  try {
+    const rawAddons = input.get("addons");
+    if (typeof rawAddons === "string" && rawAddons) {
+      addons = JSON.parse(rawAddons);
+    }
+  } catch {
+    addons = [];
+  }
+
   try {
     await serverApiFetch(`/subscriptions/${subscriptionId.data}/upgrade`, {
       body: JSON.stringify({
@@ -352,6 +362,7 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
           amount: safePaymentAmount,
           method: parsed.data.payment_method,
         },
+        addons,
       }),
       headers: {
         "Content-Type": "application/json",
@@ -369,6 +380,8 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/default");
+  revalidatePath("/dashboard");
 
   return {
     ok: true,
@@ -413,6 +426,7 @@ export async function reactivateMember(input: FormData): Promise<void> {
 
 export async function cancelMemberSubscription(_state: MemberFormState, input: FormData): Promise<MemberFormState> {
   const subscriptionId = z.coerce.number().int().min(1).safeParse(input.get("subscription_id"));
+  const addonId = z.coerce.number().int().min(1).safeParse(input.get("refund_addon_id"));
   const values = getFormValues(input);
 
   if (!subscriptionId.success) {
@@ -445,18 +459,27 @@ export async function cancelMemberSubscription(_state: MemberFormState, input: F
     };
   }
 
+  const forceRaw = input.get("force");
+  const force = forceRaw === "true" || forceRaw === "1" || forceRaw === "on";
+
   try {
-    await serverApiFetch(`/subscriptions/${subscriptionId.data}/cancel`, {
-      body: JSON.stringify({
-        method: parsed.data.method,
-        reason: parsed.data.reason,
-        refund_amount: parsed.data.refund_amount,
-      }),
-      headers: {
-        "Content-Type": "application/json",
+    await serverApiFetch(
+      addonId.success
+        ? `/subscriptions/${subscriptionId.data}/addons/${addonId.data}/cancel`
+        : `/subscriptions/${subscriptionId.data}/cancel`,
+      {
+        body: JSON.stringify({
+          method: parsed.data.method,
+          reason: parsed.data.reason,
+          refund_amount: parsed.data.refund_amount,
+          force,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
       },
-      method: "POST",
-    });
+    );
   } catch (error) {
     return {
       ok: false,
@@ -472,7 +495,7 @@ export async function cancelMemberSubscription(_state: MemberFormState, input: F
 
   return {
     ok: true,
-    message: "Subscription cancelled with refund.",
+    message: addonId.success ? "Extra service cancelled with refund." : "Subscription cancelled with refund.",
     errors: {},
     values: {},
   };

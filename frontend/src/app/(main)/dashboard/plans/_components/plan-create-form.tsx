@@ -49,23 +49,17 @@ type PlanEmployeeCommissionDraft = {
   value: string;
 };
 
-const _planCategoryOptions = [
-  "gym_access",
-  "fitness_studio",
-  "jiu_jitsu",
-  "personal_training",
-  "classes",
-  "nutrition",
-  "recovery",
-] as const;
-const servicePlanCategories = new Set<string>([
-  "fitness_studio",
-  "jiu_jitsu",
-  "personal_training",
-  "classes",
-  "nutrition",
-  "recovery",
-]);
+type PlanCategoryScope = "gym_access" | "extra_service" | "fitness_studio";
+
+const defaultCategoryScopes: Record<string, PlanCategoryScope> = {
+  classes: "extra_service",
+  fitness_studio: "fitness_studio",
+  gym_access: "gym_access",
+  jiu_jitsu: "fitness_studio",
+  nutrition: "extra_service",
+  personal_training: "extra_service",
+  recovery: "extra_service",
+};
 
 function isPlanEmployeeCommissionDraft(value: unknown): value is Partial<PlanEmployeeCommissionDraft> {
   return typeof value === "object" && value !== null;
@@ -105,6 +99,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
   const [newCatOpen, setNewCatOpen] = React.useState(false);
   const [newCatName, setNewCatName] = React.useState("");
   const [newCatDesc, setNewCatDesc] = React.useState("");
+  const [newCatScope, setNewCatScope] = React.useState<PlanCategoryScope>("gym_access");
   const [isCreatingCat, setIsCreatingCat] = React.useState(false);
 
   React.useEffect(() => {
@@ -113,12 +108,22 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
     }
   }, [categories]);
 
+  const categoryScopeByValue = React.useMemo(() => {
+    const scopes = new Map<string, PlanCategoryScope>(Object.entries(defaultCategoryScopes));
+
+    for (const category of localCategories) {
+      scopes.set(category.slug, category.plan_scope);
+    }
+
+    return scopes;
+  }, [localCategories]);
+
   const computedCategoryOptions = React.useMemo(() => {
     const defaultList = [
-      { label: "Gym access", value: "gym_access" },
+      { label: t("categories.gym_access"), value: "gym_access" },
       { label: "Personal training", value: "personal_training" },
       { label: "Classes", value: "classes" },
-      { label: "Fitness Studio", value: "fitness_studio" },
+      { label: t("categories.fitness_studio"), value: "fitness_studio" },
       { label: "Jiu-Jitsu", value: "jiu_jitsu" },
       { label: "Nutrition", value: "nutrition" },
       { label: "Recovery", value: "recovery" },
@@ -135,7 +140,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
     }
 
     return Array.from(map.entries()).map(([value, label]) => ({ label, value }));
-  }, [localCategories]);
+  }, [localCategories, t]);
 
   async function handleCreateCategory() {
     if (!newCatName.trim()) {
@@ -144,7 +149,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
     }
 
     setIsCreatingCat(true);
-    const result = await createPlanCategoryAction(newCatName.trim(), newCatDesc.trim() || undefined);
+    const result = await createPlanCategoryAction(newCatName.trim(), newCatScope, newCatDesc.trim() || undefined);
     setIsCreatingCat(false);
 
     if (result.ok && result.data) {
@@ -154,12 +159,15 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
         id: result.data.id,
         is_active: true,
         name: result.data.name,
+        plan_scope: newCatScope,
         slug: result.data.slug,
       };
       setLocalCategories((prev) => [...prev, newCat]);
       setCategory(result.data.slug);
+      setPlanType(newCatScope === "fitness_studio" ? "fitness_studio" : "membership");
       setNewCatName("");
       setNewCatDesc("");
+      setNewCatScope("gym_access");
       setNewCatOpen(false);
     } else {
       toast.error(result.error || "Failed to create category");
@@ -212,7 +220,9 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
   );
   const planPriceNumber = Math.max(0, Number(planPrice || 0));
   const gymNetBeforeExpenses = Math.max(0, planPriceNumber - employeeCommissionTotal);
-  const isServicePlan = servicePlanCategories.has(category) || planType === "fitness_studio";
+  const selectedCategoryScope = categoryScopeByValue.get(category) ?? "extra_service";
+  const isServicePlan =
+    selectedCategoryScope !== "gym_access" || planType === "extra_service" || planType === "membership_extra_service";
   const submittedEmployeeRules = isServicePlan ? employeeRules : [];
   const offerDurationDays = calculateInclusiveDays(validFrom, validTo);
   const showServiceCommissionEditor = isServicePlan;
@@ -307,7 +317,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
         <FormSelect
           id="type"
           name="type"
-          defaultValue={planType}
+          value={planType}
           onValueChange={(value) => {
             const newType = value || "membership";
             setPlanType(newType);
@@ -319,7 +329,9 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
           options={[
             { label: t("planTypes.membership"), value: "membership" },
             { label: t("planTypes.offer"), value: "offer" },
-            { label: "Fitness Studio (Jiu-Jitsu & Classes - No Gym Access)", value: "fitness_studio" },
+            { label: t("planTypes.fitnessStudio"), value: "fitness_studio" },
+            { label: t("planTypes.extraService"), value: "extra_service" },
+            { label: t("planTypes.membershipExtraService"), value: "membership_extra_service" },
           ]}
         />
       </div>
@@ -347,6 +359,22 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
                   />
                 </div>
                 <div className="space-y-1">
+                  <Label htmlFor="new_cat_scope">Use category for</Label>
+                  <FormSelect
+                    id="new_cat_scope"
+                    name="new_cat_scope"
+                    value={newCatScope}
+                    onValueChange={(value) =>
+                      setNewCatScope((value as "gym_access" | "extra_service" | "fitness_studio") || "gym_access")
+                    }
+                    options={[
+                      { label: t("categories.gym_access"), value: "gym_access" },
+                      { label: t("planTypes.extraService"), value: "extra_service" },
+                      { label: t("categories.fitness_studio"), value: "fitness_studio" },
+                    ]}
+                  />
+                </div>
+                <div className="space-y-1">
                   <Label htmlFor="new_cat_desc">Description (Optional)</Label>
                   <Input
                     id="new_cat_desc"
@@ -371,7 +399,17 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
           id="category"
           name="category"
           value={category}
-          onValueChange={(value) => setCategory(value || "gym_access")}
+          onValueChange={(value) => {
+            const nextCategory = value || "gym_access";
+            const nextScope = categoryScopeByValue.get(nextCategory) ?? "extra_service";
+
+            setCategory(nextCategory);
+            if (nextScope === "fitness_studio") {
+              setPlanType("fitness_studio");
+            } else if (planType === "fitness_studio") {
+              setPlanType("membership");
+            }
+          }}
           error={fieldError(state, "category")}
           options={computedCategoryOptions}
         />

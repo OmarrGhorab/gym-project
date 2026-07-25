@@ -100,10 +100,34 @@ export async function cancelMembershipSubscription(
   }
 
   return mutateSubscription(`/subscriptions/${parsedId.data}/cancel`, "Subscription cancelled with refund.", {
+    force: true,
     ...(input.refund_amount !== undefined ? { refund_amount: input.refund_amount } : {}),
     ...(input.method ? { method: input.method } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
   });
+}
+
+export async function cancelMembershipAddon(
+  subscriptionId: number,
+  addonId: number,
+  input: CancelMembershipSubscriptionInput = {},
+): Promise<MembershipActionResult> {
+  const parsedSubscriptionId = subscriptionIdSchema.safeParse(subscriptionId);
+  const parsedAddonId = subscriptionIdSchema.safeParse(addonId);
+
+  if (!parsedSubscriptionId.success || !parsedAddonId.success) {
+    return invalidResult("Subscription and extra service are required.");
+  }
+
+  return mutateSubscription(
+    `/subscriptions/${parsedSubscriptionId.data}/addons/${parsedAddonId.data}/cancel`,
+    "Extra service cancelled with refund.",
+    {
+      ...(input.refund_amount !== undefined ? { refund_amount: input.refund_amount } : {}),
+      ...(input.method ? { method: input.method } : {}),
+      ...(input.reason ? { reason: input.reason } : {}),
+    },
+  );
 }
 
 export type UnfreezeMembershipSubscriptionInput = {

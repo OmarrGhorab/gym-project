@@ -88,6 +88,8 @@ final class ReportController extends ApiController
             data: $action->execute($request->validate([
                 'period' => ['nullable', 'string', Rule::in(['this-month', 'last-month', 'last-30-days', 'year-to-date'])],
                 'payment_method' => ['nullable', 'string', Rule::in(['pos', 'cash', 'card', 'bank_transfer'])],
+                'from' => ['nullable', 'date'],
+                'to' => ['nullable', 'date', 'after_or_equal:from'],
             ])),
             message: 'POS dashboard summary retrieved',
         );

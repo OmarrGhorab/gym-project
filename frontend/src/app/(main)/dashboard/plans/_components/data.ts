@@ -22,6 +22,7 @@ export type PlanCategoryOption = {
   id: number;
   name: string;
   slug: string;
+  plan_scope: "gym_access" | "extra_service" | "fitness_studio";
   description: string | null;
   is_active: boolean;
 };
@@ -71,6 +72,8 @@ export type PlansPageData = {
 };
 
 export type PlansQuery = {
+  created_from?: string;
+  created_to?: string;
   search?: string;
   status?: string;
   type?: string;
@@ -91,6 +94,8 @@ export async function getPlansPageData(query?: PlansQuery): Promise<PlansPageDat
     if (query?.status && query.status !== "all") {
       params.set("filter[is_active]", query.status === "active" ? "1" : "0");
     }
+    if (query?.created_from) params.set("filter[created_from]", query.created_from);
+    if (query?.created_to) params.set("filter[created_to]", query.created_to);
 
     const [result, employeesResult, categoriesResult] = await Promise.all([
       serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>(`/plans?${params.toString()}`),

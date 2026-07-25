@@ -21,6 +21,7 @@ final class StorePlanCategoryRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:100'],
             'slug' => ['nullable', 'string', 'max:100', Rule::unique('plan_categories', 'slug')],
+            'plan_scope' => ['sometimes', 'string', Rule::in(['gym_access', 'extra_service', 'fitness_studio'])],
             'description' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ];

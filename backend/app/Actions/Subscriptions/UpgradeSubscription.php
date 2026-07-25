@@ -36,7 +36,7 @@ class UpgradeSubscription
         return DB::transaction(function () use ($subscription, $data, $seller): Subscription {
             $lockedSubscription = Subscription::query()
                 ->lockForUpdate()
-                ->with(['member', 'payments', 'plan'])
+                ->with(['member', 'payments', 'plan', 'refunds'])
                 ->findOrFail($subscription->id);
 
             if ($lockedSubscription->status !== 'active') {
@@ -132,19 +132,22 @@ class UpgradeSubscription
                     'method' => $data['payment']['method'],
                     'paid_at' => $data['payment']['paid_at'] ?? null,
                 ],
+                'addons' => $data['addons'] ?? [],
             ], $seller);
 
             if ($appliedCredit > 0) {
+                // This settles the new subscription balance, but is not a new
+                // collection. It must stay out of revenue and shift totals.
                 Payment::query()->create([
                     'payable_type' => Subscription::class,
                     'payable_id' => $newSubscription->id,
                     'amount' => number_format($appliedCredit, 2, '.', ''),
-                    'method' => (string) ($data['payment']['method'] ?? 'cash'),
-                    'status' => 'paid',
+                    'method' => 'credit',
+                    'status' => Payment::STATUS_CREDIT,
                     'paid_at' => now(),
                     'due_date' => null,
                     'created_by' => $seller->id,
-                    'shift_session_id' => $this->openShiftSession->current()?->id,
+                    'shift_session_id' => null,
                 ]);
             }
 
@@ -200,11 +203,21 @@ class UpgradeSubscription
 
     private function paidTotal(Subscription $subscription): string
     {
-        return $subscription->payments
-            ->filter(fn ($payment): bool => in_array($payment->status, ['paid', 'partial'], true))
+        $paymentTotal = $subscription->payments
+            ->filter(fn ($payment): bool => in_array($payment->status, Payment::SETTLEMENT_STATUSES, true))
             ->reduce(
                 fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
                 '0.00',
             );
+
+        $refundTotal = $subscription->refunds
+            ->reduce(
+                fn (string $carry, $refund): string => bcadd($carry, (string) $refund->amount, 2),
+                '0.00',
+            );
+
+        $netPaid = bcsub($paymentTotal, $refundTotal, 2);
+
+        return bccomp($netPaid, '0.00', 2) === 1 ? $netPaid : '0.00';
     }
 }

@@ -4,7 +4,12 @@ import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
 
 import { CustomerReviews } from "./_components/customer-reviews";
-import { getPosDashboardData, normalizePosPaymentMethodFilter, normalizePosPeriodFilter } from "./_components/data";
+import {
+  getPosDashboardData,
+  normalizePosDate,
+  normalizePosPaymentMethodFilter,
+  normalizePosPeriodFilter,
+} from "./_components/data";
 import { Inventory } from "./_components/inventory";
 import { KpiStrip } from "./_components/kpi-strip";
 import { PosCheckoutDialog } from "./_components/pos-checkout-dialog";
@@ -25,7 +30,9 @@ export default async function Page({
   const params = await searchParams;
   const period = normalizePosPeriodFilter(params?.period);
   const paymentMethod = normalizePosPaymentMethodFilter(params?.payment_method);
-  const data = await getPosDashboardData({ paymentMethod, period });
+  const from = normalizePosDate(params?.from);
+  const to = normalizePosDate(params?.to);
+  const data = await getPosDashboardData({ dateRange: { from, to }, paymentMethod, period });
   const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
   const canCreateSale = user ? canAccess(user, "sales.create") : false;
   const canViewReports = user ? canAccess(user, "reports.view") : false;
@@ -40,13 +47,18 @@ export default async function Page({
           <p className="text-muted-foreground text-sm">{formattedDate}</p>
         </div>
 
-        {canViewReports ? <PosFilterToolbar paymentMethod={paymentMethod} period={period} /> : null}
+        {canViewReports ? <PosFilterToolbar from={from} paymentMethod={paymentMethod} period={period} to={to} /> : null}
         {canCreateSale ? <PosCheckoutDialog members={data.members} products={data.products} /> : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         {canViewReports ? (
-          <KpiStrip chart={data.sales_chart} dailySales={data.daily_sales} totals={data.totals} />
+          <KpiStrip
+            chart={data.sales_chart}
+            dailySales={data.daily_sales}
+            hasCustomDateRange={Boolean(from)}
+            totals={data.totals}
+          />
         ) : null}
         {canViewReports ? (
           <div className="xl:col-span-5">

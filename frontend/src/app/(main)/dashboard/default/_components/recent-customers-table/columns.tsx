@@ -172,16 +172,29 @@ export function createRecentCustomersColumns({
     {
       accessorKey: "plan",
       header: labels.plan,
-      cell: ({ row }) => (
-        <div className="grid max-w-72 gap-0.5">
-          <span className="truncate text-sm">{row.original.plan ?? labels.noPlan}</span>
-          {row.original.planEndsAt ? (
-            <span className="text-muted-foreground text-xs">
-              {labels.endsAt({ date: compactDateFormatter.format(parseISO(row.original.planEndsAt)) })}
-            </span>
-          ) : null}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const subscription = row.original.latest_subscription;
+        const mainPlanPaid = subscription?.paid_total ?? subscription?.price_paid;
+        const activeAddons =
+          subscription?.addons?.filter((addon) => addon.status !== "stopped" && addon.status !== "cancelled") ?? [];
+
+        return (
+          <div className="grid max-w-72 gap-0.5">
+            <span className="truncate text-sm">{row.original.plan ?? labels.noPlan}</span>
+            {mainPlanPaid ? <span className="text-muted-foreground text-xs">Paid: {mainPlanPaid} EGP</span> : null}
+            {activeAddons.map((addon) => (
+              <span key={addon.id} className="truncate text-muted-foreground text-xs">
+                + {addon.plan?.name ?? "Extra"}: {addon.paid_total ?? addon.price_paid ?? "0.00"} EGP
+              </span>
+            ))}
+            {row.original.planEndsAt ? (
+              <span className="text-muted-foreground text-xs">
+                {labels.endsAt({ date: compactDateFormatter.format(parseISO(row.original.planEndsAt)) })}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       id: "joinedWindow",

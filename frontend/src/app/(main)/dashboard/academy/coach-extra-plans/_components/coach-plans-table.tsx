@@ -130,15 +130,16 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
         {/* Member Details Dialog */}
         <Dialog open={selectedCoach !== null} onOpenChange={(open) => !open && setSelectedCoach(null)}>
           {selectedCoach ? (
-            <DialogContent className="!w-[min(1100px,calc(100vw-2rem))] !max-w-[min(1100px,calc(100vw-2rem))] max-h-[85vh] overflow-y-auto p-5 sm:max-w-4xl sm:p-6">
+            <DialogContent className="!w-[min(1200px,calc(100vw-2rem))] !max-w-[min(1200px,calc(100vw-2rem))] max-h-[85vh] overflow-y-auto p-5 sm:max-w-5xl sm:p-6">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <Dumbbell className="size-5 text-primary" />
-                  {selectedCoach.coach_name} — Member Subscriptions & Attendance
+                  {selectedCoach.coach_name} — Coached Plans & Member Details
                 </DialogTitle>
                 <DialogDescription>
-                  Subscribed members for extra add-on plans with {selectedCoach.coach_name} and their check-in
-                  attendance days this month.
+                  Detailed overview of members subscribed to extra-on services or fitness studio plans coached by{" "}
+                  {selectedCoach.coach_name} ({selectedCoach.coach_role || "Coach"}
+                  {selectedCoach.coach_phone ? ` · ${selectedCoach.coach_phone}` : ""}).
                 </DialogDescription>
               </DialogHeader>
 
@@ -159,7 +160,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                     <p className="font-semibold text-lg">{selectedCoach.total_visits_count}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/20 p-3">
-                    <p className="text-muted-foreground text-xs">Add-on Revenue</p>
+                    <p className="text-muted-foreground text-xs">Coached Revenue</p>
                     <p className="font-semibold text-lg">
                       {formatCurrency(Number(selectedCoach.total_revenue), { currency: "EGP" })}
                     </p>
@@ -171,52 +172,81 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                     <TableHeader className="bg-muted/40">
                       <TableRow>
                         <TableHead className="font-semibold">Member</TableHead>
-                        <TableHead className="font-semibold">Add-on Plan</TableHead>
+                        <TableHead className="font-semibold">Plan & Category</TableHead>
+                        <TableHead className="font-semibold">Duration (Start – End)</TableHead>
                         <TableHead className="text-center font-semibold">Status</TableHead>
-                        <TableHead className="text-center font-semibold">Sessions (Used / Total)</TableHead>
+                        <TableHead className="text-center font-semibold">Sessions</TableHead>
                         <TableHead className="text-center font-semibold">Attended Days (This Month)</TableHead>
                         <TableHead className="text-right font-semibold">Price Paid</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedCoach.members.map((m) => (
-                        <TableRow key={m.addon_id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{m.member_name}</p>
-                              {m.member_code ? <p className="text-muted-foreground text-xs">#{m.member_code}</p> : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium text-sm">{m.plan_name}</TableCell>
-                          <TableCell className="text-center">
-                            <Badge
-                              variant={m.status === "active" ? "default" : "secondary"}
-                              className={
-                                m.status === "active"
-                                  ? "border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : ""
-                              }
-                            >
-                              {m.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center text-sm tabular-nums">
-                            <span className="font-medium">{m.sessions_used}</span> / {m.sessions_total} used
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge
-                              variant="outline"
-                              className="border-primary/30 bg-primary/10 font-semibold text-primary text-xs"
-                            >
-                              <UserCheck className="mr-1 size-3" />
-                              {m.attended_days_this_month} days ({m.total_visits_this_month} visits)
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-sm tabular-nums">
-                            {formatCurrency(Number(m.price_paid), { currency: "EGP" })}
+                      {selectedCoach.members.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-8 text-center text-muted-foreground text-sm">
+                            No member subscriptions found for this coach.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        selectedCoach.members.map((m, index) => (
+                          <TableRow key={`${m.type ?? "item"}-${m.addon_id}-${m.member_id}-${index}`}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{m.member_name}</p>
+                                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                                  {m.member_phone ? <span>{m.member_phone}</span> : null}
+                                  {m.member_code ? <span>(#{m.member_code})</span> : null}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{m.plan_name}</p>
+                                <Badge variant="outline" className="mt-0.5 bg-muted/40 text-[10px]">
+                                  {m.plan_category ?? "Coached Plan"}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                              {m.start_date || "N/A"} → {m.end_date || "N/A"}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge
+                                variant={m.status === "active" ? "default" : "secondary"}
+                                className={
+                                  m.status === "active"
+                                    ? "border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                    : ""
+                                }
+                              >
+                                {m.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center text-sm tabular-nums">
+                              {m.sessions_total > 0 ? (
+                                <div>
+                                  <span className="font-medium">{m.sessions_used}</span> / {m.sessions_total} used
+                                  <p className="text-muted-foreground text-xs">({m.sessions_remaining} left)</p>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">Unlimited</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge
+                                variant="outline"
+                                className="border-primary/30 bg-primary/10 font-semibold text-primary text-xs"
+                              >
+                                <UserCheck className="mr-1 size-3" />
+                                {m.attended_days_this_month} days ({m.total_visits_this_month} visits)
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-sm tabular-nums">
+                              {formatCurrency(Number(m.price_paid), { currency: "EGP" })}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>

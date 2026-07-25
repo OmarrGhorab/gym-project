@@ -51,6 +51,7 @@ export type MemberRow = {
       status?: string;
       end_date: string | null;
       price_paid?: string;
+      paid_total?: string;
       sessions_total?: number | null;
       sessions_remaining?: number | null;
       coach?: {

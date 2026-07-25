@@ -20,6 +20,7 @@ final class PlanCategoryResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
+            'plan_scope' => $this->plan_scope,
             'description' => $this->description,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at?->toIso8601String(),

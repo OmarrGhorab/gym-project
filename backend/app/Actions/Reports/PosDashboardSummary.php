@@ -20,7 +20,12 @@ final class PosDashboardSummary
     public function execute(array $filters = []): array
     {
         $now = CarbonImmutable::now();
-        [$periodStart, $periodEnd, $previousPeriodStart, $previousPeriodEnd] = $this->periodRange($filters['period'] ?? 'this-month', $now);
+        [$periodStart, $periodEnd, $previousPeriodStart, $previousPeriodEnd] = $this->periodRange(
+            $filters['period'] ?? 'this-month',
+            $now,
+            $filters['from'] ?? null,
+            $filters['to'] ?? null,
+        );
         $paymentMethod = $this->paymentMethod($filters['payment_method'] ?? null);
 
         $salesTotal = (float) $this->salesQuery($periodStart, $periodEnd, $paymentMethod)->sum('total');
@@ -258,8 +263,21 @@ final class PosDashboardSummary
     /**
      * @return array{0: CarbonImmutable, 1: CarbonImmutable, 2: CarbonImmutable, 3: CarbonImmutable}
      */
-    private function periodRange(string $period, CarbonImmutable $now): array
+    private function periodRange(string $period, CarbonImmutable $now, ?string $from = null, ?string $to = null): array
     {
+        if ($from !== null || $to !== null) {
+            $periodStart = CarbonImmutable::parse($from ?? $to)->startOfDay();
+            $periodEnd = CarbonImmutable::parse($to ?? $from)->endOfDay();
+            $days = max(1, $periodStart->diffInDays($periodEnd) + 1);
+
+            return [
+                $periodStart,
+                $periodEnd,
+                $periodStart->subDays($days)->startOfDay(),
+                $periodStart->subDay()->endOfDay(),
+            ];
+        }
+
         return match ($period) {
             'last-month' => [
                 $now->subMonthNoOverflow()->startOfMonth(),

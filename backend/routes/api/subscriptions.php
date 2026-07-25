@@ -26,6 +26,9 @@ Route::prefix('subscriptions')->group(function (): void {
     Route::post('/{subscription}/addons', [SubscriptionController::class, 'addAddon'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE]);
 
+    Route::post('/{subscription}/addons/{addon}/cancel', [SubscriptionController::class, 'cancelAddon'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_STOP]);
+
     Route::post('/{subscription}/freeze', [SubscriptionController::class, 'freeze'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE]);
 

@@ -416,6 +416,7 @@
       "planPrice": "Plan price",
       "balance": "Balance",
       "balanceDue": "Balance due",
+      "paid": "Paid",
       "paidTotal": "Paid total",
       "paidOfValue": "{paid} paid of {value}",
       "actions": "Actions",
@@ -1253,11 +1254,15 @@
       "type": "Type",
       "planTypes": {
         "membership": "Membership",
-        "offer": "Offer"
+        "offer": "Offer",
+        "fitnessStudio": "Fitness studio (no gym access)",
+        "extraService": "Extra service (standalone)",
+        "membershipExtraService": "Membership + extra service"
       },
       "category": "Category",
       "categories": {
         "gym_access": "Gym access",
+        "fitness_studio": "Fitness studio",
         "personal_training": "Personal training",
         "classes": "Classes",
         "nutrition": "Nutrition",
@@ -1294,8 +1299,8 @@
       "descriptionField": "Description",
       "planEmployees": "Plan employees",
       "planEmployeesDescription": "Attach one or more coaches or employees to this plan and define the commission each one gets from subscriptions on this plan.",
-      "serviceCoaches": "Service coaches & commission",
-      "serviceCoachesDescription": "Assign the coaches who can deliver this add-on service and define the bonus they earn each time a member buys it.",
+      "serviceCoaches": "Coaches & commission",
+      "serviceCoachesDescription": "Assign coaches for this service or combined plan and define the bonus they earn each time a member buys it.",
       "basePlanCommissionHelp": "Gym access plans are the base membership. Add nutrition, personal training, classes, or recovery as separate service plans to assign coaches and commissions.",
       "addPlanEmployee": "Add plan employee",
       "addServiceCoach": "Add service coach",

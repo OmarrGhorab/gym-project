@@ -58,6 +58,21 @@ type MemberResource = {
     package_paid_total?: string | null;
     package_price_paid?: string | null;
     package_balance?: string | null;
+    price_paid?: string | null;
+    paid_total?: string | null;
+    balance?: string | null;
+    addons?: Array<{
+      id?: number;
+      status?: string | null;
+      end_date?: string | null;
+      price_paid?: string | null;
+      paid_total?: string | null;
+      plan?: {
+        id?: number;
+        name?: string | null;
+        price?: string | number | null;
+      } | null;
+    }>;
   } | null;
 };
 
@@ -350,6 +365,30 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
           package_paid_total: subscription.package_paid_total ?? null,
           package_price_paid: subscription.package_price_paid ?? null,
           package_balance: subscription.package_balance ?? null,
+          price_paid: subscription.price_paid ?? null,
+          paid_total: subscription.paid_total ?? null,
+          balance: subscription.balance ?? null,
+          addons: subscription.addons?.flatMap((addon) => {
+            if (!addon.id) {
+              return [];
+            }
+
+            return [
+              {
+                id: addon.id,
+                status: addon.status ?? undefined,
+                end_date: addon.end_date ?? null,
+                price_paid: addon.price_paid ?? undefined,
+                paid_total: addon.paid_total ?? undefined,
+                plan: addon.plan?.id
+                  ? {
+                      id: addon.plan.id,
+                      name: addon.plan.name ?? null,
+                    }
+                  : undefined,
+              },
+            ];
+          }),
         }
       : null,
     due,

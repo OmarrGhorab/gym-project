@@ -49,10 +49,12 @@ function metricClass(value: string) {
 export function KpiStrip({
   chart,
   dailySales,
+  hasCustomDateRange = false,
   totals,
 }: {
   chart: PosChartPoint[];
   dailySales: PosDashboardData["daily_sales"];
+  hasCustomDateRange?: boolean;
   totals: PosDashboardData["totals"];
 }) {
   const t = useTranslations("Dashboard.ecommerce");
@@ -63,9 +65,9 @@ export function KpiStrip({
   }));
   const metrics = [
     {
-      title: "Today sales",
+      title: hasCustomDateRange ? "Selected sales" : "Today sales",
       value: formatEgp(dailySales.total_revenue),
-      detail: `${dailySales.sales.length.toLocaleString()} orders today`,
+      detail: `${dailySales.sales.length.toLocaleString()} ${hasCustomDateRange ? "orders selected" : "orders today"}`,
       trend: totals.sales_growth_rate,
       icon: DollarSign,
     },

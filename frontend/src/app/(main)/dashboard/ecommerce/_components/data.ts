@@ -2,6 +2,7 @@ import { serverApiFetch } from "@/lib/api/server";
 
 export type PosPeriodFilter = "this-month" | "last-month" | "last-30-days" | "year-to-date";
 export type PosPaymentMethodFilter = "pos" | "cash" | "card" | "bank_transfer";
+export type PosDateRange = { from?: string; to?: string };
 
 export type PosChartPoint = {
   date: string;
@@ -181,16 +182,26 @@ export function normalizePosPaymentMethodFilter(value: string | string[] | undef
   return "pos";
 }
 
+export function normalizePosDate(value: string | string[] | undefined): string | undefined {
+  const date = Array.isArray(value) ? value[0] : value;
+
+  return date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+}
+
 export async function getPosDashboardData(
-  filters: { period?: PosPeriodFilter; paymentMethod?: PosPaymentMethodFilter } = {},
+  filters: { dateRange?: PosDateRange; period?: PosPeriodFilter; paymentMethod?: PosPaymentMethodFilter } = {},
 ): Promise<PosDashboardData> {
   try {
     const params = new URLSearchParams();
 
     params.set("period", filters.period ?? "this-month");
     params.set("payment_method", filters.paymentMethod ?? "pos");
+    if (filters.dateRange?.from) params.set("from", filters.dateRange.from);
+    if (filters.dateRange?.to) params.set("to", filters.dateRange.to);
 
-    const salesDateRange = getPosPeriodDateRange(filters.period ?? "this-month");
+    const salesDateRange = filters.dateRange?.from
+      ? { from: filters.dateRange.from, to: filters.dateRange.to ?? filters.dateRange.from }
+      : getPosPeriodDateRange(filters.period ?? "this-month");
     const salesParams = new URLSearchParams({
       "filter[created_from]": salesDateRange.from,
       "filter[created_to]": salesDateRange.to,
@@ -212,10 +223,10 @@ export async function getPosDashboardData(
         "/members?filter[status]=active&sort=name&per_page=100",
         [],
       ),
-      safeFetch<{ total_revenue: string; sales: unknown[] }>(
-        `/sales/daily?date=${new Date().toISOString().slice(0, 10)}`,
-        { total_revenue: "0.00", sales: [] },
-      ),
+      safeFetch<{ total_revenue: string; sales: unknown[] }>(`/sales/daily?date=${formatDateParam(new Date())}`, {
+        total_revenue: "0.00",
+        sales: [],
+      }),
       safeFetch<ApiSaleResource[] | { data: ApiSaleResource[] }>(`/sales?${salesParams.toString()}`, []),
     ]);
     const recentSales = Array.isArray(recentSalesResult.data) ? recentSalesResult.data : recentSalesResult.data.data;
@@ -223,7 +234,12 @@ export async function getPosDashboardData(
     return {
       ...emptyPosData,
       ...result.data,
-      daily_sales: dailySalesResult.data,
+      daily_sales: filters.dateRange?.from
+        ? {
+            total_revenue: result.data.totals.sales,
+            sales: Array.from({ length: result.data.totals.orders }),
+          }
+        : dailySalesResult.data,
       recent_orders: recentSales.map(mapSaleToRecentOrder),
       products: Array.isArray(productsResult.data) ? productsResult.data : productsResult.data.data,
       members: Array.isArray(membersResult.data) ? membersResult.data : membersResult.data.data,
