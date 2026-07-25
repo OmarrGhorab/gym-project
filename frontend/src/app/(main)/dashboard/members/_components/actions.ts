@@ -232,6 +232,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
 
   const parsed = subscriptionInputSchema.safeParse({
     addons: parseSubscriptionAddons(input),
+    coach_id: input.get("coach_id"),
     discount: input.get("discount"),
     end_date: input.get("end_date"),
     payment_amount: input.get("payment_amount"),
@@ -254,6 +255,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
       body: JSON.stringify({
         member_id: memberId.data,
         plan_id: parsed.data.plan_id,
+        coach_id: parsed.data.coach_id ?? null,
         start_date: parsed.data.start_date,
         end_date: parsed.data.end_date,
         discount: parsed.data.discount ?? "0",
@@ -489,6 +491,7 @@ const subscriptionInputSchema = z.object({
       }),
     )
     .default([]),
+  coach_id: z.coerce.number().int().positive().nullable().optional(),
   discount: optionalTextInput(),
   end_date: optionalDateInput,
   payment_amount: z.string().trim().min(1, "Payment amount is required."),

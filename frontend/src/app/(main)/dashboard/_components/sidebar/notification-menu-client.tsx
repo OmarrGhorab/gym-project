@@ -27,7 +27,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 
 import { markAllSidebarNotificationsRead, markSidebarNotificationRead } from "./notification-actions";

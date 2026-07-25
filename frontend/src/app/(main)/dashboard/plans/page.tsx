@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { Pencil } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
@@ -19,10 +21,25 @@ import { deletePlan, togglePlan } from "./_components/actions";
 import { getPlansPageData } from "./_components/data";
 import { PlanCreateDialog } from "./_components/plan-create-dialog";
 import { PlanCreateForm } from "./_components/plan-create-form";
+import { PlansToolbar } from "./_components/plans-toolbar";
 
-export default async function Page() {
+type PageProps = {
+  searchParams: Promise<{
+    search?: string;
+    status?: string;
+    type?: string;
+  }>;
+};
+
+export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.plans");
-  const { categories, employees, plans } = await getPlansPageData();
+  const resolvedSearchParams = await searchParams;
+  const query = {
+    search: resolvedSearchParams.search?.trim() || undefined,
+    status: resolvedSearchParams.status || undefined,
+    type: resolvedSearchParams.type || undefined,
+  };
+  const { categories, employees, plans } = await getPlansPageData(query);
   const active = plans.filter((plan) => plan.is_active).length;
   const sellable = plans.filter((plan) => plan.is_sellable).length;
 
@@ -48,7 +65,10 @@ export default async function Page() {
             <CardTitle className="font-normal">{t("catalog")}</CardTitle>
             <CardDescription>{t("catalogDescription")}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <Suspense>
+              <PlansToolbar />
+            </Suspense>
             <Table>
               <TableHeader>
                 <TableRow>

@@ -1321,7 +1321,12 @@
       "planCreated": "تم إنشاء الخطة.",
       "planUpdated": "تم تحديث الخطة.",
       "savePlan": "حفظ الخطة",
-      "saving": "جار الحفظ..."
+      "saving": "جار الحفظ...",
+      "searchPlaceholder": "ابحث عن الخطط بالاسم أو الوصف…",
+      "filterType": "النوع",
+      "filterStatus": "الحالة",
+      "allTypes": "كل الأنواع",
+      "allStatuses": "كل الحالات"
     },
     "payroll": {
       "title": "الرواتب",

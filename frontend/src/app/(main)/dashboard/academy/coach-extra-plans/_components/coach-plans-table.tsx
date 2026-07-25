@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Calendar, CheckCircle2, ChevronRight, Dumbbell, Eye, Search, UserCheck, Users } from "lucide-react";
+import { Calendar, Dumbbell, Eye, Search, UserCheck, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
     if (!query) return true;
     return (
       c.coach_name.toLowerCase().includes(query) ||
-      (c.coach_role && c.coach_role.toLowerCase().includes(query)) ||
+      c.coach_role?.toLowerCase().includes(query) ||
       c.plans_summary.some((p) => p.plan_name.toLowerCase().includes(query))
     );
   });
@@ -32,11 +32,11 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
     <Card className="shadow-2xs">
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-xl tracking-tight font-semibold">Coach Add-on Plans & Attendance</CardTitle>
+          <CardTitle className="font-semibold text-xl tracking-tight">Coach Add-on Plans & Attendance</CardTitle>
           <CardDescription>Performance breakdown of member subscriptions and attendance days by coach.</CardDescription>
         </div>
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-8 text-sm"
             placeholder="Search coach or plan name..."
@@ -57,12 +57,12 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
               <TableHeader className="bg-muted/40">
                 <TableRow>
                   <TableHead className="font-semibold">Coach</TableHead>
-                  <TableHead className="font-semibold text-center">Subscribed Members</TableHead>
-                  <TableHead className="font-semibold text-center">Attended Days (This Month)</TableHead>
-                  <TableHead className="font-semibold text-center">Total Visits</TableHead>
+                  <TableHead className="text-center font-semibold">Subscribed Members</TableHead>
+                  <TableHead className="text-center font-semibold">Attended Days (This Month)</TableHead>
+                  <TableHead className="text-center font-semibold">Total Visits</TableHead>
                   <TableHead className="font-semibold">Plans Summary</TableHead>
-                  <TableHead className="font-semibold text-right">Add-on Revenue</TableHead>
-                  <TableHead className="font-semibold text-center">Actions</TableHead>
+                  <TableHead className="text-right font-semibold">Add-on Revenue</TableHead>
+                  <TableHead className="text-center font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -94,7 +94,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                         {coach.attended_days_count} day{coach.attended_days_count === 1 ? "" : "s"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center font-medium tabular-nums text-sm">
+                    <TableCell className="text-center font-medium text-sm tabular-nums">
                       {coach.total_visits_count}
                     </TableCell>
                     <TableCell>
@@ -106,7 +106,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums text-sm">
+                    <TableCell className="text-right font-medium text-sm tabular-nums">
                       {formatCurrency(Number(coach.total_revenue), { currency: "EGP" })}
                     </TableCell>
                     <TableCell className="text-center">
@@ -130,7 +130,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
         {/* Member Details Dialog */}
         <Dialog open={selectedCoach !== null} onOpenChange={(open) => !open && setSelectedCoach(null)}>
           {selectedCoach ? (
-            <DialogContent className="!w-[min(1100px,calc(100vw-2rem))] !max-w-[min(1100px,calc(100vw-2rem))] max-h-[85vh] overflow-y-auto p-5 sm:p-6 sm:max-w-4xl">
+            <DialogContent className="!w-[min(1100px,calc(100vw-2rem))] !max-w-[min(1100px,calc(100vw-2rem))] max-h-[85vh] overflow-y-auto p-5 sm:max-w-4xl sm:p-6">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <Dumbbell className="size-5 text-primary" />
@@ -172,10 +172,10 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                       <TableRow>
                         <TableHead className="font-semibold">Member</TableHead>
                         <TableHead className="font-semibold">Add-on Plan</TableHead>
-                        <TableHead className="font-semibold text-center">Status</TableHead>
-                        <TableHead className="font-semibold text-center">Sessions (Used / Total)</TableHead>
-                        <TableHead className="font-semibold text-center">Attended Days (This Month)</TableHead>
-                        <TableHead className="font-semibold text-right">Price Paid</TableHead>
+                        <TableHead className="text-center font-semibold">Status</TableHead>
+                        <TableHead className="text-center font-semibold">Sessions (Used / Total)</TableHead>
+                        <TableHead className="text-center font-semibold">Attended Days (This Month)</TableHead>
+                        <TableHead className="text-right font-semibold">Price Paid</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -193,14 +193,14 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                               variant={m.status === "active" ? "default" : "secondary"}
                               className={
                                 m.status === "active"
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-0"
+                                  ? "border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                                   : ""
                               }
                             >
                               {m.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center tabular-nums text-sm">
+                          <TableCell className="text-center text-sm tabular-nums">
                             <span className="font-medium">{m.sessions_used}</span> / {m.sessions_total} used
                           </TableCell>
                           <TableCell className="text-center">
@@ -212,7 +212,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                               {m.attended_days_this_month} days ({m.total_visits_this_month} visits)
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right font-medium tabular-nums text-sm">
+                          <TableCell className="text-right font-medium text-sm tabular-nums">
                             {formatCurrency(Number(m.price_paid), { currency: "EGP" })}
                           </TableCell>
                         </TableRow>

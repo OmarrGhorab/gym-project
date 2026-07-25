@@ -89,7 +89,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const handleMemberSearch = useCallback(
     async (query: string) => {
       const nextMembers = await fetchMemberLookup(query, members);
-      setLookupMembers((current) => mergeMemberLookup(selectedMember ? [selectedMember] : current, nextMembers));
+      setLookupMembers(mergeMemberLookup(selectedMember ? [selectedMember] : [], nextMembers));
     },
     [members, selectedMember],
   );
@@ -327,9 +327,7 @@ function StaffScanCard({
   const handleEmployeeSearch = useCallback(
     async (query: string) => {
       const nextEmployees = await fetchEmployeeLookup(query, employees);
-      setLookupEmployees((current) =>
-        mergeEmployeeLookup(selectedEmployee ? [selectedEmployee] : current, nextEmployees),
-      );
+      setLookupEmployees(mergeEmployeeLookup(selectedEmployee ? [selectedEmployee] : [], nextEmployees));
     },
     [employees, selectedEmployee],
   );

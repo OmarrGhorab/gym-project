@@ -45,9 +45,9 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
-import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 
 import {
   addMembershipExtra,
@@ -1021,9 +1021,9 @@ function SubscriptionActions({
                       Subscription & Sessions Summary
                     </div>
 
-                    <div className="flex justify-between border-b pb-1.5 pt-1">
+                    <div className="flex justify-between border-b pt-1 pb-1.5">
                       <span className="text-muted-foreground">Main Plan ({subscription.plan ?? t("noPlan")}):</span>
-                      <span className="font-medium tabular-nums font-mono">
+                      <span className="font-medium font-mono tabular-nums">
                         {formatCurrency(mainPlanPrice, { currency: "EGP" })}
                       </span>
                     </div>
@@ -1032,11 +1032,11 @@ function SubscriptionActions({
                       <div key={addon.id} className="grid gap-0.5 border-b pb-1.5">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">+ Extra: {addon.name}</span>
-                          <span className="font-medium tabular-nums font-mono">
+                          <span className="font-medium font-mono tabular-nums">
                             {formatCurrency(addon.price, { currency: "EGP" })}
                           </span>
                         </div>
-                        <div className="flex justify-between text-[11px] text-muted-foreground pl-2">
+                        <div className="flex justify-between pl-2 text-[11px] text-muted-foreground">
                           <span>Coach: {addon.coach ?? "Unassigned"}</span>
                           <span className="font-medium text-foreground">
                             {addon.sessionsRemaining !== null && addon.sessionsRemaining !== undefined
@@ -1051,7 +1051,7 @@ function SubscriptionActions({
 
                     <div className="flex justify-between pt-1 font-semibold text-foreground">
                       <span>Total Package Paid:</span>
-                      <span className="tabular-nums font-mono">
+                      <span className="font-mono tabular-nums">
                         {formatCurrency(subscription.paidTotal, { currency: "EGP" })}
                       </span>
                     </div>
@@ -1300,13 +1300,13 @@ function SubscriptionActions({
                         }
                       >
                         <span>{changePlanDetails.isDowngrade ? t("downgradeRefund") : t("upgradeDifference")}</span>
-                        <span className="text-base font-bold">
+                        <span className="font-bold text-base">
                           {changePlanDetails.isDowngrade
                             ? `-${changePlanDetails.refundAmount} EGP`
                             : `+${changePlanDetails.amountDue} EGP`}
                         </span>
                       </div>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-muted-foreground text-xs">
                         <div>
                           <span>{t("oldPlanCredit")}: </span>
                           <strong className="text-foreground">{changePlanDetails.credit} EGP</strong>
@@ -1325,7 +1325,7 @@ function SubscriptionActions({
                         </div>
                       </div>
                       {subscription.paidTotal === 0 ? (
-                        <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                        <p className="mt-2 font-medium text-amber-700 text-xs dark:text-amber-400">
                           {t("unpaidCreditNote")}
                         </p>
                       ) : null}
@@ -1346,7 +1346,7 @@ function SubscriptionActions({
                     onChange={(event) => setChangePlanAmountOverride(event.currentTarget.value)}
                   />
                   {changePlanDetails?.isDowngrade ? (
-                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <p className="font-medium text-amber-700 text-xs dark:text-amber-400">
                       {t("downgradePaymentNotice", { refund: `${changePlanDetails.refundAmount}` })}
                     </p>
                   ) : null}
@@ -1794,7 +1794,7 @@ function calculatePlanChangeDetails({
   };
 }
 
-function calculateUpgradePaymentAmount({
+function _calculateUpgradePaymentAmount({
   creditMode,
   newPrice,
   paidTotal,

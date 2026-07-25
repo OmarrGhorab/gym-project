@@ -3,18 +3,12 @@
 import * as React from "react";
 import { useActionState } from "react";
 
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-
-import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +18,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FormDatePicker, FormSelect, FormTimePicker } from "@/components/ui/form-controls";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 import { createPlan, createPlanCategoryAction, type PlanFormState, updatePlan } from "./actions";
 import type { PlanCategoryOption, PlanEmployeeOption, PlanRow } from "./data";
@@ -51,8 +49,23 @@ type PlanEmployeeCommissionDraft = {
   value: string;
 };
 
-const planCategoryOptions = ["gym_access", "personal_training", "classes", "nutrition", "recovery"] as const;
-const servicePlanCategories = new Set<string>(["personal_training", "classes", "nutrition", "recovery"]);
+const _planCategoryOptions = [
+  "gym_access",
+  "fitness_studio",
+  "jiu_jitsu",
+  "personal_training",
+  "classes",
+  "nutrition",
+  "recovery",
+] as const;
+const servicePlanCategories = new Set<string>([
+  "fitness_studio",
+  "jiu_jitsu",
+  "personal_training",
+  "classes",
+  "nutrition",
+  "recovery",
+]);
 
 function isPlanEmployeeCommissionDraft(value: unknown): value is Partial<PlanEmployeeCommissionDraft> {
   return typeof value === "object" && value !== null;
@@ -199,7 +212,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
   );
   const planPriceNumber = Math.max(0, Number(planPrice || 0));
   const gymNetBeforeExpenses = Math.max(0, planPriceNumber - employeeCommissionTotal);
-  const isServicePlan = servicePlanCategories.has(category);
+  const isServicePlan = servicePlanCategories.has(category) || planType === "fitness_studio";
   const submittedEmployeeRules = isServicePlan ? employeeRules : [];
   const offerDurationDays = calculateInclusiveDays(validFrom, validTo);
   const showServiceCommissionEditor = isServicePlan;
@@ -295,7 +308,13 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
           id="type"
           name="type"
           defaultValue={planType}
-          onValueChange={(value) => setPlanType(value || "membership")}
+          onValueChange={(value) => {
+            const newType = value || "membership";
+            setPlanType(newType);
+            if (newType === "fitness_studio") {
+              setCategory("fitness_studio");
+            }
+          }}
           error={fieldError(state, "type")}
           options={[
             { label: t("planTypes.membership"), value: "membership" },
@@ -309,7 +328,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
         <div className="flex items-center justify-between">
           <Label htmlFor="category">{t("category")}</Label>
           <Dialog open={newCatOpen} onOpenChange={setNewCatOpen}>
-            <DialogTrigger render={<Button size="xs" variant="ghost" className="h-6 gap-1 text-xs text-primary" />}>
+            <DialogTrigger render={<Button size="xs" variant="ghost" className="h-6 gap-1 text-primary text-xs" />}>
               <Plus className="size-3" /> Add Category
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -771,7 +790,15 @@ function PlanEmployeesSection({
   title: string;
 }) {
   const employeeOptions = React.useMemo(() => {
-    const baseOptions = employees.map((employee) => ({
+    const coachCandidates = employees.filter((employee) => {
+      if (!employee.role) {
+        return true;
+      }
+      const r = employee.role.toLowerCase();
+      return r.includes("coach") || r.includes("captain") || r.includes("trainer") || r.includes("pt");
+    });
+
+    const baseOptions = (coachCandidates.length > 0 ? coachCandidates : employees).map((employee) => ({
       value: String(employee.id),
       label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
     }));

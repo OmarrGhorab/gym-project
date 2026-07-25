@@ -20,6 +20,7 @@ class Subscription extends Model
     protected $fillable = [
         'member_id',
         'plan_id',
+        'coach_id',
         'upgraded_from_subscription_id',
         'start_date',
         'end_date',
@@ -64,6 +65,11 @@ class Subscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function coach(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'coach_id');
     }
 
     public function upgradedFrom(): BelongsTo

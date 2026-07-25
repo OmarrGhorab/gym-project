@@ -1,4 +1,5 @@
 import { serverApiFetch } from "@/lib/api/server";
+
 import { ReportViewClient } from "./_components/report-view-client";
 
 export default async function ReportsPage({
@@ -53,7 +54,7 @@ export default async function ReportsPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Reports Hub</h1>
+        <h1 className="font-bold text-3xl tracking-tight">Reports Hub</h1>
         <p className="text-muted-foreground text-sm">
           Comprehensive performance, member subscriptions, product sales, shift revenue, and cashflow analytics.
         </p>

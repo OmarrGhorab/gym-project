@@ -48,7 +48,7 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
               Back to Staff Academy
             </Button>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Coach Add-on Plans Report</h1>
+          <h1 className="font-bold text-3xl tracking-tight">Coach Add-on Plans Report</h1>
           <p className="text-muted-foreground text-sm">
             Overview of members subscribed to extra add-on plans by coach, active subscriptions, and member attendance
             days this month.
@@ -79,8 +79,8 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
             <Dumbbell className="size-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.kpis.total_coached_addons}</div>
-            <p className="text-muted-foreground text-xs mt-1">Extra plans assigned to coaches</p>
+            <div className="font-bold text-2xl">{data.kpis.total_coached_addons}</div>
+            <p className="mt-1 text-muted-foreground text-xs">Extra plans assigned to coaches</p>
           </CardContent>
         </Card>
 
@@ -90,8 +90,8 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
             <Users className="size-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.kpis.total_subscribed_members}</div>
-            <p className="text-muted-foreground text-xs mt-1">Distinct members in coached add-ons</p>
+            <div className="font-bold text-2xl">{data.kpis.total_subscribed_members}</div>
+            <p className="mt-1 text-muted-foreground text-xs">Distinct members in coached add-ons</p>
           </CardContent>
         </Card>
 
@@ -101,10 +101,10 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
             <UserCheck className="size-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            <div className="font-bold text-2xl text-emerald-600 dark:text-emerald-400">
               {data.kpis.total_attended_days} days
             </div>
-            <p className="text-muted-foreground text-xs mt-1">Total distinct check-in days this month</p>
+            <p className="mt-1 text-muted-foreground text-xs">Total distinct check-in days this month</p>
           </CardContent>
         </Card>
 
@@ -114,10 +114,10 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
             <ReceiptText className="size-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="font-bold text-2xl">
               {formatCurrency(Number(data.kpis.total_addon_revenue), { currency: "EGP" })}
             </div>
-            <p className="text-muted-foreground text-xs mt-1">Coached extra plans revenue</p>
+            <p className="mt-1 text-muted-foreground text-xs">Coached extra plans revenue</p>
           </CardContent>
         </Card>
       </div>

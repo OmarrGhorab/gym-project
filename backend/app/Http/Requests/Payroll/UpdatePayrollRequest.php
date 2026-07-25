@@ -22,6 +22,7 @@ class UpdatePayrollRequest extends FormRequest
         return [
             'bonuses' => ['nullable', 'numeric', 'min:0'],
             'deductions' => ['nullable', 'numeric', 'min:0'],
+            'attendance_deductions' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }

@@ -39,12 +39,6 @@ class CreateSubscription
             ]);
         }
 
-        if ($plan->category !== 'gym_access') {
-            throw ValidationException::withMessages([
-                'plan_id' => 'The main subscription plan must be a base gym access plan.',
-            ]);
-        }
-
         return DB::transaction(function () use ($data, $seller, $member, $plan): Subscription {
             $startDate = Carbon::parse($data['start_date'])->startOfDay();
             $endDate = isset($data['end_date'])
@@ -67,6 +61,7 @@ class CreateSubscription
             $subscription = Subscription::create([
                 'member_id' => $member->id,
                 'plan_id' => $plan->id,
+                'coach_id' => $data['coach_id'] ?? null,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $endDate->toDateString(),
                 'status' => 'active',

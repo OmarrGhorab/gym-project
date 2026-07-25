@@ -17,6 +17,7 @@ class StoreSubscriptionRequest extends FormRequest
         return [
             'member_id' => ['required', 'integer', 'exists:members,id'],
             'plan_id' => ['required', 'integer', 'exists:plans,id'],
+            'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'discount' => ['nullable', 'numeric', 'min:0'],

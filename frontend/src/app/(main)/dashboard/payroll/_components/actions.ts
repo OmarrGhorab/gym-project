@@ -23,6 +23,7 @@ const payrollUpdateSchema = z.object({
   id: z.coerce.number().int().positive("Payroll record is required."),
   bonuses: z.coerce.number().min(0, "Bonus cannot be negative."),
   deductions: z.coerce.number().min(0, "Deduction cannot be negative."),
+  attendance_deductions: z.coerce.number().min(0, "Attendance deduction cannot be negative."),
 });
 
 const payrollGenerateSchema = z.object({
@@ -113,6 +114,7 @@ export async function updatePayroll(_state: PayrollActionState, input: FormData)
       body: JSON.stringify({
         bonuses: String(parsed.data.bonuses),
         deductions: String(parsed.data.deductions),
+        attendance_deductions: String(parsed.data.attendance_deductions),
       }),
       headers: {
         "Content-Type": "application/json",
@@ -144,5 +146,6 @@ function getPayrollValues(input: FormData) {
     id: String(input.get("id") || ""),
     bonuses: String(input.get("bonuses") || "0"),
     deductions: String(input.get("deductions") || "0"),
+    attendance_deductions: String(input.get("attendance_deductions") || "0"),
   };
 }

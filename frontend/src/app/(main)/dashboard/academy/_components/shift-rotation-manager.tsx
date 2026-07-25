@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 import { ArrowDown, ArrowUp, RotateCw } from "lucide-react";
 import { toast } from "sonner";
@@ -28,25 +28,68 @@ const weekDaysOptions = [
   { label: "Saturday", value: "6" },
 ];
 
+type OffRotationConfig = {
+  id: number;
+  off_weekday: number;
+  rotation_start_date: string | null;
+  employee_order: number[];
+  is_active: boolean;
+};
+
 export function ShiftRotationManager({
   assignedEmployees,
   offDays = [],
+  offRotation,
   shiftId,
   shiftName,
 }: {
   assignedEmployees: StaffEmployeeOption[];
   offDays?: number[];
+  offRotation?: OffRotationConfig | null;
   shiftId: number;
   shiftName: string;
 }) {
-  const defaultOffDay = offDays.length > 0 ? String(offDays[0]) : "5";
-  const [offWeekday, setOffWeekday] = useState(defaultOffDay);
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
-  const [orderedEmployees, setOrderedEmployees] = useState<StaffEmployeeOption[]>(assignedEmployees);
+  let initialOffDay = "5";
+  if (offRotation?.off_weekday != null) {
+    initialOffDay = String(offRotation.off_weekday);
+  } else if (offDays.length > 0) {
+    initialOffDay = String(offDays[0]);
+  }
+
+  const initialStartDate = offRotation?.rotation_start_date ?? new Date().toISOString().slice(0, 10);
+
+  const initialOrderedEmployees = useMemo(() => {
+    if (!offRotation?.employee_order || offRotation.employee_order.length === 0) {
+      return assignedEmployees;
+    }
+
+    const empMap = new Map(assignedEmployees.map((emp) => [emp.id, emp]));
+    const ordered: StaffEmployeeOption[] = [];
+
+    for (const empId of offRotation.employee_order) {
+      const found = empMap.get(empId);
+      if (found) {
+        ordered.push(found);
+        empMap.delete(empId);
+      }
+    }
+
+    for (const remaining of empMap.values()) {
+      ordered.push(remaining);
+    }
+
+    return ordered;
+  }, [assignedEmployees, offRotation]);
+
+  const [offWeekday, setOffWeekday] = useState(initialOffDay);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [orderedEmployees, setOrderedEmployees] = useState<StaffEmployeeOption[]>(initialOrderedEmployees);
 
   useEffect(() => {
-    setOrderedEmployees(assignedEmployees);
-  }, [assignedEmployees]);
+    setOffWeekday(initialOffDay);
+    setStartDate(initialStartDate);
+    setOrderedEmployees(initialOrderedEmployees);
+  }, [initialOffDay, initialStartDate, initialOrderedEmployees]);
 
   const [state, formAction, pending] = useActionState(saveShiftOffRotation, {
     errors: {},
@@ -85,10 +128,10 @@ export function ShiftRotationManager({
   }
 
   const primaryWeekday = Number(offWeekday);
-  const today = new Date();
-  const currentDay = today.getDay();
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - currentDay);
+  const baseDate = startDate && !Number.isNaN(new Date(startDate).getTime()) ? new Date(startDate) : new Date();
+  const currentDay = baseDate.getDay();
+  const sunday = new Date(baseDate);
+  sunday.setDate(baseDate.getDate() - currentDay);
 
   const preview = [];
   if (orderedEmployees.length > 0) {
@@ -122,7 +165,7 @@ export function ShiftRotationManager({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
         <div className="flex items-center gap-2">
           <RotateCw className="size-3.5 text-primary" />
-          <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
+          <span className="font-semibold text-foreground text-xs uppercase tracking-wider">
             Custom Rotation Order & Sequence ({shiftName})
           </span>
         </div>
@@ -178,7 +221,7 @@ export function ShiftRotationManager({
                     <Badge variant="secondary" className="px-1.5 py-0 font-semibold text-[11px]">
                       #{idx + 1}
                     </Badge>
-                    <span className="font-medium text-xs text-foreground">{emp.name}</span>
+                    <span className="font-medium text-foreground text-xs">{emp.name}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
@@ -208,7 +251,7 @@ export function ShiftRotationManager({
           </div>
 
           <div className="mt-1 grid gap-1 border-t pt-2">
-            <span className="font-medium text-muted-foreground text-[11px]">Calculated Schedule Preview:</span>
+            <span className="font-medium text-[11px] text-muted-foreground">Calculated Schedule Preview:</span>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {preview.map((p) => (
                 <div key={p.weekNum} className="grid gap-0.5 rounded border bg-background p-1.5">

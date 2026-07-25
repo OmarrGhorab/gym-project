@@ -536,7 +536,7 @@ function MemberCancelSubscriptionDialog({
               Subscription & Attendance Summary
             </div>
 
-            <div className="flex justify-between border-b pb-1.5 pt-1">
+            <div className="flex justify-between border-b pt-1 pb-1.5">
               <span className="text-muted-foreground">Main Plan ({subscription.plan_name ?? t("noPlan")}):</span>
               <span className="font-medium tabular-nums">{formatCurrency(mainPlanPrice, { currency: "EGP" })}</span>
             </div>
@@ -925,13 +925,39 @@ function SubscriptionFormContent({
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
-  const basePlans = React.useMemo(() => plans.filter((plan) => plan.category === "gym_access"), [plans]);
-  const servicePlans = React.useMemo(() => plans.filter((plan) => plan.category !== "gym_access"), [plans]);
-  const initialPlan = basePlans[0];
+  const studioPlanCategories = React.useMemo(() => new Set<string>(["fitness_studio", "jiu_jitsu"]), []);
+  const isStudioPlanItem = React.useCallback(
+    (plan: PlanRow) => plan.type === "fitness_studio" || studioPlanCategories.has(plan.category),
+    [studioPlanCategories],
+  );
+
+  const basePlans = React.useMemo(
+    () => plans.filter((plan) => plan.category === "gym_access" && !isStudioPlanItem(plan)),
+    [isStudioPlanItem, plans],
+  );
+  const studioPlans = React.useMemo(() => plans.filter((plan) => isStudioPlanItem(plan)), [isStudioPlanItem, plans]);
+  const servicePlans = React.useMemo(
+    () => plans.filter((plan) => plan.category !== "gym_access" && !isStudioPlanItem(plan)),
+    [isStudioPlanItem, plans],
+  );
+
+  const [planCategoryTab, setPlanCategoryTab] = React.useState<"gym_access" | "fitness_studio">("gym_access");
+  const availablePlans = React.useMemo(() => {
+    if (kind === "change") {
+      return plans;
+    }
+    if (planCategoryTab === "fitness_studio") {
+      return studioPlans.length > 0 ? studioPlans : plans;
+    }
+    return basePlans;
+  }, [basePlans, kind, planCategoryTab, plans, studioPlans]);
+
+  const initialPlan = availablePlans[0] ?? basePlans[0];
   const currentSubscription = member.latest_subscription;
   const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);
   const [state, submit, pending] = useActionState(action, initialMemberFormState);
   const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
+  const [selectedCoachId, setSelectedCoachId] = React.useState<string>("");
   const [startDate, setStartDate] = React.useState(defaultStartDate);
   const [discountType, setDiscountType] = React.useState<"fixed" | "percent">("fixed");
   const [discountValue, setDiscountValue] = React.useState("0");
@@ -947,7 +973,8 @@ function SubscriptionFormContent({
       plan_id: string;
     }>
   >([]);
-  const selectedPlan = basePlans.find((plan) => String(plan.id) === selectedPlanId) ?? initialPlan;
+  const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? availablePlans[0];
+  const isStudioPlan = selectedPlan ? isStudioPlanItem(selectedPlan) : false;
   const endDate = kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
   const normalizedDiscount = selectedPlan
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
@@ -970,6 +997,13 @@ function SubscriptionFormContent({
     }
   }
   const paymentAmount = paymentAmountOverride ?? (suggestedPaymentAmount !== "" ? suggestedPaymentAmount : "0.00");
+
+  React.useEffect(() => {
+    if (selectedPlan) {
+      const defaultCoach = getDefaultCoachIdForPlan(selectedPlan, plans, staff);
+      setSelectedCoachId(defaultCoach);
+    }
+  }, [plans, selectedPlan, staff]);
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -1056,12 +1090,50 @@ function SubscriptionFormContent({
           </div>
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
+          {kind === "create" ? (
+            <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/20 p-1 text-sm sm:col-span-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPlanCategoryTab("gym_access");
+                  const firstGym = basePlans[0];
+                  if (firstGym) {
+                    setSelectedPlanId(String(firstGym.id));
+                  }
+                }}
+                className={
+                  planCategoryTab === "gym_access"
+                    ? "rounded-md bg-background px-3 py-2 font-medium text-foreground shadow-sm"
+                    : "rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+                }
+              >
+                Main Gym Membership
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlanCategoryTab("fitness_studio");
+                  const firstStudio = studioPlans[0];
+                  if (firstStudio) {
+                    setSelectedPlanId(String(firstStudio.id));
+                  }
+                }}
+                className={
+                  planCategoryTab === "fitness_studio"
+                    ? "rounded-md bg-background px-3 py-2 font-medium text-foreground shadow-sm"
+                    : "rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+                }
+              >
+                Fitness Studio Membership
+              </button>
+            </div>
+          ) : null}
           <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="plan_id">{kind === "create" ? t("plan") : t("newPlan")}</Label>
             <FormSelect
               id="plan_id"
               name="plan_id"
-              defaultValue={selectedPlanId}
+              value={selectedPlanId}
               onValueChange={(value) => {
                 setSelectedPlanId(value);
                 setPaymentAmountOverride(null);
@@ -1069,12 +1141,31 @@ function SubscriptionFormContent({
               required
               placeholder={t("selectPlan")}
               error={fieldError(state, "plan_id")}
-              options={basePlans.map((plan) => ({
+              options={availablePlans.map((plan) => ({
                 value: String(plan.id),
                 label: `${plan.name} - ${plan.price} EGP`,
               }))}
             />
           </div>
+          {isStudioPlan ? (
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="coach_id">Assign Studio Coach</Label>
+              <FormSelect
+                id="coach_id"
+                name="coach_id"
+                value={selectedCoachId}
+                onValueChange={setSelectedCoachId}
+                placeholder="Select a coach for this studio plan"
+                options={getPlanCoachOptions(selectedPlan, plans, staff).map((employee) => ({
+                  value: String(employee.id),
+                  label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+                }))}
+              />
+              <p className="text-muted-foreground text-xs">
+                The assigned coach will receive coach commission for selling / coaching this studio membership.
+              </p>
+            </div>
+          ) : null}
           {kind === "create" ? (
             <div className="grid gap-2">
               <Label htmlFor="start_date">{t("startDate")}</Label>
@@ -1134,13 +1225,13 @@ function SubscriptionFormContent({
                     }
                   >
                     <span>{planChangeDetails.isDowngrade ? t("downgradeRefund") : t("upgradeDifference")}</span>
-                    <span className="text-base font-bold">
+                    <span className="font-bold text-base">
                       {planChangeDetails.isDowngrade
                         ? `-${planChangeDetails.refundAmount} EGP`
                         : `+${planChangeDetails.amountDue} EGP`}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-muted-foreground text-xs">
                     <div>
                       <span>{t("oldPlanCredit")}: </span>
                       <strong className="text-foreground">{planChangeDetails.credit} EGP</strong>
@@ -1160,7 +1251,7 @@ function SubscriptionFormContent({
                   </div>
                   {Number(currentSubscription?.paid_total ?? 0) === 0 &&
                   Number(currentSubscription?.price_paid ?? 0) > 0 ? (
-                    <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <p className="mt-2 font-medium text-amber-700 text-xs dark:text-amber-400">
                       {t("unpaidCreditNote")}
                     </p>
                   ) : null}
@@ -1184,7 +1275,7 @@ function SubscriptionFormContent({
               aria-invalid={Boolean(fieldError(state, "payment_amount"))}
             />
             {kind === "change" && planChangeDetails?.isDowngrade ? (
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+              <p className="font-medium text-amber-700 text-xs dark:text-amber-400">
                 {t("downgradePaymentNotice", { refund: `${planChangeDetails.refundAmount}` })}
               </p>
             ) : null}
@@ -1438,6 +1529,14 @@ function SubscriptionFormContent({
   );
 }
 
+function isCoachEmployee(role?: string | null): boolean {
+  if (!role) {
+    return false;
+  }
+  const r = role.toLowerCase();
+  return r.includes("coach") || r.includes("captain") || r.includes("trainer") || r.includes("pt");
+}
+
 function getPlanCoachOptions(
   plan: PlanRow | undefined,
   allPlans?: PlanRow[],
@@ -1453,14 +1552,16 @@ function getPlanCoachOptions(
   if (allPlans) {
     for (const p of allPlans) {
       for (const coach of getAssignedEmployees(p)) {
-        assigned.set(coach.id, coach);
+        if (!assigned.has(coach.id)) {
+          assigned.set(coach.id, coach);
+        }
       }
     }
   }
 
   if (staff) {
     for (const member of staff) {
-      if (!assigned.has(member.id)) {
+      if (!assigned.has(member.id) && isCoachEmployee(member.role)) {
         assigned.set(member.id, {
           id: member.id,
           name: member.name,
@@ -1737,7 +1838,7 @@ function calculatePlanChangeDetails({
   };
 }
 
-function calculateUpgradePaymentAmount({
+function _calculateUpgradePaymentAmount({
   creditMode,
   newPrice,
   paidTotal,

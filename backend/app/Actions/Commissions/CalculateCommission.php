@@ -92,7 +92,7 @@ final class CalculateCommission
      */
     private function resolveSubscriptionSpecs(Subscription $subscription): array
     {
-        $subscription->loadMissing(['plan']);
+        $subscription->loadMissing(['plan', 'coach.planCommissionRules']);
         $specs = [];
         $month = $subscription->created_at ? $subscription->created_at->format('Y-m') : now()->format('Y-m');
         $base = (string) $subscription->price_paid;
@@ -118,6 +118,30 @@ final class CalculateCommission
                     'amount' => bcmul($base, $rate, 2),
                     'month' => $month,
                     'rule_id' => null,
+                ];
+            }
+        }
+
+        $coach = $subscription->coach;
+        $coachRule = $this->resolveCoachRule($coach?->planCommissionRules, $subscription->plan_id);
+
+        if ($coach !== null && $coach->status === 'active' && $coachRule !== null) {
+            $amount = $coachRule->calculation_type === 'percentage'
+                ? bcmul($base, bcdiv((string) $coachRule->value, '100', 6), 2)
+                : number_format((float) $coachRule->value, 2, '.', '');
+
+            if (bccomp($amount, '0.00', 2) > 0) {
+                $specs[] = [
+                    'employee' => $coach,
+                    'commission_type' => 'subscription_coach',
+                    'calculation_type' => $coachRule->calculation_type,
+                    'rate' => $coachRule->calculation_type === 'percentage'
+                        ? bcdiv((string) $coachRule->value, '100', 4)
+                        : '0.0000',
+                    'rule_value' => (string) $coachRule->value,
+                    'amount' => $amount,
+                    'month' => $month,
+                    'rule_id' => $coachRule->id,
                 ];
             }
         }

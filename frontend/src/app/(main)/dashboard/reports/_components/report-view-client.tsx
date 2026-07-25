@@ -1,15 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import { Banknote, BarChart3, Calendar, Download, Package, Search, Users } from "lucide-react";
 import { useLocale } from "next-intl";
-import { Banknote, BarChart3, Calendar, Download, FileSpreadsheet, Filter, Package, Search, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { FormSelect } from "@/components/ui/form-controls";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
@@ -87,7 +89,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
     <div className="space-y-6">
       {/* Top Report Type Selection Tabs */}
       <Tabs value={activeTab} onValueChange={(val) => updateParams({ type: val })} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 gap-1 p-1">
+        <TabsList className="grid w-full grid-cols-2 gap-1 p-1 md:grid-cols-4">
           <TabsTrigger value="classes_plans" className="gap-2">
             <Users className="size-4" />
             Classes & Plans
@@ -109,10 +111,10 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
 
       {/* Calendar & Filter Controls Bar */}
       <Card className="bg-muted/30">
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="space-y-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 me-2">
+              <span className="me-2 flex items-center gap-1.5 font-semibold text-muted-foreground text-xs">
                 <Calendar className="size-4" /> Date Range:
               </span>
               <Button size="sm" variant="outline" onClick={() => handleQuickDate(7)}>
@@ -324,13 +326,13 @@ function ClassesPlansView({
       <Card className="border-amber-500/30 bg-amber-500/5">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg text-amber-700 dark:text-amber-300 flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-amber-700 text-lg dark:text-amber-300">
               Members Finishing Plan or Low Sessions
             </CardTitle>
             <CardDescription>Members whose plan ends within 7 days or have ≤ 3 remaining sessions</CardDescription>
           </div>
           <Button size="sm" variant="outline" onClick={handleExportEndingSoon}>
-            <Download className="size-4 me-1.5" /> Export Ending List
+            <Download className="me-1.5 size-4" /> Export Ending List
           </Button>
         </CardHeader>
         <CardContent>
@@ -363,11 +365,11 @@ function ClassesPlansView({
 
                 const showWhatsApp = finishedSessionsButNotMonth || finishedMonthButNotSessions || finishedBoth;
 
-                let whatsappUrl = "";
+                let _whatsappUrl = "";
                 if (showWhatsApp && sub.member_phone) {
                   let cleanPhone = String(sub.member_phone).replace(/\D/g, "");
                   if (cleanPhone.startsWith("01") && cleanPhone.length === 11) {
-                    cleanPhone = "2" + cleanPhone;
+                    cleanPhone = `2${cleanPhone}`;
                   }
 
                   let message = "";
@@ -388,7 +390,7 @@ function ClassesPlansView({
                       message = `Hello ${sub.member_name}, your subscription to ${sub.plan_name} has expired and you have finished all sessions. Would you like to renew your plan?`;
                     }
                   }
-                  whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                  _whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
                 }
 
                 return (
@@ -402,8 +404,8 @@ function ClassesPlansView({
                           variant="outline"
                           className={
                             daysLeft <= 3
-                              ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                              : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                              ? "border-rose-500/20 bg-rose-500/10 text-rose-600"
+                              : "border-amber-500/20 bg-amber-500/10 text-amber-600"
                           }
                         >
                           {daysLeft} days
@@ -417,7 +419,7 @@ function ClassesPlansView({
                         variant="outline"
                         className={
                           Number(sub.sessions_remaining) <= 3 && Number(sub.sessions_total) > 0
-                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
+                            ? "border-amber-500/20 bg-amber-500/10 font-bold text-amber-600"
                             : ""
                         }
                       >
@@ -429,10 +431,10 @@ function ClassesPlansView({
                         variant="outline"
                         className={
                           reason === "both"
-                            ? "bg-rose-500/10 text-rose-600 border-rose-500/20 font-semibold"
+                            ? "border-rose-500/20 bg-rose-500/10 font-semibold text-rose-600"
                             : reason === "low_sessions"
-                              ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                              : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                              ? "border-amber-500/20 bg-amber-500/10 text-amber-600"
+                              : "border-blue-500/20 bg-blue-500/10 text-blue-600"
                         }
                       >
                         {reason === "both"
@@ -502,17 +504,17 @@ function ClassesPlansView({
                   <TableCell>EGP {String(plan.price)}</TableCell>
                   <TableCell>{String(plan.duration_days)} days</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
                       {String(plan.active_members)}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                    <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-600">
                       {String(plan.expiring_soon)}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/20">
+                    <Badge variant="outline" className="border-rose-500/20 bg-rose-500/10 text-rose-600">
                       {String(plan.expired_members)}
                     </Badge>
                   </TableCell>
@@ -556,7 +558,7 @@ function ClassesPlansView({
               onValueChange={(val) => onStatusChange(val)}
             />
             <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="size-4 me-1.5" /> Export CSV
+              <Download className="me-1.5 size-4" /> Export CSV
             </Button>
           </div>
         </CardHeader>
@@ -592,9 +594,9 @@ function ClassesPlansView({
                           variant="outline"
                           className={
                             daysLeft <= 3
-                              ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                              ? "border-rose-500/20 bg-rose-500/10 text-rose-600"
                               : daysLeft <= 7
-                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                ? "border-amber-500/20 bg-amber-500/10 text-amber-600"
                                 : ""
                           }
                         >
@@ -609,7 +611,7 @@ function ClassesPlansView({
                         variant="outline"
                         className={
                           Number(sub.sessions_remaining) <= 3 && Number(sub.sessions_total) > 0
-                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold"
+                            ? "border-amber-500/20 bg-amber-500/10 font-bold text-amber-600"
                             : ""
                         }
                       >
@@ -729,17 +731,17 @@ function ProductsFinanceView({
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-48">
-              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+              <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search product..."
                 defaultValue={searchFilter}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="ps-8 h-9 text-xs"
+                className="h-9 ps-8 text-xs"
               />
             </div>
             <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="size-4 me-1.5" /> Export CSV
+              <Download className="me-1.5 size-4" /> Export CSV
             </Button>
           </div>
         </CardHeader>
@@ -772,10 +774,10 @@ function ProductsFinanceView({
                       variant="outline"
                       className={
                         prod.status === "in_stock"
-                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
                           : prod.status === "low_stock"
-                            ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                            : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                            ? "border-amber-500/20 bg-amber-500/10 text-amber-600"
+                            : "border-rose-500/20 bg-rose-500/10 text-rose-600"
                       }
                     >
                       {String(prod.status)}
@@ -947,7 +949,7 @@ function SubsShiftsView({
               onValueChange={(val) => onStatusChange(val)}
             />
             <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="size-4 me-1.5" /> Export CSV
+              <Download className="me-1.5 size-4" /> Export CSV
             </Button>
           </div>
         </CardHeader>
@@ -976,14 +978,14 @@ function SubsShiftsView({
                   <TableCell>
                     <Badge variant={s.status === "accepted" ? "default" : "secondary"}>{String(s.status)}</Badge>
                   </TableCell>
-                  <TableCell className="text-emerald-600 font-medium">
+                  <TableCell className="font-medium text-emerald-600">
                     EGP {String(s.subscription_sales_amount)}
                   </TableCell>
-                  <TableCell className="text-emerald-600 font-medium">EGP {String(s.pos_sales_amount)}</TableCell>
+                  <TableCell className="font-medium text-emerald-600">EGP {String(s.pos_sales_amount)}</TableCell>
                   <TableCell className="text-end font-bold">EGP {String(s.total_revenue)}</TableCell>
                   <TableCell>EGP {String(s.expected_cash)}</TableCell>
                   <TableCell>{s.counted_cash ? `EGP ${s.counted_cash}` : "N/A"}</TableCell>
-                  <TableCell className={Number(s.discrepancy) < 0 ? "text-rose-600 font-semibold" : ""}>
+                  <TableCell className={Number(s.discrepancy) < 0 ? "font-semibold text-rose-600" : ""}>
                     EGP {String(s.discrepancy)}
                   </TableCell>
                 </TableRow>
@@ -1092,7 +1094,7 @@ function IncomeOutcomeView({
             <CardDescription>Detailed income sources vs expense/payroll outcomes</CardDescription>
           </div>
           <Button size="sm" variant="outline" onClick={handleExport}>
-            <Download className="size-4 me-1.5" /> Export CSV
+            <Download className="me-1.5 size-4" /> Export CSV
           </Button>
         </CardHeader>
         <CardContent>

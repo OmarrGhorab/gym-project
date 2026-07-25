@@ -39,6 +39,7 @@ export function PayrollAdjustmentForm({
   const [state, formAction, pending] = React.useActionState(updatePayroll, initialPayrollState);
   const [bonusValue, setBonusValue] = React.useState(bonuses);
   const [deductionValue, setDeductionValue] = React.useState(deductions);
+  const [attendanceDeductionValue, setAttendanceDeductionValue] = React.useState(attendanceDeductions);
   const attendanceDeductionInputId = `payroll-${id}-attendance-deduction`;
   const bonusInputId = `payroll-${id}-bonus`;
   const deductionInputId = `payroll-${id}-deduction`;
@@ -50,6 +51,10 @@ export function PayrollAdjustmentForm({
   React.useEffect(() => {
     setDeductionValue(deductions);
   }, [deductions]);
+
+  React.useEffect(() => {
+    setAttendanceDeductionValue(attendanceDeductions);
+  }, [attendanceDeductions]);
 
   React.useEffect(() => {
     if (!state.message) {
@@ -106,10 +111,17 @@ export function PayrollAdjustmentForm({
         <span className="text-muted-foreground text-xs">{t("attendanceDeductionApplied")}</span>
         <Input
           id={attendanceDeductionInputId}
-          value={attendanceDeductions}
-          readOnly
+          name="attendance_deductions"
+          type="number"
+          min="0"
+          step="0.01"
+          value={attendanceDeductionValue}
           aria-label={t("attendanceDeductionApplied")}
+          aria-invalid={Boolean(state.errors.attendance_deductions?.[0])}
+          disabled={pending}
+          onChange={(event) => setAttendanceDeductionValue(event.target.value)}
         />
+        <FieldError errors={state.errors.attendance_deductions} />
       </label>
       <Button type="submit" size="sm" variant="outline" disabled={pending}>
         {pending ? t("saving") : t("save")}

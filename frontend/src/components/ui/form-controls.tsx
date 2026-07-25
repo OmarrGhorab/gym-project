@@ -116,6 +116,7 @@ export function FormSelect({
     <Combobox
       autoHighlight
       disabled={disabled}
+      filter={onSearchChange ? null : undefined}
       id={id}
       isItemEqualToValue={(left, right) => left?.value === right?.value}
       itemToStringLabel={(option) => getOptionSearchText(option?.label)}

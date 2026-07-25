@@ -22,14 +22,16 @@ final class UpdatePayroll
             ]);
         }
 
-        $bonuses = isset($data['bonuses']) ? (string) $data['bonuses'] : (string) $payroll->bonuses;
-        $deductions = isset($data['deductions']) ? (string) $data['deductions'] : (string) $payroll->deductions;
-        $payroll = $this->attendanceDeductions->execute($payroll);
+        $bonuses = isset($data['bonuses']) ? number_format((float) $data['bonuses'], 2, '.', '') : (string) $payroll->bonuses;
+        $deductions = isset($data['deductions']) ? number_format((float) $data['deductions'], 2, '.', '') : (string) $payroll->deductions;
+        $attendanceDeductions = isset($data['attendance_deductions'])
+            ? number_format((float) $data['attendance_deductions'], 2, '.', '')
+            : (string) $this->attendanceDeductions->execute($payroll)->attendance_deductions;
 
         $net = bcadd((string) $payroll->base_salary, (string) $payroll->commissions_total, 2);
         $net = bcadd($net, $bonuses, 2);
         $net = bcsub($net, $deductions, 2);
-        $net = bcsub($net, (string) $payroll->attendance_deductions, 2);
+        $net = bcsub($net, $attendanceDeductions, 2);
 
         if (bccomp($net, '0.00', 2) === -1) {
             throw ValidationException::withMessages([
@@ -40,7 +42,7 @@ final class UpdatePayroll
         $payroll->update([
             'bonuses' => $bonuses,
             'deductions' => $deductions,
-            'attendance_deductions' => $payroll->attendance_deductions,
+            'attendance_deductions' => $attendanceDeductions,
             'attendance_snapshot' => $payroll->attendance_snapshot,
             'net_salary' => $net,
         ]);

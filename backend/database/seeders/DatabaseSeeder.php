@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
         // Catalog + members so cashiers can sell/renew subscriptions and POS
         $this->call(PlanCategorySeeder::class);
         $this->call(PlanSeeder::class);
+        $this->call(PlanEmployeeCommissionSeeder::class);
         $this->call(ProductSeeder::class);
         $this->call(MemberSeeder::class);
     }

@@ -33,11 +33,14 @@ test('admin can create a subscription and receives 201', function (): void {
         'duration_days' => 30,
     ]);
 
+    $startDate = now()->toDateString();
+    $endDate = now()->addDays(30)->toDateString();
+
     $this->postJson('/api/v1/subscriptions', [
         'member_id' => $member->id,
         'plan_id' => $plan->id,
-        'start_date' => '2026-06-10',
-        'end_date' => '2026-07-10',
+        'start_date' => $startDate,
+        'end_date' => $endDate,
         'discount' => '50.00',
         'payment' => [
             'amount' => '250.00',
@@ -49,8 +52,8 @@ test('admin can create a subscription and receives 201', function (): void {
             ->where('data.member.id', $member->id)
             ->where('data.plan.id', $plan->id)
             ->where('data.status', 'active')
-            ->where('data.start_date', '2026-06-10')
-            ->where('data.end_date', '2026-07-10')
+            ->where('data.start_date', $startDate)
+            ->where('data.end_date', $endDate)
             ->where('data.sold_by.id', $user->id)
             ->has('message')
             ->has('meta')

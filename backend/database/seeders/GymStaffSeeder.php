@@ -172,6 +172,28 @@ class GymStaffSeeder extends Seeder
                 'pay_day' => 5,
                 'hire_date' => '2026-02-18',
             ],
+            [
+                'name' => 'Captain Youssef (Studio Coach)',
+                'email' => 'youssef.studio@gym.test',
+                'login_role' => null,
+                'employee_role' => 'coach',
+                'phone' => '+201011110007',
+                'shift' => 'Evening Desk 16-21',
+                'base_salary' => 7500,
+                'pay_day' => 5,
+                'hire_date' => '2026-02-20',
+            ],
+            [
+                'name' => 'Captain Tarek (CrossFit Coach)',
+                'email' => 'tarek.crossfit@gym.test',
+                'login_role' => null,
+                'employee_role' => 'coach',
+                'phone' => '+201011110009',
+                'shift' => 'Morning Desk 06-11',
+                'base_salary' => 7800,
+                'pay_day' => 5,
+                'hire_date' => '2026-02-22',
+            ],
         ];
 
         foreach ($deskShifts as $shiftName => $cashiers) {

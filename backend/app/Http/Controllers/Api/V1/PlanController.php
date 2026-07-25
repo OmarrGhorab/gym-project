@@ -35,6 +35,13 @@ final class PlanController extends ApiController
             ->allowedFilters(
                 AllowedFilter::exact('type'),
                 AllowedFilter::exact('is_active'),
+                AllowedFilter::callback('search', function ($query, string $value): void {
+                    $value = trim($value);
+                    $query->where(function ($q) use ($value): void {
+                        $q->where('name', 'like', "%{$value}%")
+                            ->orWhere('description', 'like', "%{$value}%");
+                    });
+                }),
             )
             ->allowedSorts('name', 'price', 'duration_days', 'created_at')
             ->paginate($perPage);

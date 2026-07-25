@@ -70,10 +70,30 @@ export type PlansPageData = {
   plans: PlanRow[];
 };
 
-export async function getPlansPageData(): Promise<PlansPageData> {
+export type PlansQuery = {
+  search?: string;
+  status?: string;
+  type?: string;
+};
+
+export async function getPlansPageData(query?: PlansQuery): Promise<PlansPageData> {
   try {
+    const params = new URLSearchParams({ sort: "name", per_page: "100" });
+
+    if (query?.search) {
+      params.set("filter[search]", query.search);
+    }
+
+    if (query?.type && query.type !== "all") {
+      params.set("filter[type]", query.type);
+    }
+
+    if (query?.status && query.status !== "all") {
+      params.set("filter[is_active]", query.status === "active" ? "1" : "0");
+    }
+
     const [result, employeesResult, categoriesResult] = await Promise.all([
-      serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>("/plans?sort=name&per_page=100"),
+      serverApiFetch<PlanRow[] | PaginatedData<PlanRow>>(`/plans?${params.toString()}`),
       serverApiFetch<PlanEmployeeOption[] | PaginatedData<PlanEmployeeOption>>(
         "/employees?filter[status]=active&per_page=100",
       ).catch(() => ({ data: [] as PlanEmployeeOption[] })),

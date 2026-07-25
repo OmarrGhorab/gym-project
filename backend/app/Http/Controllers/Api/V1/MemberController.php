@@ -66,10 +66,10 @@ final class MemberController extends ApiController
                 AllowedFilter::callback('search', function ($query, string $value): void {
                     $value = trim($value);
                     $attendanceCode = str_starts_with($value, 'member:') ? substr($value, 7) : $value;
-                    $normalizedNameLike = ArabicSearch::like($value, startsWith: true);
+                    $normalizedNameLike = ArabicSearch::like($value, startsWith: false);
 
                     $query->where(function ($q) use ($attendanceCode, $normalizedNameLike, $value): void {
-                        $q->where('name', 'like', "{$value}%")
+                        $q->where('name', 'like', "%{$value}%")
                             ->orWhereRaw(ArabicSearch::normalizedColumn('members.name').' LIKE ?', [$normalizedNameLike])
                             ->orWhere('phone', 'like', "{$value}%")
                             ->orWhere('phone', 'like', '+'.$value.'%');
