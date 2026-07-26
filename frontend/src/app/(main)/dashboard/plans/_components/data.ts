@@ -1,6 +1,7 @@
 import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
+import type { PlanType } from "./plan-types";
 
 export type PlanCommissionRuleRow = {
   id: number;
@@ -23,8 +24,13 @@ export type PlanCategoryOption = {
   name: string;
   slug: string;
   plan_scope: "gym_access" | "extra_service" | "fitness_studio";
+  /** The plan type this category belongs to — drives the category dropdown. */
+  plan_type: PlanType;
   description: string | null;
   is_active: boolean;
+  /** Built-in categories that business logic branches on; cannot be removed. */
+  is_system: boolean;
+  plans_count?: number;
 };
 
 export type PlanRow = {
@@ -118,5 +124,19 @@ export async function getPlansPageData(query?: PlansQuery): Promise<PlansPageDat
     };
   } catch {
     return { categories: [], employees: [], plans: [] };
+  }
+}
+
+/**
+ * Categories for the management screen, which needs retired ones too so they can
+ * be reactivated. The plan form uses the active-only list from getPlansPageData.
+ */
+export async function getPlanCategories(): Promise<PlanCategoryOption[]> {
+  try {
+    const result = await serverApiFetch<PlanCategoryOption[]>("/plan-categories?include_inactive=1");
+
+    return Array.isArray(result.data) ? result.data : [];
+  } catch {
+    return [];
   }
 }

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
+use Database\Seeders\PlanCategorySeeder;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Laravel\Sanctum\Sanctum;
 
@@ -25,6 +26,8 @@ use Laravel\Sanctum\Sanctum;
 beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
+    // `plans.category` is validated against this lookup table.
+    $this->seed(PlanCategorySeeder::class);
 });
 
 // ─── GET /plans ─────────────────────────────────────────────────────────────
@@ -164,7 +167,7 @@ test('admin can create an offer package with included add-on services', function
         'price' => '1000.00',
         'duration_days' => 30,
         'type' => 'offer_package',
-        'category' => 'gym_access',
+        'category' => 'bundle',
         'valid_from' => '2026-07-01',
         'valid_to' => '2026-08-31',
         'package_addons' => [['plan_id' => $service->id, 'coach_id' => $coach->id]],
@@ -192,7 +195,7 @@ test('admin can create membership with an extra service plan type', function ():
         'duration_days' => 30,
         'sessions_count' => 8,
         'type' => 'membership_extra_service',
-        'category' => 'personal_training',
+        'category' => 'membership_coaching',
     ])
         ->assertCreated()
         ->assertJsonPath('data.type', 'membership_extra_service');
@@ -328,7 +331,7 @@ test('plan store accepts zero price (free plan)', function (): void {
         'price' => '0.00',
         'duration_days' => 7,
         'type' => 'offer',
-        'category' => 'gym_access',
+        'category' => 'promotion',
         'valid_from' => '2026-07-01',
         'valid_to' => '2026-07-07',
     ])->assertStatus(201);

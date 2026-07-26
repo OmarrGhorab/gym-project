@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 
-import { Pencil } from "lucide-react";
+import Link from "next/link";
+
+import { Pencil, Tags } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +64,13 @@ export default async function Page({ searchParams }: PageProps) {
           <h1 className="text-3xl tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <PlanCreateDialog categories={categories} employees={employees} plans={plans} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button nativeButton={false} render={<Link href="/dashboard/plans/categories" />} variant="outline">
+            <Tags />
+            {t("manageCategories")}
+          </Button>
+          <PlanCreateDialog categories={categories} employees={employees} plans={plans} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

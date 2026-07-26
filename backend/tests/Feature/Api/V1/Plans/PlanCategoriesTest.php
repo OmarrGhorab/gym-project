@@ -44,6 +44,7 @@ test('admin can create custom plan category and use it in a plan', function (): 
         ->postJson('/api/v1/plan-categories', [
             'name' => 'Jiu-Jitsu Kids',
             'description' => 'Special studio martial arts for children',
+            'plan_type' => 'fitness_studio',
         ]);
 
     $response->assertStatus(201)

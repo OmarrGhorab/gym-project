@@ -24,7 +24,9 @@ test('database seeder seeds access roles, staff logins and the starter catalog',
         ->and(Employee::count())->toBe(count(GymStaffSeeder::staffRecords()));
 
     // The root seeder is the full local-testing seed: cashiers need a catalog and
-    // members to sell/renew subscriptions and POS against.
+    // members to sell/renew subscriptions and POS against. Plans used to be absent
+    // here because PlanSeeder was never registered, which left the plans screen
+    // empty on a fresh seed.
     expect(Plan::count())->toBeGreaterThan(0)
         ->and(Product::count())->toBeGreaterThan(0)
         ->and(Member::count())->toBeGreaterThan(0);

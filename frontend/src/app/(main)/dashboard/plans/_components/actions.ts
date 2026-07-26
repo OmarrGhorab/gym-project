@@ -6,6 +6,9 @@ import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
 
+import type { PlanCategoryOption } from "./data";
+import type { PlanType } from "./plan-types";
+
 const planEmployeeRuleSchema = z.object({
   calculation_type: z.enum(["fixed", "percentage"]),
   employee_id: z.coerce.number().int().positive(),
@@ -362,20 +365,58 @@ async function deleteRemovedRules(planId: number, ruleIds: number[]) {
   }
 }
 
-export async function createPlanCategoryAction(
-  name: string,
-  planScope: "gym_access" | "extra_service" | "fitness_studio",
-  description?: string,
-) {
+function revalidateCategories() {
+  revalidatePath("/dashboard/plans");
+  revalidatePath("/dashboard/plans/categories");
+}
+
+/**
+ * `planType` is the single plan type the category belongs to. The backend derives
+ * `plan_scope` from it, so that is not sent separately.
+ */
+export async function createPlanCategoryAction(name: string, planType: PlanType, description?: string) {
   try {
-    const res = await serverApiFetch<{ id: number; name: string; slug: string }>("/plan-categories", {
-      body: JSON.stringify({ description, name, plan_scope: planScope }),
+    const res = await serverApiFetch<PlanCategoryOption>("/plan-categories", {
+      body: JSON.stringify({ description, name, plan_type: planType }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
-    revalidatePath("/dashboard/plans");
-    return { data: res.data, ok: true };
+    revalidateCategories();
+    return { data: res.data, ok: true as const };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to create category", ok: false };
+    return { error: err instanceof Error ? err.message : "Failed to create category", ok: false as const };
+  }
+}
+
+export async function updatePlanCategoryAction(
+  id: number,
+  input: { name: string; planType: PlanType; description?: string; isActive?: boolean },
+) {
+  try {
+    const res = await serverApiFetch<PlanCategoryOption>(`/plan-categories/${id}`, {
+      body: JSON.stringify({
+        description: input.description ?? null,
+        is_active: input.isActive ?? true,
+        name: input.name,
+        plan_type: input.planType,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+    });
+    revalidateCategories();
+    return { data: res.data, ok: true as const };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update category", ok: false as const };
+  }
+}
+
+/** Retires a category: it disappears from the plan form but existing plans keep working. */
+export async function deletePlanCategoryAction(id: number) {
+  try {
+    await serverApiFetch(`/plan-categories/${id}`, { method: "DELETE" });
+    revalidateCategories();
+    return { ok: true as const };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to remove category", ok: false as const };
   }
 }

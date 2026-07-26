@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Concerns\WrapsApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
 
 final class PlanResource extends JsonResource
 {
@@ -29,8 +30,8 @@ final class PlanResource extends JsonResource
             'is_active' => $this->is_active,
             'valid_from' => $this->valid_from?->toDateString(),
             'valid_to' => $this->valid_to?->toDateString(),
-            'access_starts_at' => $this->access_starts_at,
-            'access_ends_at' => $this->access_ends_at,
+            'access_starts_at' => self::clock($this->access_starts_at),
+            'access_ends_at' => self::clock($this->access_ends_at),
             'max_freeze_days' => $this->max_freeze_days,
             'access_grace_days' => $this->access_grace_days,
             'cancellation_grace_days' => $this->cancellation_grace_days ?? 2,
@@ -49,5 +50,15 @@ final class PlanResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * MySQL TIME columns come back as "06:00:00", but the plan form and
+     * Store/UpdatePlanRequest both speak H:i — so echoing the raw value made a
+     * plan with an access window fail validation when re-saved unchanged.
+     */
+    private static function clock(?string $value): ?string
+    {
+        return $value === null || $value === '' ? null : Carbon::parse($value)->format('H:i');
     }
 }

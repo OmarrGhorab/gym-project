@@ -25,6 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { createPlan, createPlanCategoryAction, type PlanFormState, updatePlan } from "./actions";
 import type { PlanCategoryOption, PlanEmployeeOption, PlanRow } from "./data";
+import { PlanTypeField } from "./plan-type-field";
+import type { PlanType } from "./plan-types";
 
 const initialPlanFormState: PlanFormState = {
   ok: false,
@@ -52,15 +54,9 @@ type PlanEmployeeCommissionDraft = {
 
 type PlanCategoryScope = "gym_access" | "extra_service" | "fitness_studio";
 
-const defaultCategoryScopes: Record<string, PlanCategoryScope> = {
-  classes: "extra_service",
-  fitness_studio: "fitness_studio",
-  gym_access: "gym_access",
-  jiu_jitsu: "fitness_studio",
-  nutrition: "extra_service",
-  personal_training: "extra_service",
-  recovery: "extra_service",
-};
+/** Opening hours a new plan starts with, so the usual case needs no typing. */
+const DEFAULT_ACCESS_STARTS_AT = "09:00";
+const DEFAULT_ACCESS_ENDS_AT = "23:59";
 
 function isPlanEmployeeCommissionDraft(value: unknown): value is Partial<PlanEmployeeCommissionDraft> {
   return typeof value === "object" && value !== null;
@@ -107,7 +103,7 @@ export function PlanCreateForm({
   const [newCatOpen, setNewCatOpen] = React.useState(false);
   const [newCatName, setNewCatName] = React.useState("");
   const [newCatDesc, setNewCatDesc] = React.useState("");
-  const [newCatScope, setNewCatScope] = React.useState<PlanCategoryScope>("gym_access");
+  const [newCatType, setNewCatType] = React.useState<PlanType>("membership");
   const [isCreatingCat, setIsCreatingCat] = React.useState(false);
 
   React.useEffect(() => {
@@ -116,69 +112,37 @@ export function PlanCreateForm({
     }
   }, [categories]);
 
-  const categoryScopeByValue = React.useMemo(() => {
-    const scopes = new Map<string, PlanCategoryScope>(Object.entries(defaultCategoryScopes));
-
-    for (const category of localCategories) {
-      scopes.set(category.slug, category.plan_scope);
-    }
-
-    return scopes;
-  }, [localCategories]);
-
-  const computedCategoryOptions = React.useMemo(() => {
-    const defaultList = [
-      { label: t("categories.gym_access"), value: "gym_access" },
-      { label: "Personal training", value: "personal_training" },
-      { label: "Classes", value: "classes" },
-      { label: t("categories.fitness_studio"), value: "fitness_studio" },
-      { label: "Jiu-Jitsu", value: "jiu_jitsu" },
-      { label: "Nutrition", value: "nutrition" },
-      { label: "Recovery", value: "recovery" },
-    ];
-
-    const map = new Map<string, string>();
-    for (const c of localCategories) {
-      map.set(c.slug, c.name);
-    }
-    for (const d of defaultList) {
-      if (!map.has(d.value)) {
-        map.set(d.value, d.label);
-      }
-    }
-
-    return Array.from(map.entries()).map(([value, label]) => ({ label, value }));
-  }, [localCategories, t]);
+  const categoryScopeByValue = React.useMemo(
+    () => new Map<string, PlanCategoryScope>(localCategories.map((category) => [category.slug, category.plan_scope])),
+    [localCategories],
+  );
 
   async function handleCreateCategory() {
     if (!newCatName.trim()) {
-      toast.error("Category name is required.");
+      toast.error(t("categoryNameRequired"));
       return;
     }
 
     setIsCreatingCat(true);
-    const result = await createPlanCategoryAction(newCatName.trim(), newCatScope, newCatDesc.trim() || undefined);
+    const result = await createPlanCategoryAction(newCatName.trim(), newCatType, newCatDesc.trim() || undefined);
     setIsCreatingCat(false);
 
     if (result.ok && result.data) {
-      toast.success(`Category "${result.data.name}" added successfully!`);
-      const newCat: PlanCategoryOption = {
-        description: newCatDesc.trim() || null,
-        id: result.data.id,
-        is_active: true,
-        name: result.data.name,
-        plan_scope: newCatScope,
-        slug: result.data.slug,
-      };
-      setLocalCategories((prev) => [...prev, newCat]);
+      toast.success(t("categoryCreated", { name: result.data.name }));
+      setLocalCategories((prev) => [...prev, result.data]);
       setCategory(result.data.slug);
-      setPlanType(newCatScope === "fitness_studio" ? "fitness_studio" : "membership");
+
+      // If the new category belongs to a different type, follow it — otherwise the
+      // picker would immediately hide what was just added.
+      if (result.data.plan_type !== planType) {
+        setPlanType(result.data.plan_type);
+      }
+
       setNewCatName("");
       setNewCatDesc("");
-      setNewCatScope("gym_access");
       setNewCatOpen(false);
     } else {
-      toast.error(result.error || "Failed to create category");
+      toast.error(result.error || t("categoryCreateFailed"));
     }
   }
 
@@ -194,6 +158,16 @@ export function PlanCreateForm({
   const initialDurationMonths = state.values.duration_months || valueOrPlan(state, plan, "duration_months") || "1";
   const initialValidFrom = state.values.valid_from || valueOrPlan(state, plan, "valid_from");
   const initialValidTo = state.values.valid_to || valueOrPlan(state, plan, "valid_to");
+  const initialDurationDays = state.values.duration_days || valueOrPlan(state, plan, "duration_days") || "30";
+  // A new plan starts with the freeze allowance opened up to the full plan length;
+  // an existing one keeps whatever it was saved with.
+  const maxFreezeWasChosen = Boolean(state.values.max_freeze_days) || mode === "edit";
+  const initialMaxFreezeDays = maxFreezeWasChosen
+    ? state.values.max_freeze_days || valueOrPlan(state, plan, "max_freeze_days") || "0"
+    : initialDurationDays;
+  const initialMinFreezeDays = state.values.min_freeze_days || valueOrPlan(state, plan, "min_freeze_days") || "0";
+  const initialAccessStartsAt = accessWindowDefault(state, plan, mode, "access_starts_at");
+  const initialAccessEndsAt = accessWindowDefault(state, plan, mode, "access_ends_at");
   const [planType, setPlanType] = React.useState(initialPlanType);
   const [category, setCategory] = React.useState(initialCategory);
   const [unlimitedSessions, setUnlimitedSessions] = React.useState(initialUnlimitedSessions);
@@ -202,6 +176,11 @@ export function PlanCreateForm({
   const [durationMonths, setDurationMonths] = React.useState(initialDurationMonths);
   const [validFrom, setValidFrom] = React.useState(initialValidFrom);
   const [validTo, setValidTo] = React.useState(initialValidTo);
+  const [durationDays, setDurationDays] = React.useState(initialDurationDays);
+  const [maxFreezeDays, setMaxFreezeDays] = React.useState(initialMaxFreezeDays);
+  // Until the admin edits it themselves, max freeze follows the plan length.
+  const [maxFreezeTouched, setMaxFreezeTouched] = React.useState(maxFreezeWasChosen);
+  const [minFreezeDays, setMinFreezeDays] = React.useState(initialMinFreezeDays);
   const [planPrice, setPlanPrice] = React.useState(valueOrPlan(state, plan, "price") || "0");
   const [packageAddons, setPackageAddons] = React.useState(
     plan?.package_addons?.map((item, index) => ({
@@ -236,6 +215,38 @@ export function PlanCreateForm({
   const planPriceNumber = Math.max(0, Number(planPrice || 0));
   const gymNetBeforeExpenses = Math.max(0, planPriceNumber - employeeCommissionTotal);
   const selectedCategoryScope = categoryScopeByValue.get(category) ?? "extra_service";
+
+  // Only categories the admin marked as valid for the selected plan type.
+  const categoryOptions = React.useMemo(() => {
+    const options = localCategories
+      .filter((option) => option.is_active && option.plan_type === planType)
+      .map((option) => ({ label: option.name, value: option.slug }));
+
+    // An existing plan may sit on a category that was since retired or re-scoped.
+    // Keep it selectable so opening the edit dialog doesn't silently move the plan.
+    if (category && !options.some((option) => option.value === category)) {
+      const known = localCategories.find((option) => option.slug === category);
+      options.unshift({ label: known?.name ?? category, value: category });
+    }
+
+    return options;
+  }, [category, localCategories, planType]);
+
+  function handlePlanTypeChange(nextType: string) {
+    setPlanType(nextType);
+
+    const stillValid = localCategories.some(
+      (option) => option.slug === category && option.is_active && option.plan_type === nextType,
+    );
+
+    if (stillValid) {
+      return;
+    }
+
+    const firstValid = localCategories.find((option) => option.is_active && option.plan_type === nextType);
+
+    setCategory(firstValid?.slug ?? "");
+  }
   const isOfferLike = planType === "offer" || planType === "offer_package";
   const packageServicePlans = availablePlans.filter(
     (candidate) =>
@@ -245,9 +256,44 @@ export function PlanCreateForm({
     selectedCategoryScope !== "gym_access" || planType === "extra_service" || planType === "membership_extra_service";
   const submittedEmployeeRules = isServicePlan ? employeeRules : [];
   const offerDurationDays = calculateInclusiveDays(validFrom, validTo);
+
+  // Freeze days can never exceed the plan's own length — the API enforces
+  // `max_freeze_days <= duration_days`, so the inputs are bounded the same way.
+  const effectiveDurationDays = resolveDurationDays({
+    durationBasis,
+    durationDays,
+    durationMonths,
+    isOfferLike,
+    offerDurationDays,
+  });
+  const maxFreezeDaysNumber = clampDays(maxFreezeDays, effectiveDurationDays);
   const showServiceCommissionEditor = isServicePlan;
   const showServiceCommissionSummary = isServicePlan;
   const showBasePlanCommissionHelp = !isServicePlan;
+
+  // Follow the plan length while untouched. Once the admin has typed a value, keep
+  // it — but still pull it down if they shorten the plan, since the API rejects a
+  // freeze allowance longer than the plan with a message that never mentions the
+  // duration.
+  React.useEffect(() => {
+    setMaxFreezeDays((current) => {
+      if (!maxFreezeTouched) {
+        return String(effectiveDurationDays);
+      }
+
+      const clamped = clampDays(current, effectiveDurationDays);
+
+      return clamped === Number(current) ? current : String(clamped);
+    });
+  }, [effectiveDurationDays, maxFreezeTouched]);
+
+  React.useEffect(() => {
+    setMinFreezeDays((current) => {
+      const clamped = clampDays(current, maxFreezeDaysNumber);
+
+      return clamped === Number(current) ? current : String(clamped);
+    });
+  }, [maxFreezeDaysNumber]);
 
   React.useEffect(() => {
     if (state.ok) {
@@ -263,6 +309,13 @@ export function PlanCreateForm({
         setDurationMonths("1");
         setValidFrom("");
         setValidTo("");
+        // form.reset() only restores uncontrolled inputs, so these need clearing
+        // explicitly or the next plan inherits the previous one's freeze rules.
+        setDurationDays("30");
+        setMinFreezeDays("0");
+        // Untouched again, so the next plan re-adopts its own length.
+        setMaxFreezeTouched(false);
+        setMaxFreezeDays("30");
         setEmployeeRules([]);
         setPlanPrice("0");
         setPackageAddons([]);
@@ -283,6 +336,17 @@ export function PlanCreateForm({
       setDurationMonths(state.values.duration_months || valueOrPlan(state, plan, "duration_months") || "1");
       setValidFrom(state.values.valid_from || valueOrPlan(state, plan, "valid_from"));
       setValidTo(state.values.valid_to || valueOrPlan(state, plan, "valid_to"));
+      const durationDaysValue = state.values.duration_days || valueOrPlan(state, plan, "duration_days") || "30";
+      const maxFreezeChosen = Boolean(state.values.max_freeze_days) || mode === "edit";
+
+      setDurationDays(durationDaysValue);
+      setMaxFreezeTouched(maxFreezeChosen);
+      setMaxFreezeDays(
+        maxFreezeChosen
+          ? state.values.max_freeze_days || valueOrPlan(state, plan, "max_freeze_days") || "0"
+          : durationDaysValue,
+      );
+      setMinFreezeDays(state.values.min_freeze_days || valueOrPlan(state, plan, "min_freeze_days") || "0");
       setEmployeeRules(readInitialEmployeeRules(state.values.employee_commission_rules, employees, plan?.id));
       setPlanPrice(state.values.price || valueOrPlan(state, plan, "price") || "0");
       setPackageAddons(
@@ -295,6 +359,7 @@ export function PlanCreateForm({
     }
   }, [
     employees,
+    mode,
     plan,
     plan?.duration_months,
     plan?.freeze_requires_approval,
@@ -353,13 +418,7 @@ export function PlanCreateForm({
           id="type"
           name="type"
           value={planType}
-          onValueChange={(value) => {
-            const newType = value || "membership";
-            setPlanType(newType);
-            if (newType === "fitness_studio") {
-              setCategory("fitness_studio");
-            }
-          }}
+          onValueChange={(value) => handlePlanTypeChange(value || "membership")}
           error={fieldError(state, "type")}
           options={[
             { label: t("planTypes.membership"), value: "membership" },
@@ -375,57 +434,52 @@ export function PlanCreateForm({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="category">{t("category")}</Label>
-          <Dialog open={newCatOpen} onOpenChange={setNewCatOpen}>
+          <Dialog
+            open={newCatOpen}
+            onOpenChange={(open) => {
+              setNewCatOpen(open);
+              // Preselect the type being edited: that is almost always what the
+              // new category is for.
+              if (open) {
+                setNewCatType(planType as PlanType);
+              }
+            }}
+          >
             <DialogTrigger render={<Button size="xs" variant="ghost" className="h-6 gap-1 text-primary text-xs" />}>
-              <Plus className="size-3" /> Add Category
+              <Plus className="size-3" /> {t("addCategory")}
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Custom Category</DialogTitle>
-                <DialogDescription>Create a new plan category (e.g. Jiu-Jitsu, Pilates, Boxing)</DialogDescription>
+                <DialogTitle>{t("addCategoryTitle")}</DialogTitle>
+                <DialogDescription>{t("addCategoryDescription")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-2">
                 <div className="space-y-1">
-                  <Label htmlFor="new_cat_name">Category Name</Label>
+                  <Label htmlFor="new_cat_name">{t("categoryName")}</Label>
                   <Input
                     id="new_cat_name"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
-                    placeholder="e.g. Jiu-Jitsu, Muay Thai"
+                    placeholder={t("categoryNamePlaceholder")}
                   />
                 </div>
+                <PlanTypeField id="new_cat_type" onChange={setNewCatType} value={newCatType} />
                 <div className="space-y-1">
-                  <Label htmlFor="new_cat_scope">Use category for</Label>
-                  <FormSelect
-                    id="new_cat_scope"
-                    name="new_cat_scope"
-                    value={newCatScope}
-                    onValueChange={(value) =>
-                      setNewCatScope((value as "gym_access" | "extra_service" | "fitness_studio") || "gym_access")
-                    }
-                    options={[
-                      { label: t("categories.gym_access"), value: "gym_access" },
-                      { label: t("planTypes.extraService"), value: "extra_service" },
-                      { label: t("categories.fitness_studio"), value: "fitness_studio" },
-                    ]}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="new_cat_desc">Description (Optional)</Label>
+                  <Label htmlFor="new_cat_desc">{t("categoryDescriptionOptional")}</Label>
                   <Input
                     id="new_cat_desc"
                     value={newCatDesc}
                     onChange={(e) => setNewCatDesc(e.target.value)}
-                    placeholder="Brief details about this category..."
+                    placeholder={t("categoryDescriptionPlaceholder")}
                   />
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setNewCatOpen(false)}>
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button type="button" disabled={isCreatingCat} onClick={handleCreateCategory}>
-                  {isCreatingCat ? "Saving..." : "Save Category"}
+                  {isCreatingCat ? t("saving") : t("saveCategory")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -435,20 +489,13 @@ export function PlanCreateForm({
           id="category"
           name="category"
           value={category}
-          onValueChange={(value) => {
-            const nextCategory = value || "gym_access";
-            const nextScope = categoryScopeByValue.get(nextCategory) ?? "extra_service";
-
-            setCategory(nextCategory);
-            if (nextScope === "fitness_studio") {
-              setPlanType("fitness_studio");
-            } else if (planType === "fitness_studio") {
-              setPlanType("membership");
-            }
-          }}
+          onValueChange={(value) => setCategory(value ?? "")}
           error={fieldError(state, "category")}
-          options={computedCategoryOptions}
+          options={categoryOptions}
         />
+        <p className="text-muted-foreground text-xs">
+          {categoryOptions.length === 0 ? t("noCategoriesForType") : t("categoryForTypeHelp")}
+        </p>
       </div>
 
       <Field
@@ -523,9 +570,11 @@ export function PlanCreateForm({
           <Field
             error={fieldError(state, "duration_days")}
             label={t("durationDays")}
+            min="1"
             name="duration_days"
+            onChange={(event) => setDurationDays(event.currentTarget.value)}
             type="number"
-            defaultValue={valueOrPlan(state, plan, "duration_days") || "30"}
+            defaultValue={durationDays}
           />
         </>
       ) : null}
@@ -623,14 +672,33 @@ export function PlanCreateForm({
 
       <Field
         error={fieldError(state, "max_freeze_days")}
+        help={t("maxFreezeDaysRange", { max: effectiveDurationDays })}
         label={t("maxFreezeDays")}
+        max={String(effectiveDurationDays)}
+        min="0"
         name="max_freeze_days"
+        onChange={(event) => {
+          setMaxFreezeTouched(true);
+          setMaxFreezeDays(event.currentTarget.value);
+        }}
         type="number"
-        defaultValue={valueOrPlan(state, plan, "max_freeze_days") || "0"}
+        value={maxFreezeDays}
+      />
+      <Field
+        error={fieldError(state, "min_freeze_days")}
+        help={t("minFreezeDaysRange", { max: maxFreezeDaysNumber })}
+        label={t("minFreezeDays")}
+        max={String(maxFreezeDaysNumber)}
+        min="0"
+        name="min_freeze_days"
+        onChange={(event) => setMinFreezeDays(event.currentTarget.value)}
+        type="number"
+        value={minFreezeDays}
       />
       <Field
         error={fieldError(state, "access_grace_days")}
         label={t("accessGraceDays")}
+        min="0"
         name="access_grace_days"
         type="number"
         defaultValue={valueOrPlan(state, plan, "access_grace_days") || "0"}
@@ -638,18 +706,12 @@ export function PlanCreateForm({
       <Field
         error={fieldError(state, "cancellation_grace_days")}
         label={t("cancellationGraceDays")}
+        min="0"
         name="cancellation_grace_days"
         type="number"
         defaultValue={valueOrPlan(state, plan, "cancellation_grace_days") || "2"}
       />
       <p className="text-muted-foreground text-xs">{t("cancellationGraceDaysHelp")}</p>
-      <Field
-        error={fieldError(state, "min_freeze_days")}
-        label={t("minFreezeDays")}
-        name="min_freeze_days"
-        type="number"
-        defaultValue={valueOrPlan(state, plan, "min_freeze_days") || "0"}
-      />
 
       <div className="space-y-1">
         <div className="flex items-center gap-2">
@@ -668,13 +730,13 @@ export function PlanCreateForm({
         error={fieldError(state, "access_starts_at")}
         label={t("accessStartsAt")}
         name="access_starts_at"
-        defaultValue={valueOrPlan(state, plan, "access_starts_at")}
+        defaultValue={initialAccessStartsAt}
       />
       <TimeField
         error={fieldError(state, "access_ends_at")}
         label={t("accessEndsAt")}
         name="access_ends_at"
-        defaultValue={valueOrPlan(state, plan, "access_ends_at")}
+        defaultValue={initialAccessEndsAt}
       />
       <p className="text-muted-foreground text-xs">{t("accessHoursHelp")}</p>
 
@@ -784,19 +846,26 @@ function Field({
   error,
   help,
   label,
+  max,
+  min,
   name,
   onChange,
   step,
   type = "text",
+  value,
 }: {
   defaultValue?: string;
   error?: string;
   help?: string;
   label: string;
+  max?: string;
+  min?: string;
   name: string;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
   step?: string;
   type?: string;
+  /** Pass to make the field controlled; otherwise it falls back to defaultValue. */
+  value?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -806,7 +875,9 @@ function Field({
         name={name}
         type={type}
         step={step}
-        defaultValue={defaultValue}
+        min={min}
+        max={max}
+        {...(value === undefined ? { defaultValue } : { value })}
         aria-invalid={Boolean(error)}
         onChange={onChange}
       />
@@ -814,6 +885,70 @@ function Field({
       {error ? <p className="text-destructive text-xs">{error}</p> : null}
     </div>
   );
+}
+
+/**
+ * How long the plan actually runs. Which input carries that depends on the plan
+ * type: offers derive it from their validity window, and a months-based duration
+ * is submitted as months × 30.
+ */
+function resolveDurationDays({
+  durationBasis,
+  durationDays,
+  durationMonths,
+  isOfferLike,
+  offerDurationDays,
+}: {
+  durationBasis: string;
+  durationDays: string;
+  durationMonths: string;
+  isOfferLike: boolean;
+  offerDurationDays: number;
+}): number {
+  if (isOfferLike) {
+    return offerDurationDays;
+  }
+
+  if (durationBasis === "months") {
+    return Math.max(1, Number(durationMonths || 1) * 30);
+  }
+
+  return Math.max(1, Number(durationDays || 1));
+}
+
+/** Whole days within 0…limit; anything unparseable reads as 0. */
+function clampDays(value: string, limit: number): number {
+  const parsed = Math.floor(Number(value));
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+
+  return Math.min(parsed, Math.max(0, limit));
+}
+
+/**
+ * New plans open with a 09:00–23:59 access window so the common case needs no
+ * typing. Existing plans keep whatever they have — including a deliberately empty
+ * window, which means all-day access and must not be narrowed by opening the form.
+ */
+function accessWindowDefault(
+  state: PlanFormState,
+  plan: PlanRow | undefined,
+  mode: "create" | "edit",
+  key: "access_starts_at" | "access_ends_at",
+): string {
+  const submitted = state.values[key];
+
+  if (submitted !== undefined) {
+    return submitted;
+  }
+
+  if (mode === "edit") {
+    return valueOrPlan(state, plan, key);
+  }
+
+  return key === "access_starts_at" ? DEFAULT_ACCESS_STARTS_AT : DEFAULT_ACCESS_ENDS_AT;
 }
 
 function DateField({

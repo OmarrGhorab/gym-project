@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Plans;
 
+use App\Models\Plan;
+use App\Models\PlanCategory;
+use App\Rules\ValidPlanCategory;
 use Illuminate\Foundation\Http\FormRequest;
 
 final class UpdatePlanRequest extends FormRequest
@@ -9,6 +12,20 @@ final class UpdatePlanRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()->can('update', $this->route('plan'));
+    }
+
+    /**
+     * MySQL compares strings case-insensitively and ignores trailing spaces, so
+     * "GYM_ACCESS" and " gym_access " both resolve to the gym_access category —
+     * but the raw value is what gets stored in plans.category, and business logic
+     * compares it with a case-sensitive ===. Normalising here keeps the stored
+     * value canonical.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('category'))) {
+            $this->merge(['category' => mb_strtolower(trim($this->input('category')))]);
+        }
     }
 
     /**
@@ -25,15 +42,25 @@ final class UpdatePlanRequest extends FormRequest
             'sessions_count' => ['nullable', 'required_if:is_unlimited_sessions,false', 'integer', 'min:1'],
             'is_unlimited_sessions' => ['sometimes', 'boolean'],
             'type' => ['required', 'string', 'in:membership,offer,offer_package,fitness_studio,extra_service,membership_extra_service'],
-            'category' => ['required', 'string', 'max:100'],
+            'category' => [
+                'required',
+                'string',
+                'max:'.PlanCategory::SLUG_MAX_LENGTH,
+                // Passing the plan's current category keeps it editable even if
+                // that category was later retired or re-scoped.
+                new ValidPlanCategory(
+                    $this->string('type')->toString() ?: null,
+                    $this->route('plan') instanceof Plan ? $this->route('plan')->category : null,
+                ),
+            ],
             'is_active' => ['sometimes', 'boolean'],
             'valid_from' => ['nullable', 'required_if:type,offer,offer_package', 'date'],
             'valid_to' => ['nullable', 'required_if:type,offer,offer_package', 'date', 'after_or_equal:valid_from'],
             'package_addons' => ['nullable', 'array'],
             'package_addons.*.plan_id' => ['required', 'integer', 'exists:plans,id'],
             'package_addons.*.coach_id' => ['required', 'integer', 'exists:employees,id'],
-            'access_starts_at' => ['nullable', 'date_format:H:i'],
-            'access_ends_at' => ['nullable', 'required_with:access_starts_at', 'date_format:H:i'],
+            'access_starts_at' => ['nullable', 'date_format:H:i,H:i:s'],
+            'access_ends_at' => ['nullable', 'required_with:access_starts_at', 'date_format:H:i,H:i:s'],
             'max_freeze_days' => ['sometimes', 'integer', 'min:0', 'lte:duration_days'],
             'access_grace_days' => ['sometimes', 'integer', 'min:0'],
             'cancellation_grace_days' => ['sometimes', 'integer', 'min:0'],
