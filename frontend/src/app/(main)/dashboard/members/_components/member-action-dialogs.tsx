@@ -4,7 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 
 import Image from "next/image";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import {
   Ban,
@@ -44,6 +44,7 @@ import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 import { canAccess } from "@/lib/authorization";
 import { formatCurrency } from "@/lib/utils";
 
@@ -161,31 +162,10 @@ function useActionSubmit({ label, run, success }: ActionResult, close?: () => vo
 
 export function AddMemberDialog() {
   const t = useTranslations("Dashboard.membersPage");
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [open, setOpen] = React.useState(false);
-  const shouldOpenFromQuery = searchParams.get("create") === "member";
-
-  React.useEffect(() => {
-    if (shouldOpenFromQuery) {
-      setOpen(true);
-    }
-  }, [shouldOpenFromQuery]);
-
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen);
-
-    if (!nextOpen && shouldOpenFromQuery) {
-      const params = new URLSearchParams(searchParams);
-      params.delete("create");
-      const nextUrl = params.size ? `${pathname}?${params.toString()}` : pathname;
-      router.replace(nextUrl, { scroll: false });
-    }
-  }
+  const { onOpenChange, open } = useQueryDialog("member", "create");
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={<Button size="sm" />}>
         <UserPlus data-icon="inline-start" />
         {t("addMember")}
@@ -195,7 +175,7 @@ export function AddMemberDialog() {
         description={t("addMemberDescription")}
         submitLabel={t("createMember")}
         title={t("addMemberTitle")}
-        onSuccess={() => setOpen(false)}
+        onSuccess={() => onOpenChange(false)}
       />
     </Dialog>
   );

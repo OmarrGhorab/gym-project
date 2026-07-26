@@ -790,7 +790,9 @@
       "overtimeManualHelp": "Put any employee on another employee's shift, even if the absence was not detected automatically. The replacement earns a bonus that you approve and add to their salary in Payroll.",
       "overtimeReplacing": "Taking the place of",
       "overtimeShiftAuto": "Use the replaced employee's shift",
-      "overtimeManualBonusHint": "Recorded as pending — you set the bonus amount when you approve it."
+      "overtimeManualBonusHint": "Recorded as pending — you set the bonus amount when you approve it.",
+      "applyPenalty": "Apply lateness penalty",
+      "applyPenaltyHelp": "Leave ticked for a genuine late arrival or early leave — it raises the same warning a badge scan would. Untick it when you are fixing a scanner fault or a typo, so the time is recorded without affecting payroll."
     },
     "analytics": {
       "title": "Live Gym Analytics",

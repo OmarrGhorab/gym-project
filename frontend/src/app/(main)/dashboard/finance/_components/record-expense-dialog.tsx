@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 
 import { createExpense, type ExpenseFormState } from "./actions";
 
@@ -127,7 +128,7 @@ function DatePickerField({ defaultValue, error, name }: { defaultValue?: string;
 export function RecordExpenseDialog() {
   const t = useTranslations("Dashboard.finance");
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
+  const { onOpenChange, open } = useQueryDialog("record-expense");
   const [state, submit, pending] = useActionState(createExpense, initialExpenseFormState);
   const handledSuccessStateRef = React.useRef<ExpenseFormState | null>(null);
   const previousCategory = state.values.category ?? "";
@@ -149,12 +150,12 @@ export function RecordExpenseDialog() {
 
     handledSuccessStateRef.current = state;
     toast.success(state.message ?? t("saveExpense"));
-    setOpen(false);
+    onOpenChange(false);
     router.refresh();
-  }, [router, state, t]);
+  }, [onOpenChange, router, state, t]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={<Button size="sm" variant="outline" />}>
         <ReceiptText data-icon="inline-start" />
         {t("actions.recordExpense")}
@@ -240,7 +241,7 @@ export function RecordExpenseDialog() {
             <FieldError errors={state.errors.description} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>

@@ -22,6 +22,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 
 import { createSale, type PosActionResult, searchPosMembers } from "./actions";
 import type { PosMemberOption, PosProductOption } from "./data";
@@ -29,7 +30,7 @@ import type { PosMemberOption, PosProductOption } from "./data";
 export function PosCheckoutClient({ members, products }: { members: PosMemberOption[]; products: PosProductOption[] }) {
   const t = useTranslations("Dashboard.ecommerce");
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
+  const { onOpenChange, open } = useQueryDialog("checkout");
   const [memberOptions, setMemberOptions] = React.useState(members);
   const [memberSearchPending, startMemberSearch] = React.useTransition();
   const [salePending, startSaleTransition] = React.useTransition();
@@ -89,7 +90,7 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
 
       if (result.ok) {
         toast.success(result.message);
-        setOpen(false);
+        onOpenChange(false);
         router.refresh();
         return;
       }
@@ -99,7 +100,7 @@ export function PosCheckoutClient({ members, products }: { members: PosMemberOpt
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={<Button size="sm" disabled={products.length === 0} />}>
         <ShoppingCart />
         {t("checkout")}

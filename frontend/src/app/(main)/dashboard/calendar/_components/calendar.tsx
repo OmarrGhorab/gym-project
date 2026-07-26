@@ -43,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 import { cn } from "@/lib/utils";
 
 import { type CalendarActionResult, createCalendarEvent, deleteCalendarEvent, updateCalendarEvent } from "./actions";
@@ -186,6 +187,7 @@ export function Calendar({ events, employees }: CalendarProps) {
   const locale = useLocale();
   const isRtl = locale === "ar";
   const controller = useCalendarController();
+  const { clear: clearNewEventShortcut, requested: newEventRequested } = useQueryDialog("new-event");
   const [eventCount, setEventCount] = React.useState(0);
   const [selectedCalendar, setSelectedCalendar] = React.useState("all");
   const [selectedView, setSelectedView] = React.useState<CalendarViewValue>(views[0].value);
@@ -252,6 +254,23 @@ export function Calendar({ events, employees }: CalendarProps) {
     setSelectedEvent(null);
     setDialogMode("create");
     setDialogOpen(true);
+  }
+
+  // `?action=new-event` lets the dashboard schedule shortcut land here with the form already open.
+  React.useEffect(() => {
+    if (newEventRequested) {
+      setSelectedEvent(null);
+      setDialogMode("create");
+      setDialogOpen(true);
+    }
+  }, [newEventRequested]);
+
+  function handleDialogOpenChange(nextOpen: boolean) {
+    setDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      clearNewEventShortcut();
+    }
   }
 
   function handleEventClick(info: CalendarClickInfo) {
@@ -451,7 +470,7 @@ export function Calendar({ events, employees }: CalendarProps) {
         mode={dialogMode}
         open={dialogOpen}
         locale={locale}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
       />
     </div>
   );

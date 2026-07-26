@@ -66,4 +66,7 @@ Route::prefix('reports')->group(function (): void {
 
     Route::get('/income-outcome', [ReportController::class, 'incomeOutcome'])
         ->middleware('permission:reports.view');
+
+    Route::get('/member-subscriptions', [ReportController::class, 'memberSubscriptions'])
+        ->middleware('permission:reports.view');
 });

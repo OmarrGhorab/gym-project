@@ -95,6 +95,8 @@ export async function createManualAttendance(
 
   const attendanceId = nullableNumber(input.get("attendance_id"));
   const payload = {
+    // An unchecked box submits nothing, so absence means "waive the penalty".
+    apply_penalty: parsed.data.apply_penalty,
     approval_status: parsed.data.approval_status,
     check_in: parsed.data.check_in,
     check_out: parsed.data.check_out,
@@ -352,6 +354,8 @@ const optionalFormNumber = z.preprocess((value) => {
 }, z.coerce.number().nullable());
 
 const manualAttendanceSchema = z.object({
+  // Checkbox: present in the form data only when ticked.
+  apply_penalty: z.preprocess((value) => value === "on" || value === "true" || value === true, z.boolean()),
   approval_status: z.preprocess(
     (value) => (String(value ?? "").trim() === "" ? null : value),
     z.enum(["approved", "pending", "dismissed"]).nullable(),

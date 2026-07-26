@@ -38,7 +38,9 @@ class SendRenewalReminderJob implements ShouldQueue
         if ($subscription->soldBy) {
             $subscription->soldBy->notify(new SubscriptionRenewalReminder([
                 'subscription_id' => $subscription->id,
+                'member_id' => $subscription->member_id,
                 'member_name' => $subscription->member?->name,
+                'member_phone' => $subscription->member?->phone,
                 'end_date' => $subscription->end_date?->toDateString(),
             ]));
         }

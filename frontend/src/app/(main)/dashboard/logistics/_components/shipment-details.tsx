@@ -41,6 +41,7 @@ import {
 
 type ShipmentDetailsProps = {
   data: InventoryLogisticsData;
+  defaultTab?: "overview" | "products" | "alerts" | "activity";
   permissions: ProductActionPermissions;
   shipment: PurchaseOrder | null;
 };
@@ -560,7 +561,7 @@ function Activity({ data, order }: { data: InventoryLogisticsData; order: Purcha
   );
 }
 
-export function ShipmentDetails({ data, permissions, shipment }: ShipmentDetailsProps) {
+export function ShipmentDetails({ data, defaultTab = "overview", permissions, shipment }: ShipmentDetailsProps) {
   const t = useTranslations("Dashboard.logistics");
 
   if (!shipment) {
@@ -572,7 +573,7 @@ export function ShipmentDetails({ data, permissions, shipment }: ShipmentDetails
       <InventoryHero data={data} order={shipment} />
       <div className="min-h-0 overflow-hidden">
         <div className="h-full min-h-0 py-2">
-          <Tabs defaultValue="overview" className="h-full gap-0">
+          <Tabs defaultValue={defaultTab} className="h-full gap-0">
             <TabsList
               className="w-full justify-start gap-2 border-b px-4 **:data-[slot=tabs-trigger]:text-xs sm:gap-4 sm:**:data-[slot=tabs-trigger]:text-sm"
               variant="line"

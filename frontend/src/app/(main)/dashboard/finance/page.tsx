@@ -32,12 +32,12 @@ function defaultTo() {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; group_by?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; group_by?: string; tab?: string }>;
 }) {
   const t = await getTranslations("Dashboard.finance");
   const locale = await getLocale();
   const user = await getCurrentUser();
-  const { from, to, group_by } = await searchParams;
+  const { from, to, group_by, tab } = await searchParams;
   const resolvedFrom = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : defaultFrom();
   const resolvedTo = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : defaultTo();
   const groupBy = group_by === "day" ? "day" : "month";
@@ -83,7 +83,7 @@ export default async function Page({
         />
       ) : null}
 
-      <Tabs defaultValue="30-days" className="flex flex-col gap-4">
+      <Tabs defaultValue={tab === "ledger" && canViewLedger ? "ledger" : "30-days"} className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <TabsList variant="line">
             <TabsTrigger value="30-days">{t("tabs.dashboard")}</TabsTrigger>

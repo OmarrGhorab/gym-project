@@ -14,6 +14,7 @@ import {
   type LucideIcon,
   Mail,
   MapPinned,
+  ScanBarcode,
   PackageCheck,
   Settings,
   ShoppingBag,
@@ -134,6 +135,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Attendance",
         url: "/dashboard/attendance",
         icon: MapPinned,
+      },
+      {
+        id: "badges",
+        title: "Scan Badges",
+        url: "/dashboard/badges",
+        icon: ScanBarcode,
       },
       {
         id: "members",

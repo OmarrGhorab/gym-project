@@ -26,6 +26,8 @@ class StoreAttendanceRequest extends FormRequest
             'schedule_status' => ['nullable', Rule::in(['on_shift', 'late', 'off_shift', 'unassigned'])],
             'approval_status' => ['nullable', Rule::in(['approved', 'pending', 'dismissed'])],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // Whether a late/early-leave warning should follow from these times.
+            'apply_penalty' => ['nullable', 'boolean'],
         ];
     }
 

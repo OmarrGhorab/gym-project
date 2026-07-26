@@ -10,6 +10,7 @@ use App\Actions\Reports\FinancialReport;
 use App\Actions\Reports\IncomeOutcomeReport;
 use App\Actions\Reports\InventoryLogisticsSummary;
 use App\Actions\Reports\LiveAttendanceSummary;
+use App\Actions\Reports\MemberSubscriptionsReport;
 use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
 use App\Actions\Reports\ProductsFinanceReport;
@@ -20,6 +21,7 @@ use App\Actions\Reports\SystemHealthSummary;
 use App\Actions\Settings\StoreSetting;
 use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Requests\Reports\FinancialReportRequest;
+use App\Http\Requests\Reports\MemberSubscriptionsReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
 use App\Http\Requests\Reports\UpdateOperationsCalendarEventRequest;
 use App\Models\AttendanceViolation;
@@ -299,6 +301,20 @@ final class ReportController extends ApiController
         return $this->success(
             data: $action->execute($validated),
             message: 'Subscriptions and shifts report retrieved',
+        );
+    }
+
+    /**
+     * Per-member view of the latest subscription, or one member's full
+     * subscription history when `member_id` is supplied.
+     */
+    public function memberSubscriptions(
+        MemberSubscriptionsReportRequest $request,
+        MemberSubscriptionsReport $action,
+    ): JsonResponse {
+        return $this->success(
+            data: $action->execute($request->validated()),
+            message: 'Member subscriptions report retrieved',
         );
     }
 

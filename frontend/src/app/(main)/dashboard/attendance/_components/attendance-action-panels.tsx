@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +49,7 @@ type Props = {
 
 export function AttendanceActionPanels({ correctionRecord, defaultAttendanceDate, employees, members, shifts }: Props) {
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+    <div id="attendance-actions" className="grid scroll-mt-24 grid-cols-1 gap-4 xl:grid-cols-12">
       <MemberScanCard members={members} />
       <StaffScanCard defaultAttendanceDate={defaultAttendanceDate} employees={employees} />
       <ManualAttendanceCard
@@ -570,6 +571,19 @@ function ManualAttendanceCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+          </FieldGroup>
+          <FieldGroup className="md:col-span-3">
+            <div className="flex items-start gap-2 rounded-md border bg-muted/20 p-3">
+              {/* Checked by default so a hand-entered late arrival is treated like a scan;
+                  clearing it records the time without any payroll penalty. */}
+              <Checkbox id="manual-apply-penalty" name="apply_penalty" defaultChecked />
+              <div className="grid gap-0.5">
+                <Label htmlFor="manual-apply-penalty" className="font-medium">
+                  {t("applyPenalty")}
+                </Label>
+                <p className="text-muted-foreground text-xs">{t("applyPenaltyHelp")}</p>
+              </div>
+            </div>
           </FieldGroup>
           <FieldGroup className="md:col-span-3">
             <FieldLabel htmlFor="manual-notes" label={t("notesLabel")} meta={t("optionalField")} />

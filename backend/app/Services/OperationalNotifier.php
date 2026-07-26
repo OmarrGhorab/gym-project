@@ -15,6 +15,7 @@ use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
+use App\Support\NotificationLink;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -23,11 +24,12 @@ use Illuminate\Support\Facades\Notification;
 class OperationalNotifier
 {
     /**
+     * @param  array{page: string, entity_type: string|null, entity_id: int|string|null, url: string}  $link
      * @param  array<string, mixed>  $extra
      */
-    public function notifyAdmins(string $title, string $body, string $category, string $url, string $severity = 'info', array $extra = []): void
+    public function notifyAdmins(string $title, string $body, string $category, array $link, string $severity = 'info', array $extra = []): void
     {
-        $this->notifyUsers($this->adminRecipients(), $title, $body, $category, $url, $severity, $extra);
+        $this->notifyUsers($this->adminRecipients(), $title, $body, $category, $link, $severity, $extra);
     }
 
     public function lowStock(Product $product): void
@@ -40,7 +42,7 @@ class OperationalNotifier
             title: 'Low stock: '.$product->name,
             body: "{$product->stock_quantity} left. Threshold is {$product->low_stock_threshold}.",
             category: 'inventory.low_stock',
-            url: '/dashboard/logistics',
+            link: NotificationLink::product($product->id),
             severity: 'warning',
             extra: [
                 'product_id' => $product->id,
@@ -59,7 +61,11 @@ class OperationalNotifier
             title: 'New subscription member',
             body: ($subscription->member?->name ?? 'Member').' subscribed to '.($subscription->plan?->name ?? 'a plan').'.',
             category: 'membership.subscription_created',
-            url: '/dashboard/members',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
             severity: 'success',
             extra: [
                 'subscription_id' => $subscription->id,
@@ -81,7 +87,11 @@ class OperationalNotifier
             title: 'Membership almost finished',
             body: ($subscription->member?->name ?? 'Member').' ends on '.$subscription->end_date?->toDateString().'.',
             category: 'membership.expiring_soon',
-            url: '/dashboard/crm',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
             severity: 'warning',
             extra: [
                 'subscription_id' => $subscription->id,
@@ -102,7 +112,11 @@ class OperationalNotifier
             title: 'Membership total sessions finished',
             body: ($subscription->member?->name ?? 'Member').' has finished all '.($subscription->sessions_total ?? 0).' total sessions for '.($subscription->plan?->name ?? 'the plan').'.',
             category: 'membership.sessions_finished',
-            url: '/dashboard/crm',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
             severity: 'warning',
             extra: [
                 'subscription_id' => $subscription->id,
@@ -124,7 +138,11 @@ class OperationalNotifier
             title: 'Membership sessions running low',
             body: ($subscription->member?->name ?? 'Member').' has only '.$subscription->sessions_remaining.' session(s) remaining for '.($subscription->plan?->name ?? 'the plan').'.',
             category: 'membership.sessions_low',
-            url: '/dashboard/crm',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
             severity: 'info',
             extra: [
                 'subscription_id' => $subscription->id,
@@ -145,7 +163,11 @@ class OperationalNotifier
             title: 'Extra plan total sessions finished',
             body: ($addon->member?->name ?? 'Member').' has finished all '.($addon->sessions_total ?? 0).' sessions for '.($addon->plan?->name ?? 'the extra plan').'.',
             category: 'membership.addon_sessions_finished',
-            url: '/dashboard/crm',
+            link: NotificationLink::member(
+                $addon->member_id,
+                $addon->member?->phone,
+                ['addon' => $addon->id],
+            ),
             severity: 'warning',
             extra: [
                 'addon_id' => $addon->id,
@@ -173,7 +195,7 @@ class OperationalNotifier
             title: 'Payroll is nearly ready',
             body: "Your {$payroll->month} payroll is pending review. Net salary: EGP {$payroll->net_salary}.",
             category: 'payroll.ready',
-            url: '/dashboard/payroll',
+            link: NotificationLink::payroll($payroll->id, $employee->id, $payroll->month),
             severity: 'info',
             extra: [
                 'payroll_id' => $payroll->id,
@@ -198,7 +220,7 @@ class OperationalNotifier
             title: 'Salary paid',
             body: "Your {$payroll->month} salary was paid. Net salary: EGP {$payroll->net_salary}.",
             category: 'payroll.paid',
-            url: '/dashboard/payroll',
+            link: NotificationLink::payroll($payroll->id, $employee->id, $payroll->month),
             severity: 'success',
             extra: [
                 'payroll_id' => $payroll->id,
@@ -226,7 +248,7 @@ class OperationalNotifier
             title: 'Expense recorded',
             body: ($expense->creator?->name ?? 'Staff').' recorded '.$expense->category.' expense for EGP '.$expense->amount.'.',
             category: 'expenses.created',
-            url: '/dashboard/finance',
+            link: NotificationLink::expense($expense->id, $expense->date?->toDateString()),
             severity: 'warning',
             extra: [
                 'expense_id' => $expense->id,
@@ -252,7 +274,7 @@ class OperationalNotifier
             title: 'Shift opened: '.$shiftName,
             body: "{$staffName} opened {$shiftName} session #{$session->id} with an opening float of EGP {$float}.",
             category: 'shifts.session_opened',
-            url: '/dashboard/finance',
+            link: NotificationLink::shiftSession($session->id, $session->business_date?->toDateString()),
             severity: 'info',
             extra: [
                 'shift_session_id' => $session->id,
@@ -280,7 +302,7 @@ class OperationalNotifier
             body: "{$staffName} closed {$shiftName} session #{$session->id}. ".
                 "Expected cash in drawer: EGP {$expectedCash}, net: EGP {$expectedNet}. Awaiting handover count.",
             category: 'shifts.session_closed',
-            url: '/dashboard/finance',
+            link: NotificationLink::shiftSession($session->id, $session->business_date?->toDateString()),
             severity: 'info',
             extra: [
                 'shift_session_id' => $session->id,
@@ -319,7 +341,7 @@ class OperationalNotifier
             title: 'Shift handover: '.$shiftName,
             body: $body,
             category: 'shifts.handover_pending',
-            url: '/dashboard/finance',
+            link: NotificationLink::shiftSession($session->id, $session->business_date?->toDateString()),
             severity: $matches ? 'info' : 'warning',
             extra: [
                 'shift_session_id' => $session->id,
@@ -344,7 +366,7 @@ class OperationalNotifier
 
     public function subscriptionCancelled(Subscription $subscription, string $refundAmount, User $actor): void
     {
-        $subscription->loadMissing(['member:id,name', 'plan:id,name']);
+        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
 
         $startDate = $subscription->start_date?->copy()->startOfDay()
             ?? Carbon::parse($subscription->created_at)->startOfDay();
@@ -359,7 +381,11 @@ class OperationalNotifier
             title: 'Membership cancelled with refund',
             body: "{$memberName} cancelled {$planName} after {$daysInPlan} day(s) in plan — refund EGP {$formattedRefund} by {$actor->name}.",
             category: 'membership.cancelled_refund',
-            url: '/dashboard/crm',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
             severity: 'warning',
             extra: [
                 'subscription_id' => $subscription->id,
@@ -380,7 +406,7 @@ class OperationalNotifier
             title: 'Off-shift staff attendance',
             body: "{$employee->name} checked in outside the assigned shift".($shiftName ? " ({$shiftName})" : '').'.',
             category: 'attendance.off_shift',
-            url: '/dashboard/attendance',
+            link: NotificationLink::attendance($employee->id, $date),
             severity: 'warning',
             extra: [
                 'employee_id' => $employee->id,
@@ -398,7 +424,7 @@ class OperationalNotifier
             title: 'Late staff attendance',
             body: "{$employee->name} checked in {$lateMinutes} minute(s) late".($shiftName ? " for {$shiftName}" : '').'.',
             category: 'attendance.late',
-            url: '/dashboard/attendance',
+            link: NotificationLink::attendance($employee->id, $date),
             severity: 'warning',
             extra: [
                 'employee_id' => $employee->id,
@@ -430,7 +456,12 @@ class OperationalNotifier
                 ? "A {$violation->type}{$minutes} record may deduct {$violation->deduction_days} day(s)."
                 : "A {$violation->type}{$minutes} warning was recorded. Please keep an eye on your attendance.",
             category: $willDeduct ? 'attendance.deduction_pending' : 'attendance.warning',
-            url: '/dashboard/attendance',
+            link: NotificationLink::attendanceViolation(
+                $violation->id,
+                $employee->id,
+                $violation->violation_date?->toDateString(),
+                $violation->type,
+            ),
             severity: $willDeduct ? 'warning' : 'info',
             extra: [
                 'attendance_violation_id' => $violation->id,
@@ -463,7 +494,14 @@ class OperationalNotifier
             title: 'Attendance deduction applied',
             body: "EGP {$violation->deduction_amount} was applied for {$violation->type} on {$violation->violation_date?->toDateString()}.",
             category: 'attendance.deduction',
-            url: '/dashboard/payroll',
+            link: NotificationLink::employeePayroll(
+                $employee->id,
+                $violation->payroll?->month ?? $violation->violation_date?->toDateString(),
+                [
+                    'payroll' => $violation->payroll_id,
+                    'violation' => $violation->id,
+                ],
+            ),
             severity: 'warning',
             extra: [
                 'attendance_violation_id' => $violation->id,
@@ -492,7 +530,7 @@ class OperationalNotifier
             title: 'Attendance bonus earned',
             body: "You earned EGP {$amount} attendance bonus".($shiftName ? " for {$shiftName}" : '').'.',
             category: 'attendance.bonus',
-            url: '/dashboard/payroll',
+            link: NotificationLink::employeePayroll($employee->id, $date),
             severity: 'success',
             extra: [
                 'employee_id' => $employee->id,
@@ -518,7 +556,7 @@ class OperationalNotifier
             title: 'New task assigned',
             body: $task->title,
             category: 'tasks.assigned',
-            url: '/dashboard/tasks',
+            link: NotificationLink::task($task->id),
             severity: $task->priority === 'high' ? 'warning' : 'info',
             extra: [
                 'task_id' => $task->id,
@@ -544,9 +582,10 @@ class OperationalNotifier
 
     /**
      * @param  Collection<int, User>|EloquentCollection<int, User>  $users
+     * @param  array{page: string, entity_type: string|null, entity_id: int|string|null, url: string}  $link
      * @param  array<string, mixed>  $extra
      */
-    private function notifyUsers(Collection|EloquentCollection $users, string $title, string $body, string $category, string $url, string $severity, array $extra = []): void
+    private function notifyUsers(Collection|EloquentCollection $users, string $title, string $body, string $category, array $link, string $severity, array $extra = []): void
     {
         if ($users->isEmpty()) {
             return;
@@ -557,7 +596,8 @@ class OperationalNotifier
             'body' => $body,
             'category' => $category,
             'severity' => $severity,
-            'url' => $url,
+            'url' => $link['url'],
+            'link' => $link,
             ...$extra,
         ]));
     }

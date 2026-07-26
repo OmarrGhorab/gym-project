@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 
 import {
   adjustProductStock,
@@ -144,7 +145,7 @@ function DatePickerField({ error, name }: { error?: string; name: string }) {
 
 export function AddProductDialog() {
   const t = useTranslations("Dashboard.logistics");
-  const [open, setOpen] = React.useState(false);
+  const { onOpenChange: setOpen, open } = useQueryDialog("add-product");
   const submissionCount = React.useRef(0);
   const handledSubmissionCount = React.useRef(0);
   const [state, submitAction, pending] = useActionState(async (_state: LogisticsActionResult, formData: FormData) => {
@@ -165,7 +166,7 @@ export function AddProductDialog() {
     }
 
     toast.error(t("productNotCreated"), { description: state.message });
-  }, [state, t]);
+  }, [setOpen, state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

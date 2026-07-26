@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { useSearchParams } from "next/navigation";
+
 import { AlertTriangle, Boxes, PackageCheck, PackageSearch, ReceiptText } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -152,6 +154,8 @@ export function Logistics({
   productPermissions: ProductActionPermissions;
 }) {
   const t = useTranslations("Dashboard.logistics");
+  const searchParams = useSearchParams();
+  const productsRequested = searchParams.get("tab") === "products";
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [summaryOpen, setSummaryOpen] = React.useState(false);
   const [selectedShipmentId, setSelectedShipmentId] = React.useState<PurchaseOrder["id"] | null>(
@@ -162,6 +166,13 @@ export function Logistics({
     (data.purchase_orders.length > 0 ? data.purchase_orders[0] : null);
   const canShowProductHeaderActions =
     productPermissions.canCreateProduct || productPermissions.canAdjustInventory || canRecordExpense;
+
+  // The details pane is desktop-only, so `?tab=products` has to open it as a sheet on mobile.
+  React.useEffect(() => {
+    if (productsRequested && window.innerWidth < 1024) {
+      setDetailsOpen(true);
+    }
+  }, [productsRequested]);
 
   function handleSelectShipment(shipmentId: PurchaseOrder["id"]) {
     setSelectedShipmentId(shipmentId);
@@ -195,7 +206,12 @@ export function Logistics({
               </div>
             ) : null}
             <div className="min-h-0 flex-1">
-              <ShipmentDetails data={data} shipment={selectedShipment} permissions={productPermissions} />
+              <ShipmentDetails
+                data={data}
+                defaultTab={productsRequested ? "products" : "overview"}
+                shipment={selectedShipment}
+                permissions={productPermissions}
+              />
             </div>
           </div>
         </div>
@@ -214,7 +230,12 @@ export function Logistics({
             </SheetTitle>
             <SheetDescription>{t("purchaseOrderDescription")}</SheetDescription>
           </SheetHeader>
-          <ShipmentDetails data={data} shipment={selectedShipment} permissions={productPermissions} />
+          <ShipmentDetails
+            data={data}
+            defaultTab={productsRequested ? "products" : "overview"}
+            shipment={selectedShipment}
+            permissions={productPermissions}
+          />
         </SheetContent>
       </Sheet>
 

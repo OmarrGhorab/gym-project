@@ -17,6 +17,7 @@ import {
 import { FieldLabel } from "@/components/ui/field";
 import { FormDatePicker } from "@/components/ui/form-controls";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 
 import { RecordExpenseDialog } from "./record-expense-dialog";
 
@@ -33,7 +34,7 @@ export function FinanceToolbarActions({
 }) {
   const locale = useLocale();
   const t = useTranslations("Dashboard.finance");
-  const [open, setOpen] = React.useState(false);
+  const { onOpenChange: setOpen, open } = useQueryDialog("export");
   const [periodType, setPeriodType] = React.useState<"daily" | "monthly" | "range">(
     exportDefaults.groupBy === "day" ? "daily" : "range",
   );
@@ -91,7 +92,7 @@ export function FinanceToolbarActions({
       ) : null}
       {canRecordExpense ? <RecordExpenseDialog /> : null}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={canExport && open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{t("exportTitle")}</DialogTitle>

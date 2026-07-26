@@ -28,7 +28,7 @@ export function LedgerTab({
 
   return (
     <div className="grid grid-cols-1 gap-4">
-      <Card>
+      <Card id="recent-payments" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="font-normal">{t("recentPayments")}</CardTitle>
           <CardDescription>{t("recentPaymentsDescription")}</CardDescription>
@@ -38,7 +38,7 @@ export function LedgerTab({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="outstanding-dues" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="font-normal">{t("outstandingDues")}</CardTitle>
           <CardDescription>{t("outstandingDuesDescription")}</CardDescription>
@@ -48,7 +48,7 @@ export function LedgerTab({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="expense-ledger" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="font-normal">{t("expenseLedger")}</CardTitle>
           <CardDescription>{t("expenseLedgerDescription")}</CardDescription>

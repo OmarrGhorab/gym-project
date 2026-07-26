@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -14,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useQueryDialog } from "@/hooks/use-query-dialog";
 
 import type { PlanCategoryOption, PlanEmployeeOption, PlanRow } from "./data";
 import { PlanCreateForm } from "./plan-create-form";
@@ -26,10 +25,10 @@ type PlanCreateDialogProps = {
 
 export function PlanCreateDialog({ categories, employees, plans }: PlanCreateDialogProps) {
   const t = useTranslations("Dashboard.plans");
-  const [open, setOpen] = React.useState(false);
+  const { onOpenChange, open } = useQueryDialog("create-plan");
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger render={<Button />}>
         <Plus />
         {t("createPlan")}
@@ -43,7 +42,7 @@ export function PlanCreateDialog({ categories, employees, plans }: PlanCreateDia
           availablePlans={plans}
           categories={categories}
           employees={employees}
-          onSuccess={() => setOpen(false)}
+          onSuccess={() => onOpenChange(false)}
         />
       </DialogContent>
     </Dialog>

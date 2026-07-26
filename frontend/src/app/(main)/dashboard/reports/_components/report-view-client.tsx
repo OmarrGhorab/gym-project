@@ -5,7 +5,19 @@ import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { format, parseISO } from "date-fns";
-import { Banknote, BarChart3, Calendar, Download, FileText, Package, Search, UserRound, Users } from "lucide-react";
+import {
+  Banknote,
+  BarChart3,
+  Calendar,
+  Download,
+  FileText,
+  History,
+  IdCard,
+  Package,
+  Search,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useLocale } from "next-intl";
 import type { DateRange } from "react-day-picker";
 
@@ -28,6 +40,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 
 import { getEmployeeSubscriptionDetails, getProductSaleDetails } from "./employee-subscription-actions";
+import { getMemberSubscriptionHistory, getSubscriptionDetail } from "./member-subscriptions-actions";
 
 type ReportViewClientProps = {
   initialType: string;
@@ -123,7 +136,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
         }
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 gap-1 p-1 md:grid-cols-4 xl:grid-cols-7">
+        <TabsList className="grid w-full grid-cols-2 gap-1 p-1 md:grid-cols-4 xl:grid-cols-8">
           <TabsTrigger value="overview" className="gap-2">
             <Calendar className="size-4" />
             Overview
@@ -143,6 +156,10 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
           <TabsTrigger value="products_finance" className="gap-2">
             <Package className="size-4" />
             Products & POS
+          </TabsTrigger>
+          <TabsTrigger value="member_subscriptions" className="gap-2">
+            <IdCard className="size-4" />
+            Member Subscriptions
           </TabsTrigger>
           <TabsTrigger value="subs_shifts" className="gap-2">
             <BarChart3 className="size-4" />
@@ -229,6 +246,18 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
           searchFilter={searchFilter}
           to={toDate}
           onCategoryChange={(val) => updateParams({ category: val })}
+          onSearchChange={(val) => updateParams({ search: val })}
+          onExport={exportCSV}
+          isPending={isPending}
+        />
+      )}
+
+      {activeTab === "member_subscriptions" && (
+        <MemberSubscriptionsView
+          data={initialData}
+          statusFilter={statusFilter}
+          searchFilter={searchFilter}
+          onStatusChange={(val) => updateParams({ status: val })}
           onSearchChange={(val) => updateParams({ search: val })}
           onExport={exportCSV}
           isPending={isPending}
@@ -1623,7 +1652,796 @@ function SubsShiftsView({
 }
 
 // ---------------------------------------------------------------------------
-// 4. Income vs Outcome View
+// 4. Member Subscriptions View
+// ---------------------------------------------------------------------------
+const SUBSCRIPTION_STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  active: "default",
+  frozen: "secondary",
+  expired: "destructive",
+  stopped: "outline",
+};
+
+const BILLING_STATUS_LABELS: Record<string, string> = {
+  paid: "Fully paid",
+  pending: "Balance due",
+  overdue: "Overdue",
+  stopped: "Closed",
+  refunded: "Refunded",
+  partial_refund: "Partly refunded",
+};
+
+function MemberSubscriptionsView({
+  data,
+  statusFilter,
+  searchFilter,
+  onStatusChange,
+  onSearchChange,
+  onExport,
+  isPending,
+}: {
+  data: Record<string, unknown>;
+  statusFilter: string;
+  searchFilter: string;
+  onStatusChange: (val: string) => void;
+  onSearchChange: (val: string) => void;
+  onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
+  isPending: boolean;
+}) {
+  const totals = asRecord(data.totals);
+  const members = asRows(data.members);
+  const memberPagination = useTablePagination(members);
+
+  function handleExport() {
+    const headers = [
+      "Member",
+      "Phone",
+      "Plan",
+      "Status",
+      "Start",
+      "End",
+      "Days left",
+      "Sessions used",
+      "Sessions total",
+      "Sessions left",
+      "Visits",
+      "Visit days",
+      "Last visit",
+      "Package price",
+      "Paid",
+      "Balance",
+      "Refunded",
+      "Payments",
+      "Billing",
+      "Coach",
+      "Sold by",
+      "Add-ons",
+      "Total subscriptions",
+    ];
+    const rows = members.map((row) => {
+      const latest = asRecord(row.latest);
+
+      return [
+        String(row.member_name ?? ""),
+        String(row.member_phone ?? ""),
+        String(latest.plan_name ?? ""),
+        String(latest.status ?? ""),
+        String(latest.start_date ?? ""),
+        String(latest.end_date ?? ""),
+        String(latest.days_left ?? ""),
+        String(latest.sessions_used ?? ""),
+        String(latest.sessions_total ?? "Unlimited"),
+        String(latest.sessions_remaining ?? "Unlimited"),
+        String(latest.visits_count ?? 0),
+        String(latest.visit_days_count ?? 0),
+        formatDateTime(latest.last_visit_at),
+        String(latest.package_price ?? "0.00"),
+        String(latest.package_paid_total ?? "0.00"),
+        String(latest.package_balance ?? "0.00"),
+        String(latest.refund_total ?? "0.00"),
+        String(latest.payments_count ?? 0),
+        String(latest.billing_status ?? ""),
+        String(latest.coach_name ?? ""),
+        String(latest.sold_by ?? ""),
+        String(latest.addons_count ?? 0),
+        String(row.subscriptions_count ?? 1),
+      ];
+    });
+    onExport("member_subscriptions_report", headers, rows);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <ReportMetric
+          title="Members"
+          value={String(totals.members_count ?? 0)}
+          detail={`${String(totals.active_count ?? 0)} active · ${String(totals.expired_count ?? 0)} expired`}
+        />
+        <ReportMetric
+          title="Collected"
+          value={currency(totals.total_collected)}
+          detail="Latest subscription + add-ons"
+        />
+        <ReportMetric
+          title="Outstanding"
+          value={currency(totals.total_outstanding)}
+          detail="Balance still due"
+          destructive={Number(totals.total_outstanding ?? 0) > 0}
+        />
+        <ReportMetric
+          title="Check-ins"
+          value={String(totals.total_visits ?? 0)}
+          detail={`${String(totals.frozen_count ?? 0)} frozen · ${String(totals.stopped_count ?? 0)} stopped`}
+        />
+        <ReportMetric
+          title="Avg. sessions used"
+          value={totals.avg_attendance_rate === null ? "—" : `${String(totals.avg_attendance_rate ?? 0)}%`}
+          detail="Session-limited plans only"
+        />
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">Members & latest subscription</CardTitle>
+            <CardDescription>
+              Attendance, payments, plan window and staff for each member&apos;s most recent subscription. Open the
+              history to see every previous subscription.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-64 lg:w-80">
+              <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search by name, phone or QR code..."
+                defaultValue={searchFilter}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="h-9 ps-8 text-xs"
+              />
+            </div>
+            <FormSelect
+              name="status"
+              defaultValue={statusFilter}
+              placeholder="All Statuses"
+              options={[
+                { label: "All Statuses", value: "" },
+                { label: "Active", value: "active" },
+                { label: "Frozen", value: "frozen" },
+                { label: "Expired", value: "expired" },
+                { label: "Stopped", value: "stopped" },
+              ]}
+              onValueChange={(val) => onStatusChange(val)}
+            />
+            <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
+              <Download className="me-1.5 size-4" /> Export CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Period</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Sessions</TableHead>
+                <TableHead>Check-ins</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Balance</TableHead>
+                <TableHead>Billing</TableHead>
+                <TableHead>Coach / sold by</TableHead>
+                <TableHead className="text-end">History</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {memberPagination.pageRows.map((row) => {
+                const latest = asRecord(row.latest);
+                const addonsCount = Number(latest.addons_count ?? 0);
+
+                return (
+                  <TableRow key={String(row.member_id)}>
+                    <TableCell className="font-medium">
+                      <div>{String(row.member_name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(row.member_phone ?? "")}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{String(latest.plan_name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {String(latest.plan_category ?? latest.plan_type ?? "")}
+                        {addonsCount > 0 ? ` · +${addonsCount} add-on${addonsCount > 1 ? "s" : ""}` : ""}
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <div>
+                        {String(latest.start_date ?? "-")} → {String(latest.end_date ?? "-")}
+                      </div>
+                      <div className="text-muted-foreground text-xs">{formatDaysLeft(latest.days_left)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={SUBSCRIPTION_STATUS_VARIANTS[String(latest.status)] ?? "secondary"}>
+                        {String(latest.status ?? "-")}
+                      </Badge>
+                      {Number(latest.freeze_days_used ?? 0) > 0 ? (
+                        <div className="mt-1 text-muted-foreground text-xs">
+                          {String(latest.freeze_days_used)} freeze days
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>{formatSessions(latest)}</TableCell>
+                    <TableCell>
+                      <div>{String(latest.visits_count ?? 0)} visits</div>
+                      <div className="text-muted-foreground text-xs">
+                        {latest.last_visit_at ? `last ${formatDateTime(latest.last_visit_at)}` : "never checked in"}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-emerald-600 dark:text-emerald-400">
+                        {currency(latest.package_paid_total)}
+                      </div>
+                      <div className="text-muted-foreground text-xs">
+                        of {currency(latest.package_price)} · {String(latest.payments_count ?? 0)} payment
+                        {Number(latest.payments_count ?? 0) === 1 ? "" : "s"}
+                      </div>
+                    </TableCell>
+                    <TableCell
+                      className={Number(latest.package_balance ?? 0) > 0 ? "font-semibold text-rose-600" : undefined}
+                    >
+                      {currency(latest.package_balance)}
+                      {Number(latest.refund_total ?? 0) > 0 ? (
+                        <div className="text-muted-foreground text-xs">{currency(latest.refund_total)} refunded</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={latest.billing_status === "overdue" ? "destructive" : "outline"}>
+                        {BILLING_STATUS_LABELS[String(latest.billing_status)] ?? String(latest.billing_status ?? "-")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div>{String(latest.coach_name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(latest.sold_by ?? "")}</div>
+                    </TableCell>
+                    <TableCell className="text-end">
+                      <MemberSubscriptionHistoryDialog member={row} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {members.length === 0 ? (
+                <EmptyTableRow columns={11} label="No members with subscriptions match these filters." />
+              ) : null}
+              <TablePagination columns={11} pagination={memberPagination} />
+            </TableBody>
+          </Table>
+          {totals.truncated ? (
+            <p className="pt-3 text-muted-foreground text-xs">
+              Showing the first {String(totals.members_count ?? 0)} of {String(totals.matched_count ?? 0)} matching
+              members. Narrow the date range or search to see the rest.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function MemberSubscriptionHistoryDialog({ member }: { member: Record<string, unknown> }) {
+  const [payload, setPayload] = useState<Record<string, unknown> | null>(null);
+  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [isLoading, startTransition] = useTransition();
+  const [isDetailLoading, startDetailTransition] = useTransition();
+  const history = asRows(payload?.history);
+  const historyTotals = asRecord(payload?.totals);
+  const memberId = Number(member.member_id);
+  const memberName = String(member.member_name ?? "Member");
+  const subscriptionsCount = Number(member.subscriptions_count ?? 1);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (!nextOpen || payload || isLoading) return;
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        // The latest subscription's log ships with the history, so the panel
+        // renders immediately on the default selection.
+        const data = await getMemberSubscriptionHistory(memberId);
+        const preloaded = asRecord(data.detail);
+
+        setPayload(data);
+        setDetail(preloaded);
+        setSelectedId(Number(asRecord(preloaded.subscription).id) || null);
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : "Could not load subscription history.");
+      }
+    });
+  }
+
+  function handleSelect(subscriptionId: number) {
+    if (subscriptionId === selectedId || isDetailLoading) return;
+
+    setSelectedId(subscriptionId);
+    setDetailError(null);
+    startDetailTransition(async () => {
+      try {
+        setDetail(asRecord((await getSubscriptionDetail(subscriptionId)).detail));
+      } catch (requestError) {
+        setDetail(null);
+        setDetailError(
+          requestError instanceof Error ? requestError.message : "Could not load this subscription's log.",
+        );
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        <History />
+        {subscriptionsCount > 1 ? `All ${subscriptionsCount}` : "History"}
+      </DialogTrigger>
+      <DialogContent className="max-h-[90dvh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-[calc(100vw-3rem)] xl:max-w-[calc(100vw-4rem)]">
+        <DialogHeader>
+          <DialogTitle>{memberName}&apos;s subscriptions</DialogTitle>
+          <DialogDescription>
+            Pick a plan on the left to see everything recorded against it — every check-in with its exact times, the
+            payment ledger, freezes and refunds. The latest subscription is selected by default.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? <p className="text-muted-foreground text-sm">Loading subscription history…</p> : null}
+        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+        {!isLoading && !error ? (
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <ReportMetric
+                title="Subscriptions"
+                value={String(historyTotals.subscriptions_count ?? 0)}
+                detail="Lifetime memberships"
+              />
+              <ReportMetric
+                title="Lifetime paid"
+                value={currency(historyTotals.lifetime_paid)}
+                detail="Across every subscription"
+              />
+              <ReportMetric
+                title="Lifetime balance"
+                value={currency(historyTotals.lifetime_balance)}
+                detail="Still owed"
+                destructive={Number(historyTotals.lifetime_balance ?? 0) > 0}
+              />
+              <ReportMetric
+                title="Lifetime check-ins"
+                value={String(historyTotals.lifetime_visits ?? 0)}
+                detail="All recorded visits"
+              />
+            </div>
+
+            <div className="flex flex-col gap-4 lg:flex-row">
+              <div className="shrink-0 space-y-2 lg:w-72">
+                <p className="font-semibold text-muted-foreground text-xs uppercase">
+                  Subscribed plans ({history.length})
+                </p>
+                <div className="max-h-[52dvh] space-y-2 overflow-y-auto pe-1">
+                  {history.map((subscription) => (
+                    <SubscriptionPlanCard
+                      key={String(subscription.id)}
+                      subscription={subscription}
+                      isSelected={Number(subscription.id) === selectedId}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                  {history.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">No subscriptions recorded for this member.</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                {isDetailLoading ? <p className="text-muted-foreground text-sm">Loading subscription log…</p> : null}
+                {detailError ? <p className="text-destructive text-sm">{detailError}</p> : null}
+                {!isDetailLoading && !detailError && detail ? <SubscriptionDetailPanel detail={detail} /> : null}
+                {!isDetailLoading && !detailError && !detail ? (
+                  <p className="text-muted-foreground text-sm">Select a plan to see its full log.</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SubscriptionPlanCard({
+  subscription,
+  isSelected,
+  onSelect,
+}: {
+  subscription: Record<string, unknown>;
+  isSelected: boolean;
+  onSelect: (subscriptionId: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(Number(subscription.id))}
+      className={`w-full rounded-lg border p-3 text-start transition-colors ${
+        isSelected ? "border-primary bg-primary/10" : "hover:bg-muted/50"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-medium text-sm">{String(subscription.plan_name ?? "-")}</span>
+        <Badge variant={SUBSCRIPTION_STATUS_VARIANTS[String(subscription.status)] ?? "secondary"}>
+          {String(subscription.status ?? "-")}
+        </Badge>
+      </div>
+      <div className="mt-1 text-muted-foreground text-xs">
+        {String(subscription.start_date ?? "-")} → {String(subscription.end_date ?? "-")}
+      </div>
+      <div className="mt-1 text-muted-foreground text-xs">
+        {String(subscription.visits_count ?? 0)} check-ins · {currency(subscription.package_paid_total)} paid
+        {Number(subscription.package_balance ?? 0) > 0 ? ` · ${currency(subscription.package_balance)} due` : ""}
+      </div>
+    </button>
+  );
+}
+
+function SubscriptionDetailPanel({ detail }: { detail: Record<string, unknown> }) {
+  const subscription = asRecord(detail.subscription);
+  const visits = asRows(detail.visits);
+  const payments = asRows(detail.payments);
+  const freezes = asRows(detail.freezes);
+  const refunds = asRows(detail.refunds);
+  const addons = asRows(subscription.addons);
+  const visitPagination = useTablePagination(visits);
+  const paymentPagination = useTablePagination(payments);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <ReportMetric
+          title={String(subscription.plan_name ?? "Plan")}
+          value={String(subscription.status ?? "-")}
+          detail={`${String(subscription.start_date ?? "-")} → ${String(subscription.end_date ?? "-")} · ${formatDaysLeft(subscription.days_left)}`}
+        />
+        <ReportMetric
+          title="Sessions"
+          value={
+            subscription.sessions_total === null || subscription.sessions_total === undefined
+              ? "Unlimited"
+              : `${String(subscription.sessions_used ?? 0)} / ${String(subscription.sessions_total)}`
+          }
+          detail={
+            subscription.sessions_total === null || subscription.sessions_total === undefined
+              ? "No session cap on this plan"
+              : `${String(subscription.sessions_remaining ?? 0)} left · ${String(subscription.attendance_rate ?? 0)}% used`
+          }
+        />
+        <ReportMetric
+          title="Check-ins"
+          value={String(subscription.visits_count ?? 0)}
+          detail={`${String(subscription.visit_days_count ?? 0)} distinct days${
+            subscription.visits_per_week ? ` · ${String(subscription.visits_per_week)}/week` : ""
+          }`}
+        />
+        <ReportMetric
+          title="Balance"
+          value={currency(subscription.package_balance)}
+          detail={`${currency(subscription.package_paid_total)} paid of ${currency(subscription.package_price)}`}
+          destructive={Number(subscription.package_balance ?? 0) > 0}
+        />
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Check-in log</CardTitle>
+          <CardDescription>
+            Every visit on this subscription with its exact in and out times, newest first.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Checked in</TableHead>
+                <TableHead>Checked out</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Add-on session</TableHead>
+                <TableHead>Recorded by</TableHead>
+                <TableHead>Notes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visitPagination.pageRows.map((visit) => (
+                <TableRow key={String(visit.id)}>
+                  <TableCell className="whitespace-nowrap font-medium">{formatDateTime(visit.check_in_at)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div>{formatTime(visit.check_in_at)}</div>
+                    {visit.check_in_location_status === "outside" ? (
+                      <div className="text-amber-600 text-xs dark:text-amber-400">outside geofence</div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {visit.is_open ? (
+                      <span className="text-muted-foreground text-xs">still inside</span>
+                    ) : (
+                      <>
+                        <div>{formatTime(visit.check_out_at)}</div>
+                        {visit.check_out_location_status === "outside" ? (
+                          <div className="text-amber-600 text-xs dark:text-amber-400">outside geofence</div>
+                        ) : null}
+                      </>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDuration(visit.duration_minutes)}</TableCell>
+                  <TableCell>
+                    <Badge variant={visit.counts_as_attendance === false ? "destructive" : "outline"}>
+                      {String(visit.status ?? "-")}
+                    </Badge>
+                    {visit.alert_reason ? (
+                      <div className="mt-1 text-muted-foreground text-xs">{String(visit.alert_reason)}</div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">{String(visit.scan_method ?? "—")}</TableCell>
+                  <TableCell className="text-xs">{String(visit.addon_plan_name ?? "—")}</TableCell>
+                  <TableCell className="text-xs">{String(visit.recorded_by ?? "—")}</TableCell>
+                  <TableCell className="max-w-48 truncate text-muted-foreground text-xs">
+                    {String(visit.notes ?? "")}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {visits.length === 0 ? (
+                <EmptyTableRow columns={9} label="No check-ins recorded on this subscription." />
+              ) : null}
+              <TablePagination columns={9} pagination={visitPagination} />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Payment ledger</CardTitle>
+          <CardDescription>Subscription and add-on payments, newest first.</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>For</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>Recorded by</TableHead>
+                <TableHead>Shift</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paymentPagination.pageRows.map((payment) => (
+                <TableRow key={String(payment.id)}>
+                  <TableCell className="whitespace-nowrap">
+                    {payment.paid_at ? formatDateTimeFull(payment.paid_at) : "not collected"}
+                  </TableCell>
+                  <TableCell>
+                    <div>{String(payment.target ?? "-")}</div>
+                    {payment.is_addon ? <div className="text-muted-foreground text-xs">add-on</div> : null}
+                  </TableCell>
+                  <TableCell className="font-medium">{currency(payment.amount)}</TableCell>
+                  <TableCell className="text-xs">{String(payment.method ?? "—")}</TableCell>
+                  <TableCell>
+                    <Badge variant={payment.is_overdue ? "destructive" : "outline"}>
+                      {String(payment.status ?? "-")}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{String(payment.due_date ?? "—")}</TableCell>
+                  <TableCell className="text-xs">{String(payment.recorded_by ?? "—")}</TableCell>
+                  <TableCell className="text-xs">
+                    {payment.shift_session_id ? `#${String(payment.shift_session_id)}` : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {payments.length === 0 ? (
+                <EmptyTableRow columns={8} label="No payments recorded on this subscription." />
+              ) : null}
+              <TablePagination columns={8} pagination={paymentPagination} />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {addons.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Add-on plans</CardTitle>
+            <CardDescription>Extra plans bought alongside this subscription.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Coach</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sessions</TableHead>
+                  <TableHead>Check-ins</TableHead>
+                  <TableHead>Paid</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {addons.map((addon) => (
+                  <TableRow key={String(addon.id)}>
+                    <TableCell className="font-medium">{String(addon.plan_name ?? "-")}</TableCell>
+                    <TableCell>{String(addon.coach_name ?? "—")}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {String(addon.start_date ?? "-")} → {String(addon.end_date ?? "-")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={SUBSCRIPTION_STATUS_VARIANTS[String(addon.status)] ?? "secondary"}>
+                        {String(addon.status ?? "-")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {addon.sessions_total === null || addon.sessions_total === undefined
+                        ? "Unlimited"
+                        : `${String(addon.sessions_remaining ?? 0)} of ${String(addon.sessions_total)} left`}
+                    </TableCell>
+                    <TableCell>{String(addon.visits_count ?? 0)}</TableCell>
+                    <TableCell>
+                      {currency(addon.paid_total)}
+                      <div className="text-muted-foreground text-xs">of {currency(addon.price_paid)}</div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {freezes.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Freezes</CardTitle>
+            <CardDescription>Every pause applied to this subscription.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>From</TableHead>
+                  <TableHead>To</TableHead>
+                  <TableHead>Days</TableHead>
+                  <TableHead>Resumed</TableHead>
+                  <TableHead>Days left at freeze</TableHead>
+                  <TableHead>Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {freezes.map((freeze) => (
+                  <TableRow key={String(freeze.id)}>
+                    <TableCell>{String(freeze.freeze_start ?? "-")}</TableCell>
+                    <TableCell>{String(freeze.freeze_end ?? "-")}</TableCell>
+                    <TableCell>{String(freeze.days ?? 0)}</TableCell>
+                    <TableCell>{String(freeze.resumed_on ?? "still frozen")}</TableCell>
+                    <TableCell>{String(freeze.remaining_days_at_freeze ?? "—")}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{String(freeze.reason ?? "")}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {refunds.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Refunds</CardTitle>
+            <CardDescription>Money returned against this subscription.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {refunds.map((refund) => (
+                  <TableRow key={String(refund.id)}>
+                    <TableCell>{formatDateTimeFull(refund.refunded_at)}</TableCell>
+                    <TableCell className="font-medium">{currency(refund.amount)}</TableCell>
+                    <TableCell className="text-xs">{String(refund.method ?? "—")}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{String(refund.reason ?? "")}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+function formatSessions(subscription: Record<string, unknown>) {
+  if (subscription.sessions_total === null || subscription.sessions_total === undefined) {
+    return <span className="text-muted-foreground text-xs">Unlimited</span>;
+  }
+
+  return (
+    <div>
+      <div>
+        {String(subscription.sessions_used ?? 0)} / {String(subscription.sessions_total)} used
+      </div>
+      <div className="text-muted-foreground text-xs">
+        {String(subscription.sessions_remaining ?? 0)} left
+        {subscription.attendance_rate === null || subscription.attendance_rate === undefined
+          ? ""
+          : ` · ${String(subscription.attendance_rate)}%`}
+      </div>
+    </div>
+  );
+}
+
+function formatDaysLeft(daysLeft: unknown) {
+  if (daysLeft === null || daysLeft === undefined) return "ended";
+
+  const days = Number(daysLeft);
+  if (days < 0) return `${Math.abs(days)} days overdue`;
+  if (days === 0) return "ends today";
+
+  return `${days} days left`;
+}
+
+function formatDateTime(value: unknown) {
+  return formatReportDate(value, "dd MMM yyyy");
+}
+
+function formatTime(value: unknown) {
+  return formatReportDate(value, "HH:mm") || "—";
+}
+
+function formatDateTimeFull(value: unknown) {
+  return formatReportDate(value, "dd MMM yyyy · HH:mm") || "—";
+}
+
+function formatReportDate(value: unknown, pattern: string) {
+  if (!value) return "";
+
+  const date = parseISO(String(value));
+  return Number.isNaN(date.getTime()) ? "" : format(date, pattern);
+}
+
+function formatDuration(minutes: unknown) {
+  if (minutes === null || minutes === undefined) return "—";
+
+  const total = Number(minutes);
+  if (!Number.isFinite(total) || total < 0) return "—";
+  if (total < 60) return `${total}m`;
+
+  const remainder = total % 60;
+  return remainder === 0 ? `${Math.floor(total / 60)}h` : `${Math.floor(total / 60)}h ${remainder}m`;
+}
+
+// ---------------------------------------------------------------------------
+// 5. Income vs Outcome View
 // ---------------------------------------------------------------------------
 function IncomeOutcomeView({
   data,

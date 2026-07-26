@@ -47,6 +47,11 @@ export default async function ReportsPage({
       if (query.payment_method) params.set("payment_method", query.payment_method);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/products-finance?${params.toString()}`);
       initialData = res.data;
+    } else if (activeType === "member_subscriptions") {
+      if (query.status) params.set("status", query.status);
+      if (query.search) params.set("search", query.search);
+      const res = await serverApiFetch<Record<string, unknown>>(`/reports/member-subscriptions?${params.toString()}`);
+      initialData = res.data;
     } else if (activeType === "subs_shifts") {
       if (query.status) params.set("status", query.status);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/subs-shifts?${params.toString()}`);
