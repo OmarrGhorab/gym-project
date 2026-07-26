@@ -1,0 +1,340 @@
+"use client";
+
+import { type ReactNode, useActionState, useEffect, useState } from "react";
+
+import { CalendarClock, Check, HandCoins, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-controls";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+import { type AttendanceActionResult, createOvertimeShift, reviewOvertimeShift } from "./actions";
+import type { EmployeeOption, OvertimeCandidate, OvertimeShiftRecord } from "./data";
+
+const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
+
+type Props = {
+  candidates: OvertimeCandidate[];
+  employees: EmployeeOption[];
+  overtimeShifts: OvertimeShiftRecord[];
+  selectedDate: string;
+};
+
+export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, selectedDate }: Props) {
+  const t = useTranslations("Dashboard.attendance");
+  const openSlots = candidates.filter((candidate) => !candidate.covered_by);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 font-normal">
+              <CalendarClock className="size-4" />
+              {t("overtimeTitle")}
+            </CardTitle>
+            <CardDescription>{t("overtimeDescription")}</CardDescription>
+          </div>
+          <Badge variant="outline" className="w-fit">
+            {t("overtimeOpenSlots", { count: openSlots.length })}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        <section className="grid gap-2">
+          <SectionHeading title={t("overtimeUncovered")} help={t("overtimeUncoveredHelp")} />
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("overtimeAbsentEmployee")}</TableHead>
+                  <TableHead>{t("shiftLabel")}</TableHead>
+                  <TableHead className="min-w-64">{t("overtimeCoveredBy")}</TableHead>
+                  <TableHead className="text-right">{t("actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {candidates.map((candidate) => (
+                  <ClaimRow
+                    key={candidate.employee.id}
+                    candidate={candidate}
+                    employees={employees}
+                    selectedDate={selectedDate}
+                  />
+                ))}
+                {candidates.length === 0 ? (
+                  <TableRow>
+                    <TableCell className="h-24 text-center text-muted-foreground text-sm" colSpan={4}>
+                      {t("overtimeNoUncovered")}
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+
+        <section className="grid gap-2">
+          <SectionHeading title={t("overtimeRecords")} help={t("overtimeRecordsHelp")} />
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("employee")}</TableHead>
+                  <TableHead>{t("overtimeCoveringFor")}</TableHead>
+                  <TableHead>{t("shiftLabel")}</TableHead>
+                  <TableHead>{t("overtimeHours")}</TableHead>
+                  <TableHead>{t("overtimeBonus")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead className="min-w-72 text-right">{t("actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overtimeShifts.map((record) => (
+                  <RecordRow key={record.id} record={record} />
+                ))}
+                {overtimeShifts.length === 0 ? (
+                  <TableRow>
+                    <TableCell className="h-24 text-center text-muted-foreground text-sm" colSpan={7}>
+                      {t("overtimeNoRecords")}
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionHeading({ help, title }: { help: string; title: string }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="font-medium text-sm">{title}</p>
+      <p className="text-muted-foreground text-xs">{help}</p>
+    </div>
+  );
+}
+
+function ClaimRow({
+  candidate,
+  employees,
+  selectedDate,
+}: {
+  candidate: OvertimeCandidate;
+  employees: EmployeeOption[];
+  selectedDate: string;
+}) {
+  const t = useTranslations("Dashboard.attendance");
+  const [state, action, pending] = useActionState(createOvertimeShift, initialState);
+  const [coveringEmployeeId, setCoveringEmployeeId] = useState("");
+  const covered = candidate.covered_by;
+  const formId = `overtime-claim-${candidate.employee.id}`;
+  const options = employees
+    .filter((employee) => employee.id !== candidate.employee.id)
+    .map((employee) => ({
+      key: `${formId}-${employee.id}`,
+      label: `${employee.name} - ${employee.role}`,
+      value: String(employee.id),
+    }));
+
+  useActionToast(state);
+
+  useEffect(() => {
+    if (state.ok && state.message) {
+      setCoveringEmployeeId("");
+    }
+  }, [state]);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="font-medium">{candidate.employee.name}</div>
+        <div className="text-muted-foreground text-xs">{candidate.employee.role ?? t("staff")}</div>
+      </TableCell>
+      <TableCell>
+        <div>{candidate.shift?.name ?? t("noShift")}</div>
+        <div className="text-muted-foreground text-xs">
+          {candidate.shift?.starts_at && candidate.shift?.ends_at
+            ? `${candidate.shift.starts_at} - ${candidate.shift.ends_at}`
+            : "--"}
+        </div>
+      </TableCell>
+      <TableCell className="min-w-64">
+        {covered ? (
+          <div>
+            <div className="font-medium">{covered.employee_name ?? `#${covered.employee_id}`}</div>
+            <div className="text-muted-foreground text-xs">{t(`overtimeStatuses.${covered.status}`)}</div>
+          </div>
+        ) : (
+          <form action={action} className="grid gap-1.5" id={formId}>
+            <input name="covering_for_employee_id" type="hidden" value={candidate.employee.id} />
+            <input name="date" type="hidden" value={selectedDate} />
+            <input name="employee_shift_id" type="hidden" value={candidate.shift?.id ?? ""} />
+            <input name="employee_id" type="hidden" value={coveringEmployeeId} />
+            <Label className="text-muted-foreground text-xs" htmlFor={`${formId}-select`}>
+              {t("overtimeSelectCover")}
+            </Label>
+            <FormSelect
+              className="w-full"
+              contentClassName="max-h-72"
+              id={`${formId}-select`}
+              name="employee_id_lookup"
+              options={options}
+              placeholder={t("selectEmployee")}
+              searchPlaceholder={t("searchEmployees")}
+              value={coveringEmployeeId}
+              onValueChange={(value) => setCoveringEmployeeId(value ?? "")}
+            />
+          </form>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        {covered ? (
+          <span className="text-muted-foreground text-xs">--</span>
+        ) : (
+          <Button disabled={pending || !coveringEmployeeId} form={formId} size="sm" type="submit">
+            <HandCoins className="size-3.5" />
+            {t("overtimeAssign")}
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function RecordRow({ record }: { record: OvertimeShiftRecord }) {
+  const t = useTranslations("Dashboard.attendance");
+  const [state, action, pending] = useActionState(reviewOvertimeShift, initialState);
+  const [bonusAmount, setBonusAmount] = useState(record.bonus_amount === "0.00" ? "" : record.bonus_amount);
+
+  useActionToast(state);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="font-medium">{record.employee?.name ?? `#${record.employee_id}`}</div>
+        <div className="text-muted-foreground text-xs">{record.date}</div>
+      </TableCell>
+      <TableCell>{record.covering_for?.name ?? "--"}</TableCell>
+      <TableCell>
+        <div>{record.shift?.name ?? t("noShift")}</div>
+        <div className="text-muted-foreground text-xs">
+          {record.starts_at && record.ends_at ? `${record.starts_at} - ${record.ends_at}` : "--"}
+        </div>
+      </TableCell>
+      <TableCell>{record.hours ?? "--"}</TableCell>
+      <TableCell className="tabular-nums">EGP {record.bonus_amount}</TableCell>
+      <TableCell>
+        <OvertimeStatusBadge status={record.status} />
+      </TableCell>
+      <TableCell className="min-w-72">
+        <form action={action} className="flex flex-wrap items-end justify-end gap-2">
+          <input name="id" type="hidden" value={record.id} />
+          {record.status === "settled" ? (
+            <span className="text-muted-foreground text-xs">{t("overtimeSettledHelp")}</span>
+          ) : (
+            <>
+              <div className="grid gap-1">
+                <Label className="text-muted-foreground text-xs" htmlFor={`overtime-bonus-${record.id}`}>
+                  {t("overtimeBonusAmount")}
+                </Label>
+                <Input
+                  className="h-8 w-28"
+                  id={`overtime-bonus-${record.id}`}
+                  min="0"
+                  name="bonus_amount"
+                  placeholder="0.00"
+                  step="0.01"
+                  type="number"
+                  value={bonusAmount}
+                  onChange={(event) => setBonusAmount(event.target.value)}
+                />
+              </div>
+              {/* The decision travels as the submit button's own value, so one form serves every action. */}
+              <DecisionButton
+                decision="approved"
+                disabled={pending || bonusAmount.trim() === ""}
+                icon={<Check className="size-3.5" />}
+                label={record.status === "approved" ? t("overtimeUpdateBonus") : t("approve")}
+                variant="default"
+              />
+              {record.status === "approved" ? (
+                <DecisionButton
+                  decision="settled"
+                  disabled={pending}
+                  icon={<HandCoins className="size-3.5" />}
+                  label={t("overtimeMarkSettled")}
+                  variant="outline"
+                />
+              ) : null}
+              <DecisionButton
+                decision="rejected"
+                disabled={pending}
+                icon={<X className="size-3.5" />}
+                label={t("dismiss")}
+                variant="outline"
+              />
+            </>
+          )}
+        </form>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function DecisionButton({
+  decision,
+  disabled,
+  icon,
+  label,
+  variant,
+}: {
+  decision: "approved" | "rejected" | "settled";
+  disabled: boolean;
+  icon: ReactNode;
+  label: string;
+  variant: "default" | "outline";
+}) {
+  return (
+    <Button disabled={disabled} name="decision" size="sm" type="submit" value={decision} variant={variant}>
+      {icon}
+      {label}
+    </Button>
+  );
+}
+
+function OvertimeStatusBadge({ status }: { status: string }) {
+  const t = useTranslations("Dashboard.attendance");
+  let variant: "default" | "outline" | "secondary" = "default";
+
+  if (status === "pending") {
+    variant = "secondary";
+  } else if (status === "rejected") {
+    variant = "outline";
+  }
+
+  return <Badge variant={variant}>{t(`overtimeStatuses.${status}`)}</Badge>;
+}
+
+function useActionToast(state: AttendanceActionResult) {
+  useEffect(() => {
+    if (!state.message) {
+      return;
+    }
+
+    if (state.ok) {
+      toast.success(state.message);
+    } else {
+      toast.error(state.message);
+    }
+  }, [state]);
+}

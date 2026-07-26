@@ -22,7 +22,7 @@ class ShiftSessionController extends ApiController
         $this->authorizeFinanceView($request);
 
         $sessions = ShiftSession::query()
-            ->with(['shift', 'openedBy', 'closedBy', 'receivedBy', 'adminReviewer'])
+            ->with(['shift', 'openedBy', 'closedBy', 'receivedBy', 'adminReviewer', 'openedByEmployee', 'closedByEmployee'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
             ->latest('opened_at')
             ->paginate(min(max((int) $request->integer('per_page', 15), 1), 100));
@@ -57,12 +57,28 @@ class ShiftSessionController extends ApiController
 
         $shifts = EmployeeShift::query()
             ->where('is_active', true)
+            // Staff list drives the "who is on duty" picker when an admin opens on their behalf.
+            ->with(['employees' => fn ($q) => $q->active()->select('id', 'name', 'role', 'shift_id')->orderBy('name')])
             ->orderBy('starts_at')
             ->orderBy('name')
             ->get();
 
+        $payload = $shifts->map(function (EmployeeShift $shift) use ($request): array {
+            $row = (new EmployeeShiftResource($shift))->toArray($request);
+            $row['employees'] = $shift->employees
+                ->map(fn ($employee): array => [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'role' => $employee->role,
+                ])
+                ->values()
+                ->all();
+
+            return $row;
+        })->all();
+
         return $this->success(
-            data: EmployeeShiftResource::collection($shifts)->resolve(),
+            data: $payload,
             message: 'Shift options retrieved',
         );
     }
@@ -71,15 +87,12 @@ class ShiftSessionController extends ApiController
     {
         $this->authorizeFinanceView($request);
 
+        // A session is never created implicitly: an employee of the shift has to open it.
         $session = ShiftSession::query()
-            ->with(['shift', 'openedBy', 'closedBy'])
+            ->with(['shift', 'openedBy', 'closedBy', 'openedByEmployee', 'closedByEmployee'])
             ->where('status', ShiftSession::STATUS_OPEN)
             ->orderByDesc('opened_at')
             ->first();
-
-        if (! $session) {
-            $session = $this->autoEnsureCurrentSession($request);
-        }
 
         if (! $session) {
             return $this->success(data: null, message: 'No open shift session');
@@ -99,78 +112,20 @@ class ShiftSessionController extends ApiController
         );
     }
 
-    private function autoEnsureCurrentSession(Request $request): ?ShiftSession
-    {
-        $user = $request->user();
-        if (! $user) {
-            return null;
-        }
-
-        $employeeShiftId = $user->employee?->shift_id;
-        $employeeShift = null;
-
-        if ($employeeShiftId) {
-            $employeeShift = EmployeeShift::query()
-                ->where('id', $employeeShiftId)
-                ->where('is_active', true)
-                ->first();
-        }
-
-        if (! $employeeShift) {
-            $now = now()->format('H:i:s');
-            $employeeShift = EmployeeShift::query()
-                ->where('is_active', true)
-                ->where(function ($q) use ($now) {
-                    $q->where(function ($sub) use ($now) {
-                        $sub->whereRaw('TIME(starts_at) <= ?', [$now])
-                            ->whereRaw('TIME(ends_at) >= ?', [$now]);
-                    })
-                        ->orWhere(function ($sub) use ($now) {
-                            $sub->whereRaw('TIME(starts_at) > TIME(ends_at)')
-                                ->where(function ($inner) use ($now) {
-                                    $inner->whereRaw('TIME(starts_at) <= ?', [$now])
-                                        ->orWhereRaw('TIME(ends_at) >= ?', [$now]);
-                                });
-                        });
-                })
-                ->orderBy('starts_at')
-                ->first();
-        }
-
-        if (! $employeeShift) {
-            $employeeShift = EmployeeShift::query()
-                ->where('is_active', true)
-                ->orderBy('starts_at')
-                ->first();
-        }
-
-        if (! $employeeShift) {
-            return null;
-        }
-
-        try {
-            return app(OpenShiftSession::class)->handle([
-                'employee_shift_id' => $employeeShift->id,
-                'force_open' => true,
-            ], $user);
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
     public function store(Request $request, OpenShiftSession $action, ComputeShiftSessionTotals $totals): JsonResponse
     {
         $this->authorizeFinanceCreate($request);
 
         $data = $request->validate([
             'employee_shift_id' => ['required', 'integer', 'exists:employee_shifts,id'],
+            'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'business_date' => ['nullable', 'date'],
             'opening_float' => ['nullable', 'numeric', 'min:0'],
             'force_open' => ['sometimes', 'boolean'],
         ]);
 
         $session = $action->handle($data, $request->user());
-        $session->loadMissing(['shift', 'openedBy']);
+        $session->loadMissing(['shift', 'openedBy', 'openedByEmployee']);
         $live = $totals->handle($session);
 
         return $this->success(
@@ -187,7 +142,11 @@ class ShiftSessionController extends ApiController
     {
         $this->authorizeFinanceCreate($request);
 
-        $session = $action->handle($shiftSession, $request->user());
+        $data = $request->validate([
+            'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
+        ]);
+
+        $session = $action->handle($shiftSession, $request->user(), $data);
 
         return (new ShiftSessionResource($session))
             ->withMessage('Shift session closed')

@@ -240,6 +240,66 @@ class OperationalNotifier
         );
     }
 
+    public function shiftSessionOpened(ShiftSession $session): void
+    {
+        $session->loadMissing(['shift', 'openedBy', 'openedByEmployee']);
+
+        $shiftName = $session->shift?->name ?? 'Shift';
+        $staffName = $session->openedByEmployee?->name ?? $session->openedBy?->name ?? 'Staff';
+        $float = number_format((float) $session->opening_float, 2, '.', '');
+
+        $this->notifyAdmins(
+            title: 'Shift opened: '.$shiftName,
+            body: "{$staffName} opened {$shiftName} session #{$session->id} with an opening float of EGP {$float}.",
+            category: 'shifts.session_opened',
+            url: '/dashboard/finance',
+            severity: 'info',
+            extra: [
+                'shift_session_id' => $session->id,
+                'shift_name' => $session->shift?->name,
+                'business_date' => $session->business_date?->toDateString(),
+                'opened_at' => $session->opened_at?->toIso8601String(),
+                'opened_by' => $session->openedBy?->name,
+                'staff_on_duty' => $staffName,
+                'opening_float' => $float,
+            ],
+        );
+    }
+
+    public function shiftSessionClosed(ShiftSession $session): void
+    {
+        $session->loadMissing(['shift', 'openedByEmployee', 'closedBy', 'closedByEmployee']);
+
+        $shiftName = $session->shift?->name ?? 'Shift';
+        $staffName = $session->closedByEmployee?->name ?? $session->closedBy?->name ?? 'Staff';
+        $expectedCash = number_format((float) $session->expected_cash, 2, '.', '');
+        $expectedNet = number_format((float) $session->expected_net, 2, '.', '');
+
+        $this->notifyAdmins(
+            title: 'Shift closed: '.$shiftName,
+            body: "{$staffName} closed {$shiftName} session #{$session->id}. ".
+                "Expected cash in drawer: EGP {$expectedCash}, net: EGP {$expectedNet}. Awaiting handover count.",
+            category: 'shifts.session_closed',
+            url: '/dashboard/finance',
+            severity: 'info',
+            extra: [
+                'shift_session_id' => $session->id,
+                'shift_name' => $session->shift?->name,
+                'business_date' => $session->business_date?->toDateString(),
+                'closed_at' => $session->closed_at?->toIso8601String(),
+                'closed_by' => $session->closedBy?->name,
+                'staff_on_duty' => $session->openedByEmployee?->name ?? $staffName,
+                'closed_by_staff' => $staffName,
+                'opening_float' => number_format((float) $session->opening_float, 2, '.', ''),
+                'expected_cash' => $expectedCash,
+                'expected_card' => number_format((float) $session->expected_card, 2, '.', ''),
+                'expected_bank' => number_format((float) $session->expected_bank, 2, '.', ''),
+                'expected_expenses' => number_format((float) $session->expected_expenses, 2, '.', ''),
+                'expected_net' => $expectedNet,
+            ],
+        );
+    }
+
     public function shiftHandoverPending(ShiftSession $session, bool $matches): void
     {
         $session->loadMissing(['shift', 'openedBy', 'closedBy', 'receivedBy']);

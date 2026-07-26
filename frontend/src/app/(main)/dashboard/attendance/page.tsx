@@ -12,6 +12,7 @@ import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { AttendanceDayPicker } from "./_components/attendance-day-picker";
 import { AttendanceWarningsTable } from "./_components/attendance-warnings-table";
 import { getAttendancePageData } from "./_components/data";
+import { OvertimeShiftsPanel } from "./_components/overtime-shifts-panel";
 
 type PageProps = {
   searchParams: Promise<{
@@ -101,6 +102,13 @@ export default async function Page({ searchParams }: PageProps) {
         employees={data.employees}
         members={data.members}
         shifts={data.shifts}
+      />
+
+      <OvertimeShiftsPanel
+        candidates={data.overtimeCandidates}
+        employees={data.employees}
+        overtimeShifts={data.overtimeShifts}
+        selectedDate={selectedDate}
       />
 
       <AttendanceWarningsTable

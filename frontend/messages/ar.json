@@ -759,6 +759,32 @@
         "allowed": "مسموح",
         "blocked": "محظور",
         "flagged": "محتاج مراجعة"
+      },
+      "overtimeTitle": "الورديات الإضافية",
+      "overtimeDescription": "تغطية وردية عندما لا يحضر الموظف المجدول. تتم الموافقة على المكافأة بمبلغ تُدخله يدويًا، ثم تُضاف إلى الراتب يدويًا في المرتبات.",
+      "overtimeOpenSlots": "{count} وردية متاحة",
+      "overtimeUncovered": "ورديات بدون تغطية",
+      "overtimeUncoveredHelp": "موظفون مجدولون بدون تسجيل حضور في اليوم المحدد. يمكن لزميل تغطية ورديتهم كوردية إضافية.",
+      "overtimeAbsentEmployee": "الموظف الغائب",
+      "overtimeCoveredBy": "تمت التغطية بواسطة",
+      "overtimeSelectCover": "الموظف الذي سيغطي الوردية",
+      "overtimeAssign": "تعيين التغطية",
+      "overtimeNoUncovered": "جميع الموظفين المجدولين لهذا اليوم سجلوا حضورهم.",
+      "overtimeRecords": "سجلات الورديات الإضافية",
+      "overtimeRecordsHelp": "وافق مع تحديد مبلغ المكافأة، ثم علّمها كمسواة بعد إضافتها إلى الراتب في المرتبات.",
+      "overtimeCoveringFor": "بديلاً عن",
+      "overtimeHours": "الساعات",
+      "overtimeBonus": "المكافأة",
+      "overtimeBonusAmount": "مبلغ المكافأة",
+      "overtimeUpdateBonus": "تحديث المكافأة",
+      "overtimeMarkSettled": "تمت الإضافة للراتب",
+      "overtimeSettledHelp": "تمت إضافتها إلى الراتب بالفعل.",
+      "overtimeNoRecords": "لا توجد ورديات إضافية مسجلة لهذا اليوم.",
+      "overtimeStatuses": {
+        "pending": "قيد الانتظار",
+        "approved": "معتمدة",
+        "rejected": "مرفوضة",
+        "settled": "أُضيفت للراتب"
       }
     },
     "analytics": {
@@ -1021,7 +1047,9 @@
         "card": "بطاقة",
         "bank_transfer": "تحويل"
       },
-      "actionsTitle": "الإجراءات"
+      "actionsTitle": "الإجراءات",
+      "closeSessionManualHint": "أغلق الوردية يدويًا عند تسجيل الانصراف.",
+      "closeSessionManualHintScheduled": "من المقرر أن تنتهي في {time}. أغلقها يدويًا عند الانصراف — الوقت الإضافي مسموح."
     },
     "membersPage": {
       "title": "العنوان",
@@ -1371,7 +1399,14 @@
       "paying": "جاري الدفع...",
       "payrollSaved": "تم حفظ تعديلات الراتب.",
       "payrollPaid": "تم تحديد الراتب كمدفوع.",
-      "actionFailed": "فشل إجراء الراتب"
+      "actionFailed": "فشل إجراء الراتب",
+      "overtimeBonusTitle": "مكافآت الورديات الإضافية للإضافة",
+      "overtimeBonusDescription": "الورديات الإضافية المعتمدة لهذا الشهر. أضف المبلغ إلى مكافأة الموظف بالأعلى، ثم علّمها كمضافة.",
+      "overtimeBonusDate": "التاريخ",
+      "overtimeBonusCoveringFor": "بديلاً عن",
+      "overtimeBonusAmount": "المكافأة",
+      "overtimeBonusMarkAdded": "تم إضافتها",
+      "overtimeBonusEmpty": "لا توجد مكافآت ورديات إضافية معتمدة لهذا الشهر."
     },
     "users": {
       "title": "المستخدمون",

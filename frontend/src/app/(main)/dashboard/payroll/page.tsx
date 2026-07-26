@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { getPayrollPageData } from "./_components/data";
+import { getApprovedOvertimeBonuses, getPayrollPageData } from "./_components/data";
+import { OvertimeBonusCard } from "./_components/overtime-bonus-card";
 import { PayrollAdjustmentForm, PayrollGenerateForm, PayrollPayForm } from "./_components/payroll-action-forms";
 import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
@@ -21,7 +22,10 @@ export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.payroll");
   const params = await searchParams;
   const defaultMonth = normalizePayrollMonth(params.month);
-  const rows = await getPayrollPageData(defaultMonth);
+  const [rows, overtimeBonuses] = await Promise.all([
+    getPayrollPageData(defaultMonth),
+    getApprovedOvertimeBonuses(defaultMonth),
+  ]);
   const pending = rows.filter((row) => row.status === "pending");
   const totalPending = pending.reduce((sum, row) => sum + Number(row.net_salary), 0);
   const attendanceDeductions = rows.reduce((sum, row) => sum + Number(row.attendance_deductions), 0);
@@ -56,6 +60,8 @@ export default async function Page({ searchParams }: PageProps) {
           value={formatCurrency(attendanceDeductions, { currency: "EGP", noDecimals: true })}
         />
       </div>
+
+      <OvertimeBonusCard bonuses={overtimeBonuses} />
 
       <Card>
         <CardHeader>

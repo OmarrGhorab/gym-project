@@ -8,10 +8,12 @@ use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -20,6 +22,17 @@ beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
 });
+
+/** Sessions may only be held by an employee of the shift, so link the acting user to one. */
+function shiftStaff(User $user, EmployeeShift $shift, string $name = 'Shift Staff'): Employee
+{
+    return Employee::factory()->create([
+        'user_id' => $user->id,
+        'shift_id' => $shift->id,
+        'name' => $name,
+        'status' => 'active',
+    ]);
+}
 
 test('staff can open close and submit matching handover for admin review', function (): void {
     $user = User::factory()->create();
@@ -30,12 +43,15 @@ test('staff can open close and submit matching handover for admin review', funct
         'starts_at' => '06:00:00',
         'ends_at' => '11:00:00',
     ]);
+    $employee = shiftStaff($user, $shift, 'Nour Morning');
 
     $open = $this->postJson('/api/v1/shift-sessions', [
         'employee_shift_id' => $shift->id,
         'opening_float' => '100.00',
         'force_open' => true,
-    ])->assertStatus(201);
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.staff_on_duty.name', 'Nour Morning');
 
     $sessionId = $open->json('data.id');
 
@@ -69,6 +85,8 @@ test('staff can open close and submit matching handover for admin review', funct
         ->assertJsonPath('data.expected_card', '20.00')
         ->assertJsonPath('data.expected_expenses', '10.00');
 
+    expect(ShiftSession::find($sessionId)->closed_by_employee_id)->toBe($employee->id);
+
     $this->postJson("/api/v1/shift-sessions/{$sessionId}/handover", [
         'counted_cash' => '150.00',
         'counted_card' => '20.00',
@@ -85,12 +103,160 @@ test('staff can open close and submit matching handover for admin review', funct
     expect($review->json('data.status'))->toBe(ShiftSession::STATUS_ACCEPTED);
 });
 
+test('a session cannot be opened by someone who is not on that shift', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_CASHIER);
+    Sanctum::actingAs($user);
+
+    $shift = EmployeeShift::factory()->create();
+    $otherShift = EmployeeShift::factory()->create();
+    shiftStaff($user, $otherShift, 'Wrong Shift Waleed');
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'opening_float' => '0.00',
+        'force_open' => true,
+    ])->assertStatus(422);
+
+    expect(ShiftSession::query()->count())->toBe(0);
+});
+
+test('an admin opening on behalf of staff records the employee not the admin', function (): void {
+    $admin = User::factory()->create(['name' => 'Admin User']);
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    $onDuty = Employee::factory()->create([
+        'shift_id' => $shift->id,
+        'name' => 'Hana Morning',
+        'status' => 'active',
+    ]);
+
+    $response = $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'employee_id' => $onDuty->id,
+        'force_open' => true,
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.staff_on_duty.name', 'Hana Morning')
+        ->assertJsonPath('data.opened_by.name', 'Admin User');
+
+    expect(ShiftSession::find($response->json('data.id'))->opened_by_employee_id)->toBe($onDuty->id);
+});
+
+test('an admin cannot name an employee from a different shift', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    $otherShift = EmployeeShift::factory()->create();
+    $outsider = Employee::factory()->create(['shift_id' => $otherShift->id, 'status' => 'active']);
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'employee_id' => $outsider->id,
+        'force_open' => true,
+    ])->assertStatus(422);
+});
+
+test('an admin with no employee on the shift must name who is on duty', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'force_open' => true,
+    ])->assertStatus(422);
+});
+
+test('the current session endpoint never creates a session implicitly', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    EmployeeShift::factory()->create();
+
+    $this->getJson('/api/v1/shift-sessions/current')
+        ->assertStatus(200)
+        ->assertJsonPath('data', null);
+
+    expect(ShiftSession::query()->count())->toBe(0);
+});
+
+test('admins are notified when a shift session is opened and closed', function (): void {
+    Notification::fake();
+
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    shiftStaff($admin, $shift, 'Yara Morning');
+
+    $open = $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'opening_float' => '50.00',
+        'force_open' => true,
+    ])->assertStatus(201);
+
+    Notification::assertSentTo(
+        $admin,
+        OperationalNotification::class,
+        fn ($notification) => ($notification->toArray($admin)['category'] ?? null) === 'shifts.session_opened'
+    );
+
+    $this->postJson("/api/v1/shift-sessions/{$open->json('data.id')}/close")->assertStatus(200);
+
+    Notification::assertSentTo(
+        $admin,
+        OperationalNotification::class,
+        fn ($notification) => ($notification->toArray($admin)['category'] ?? null) === 'shifts.session_closed'
+    );
+});
+
+test('cash carries forward between shifts on the same business day', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $morning = EmployeeShift::factory()->create(['name' => 'Morning']);
+    $midday = EmployeeShift::factory()->create(['name' => 'Midday']);
+    shiftStaff($user, $midday, 'Karim Midday');
+
+    ShiftSession::query()->create([
+        'employee_shift_id' => $morning->id,
+        'business_date' => '2026-07-22',
+        'status' => ShiftSession::STATUS_ACCEPTED,
+        'opened_at' => now()->subHours(6),
+        'opened_by' => $user->id,
+        'opening_float' => '100.00',
+        'counted_cash' => '500.00',
+        'expected_cash' => '500.00',
+        'closed_at' => now()->subHours(2),
+        'closed_by' => $user->id,
+    ]);
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $midday->id,
+        'business_date' => '2026-07-22',
+        'force_open' => true,
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.opening_float', '500.00');
+});
+
 test('new business date automatically resets starting cash float to 0', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
 
     $shift = EmployeeShift::factory()->create();
+    shiftStaff($user, $shift);
 
     ShiftSession::query()->create([
         'employee_shift_id' => $shift->id,
@@ -173,7 +339,8 @@ test('non assigned employee cannot close shift session', function (): void {
         ->assertStatus(422);
 });
 
-test('staff cannot close shift session before scheduled shift end time', function (): void {
+test('staff can close shift session before scheduled shift end time', function (): void {
+    // Sessions close by hand at checkout, so an early or overtime finish is allowed.
     $shiftUser = User::factory()->create();
     $shiftUser->assignRole(FoundationPermissions::ROLE_CASHIER);
 
@@ -183,6 +350,7 @@ test('staff cannot close shift session before scheduled shift end time', functio
         'starts_at' => '08:00:00',
         'ends_at' => '23:59:00',
     ]);
+    shiftStaff($shiftUser, $shift);
 
     $session = ShiftSession::query()->create([
         'employee_shift_id' => $shift->id,
@@ -194,7 +362,34 @@ test('staff cannot close shift session before scheduled shift end time', functio
     ]);
 
     $this->postJson("/api/v1/shift-sessions/{$session->id}/close")
-        ->assertStatus(422);
+        ->assertStatus(200)
+        ->assertJsonPath('data.status', 'pending_handover');
+});
+
+test('staff can close shift session after working past the scheduled end time', function (): void {
+    $shiftUser = User::factory()->create();
+    $shiftUser->assignRole(FoundationPermissions::ROLE_CASHIER);
+
+    Sanctum::actingAs($shiftUser);
+
+    $shift = EmployeeShift::factory()->create([
+        'starts_at' => '00:01:00',
+        'ends_at' => '00:02:00',
+    ]);
+    shiftStaff($shiftUser, $shift);
+
+    $session = ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => now()->toDateString(),
+        'opened_at' => now()->subHours(9),
+        'opened_by' => $shiftUser->id,
+        'status' => ShiftSession::STATUS_OPEN,
+        'opening_float' => '0.00',
+    ]);
+
+    $this->postJson("/api/v1/shift-sessions/{$session->id}/close")
+        ->assertStatus(200)
+        ->assertJsonPath('data.status', 'pending_handover');
 });
 
 test('require handover blocks opening a new session', function (): void {
@@ -206,6 +401,7 @@ test('require handover blocks opening a new session', function (): void {
 
     $shiftA = EmployeeShift::factory()->create();
     $shiftB = EmployeeShift::factory()->create();
+    shiftStaff($user, $shiftB);
 
     ShiftSession::query()->create([
         'employee_shift_id' => $shiftA->id,

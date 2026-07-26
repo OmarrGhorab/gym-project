@@ -759,6 +759,32 @@
         "allowed": "Allowed",
         "blocked": "Blocked",
         "flagged": "Flagged"
+      },
+      "overtimeTitle": "Overtime shifts",
+      "overtimeDescription": "Cover a shift when the scheduled employee did not attend. The bonus is approved with an amount you type in, then added to the salary by hand in Payroll.",
+      "overtimeOpenSlots": "{count} open slot(s)",
+      "overtimeUncovered": "Uncovered shifts",
+      "overtimeUncoveredHelp": "Scheduled employees with no check-in on the selected day. Their shift can be picked up by a colleague as overtime.",
+      "overtimeAbsentEmployee": "Absent employee",
+      "overtimeCoveredBy": "Covered by",
+      "overtimeSelectCover": "Employee taking the shift",
+      "overtimeAssign": "Assign cover",
+      "overtimeNoUncovered": "Everyone scheduled for this day has checked in.",
+      "overtimeRecords": "Overtime records",
+      "overtimeRecordsHelp": "Approve with the bonus amount, then mark it settled once you have added it to the salary in Payroll.",
+      "overtimeCoveringFor": "Covering for",
+      "overtimeHours": "Hours",
+      "overtimeBonus": "Bonus",
+      "overtimeBonusAmount": "Bonus amount",
+      "overtimeUpdateBonus": "Update bonus",
+      "overtimeMarkSettled": "Mark added to salary",
+      "overtimeSettledHelp": "Already added to the salary.",
+      "overtimeNoRecords": "No overtime shifts recorded for this day.",
+      "overtimeStatuses": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "settled": "Added to salary"
       }
     },
     "analytics": {
@@ -1021,7 +1047,9 @@
         "card": "Card",
         "bank_transfer": "Bank"
       },
-      "actionsTitle": "Actions"
+      "actionsTitle": "Actions",
+      "closeSessionManualHint": "Close by hand when you check out.",
+      "closeSessionManualHintScheduled": "Scheduled to end at {time}. Close by hand when you check out — overtime is fine."
     },
     "membersPage": {
       "title": "Title",
@@ -1371,7 +1399,14 @@
       "paying": "Paying...",
       "payrollSaved": "Payroll adjustments saved.",
       "payrollPaid": "Payroll marked as paid.",
-      "actionFailed": "Payroll action failed"
+      "actionFailed": "Payroll action failed",
+      "overtimeBonusTitle": "Overtime bonuses to add",
+      "overtimeBonusDescription": "Approved overtime for this month. Add the amount to the employee's bonus above, then mark it as added.",
+      "overtimeBonusDate": "Date",
+      "overtimeBonusCoveringFor": "Covering for",
+      "overtimeBonusAmount": "Bonus",
+      "overtimeBonusMarkAdded": "Mark added",
+      "overtimeBonusEmpty": "No approved overtime bonuses for this month."
     },
     "users": {
       "title": "Users",

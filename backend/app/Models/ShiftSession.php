@@ -30,7 +30,9 @@ class ShiftSession extends Model
         'opened_at',
         'closed_at',
         'opened_by',
+        'opened_by_employee_id',
         'closed_by',
+        'closed_by_employee_id',
         'status',
         'opening_float',
         'expected_cash',
@@ -91,6 +93,17 @@ class ShiftSession extends Model
     public function closedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    /** Employee of this shift who is accountable for the drawer. */
+    public function openedByEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'opened_by_employee_id');
+    }
+
+    public function closedByEmployee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'closed_by_employee_id');
     }
 
     public function receivedBy(): BelongsTo

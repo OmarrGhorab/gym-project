@@ -144,6 +144,16 @@ export type FinanceShiftSession = {
   previous_session_id?: number | null;
   opened_by?: { id: number; name: string } | null;
   closed_by?: { id: number; name: string } | null;
+  staff_on_duty?: { id: number; name: string; role?: string | null } | null;
+  closed_by_employee?: { id: number; name: string; role?: string | null } | null;
+};
+
+export type ShiftStaffOption = { id: number; name: string; role?: string | null };
+
+type ShiftOptionPayload = {
+  id: number;
+  name?: string | null;
+  employees?: Array<{ id: number; name?: string | null; role?: string | null }>;
 };
 
 export type FinancePageData = FinanceDashboardData & {
@@ -153,7 +163,7 @@ export type FinancePageData = FinanceDashboardData & {
   shiftDesk: {
     current: FinanceShiftSession | null;
     pending: FinanceShiftSession[];
-    shifts: Array<{ id: number; name: string }>;
+    shifts: Array<{ id: number; name: string; employees: ShiftStaffOption[] }>;
     requireHandoverToOpen: boolean;
   };
 };
@@ -235,10 +245,7 @@ export async function getFinanceDashboardData(
         )
       : { data: [] },
     access.canViewExpenses || access.canViewPayments || access.canCollectDue
-      ? safeFetch<Array<{ id: number; name: string }> | PaginatedData<{ id: number; name: string }>>(
-          "/shift-sessions/options",
-          [],
-        )
+      ? safeFetch<ShiftOptionPayload[] | PaginatedData<ShiftOptionPayload>>("/shift-sessions/options", [])
       : { data: [] },
     access.canViewExpenses || access.canViewPayments || access.canCollectDue
       ? safeFetch<{
@@ -261,6 +268,11 @@ export async function getFinanceDashboardData(
   const shiftOptions = unwrapList(shifts.data).map((shift) => ({
     id: Number(shift.id),
     name: String(shift.name ?? `Shift #${shift.id}`),
+    employees: (shift.employees ?? []).map((employee) => ({
+      id: Number(employee.id),
+      name: String(employee.name ?? `#${employee.id}`),
+      role: employee.role ?? null,
+    })),
   }));
 
   const summary = summaryResult.data ?? emptyFinanceData;

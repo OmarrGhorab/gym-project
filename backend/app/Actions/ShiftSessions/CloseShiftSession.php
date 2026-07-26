@@ -2,11 +2,10 @@
 
 namespace App\Actions\ShiftSessions;
 
-use App\Models\Employee;
 use App\Models\ShiftSession;
 use App\Models\User;
+use App\Services\OperationalNotifier;
 use App\Support\FoundationPermissions;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -14,11 +13,16 @@ class CloseShiftSession
 {
     public function __construct(
         private readonly ComputeShiftSessionTotals $totals,
+        private readonly ResolveShiftStaff $staff,
+        private readonly OperationalNotifier $notifier,
     ) {}
 
-    public function handle(ShiftSession $session, User $user): ShiftSession
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function handle(ShiftSession $session, User $user, array $data = []): ShiftSession
     {
-        return DB::transaction(function () use ($session, $user): ShiftSession {
+        $closed = DB::transaction(function () use ($session, $user, $data): ShiftSession {
             $locked = ShiftSession::query()->lockForUpdate()->with(['shift'])->findOrFail($session->id);
 
             if ($locked->status !== ShiftSession::STATUS_OPEN) {
@@ -28,47 +32,19 @@ class CloseShiftSession
             }
 
             $isAdmin = method_exists($user, 'hasRole') && $user->hasRole(FoundationPermissions::ROLE_ADMIN);
+            $employeeId = $data['employee_id'] ?? null;
 
-            // Rule 1: Only assigned shift staff (or opener/admin) can close this session
-            $employee = Employee::where('user_id', $user->id)->first();
-            $isAssignedStaff = ($employee && $employee->shift_id === $locked->employee_shift_id)
-                || $locked->opened_by === $user->id;
-
-            if (! $isAdmin && ! $isAssignedStaff) {
-                throw ValidationException::withMessages([
-                    'session' => 'Only staff members assigned to this shift can close this session.',
-                ]);
+            // An admin closing without naming anyone closes on behalf of the employee who opened it.
+            if ($employeeId === null && $isAdmin && $locked->opened_by_employee_id) {
+                $employeeId = $locked->opened_by_employee_id;
             }
 
-            // Rule 2: Cannot close before the scheduled shift end time
-            $shift = $locked->shift;
-            if ($shift && $shift->ends_at) {
-                $endTimeStr = $shift->ends_at instanceof \DateTimeInterface
-                    ? $shift->ends_at->format('H:i:s')
-                    : Carbon::parse($shift->ends_at)->format('H:i:s');
+            // Only an employee of this shift may close its drawer.
+            $employee = $this->staff->handle($locked->shift, $user, $employeeId);
 
-                $startTimeStr = $shift->starts_at instanceof \DateTimeInterface
-                    ? $shift->starts_at->format('H:i:s')
-                    : ($shift->starts_at ? Carbon::parse($shift->starts_at)->format('H:i:s') : null);
-
-                $businessDate = $locked->business_date
-                    ? Carbon::parse($locked->business_date)->toDateString()
-                    : now()->toDateString();
-
-                $shiftEndTime = Carbon::parse("{$businessDate} {$endTimeStr}");
-
-                if ($startTimeStr && $endTimeStr < $startTimeStr) {
-                    // Overnight shift (e.g. 22:00 to 06:00)
-                    $shiftEndTime->addDay();
-                }
-
-                if (now()->lessThan($shiftEndTime)) {
-                    $formattedTime = $shiftEndTime->format('g:i A');
-                    throw ValidationException::withMessages([
-                        'session' => "Shift cannot be closed before its scheduled end time ({$formattedTime}).",
-                    ]);
-                }
-            }
+            // The scheduled end time is not a gate: staff close the session by hand when they
+            // actually check out, which may be earlier or later than the schedule on an
+            // overtime shift.
 
             // Recompute + claim orphans so expected totals match every payment/expense in the window.
             $totals = $this->totals->handle($locked);
@@ -76,6 +52,7 @@ class CloseShiftSession
             $locked->update([
                 'closed_at' => now(),
                 'closed_by' => $user->id,
+                'closed_by_employee_id' => $employee->id,
                 'status' => ShiftSession::STATUS_PENDING_HANDOVER,
                 // Expected = system money (cash includes opening float).
                 'expected_cash' => $totals['cash'],
@@ -90,7 +67,11 @@ class CloseShiftSession
                 'counted_expenses' => $totals['expenses'],
             ]);
 
-            return $locked->fresh(['shift', 'openedBy', 'closedBy']);
+            return $locked->fresh(['shift', 'openedBy', 'closedBy', 'openedByEmployee', 'closedByEmployee']);
         });
+
+        $this->notifier->shiftSessionClosed($closed);
+
+        return $closed;
     }
 }

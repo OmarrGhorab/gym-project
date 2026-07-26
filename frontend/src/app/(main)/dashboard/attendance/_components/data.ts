@@ -120,6 +120,45 @@ export type EmployeeShift = {
   is_active: boolean;
 };
 
+export type OvertimeShiftSlot = {
+  id: number;
+  name: string;
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
+/** A scheduled employee who never checked in — their shift is open for cover. */
+export type OvertimeCandidate = {
+  employee: { id: number; name: string; role: string | null };
+  shift: OvertimeShiftSlot | null;
+  date: string;
+  covered_by: {
+    overtime_shift_id: number;
+    employee_id: number;
+    employee_name: string | null;
+    status: string;
+  } | null;
+};
+
+export type OvertimeShiftRecord = {
+  id: number;
+  employee_id: number;
+  employee?: { id: number; name: string | null; role: string | null } | null;
+  covering_for_employee_id: number | null;
+  covering_for?: { id: number; name: string | null; role: string | null } | null;
+  employee_shift_id: number | null;
+  shift?: OvertimeShiftSlot | null;
+  date: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  hours: string | null;
+  bonus_amount: string;
+  status: string;
+  notes: string | null;
+  reviewed_at: string | null;
+  settled_at: string | null;
+};
+
 export type MemberVisitStationRow = {
   id: number;
   member?: {
@@ -169,30 +208,38 @@ export async function getAttendancePageData({
     warningParams.set("employee_id", warnings.employeeId);
   }
 
-  const [employees, members, memberVisits, records, shifts, summary, violations] = await Promise.all([
-    safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
-    safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
-    safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
-      `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=8`,
-      [],
-    ),
-    safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>(
-      `/attendance?filter[date]=${encodeURIComponent(date)}&sort=-date&page=1&per_page=100`,
-      [],
-    ),
-    safeFetch<EmployeeShift[]>("/attendance/shifts", []),
-    safeFetch<AttendanceSummary[]>(`/attendance/summary?month=${encodeURIComponent(month)}`, []),
-    safeFetch<AttendanceViolation[] | PaginatedData<AttendanceViolation>>(
-      `/attendance/violations?${warningParams.toString()}`,
-      [],
-    ),
-  ]);
+  const [employees, members, memberVisits, overtimeCandidates, overtimeShifts, records, shifts, summary, violations] =
+    await Promise.all([
+      safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
+      safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
+      safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
+        `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=8`,
+        [],
+      ),
+      safeFetch<OvertimeCandidate[]>(`/overtime-shifts/candidates?date=${encodeURIComponent(date)}`, []),
+      safeFetch<OvertimeShiftRecord[] | PaginatedData<OvertimeShiftRecord>>(
+        `/overtime-shifts?date=${encodeURIComponent(date)}&per_page=50`,
+        [],
+      ),
+      safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>(
+        `/attendance?filter[date]=${encodeURIComponent(date)}&sort=-date&page=1&per_page=100`,
+        [],
+      ),
+      safeFetch<EmployeeShift[]>("/attendance/shifts", []),
+      safeFetch<AttendanceSummary[]>(`/attendance/summary?month=${encodeURIComponent(month)}`, []),
+      safeFetch<AttendanceViolation[] | PaginatedData<AttendanceViolation>>(
+        `/attendance/violations?${warningParams.toString()}`,
+        [],
+      ),
+    ]);
   const violationsList = unwrapList(violations);
 
   return {
     employees: unwrapList(employees),
     members: unwrapList(members),
     memberVisits: unwrapList(memberVisits).slice(0, 8),
+    overtimeCandidates,
+    overtimeShifts: unwrapList(overtimeShifts),
     records: unwrapList(records).slice(0, 12),
     shifts,
     summary,

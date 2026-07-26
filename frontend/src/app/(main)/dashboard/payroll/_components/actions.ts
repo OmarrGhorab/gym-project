@@ -34,6 +34,10 @@ const payrollPaySchema = z.object({
   id: z.coerce.number().int().positive("Payroll record is required."),
 });
 
+const overtimeSettleSchema = z.object({
+  id: z.coerce.number().int().positive("Overtime shift is required."),
+});
+
 export async function generatePayroll(input: FormData): Promise<PayrollActionResult> {
   const parsed = payrollGenerateSchema.safeParse({
     month: String(input.get("month") || ""),
@@ -139,6 +143,43 @@ export async function updatePayroll(_state: PayrollActionState, input: FormData)
     errors: {},
     values,
   };
+}
+
+/**
+ * Marks an approved overtime bonus as already typed into the employee's salary.
+ * It never edits payroll itself — the amount is added by hand above.
+ */
+export async function settleOvertimeBonus(input: FormData): Promise<PayrollActionResult> {
+  const parsed = overtimeSettleSchema.safeParse({ id: input.get("id") });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Overtime shift is required.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await serverApiFetch(`/overtime-shifts/${parsed.data.id}`, {
+      body: JSON.stringify({ decision: "settled" }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Could not mark the overtime bonus as added.",
+      errors: {},
+    };
+  }
+
+  revalidatePath("/dashboard/payroll");
+  revalidatePath("/dashboard/attendance");
+
+  return { ok: true, message: "Overtime bonus marked as added to the salary.", errors: {} };
 }
 
 function getPayrollValues(input: FormData) {

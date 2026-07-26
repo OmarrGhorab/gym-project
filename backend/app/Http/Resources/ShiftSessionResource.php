@@ -36,6 +36,17 @@ class ShiftSessionResource extends JsonResource
             'shift' => $this->whenLoaded('shift', fn () => (new EmployeeShiftResource($this->shift))->toArray($request)),
             'opened_by' => $this->whenLoaded('openedBy', fn () => $this->openedBy ? (new UserSummaryResource($this->openedBy))->toArray($request) : null),
             'closed_by' => $this->whenLoaded('closedBy', fn () => $this->closedBy ? (new UserSummaryResource($this->closedBy))->toArray($request) : null),
+            // The employee of this shift who is accountable for the drawer.
+            'staff_on_duty' => $this->whenLoaded('openedByEmployee', fn () => $this->openedByEmployee ? [
+                'id' => $this->openedByEmployee->id,
+                'name' => $this->openedByEmployee->name,
+                'role' => $this->openedByEmployee->role,
+            ] : null),
+            'closed_by_employee' => $this->whenLoaded('closedByEmployee', fn () => $this->closedByEmployee ? [
+                'id' => $this->closedByEmployee->id,
+                'name' => $this->closedByEmployee->name,
+                'role' => $this->closedByEmployee->role,
+            ] : null),
             'received_by' => $this->whenLoaded('receivedBy', fn () => $this->receivedBy ? (new UserSummaryResource($this->receivedBy))->toArray($request) : null),
             'admin_reviewed_by' => $this->whenLoaded('adminReviewer', fn () => $this->adminReviewer ? (new UserSummaryResource($this->adminReviewer))->toArray($request) : null),
             'created_at' => $this->created_at?->toIso8601String(),

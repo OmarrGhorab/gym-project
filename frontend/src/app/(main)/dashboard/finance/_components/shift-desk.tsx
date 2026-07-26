@@ -11,12 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { closeShiftSession, reviewShiftHandover, submitShiftHandover } from "./actions";
+import { closeShiftSession, openShiftSession, reviewShiftHandover, submitShiftHandover } from "./actions";
+
+export type ShiftDeskStaff = {
+  id: number;
+  name: string;
+  role?: string | null;
+};
 
 export type ShiftDeskShift = {
   id: number;
   name: string;
+  employees?: ShiftDeskStaff[];
 };
 
 export type ShiftDeskSession = {
@@ -68,11 +76,13 @@ export type ShiftDeskSession = {
   previous_session_id?: number | null;
   opened_by?: { id: number; name: string } | null;
   closed_by?: { id: number; name: string } | null;
+  staff_on_duty?: { id: number; name: string; role?: string | null } | null;
+  closed_by_employee?: { id: number; name: string; role?: string | null } | null;
 };
 
-function checkShiftTimeStatus(endsAt?: string, startsAt?: string) {
+function formatScheduledEnd(endsAt?: string) {
   if (!endsAt) {
-    return { canClose: true, formattedEnd: null };
+    return null;
   }
 
   const [endHStr, endMStr = "0"] = endsAt.split(":");
@@ -80,35 +90,19 @@ function checkShiftTimeStatus(endsAt?: string, startsAt?: string) {
   const endM = Number(endMStr);
 
   if (!Number.isFinite(endH)) {
-    return { canClose: true, formattedEnd: null };
+    return null;
   }
 
   const period = endH >= 12 ? "PM" : "AM";
   const displayHour = endH % 12 || 12;
-  const formattedEnd = `${displayHour}:${String(endM).padStart(2, "0")} ${period}`;
 
-  const now = new Date();
-  const endTime = new Date();
-  endTime.setHours(endH, endM, 0, 0);
-
-  if (startsAt) {
-    const [startHStr] = startsAt.split(":");
-    const startH = Number(startHStr);
-    if (Number.isFinite(startH) && endH < startH) {
-      endTime.setDate(endTime.getDate() + 1);
-    }
-  }
-
-  return {
-    canClose: now >= endTime,
-    formattedEnd,
-  };
+  return `${displayHour}:${String(endM).padStart(2, "0")} ${period}`;
 }
 
 export function ShiftDesk({
   currentSession,
   pendingSessions = [],
-  shifts: _shifts = [],
+  shifts = [],
   requireHandoverToOpen: _requireHandoverToOpen = true,
   canOperate,
   canReview,
@@ -164,10 +158,12 @@ export function ShiftDesk({
     const paymentCount = live?.payment_count ?? 0;
     const expenseCount = live?.expense_count ?? 0;
     const shiftName = currentSession.shift?.name ?? t("unknownShift");
-    const openedByStaff = currentSession.opened_by?.name ?? "Staff";
+    // The accountable employee of this shift — the acting user account is only the audit trail.
+    const staffOnDuty = currentSession.staff_on_duty?.name ?? currentSession.opened_by?.name ?? "Staff";
+    const openedByStaff = currentSession.opened_by?.name ?? staffOnDuty;
     const hasMoney = paymentCount > 0 || expenseCount > 0 || Number(live?.expenses ?? 0) > 0;
 
-    const shiftTimeStatus = checkShiftTimeStatus(currentSession.shift?.ends_at, currentSession.shift?.starts_at);
+    const scheduledEnd = formatScheduledEnd(currentSession.shift?.ends_at);
 
     sessionBody = (
       <div className="grid gap-4 rounded-xl border bg-card/50 p-4 shadow-2xs">
@@ -180,7 +176,7 @@ export function ShiftDesk({
               </span>
             </div>
             <p className="mt-1 text-muted-foreground text-xs">
-              Staff on duty: <span className="font-medium text-foreground">{openedByStaff}</span>
+              Staff on duty: <span className="font-medium text-foreground">{staffOnDuty}</span>
               {currentSession.previous_session_id ? (
                 <>
                   {" "}
@@ -192,24 +188,14 @@ export function ShiftDesk({
           </div>
           {canOperate && currentSession.status === "open" ? (
             <div className="flex flex-col items-end gap-1">
-              <Button
-                size="sm"
-                variant={shiftTimeStatus.canClose ? "default" : "outline"}
-                disabled={!shiftTimeStatus.canClose || pending}
-                title={
-                  !shiftTimeStatus.canClose && shiftTimeStatus.formattedEnd
-                    ? `Cannot close shift before scheduled end time (${shiftTimeStatus.formattedEnd})`
-                    : undefined
-                }
-                onClick={() => run(() => closeShiftSession(currentSession.id))}
-              >
+              <Button size="sm" disabled={pending} onClick={() => run(() => closeShiftSession(currentSession.id))}>
                 {t("closeSession")} & Prepare Handover
               </Button>
-              {!shiftTimeStatus.canClose && shiftTimeStatus.formattedEnd ? (
-                <span className="font-medium text-[11px] text-amber-600 dark:text-amber-400">
-                  🔒 Shift active until {shiftTimeStatus.formattedEnd}
-                </span>
-              ) : null}
+              <span className="text-[11px] text-muted-foreground">
+                {scheduledEnd
+                  ? t("closeSessionManualHintScheduled", { time: scheduledEnd })
+                  : t("closeSessionManualHint")}
+              </span>
             </div>
           ) : null}
         </div>
@@ -281,14 +267,14 @@ export function ShiftDesk({
         ) : null}
       </div>
     );
+  } else if (canOperate) {
+    sessionBody = <OpenSessionForm shifts={shifts} pending={pending} onOpen={run} />;
   } else {
     sessionBody = (
       <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4 text-center">
-        <p className="font-medium text-foreground text-sm">
-          Shift desk is active and managed dynamically by system shift schedules.
-        </p>
+        <p className="font-medium text-foreground text-sm">No shift session is open.</p>
         <p className="text-muted-foreground text-xs">
-          Shift sessions auto-start based on your assigned shift schedule and current operational hours.
+          An employee assigned to the shift has to open the desk before money can be tracked.
         </p>
       </div>
     );
@@ -475,6 +461,123 @@ export function ShiftDesk({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Sessions are never created implicitly — an employee of the shift starts the desk.
+ * The staff picker is only needed when an admin opens on someone else's behalf; a
+ * shift employee opening their own desk can leave it on "Me".
+ */
+function OpenSessionForm({
+  shifts,
+  pending,
+  onOpen,
+}: {
+  shifts: ShiftDeskShift[];
+  pending: boolean;
+  onOpen: (action: () => Promise<{ ok: boolean; message: string }>) => void;
+}) {
+  const t = useTranslations("Dashboard.finance");
+  const [shiftId, setShiftId] = useState<string>(shifts[0] ? String(shifts[0].id) : "");
+  const [employeeId, setEmployeeId] = useState<string>("self");
+  const [openingFloat, setOpeningFloat] = useState("0.00");
+
+  const selectedShift = shifts.find((shift) => String(shift.id) === shiftId);
+  const staff = selectedShift?.employees ?? [];
+
+  if (shifts.length === 0) {
+    return (
+      <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4 text-center">
+        <p className="font-medium text-foreground text-sm">No active shifts are configured.</p>
+        <p className="text-muted-foreground text-xs">Add a shift in settings before opening the desk.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4">
+      <div>
+        <p className="font-medium text-foreground text-sm">No shift session is open</p>
+        <p className="text-muted-foreground text-xs">
+          Open the desk to start tracking money. Only an employee assigned to the shift can hold it.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="open-shift-id">Shift</Label>
+          <Select
+            value={shiftId}
+            onValueChange={(next) => {
+              setShiftId(next ?? "");
+              setEmployeeId("self");
+            }}
+          >
+            <SelectTrigger id="open-shift-id" className="w-full">
+              <SelectValue placeholder="Select shift" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {shifts.map((shift) => (
+                  <SelectItem key={shift.id} value={String(shift.id)}>
+                    {shift.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="open-shift-staff">Staff on duty</Label>
+          <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "self")}>
+            <SelectTrigger id="open-shift-staff" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="self">Me</SelectItem>
+                {staff.map((employee) => (
+                  <SelectItem key={employee.id} value={String(employee.id)}>
+                    {employee.role ? `${employee.name} — ${employee.role}` : employee.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="open-shift-float">{t("openingFloat")}</Label>
+          <Input
+            id="open-shift-float"
+            type="number"
+            min="0"
+            step="0.01"
+            value={openingFloat}
+            onChange={(event) => setOpeningFloat(event.target.value)}
+          />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          disabled={pending || !shiftId}
+          onClick={() =>
+            onOpen(() =>
+              openShiftSession({
+                employee_shift_id: Number(shiftId),
+                employee_id: employeeId === "self" ? undefined : Number(employeeId),
+                opening_float: openingFloat || "0",
+              }),
+            )
+          }
+        >
+          Open shift
+        </Button>
+        <span className="text-[11px] text-muted-foreground">
+          Cash carries over between shifts on the same day and starts at zero each new day.
+        </span>
+      </div>
+    </div>
   );
 }
 

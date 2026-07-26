@@ -148,6 +148,7 @@ export async function recordPaymentForm(input: FormData): Promise<void> {
 
 export async function openShiftSession(input: {
   employee_shift_id: number;
+  employee_id?: number;
   opening_float?: string;
   force_open?: boolean;
 }): Promise<FinanceActionResult> {
@@ -156,6 +157,8 @@ export async function openShiftSession(input: {
     "POST",
     {
       employee_shift_id: input.employee_shift_id,
+      // Omitted entirely when opening as yourself — the API resolves you from your own employee record.
+      ...(input.employee_id ? { employee_id: input.employee_id } : {}),
       opening_float: input.opening_float ?? "0",
       force_open: input.force_open ?? false,
     },
@@ -163,8 +166,13 @@ export async function openShiftSession(input: {
   );
 }
 
-export async function closeShiftSession(id: number): Promise<FinanceActionResult> {
-  return mutateFinance(`/shift-sessions/${id}/close`, "POST", {}, "Shift session closed.");
+export async function closeShiftSession(id: number, employeeId?: number): Promise<FinanceActionResult> {
+  return mutateFinance(
+    `/shift-sessions/${id}/close`,
+    "POST",
+    employeeId ? { employee_id: employeeId } : {},
+    "Shift session closed.",
+  );
 }
 
 export async function submitShiftHandover(

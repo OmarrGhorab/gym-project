@@ -140,6 +140,67 @@ export async function reviewAttendanceViolation(
   return mutateScan(`/attendance/violations/${id}`, payload, "Attendance warning reviewed.", "PUT", values);
 }
 
+export async function createOvertimeShift(
+  _previousState: AttendanceActionResult,
+  input: FormData,
+): Promise<AttendanceActionResult> {
+  const values = getFormValues(input);
+  const parsed = overtimeShiftSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Please review the highlighted fields.",
+      errors: parsed.error.flatten().fieldErrors,
+      values,
+    };
+  }
+
+  const payload = {
+    covering_for_employee_id: parsed.data.covering_for_employee_id,
+    date: parsed.data.date,
+    employee_id: parsed.data.employee_id,
+    employee_shift_id: parsed.data.employee_shift_id,
+    notes: parsed.data.notes,
+  };
+
+  return mutateScan("/overtime-shifts", payload, "Overtime shift recorded.", "POST", values);
+}
+
+export async function reviewOvertimeShift(
+  _previousState: AttendanceActionResult,
+  input: FormData,
+): Promise<AttendanceActionResult> {
+  const values = getFormValues(input);
+  const parsed = reviewOvertimeSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? "Please review the highlighted fields.",
+      errors: parsed.error.flatten().fieldErrors,
+      values,
+    };
+  }
+
+  const payload: Record<string, unknown> = {
+    decision: parsed.data.decision,
+    notes: parsed.data.notes,
+  };
+
+  if (parsed.data.decision === "approved") {
+    payload.bonus_amount = parsed.data.bonus_amount;
+  }
+
+  const messages = {
+    approved: "Overtime bonus approved. Add it to the salary in Payroll.",
+    rejected: "Overtime shift rejected.",
+    settled: "Overtime bonus marked as added to the salary.",
+  } as const;
+
+  return mutateScan(`/overtime-shifts/${parsed.data.id}`, payload, messages[parsed.data.decision], "PUT", values);
+}
+
 async function mutateScan(
   path: string,
   payload: Record<string, unknown>,
@@ -319,6 +380,31 @@ const manualAttendanceSchema = z.object({
   shift_id: optionalFormNumber,
   status: z.enum(["present", "late", "absent", "excused"]),
 });
+
+const overtimeShiftSchema = z.object({
+  covering_for_employee_id: optionalFormNumber,
+  date: z.string().date("Overtime date is required."),
+  employee_id: z.coerce.number().int().min(1, "Select the employee taking the overtime shift."),
+  employee_shift_id: optionalFormNumber,
+  notes: optionalFormString,
+});
+
+const reviewOvertimeSchema = z
+  .object({
+    bonus_amount: optionalFormNumber,
+    decision: z.enum(["approved", "rejected", "settled"]),
+    id: z.coerce.number().int().min(1, "Overtime shift is required."),
+    notes: optionalFormString,
+  })
+  .superRefine((value, context) => {
+    if (value.decision === "approved" && (value.bonus_amount === null || value.bonus_amount < 0)) {
+      context.addIssue({
+        code: "custom",
+        message: "Enter the bonus amount to approve this overtime shift.",
+        path: ["bonus_amount"],
+      });
+    }
+  });
 
 const reviewWarningSchema = z.object({
   deduction_amount: optionalFormNumber,
