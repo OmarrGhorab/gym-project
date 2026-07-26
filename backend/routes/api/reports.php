@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('reports')->group(function (): void {
+    Route::get('/overview', [ReportController::class, 'overview'])
+        ->middleware('permission:reports.view');
+
     Route::get('/financial', [ReportController::class, 'financial'])
         ->middleware('permission:reports.view');
 

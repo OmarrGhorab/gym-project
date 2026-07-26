@@ -1,4 +1,4 @@
-import { MapPinned, ShieldAlert } from "lucide-react";
+import { MapPinned, MessageCircle, ShieldAlert } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { defaultWhatsAppTemplates, whatsappTemplateKeys } from "@/lib/whatsapp-templates";
 
-import { createViolationRule, updateSettings, updateViolationRule } from "./_components/actions";
+import { createViolationRule, saveWhatsAppTemplates, updateSettings, updateViolationRule } from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
 import { GymLocationMap } from "./_components/gym-location-map";
 import { SettingsActionForm } from "./_components/settings-action-form";
@@ -104,6 +105,37 @@ export default async function Page() {
 
             <Button type="submit" className="w-full">
               {t("saveSettings")}
+            </Button>
+          </CardContent>
+        </Card>
+      </SettingsActionForm>
+      <SettingsActionForm action={saveWhatsAppTemplates} className="grid grid-cols-1 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-normal">
+              <MessageCircle className="size-4" /> WhatsApp message templates
+            </CardTitle>
+            <CardDescription>
+              Edit every member message. Available placeholders: {"{{member_name}}"}, {"{{plan_name}}"},{" "}
+              {"{{start_date}}"}, {"{{end_date}}"}, {"{{amount_paid}}"}, {"{{sessions_remaining}}"}, {"{{barcode_url}}"}
+              .
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {whatsappTemplateKeys.map((key) => (
+              <div key={key} className="space-y-2">
+                <Label htmlFor={`whatsapp.${key}`}>{formatTemplateLabel(key)}</Label>
+                <Textarea
+                  id={`whatsapp.${key}`}
+                  name={`whatsapp.${key}`}
+                  defaultValue={settings.whatsapp.templates[key] ?? defaultWhatsAppTemplates[key]}
+                  className="min-h-36 font-mono text-xs"
+                  dir="auto"
+                />
+              </div>
+            ))}
+            <Button type="submit" className="w-full">
+              Save WhatsApp templates
             </Button>
           </CardContent>
         </Card>
@@ -277,6 +309,10 @@ export default async function Page() {
       </div>
     </div>
   );
+}
+
+function formatTemplateLabel(key: string) {
+  return key.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function RuleNameSelect({ defaultValue, label }: { defaultValue: string; label: string }) {

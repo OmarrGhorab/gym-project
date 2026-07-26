@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Settings\StoreSetting;
 use App\Actions\Settings\UpdateSettings;
 use App\Http\Requests\Settings\IndexSettingsRequest;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
@@ -35,5 +36,13 @@ class SettingController extends ApiController
         return (new SettingResource($settings))
             ->withMessage('Settings updated successfully')
             ->response();
+    }
+
+    public function whatsappTemplates(StoreSetting $settings): JsonResponse
+    {
+        return $this->success(
+            data: ['templates' => $settings->read('whatsapp.templates') ?? []],
+            message: 'WhatsApp templates retrieved successfully',
+        );
     }
 }

@@ -144,25 +144,28 @@ function DatePickerField({ error, name }: { error?: string; name: string }) {
 
 export function AddProductDialog() {
   const t = useTranslations("Dashboard.logistics");
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [state, submitAction, pending] = useActionState(
-    async (_state: LogisticsActionResult, formData: FormData) => createProduct(formData),
-    initialLogisticsActionState,
-  );
+  const submissionCount = React.useRef(0);
+  const handledSubmissionCount = React.useRef(0);
+  const [state, submitAction, pending] = useActionState(async (_state: LogisticsActionResult, formData: FormData) => {
+    submissionCount.current += 1;
+
+    return createProduct(formData);
+  }, initialLogisticsActionState);
 
   React.useEffect(() => {
-    if (!state.message) return;
+    if (!state.message || handledSubmissionCount.current === submissionCount.current) return;
+
+    handledSubmissionCount.current = submissionCount.current;
 
     if (state.ok) {
       toast.success(state.message);
       setOpen(false);
-      router.refresh();
       return;
     }
 
     toast.error(t("productNotCreated"), { description: state.message });
-  }, [router, state, t]);
+  }, [state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -281,27 +284,30 @@ export function AddProductDialog() {
 
 export function CreatePurchaseOrderDialog({ products }: { products?: InventoryProduct[] }) {
   const t = useTranslations("Dashboard.logistics");
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [state, submitAction, pending] = useActionState(
-    async (_state: LogisticsActionResult, formData: FormData) => createPurchaseOrder(formData),
-    initialLogisticsActionState,
-  );
+  const submissionCount = React.useRef(0);
+  const handledSubmissionCount = React.useRef(0);
+  const [state, submitAction, pending] = useActionState(async (_state: LogisticsActionResult, formData: FormData) => {
+    submissionCount.current += 1;
+
+    return createPurchaseOrder(formData);
+  }, initialLogisticsActionState);
   const safeProducts = products ?? [];
   const defaultProduct = safeProducts[0];
 
   React.useEffect(() => {
-    if (!state.message) return;
+    if (!state.message || handledSubmissionCount.current === submissionCount.current) return;
+
+    handledSubmissionCount.current = submissionCount.current;
 
     if (state.ok) {
       toast.success(state.message);
       setOpen(false);
-      router.refresh();
       return;
     }
 
     toast.error(t("purchaseOrderNotCreated"), { description: state.message });
-  }, [router, state, t]);
+  }, [state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

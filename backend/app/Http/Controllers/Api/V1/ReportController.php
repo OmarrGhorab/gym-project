@@ -13,6 +13,7 @@ use App\Actions\Reports\LiveAttendanceSummary;
 use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
 use App\Actions\Reports\ProductsFinanceReport;
+use App\Actions\Reports\ReportsOverview;
 use App\Actions\Reports\StaffAcademySummary;
 use App\Actions\Reports\SubsShiftsReport;
 use App\Actions\Reports\SystemHealthSummary;
@@ -119,6 +120,17 @@ final class ReportController extends ApiController
         return $this->success(
             data: $action->execute($validated),
             message: 'Coach extra plans report retrieved',
+        );
+    }
+
+    public function overview(Request $request, ReportsOverview $action): JsonResponse
+    {
+        return $this->success(
+            data: $action->execute($request->validate([
+                'from' => ['nullable', 'date'],
+                'to' => ['nullable', 'date', 'after_or_equal:from'],
+            ])),
+            message: 'Reports overview retrieved',
         );
     }
 
@@ -266,6 +278,7 @@ final class ReportController extends ApiController
             'category' => ['nullable', 'string'],
             'search' => ['nullable', 'string'],
             'payment_method' => ['nullable', 'string'],
+            'product_id' => ['nullable', 'integer', 'exists:products,id'],
         ]);
 
         return $this->success(

@@ -1,20 +1,33 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { Banknote, BarChart3, Calendar, Download, Package, Search, Users } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { Banknote, BarChart3, Calendar, Download, FileText, Package, Search, UserRound, Users } from "lucide-react";
 import { useLocale } from "next-intl";
+import type { DateRange } from "react-day-picker";
 
+import { DateRangePicker } from "@/components/date-range-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
+
+import { getEmployeeSubscriptionDetails, getProductSaleDetails } from "./employee-subscription-actions";
 
 type ReportViewClientProps = {
   initialType: string;
@@ -34,6 +47,17 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
   const statusFilter = searchParams.get("status") ?? "";
   const categoryFilter = searchParams.get("category") ?? "";
   const searchFilter = searchParams.get("search") ?? "";
+  const dateRange = useMemo<DateRange | undefined>(() => {
+    const from = parseReportDate(fromDate);
+    const to = parseReportDate(toDate);
+
+    if (from || to) {
+      return { from, to };
+    }
+
+    const today = new Date();
+    return { from: today, to: today };
+  }, [fromDate, toDate]);
 
   function updateParams(newParams: Record<string, string | null | undefined>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -67,8 +91,8 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
       from = new Date(today.getFullYear(), 0, 1);
     }
 
-    const fromStr = from.toISOString().split("T")[0];
-    const toStr = to.toISOString().split("T")[0];
+    const fromStr = format(from, "yyyy-MM-dd");
+    const toStr = format(to, "yyyy-MM-dd");
 
     updateParams({ from: fromStr, to: toStr });
   }
@@ -88,8 +112,30 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
   return (
     <div className="space-y-6">
       {/* Top Report Type Selection Tabs */}
-      <Tabs value={activeTab} onValueChange={(val) => updateParams({ type: val })} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 gap-1 p-1 md:grid-cols-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) =>
+          updateParams({
+            type: val,
+            from: fromDate || (dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null),
+            to: toDate || (dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null),
+          })
+        }
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-2 gap-1 p-1 md:grid-cols-4 xl:grid-cols-7">
+          <TabsTrigger value="overview" className="gap-2">
+            <Calendar className="size-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="employees" className="gap-2">
+            <Users className="size-4" />
+            Employees
+          </TabsTrigger>
+          <TabsTrigger value="captains" className="gap-2">
+            <UserRound className="size-4" />
+            Captains
+          </TabsTrigger>
           <TabsTrigger value="classes_plans" className="gap-2">
             <Users className="size-4" />
             Classes & Plans
@@ -135,21 +181,15 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-xs">
-                <Input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => updateParams({ from: e.target.value })}
-                  className="h-8 w-36 text-xs"
-                />
-                <span>to</span>
-                <Input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => updateParams({ to: e.target.value })}
-                  className="h-8 w-36 text-xs"
-                />
-              </div>
+              <DateRangePicker
+                value={dateRange}
+                onChange={(range) =>
+                  updateParams({
+                    from: range?.from ? format(range.from, "yyyy-MM-dd") : null,
+                    to: range?.to ? format(range.to, "yyyy-MM-dd") : null,
+                  })
+                }
+              />
               {(fromDate || toDate || statusFilter || categoryFilter || searchFilter) && (
                 <Button
                   size="sm"
@@ -165,6 +205,12 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
       </Card>
 
       {/* Render Active Report View */}
+      {activeTab === "overview" && <ReportsOverviewView data={initialData} onShortcut={handleQuickDate} />}
+
+      {activeTab === "employees" && <EmployeesReportView data={initialData} from={fromDate} to={toDate} />}
+
+      {activeTab === "captains" && <CaptainsReportView data={initialData} />}
+
       {activeTab === "classes_plans" && (
         <ClassesPlansView
           data={initialData}
@@ -179,7 +225,9 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
         <ProductsFinanceView
           data={initialData}
           categoryFilter={categoryFilter}
+          from={fromDate}
           searchFilter={searchFilter}
+          to={toDate}
           onCategoryChange={(val) => updateParams({ category: val })}
           onSearchChange={(val) => updateParams({ search: val })}
           onExport={exportCSV}
@@ -204,6 +252,437 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
   );
 }
 
+function ReportsOverviewView({
+  data,
+  onShortcut,
+}: {
+  data: Record<string, unknown>;
+  onShortcut: (value: number | "this_month" | "last_month" | "ytd") => void;
+}) {
+  const totals = asRecord(data.totals);
+  const daily = asRows(data.daily);
+  const dailyPagination = useTablePagination(daily);
+  const currency = (value: unknown) =>
+    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <ReportMetric
+          title="POS sales"
+          value={currency(totals.pos_sales)}
+          detail={`${Number(totals.pos_orders ?? 0)} orders`}
+        />
+        <ReportMetric
+          title="Membership revenue"
+          value={currency(totals.membership_revenue)}
+          detail={`${Number(totals.memberships ?? 0)} memberships`}
+        />
+        <ReportMetric title="Expenses" value={currency(totals.expenses)} detail="Recorded expenses" destructive />
+        <ReportMetric
+          title="Bookings & sessions"
+          value={String(Number(totals.bookings ?? 0))}
+          detail={`${Number(totals.session_visits ?? 0)} session visits`}
+        />
+      </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle>Daily sales, expenses & bookings</CardTitle>
+            <CardDescription>Each row uses the selected calendar date range.</CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <Button size="sm" variant="outline" onClick={() => onShortcut(7)}>
+              Expenses: last 7 days
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onShortcut("this_month")}>
+              Expenses: this month
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>POS sales</TableHead>
+                <TableHead>Expenses</TableHead>
+                <TableHead>Bookings</TableHead>
+                <TableHead>Memberships</TableHead>
+                <TableHead>Membership paid</TableHead>
+                <TableHead>Session visits</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dailyPagination.pageRows.map((row) => (
+                <TableRow key={String(row.date)}>
+                  <TableCell className="font-medium">{String(row.date ?? "-")}</TableCell>
+                  <TableCell>{currency(row.pos_sales)}</TableCell>
+                  <TableCell className="text-destructive">{currency(row.expenses)}</TableCell>
+                  <TableCell>{String(row.bookings ?? 0)}</TableCell>
+                  <TableCell>{String(row.memberships ?? 0)}</TableCell>
+                  <TableCell>{currency(row.membership_revenue)}</TableCell>
+                  <TableCell>{String(row.session_visits ?? 0)}</TableCell>
+                </TableRow>
+              ))}
+              {daily.length === 0 ? <EmptyTableRow columns={7} label="No activity in this date range." /> : null}
+              <TablePagination columns={7} pagination={dailyPagination} />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function EmployeeSubscriptionDetailsDialog({
+  employee,
+  from,
+  to,
+}: {
+  employee: Record<string, unknown>;
+  from: string;
+  to: string;
+}) {
+  const [details, setDetails] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [isLoading, startTransition] = useTransition();
+  const subscriptions = asRows(details?.subscriptions);
+  const subscriptionPagination = useTablePagination(subscriptions);
+  const employeeId = Number(employee.employee_id);
+  const employeeName = String(employee.name ?? "Employee");
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (!nextOpen || details || isLoading) return;
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        setDetails(await getEmployeeSubscriptionDetails(employeeId, from, to));
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : "Could not load employee subscriptions.");
+      }
+    });
+  }
+
+  const currency = (value: unknown) =>
+    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        <FileText />
+        Details
+      </DialogTrigger>
+      <DialogContent className="max-h-[80dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[calc(100vw-4rem)] xl:max-w-7xl">
+        <DialogHeader>
+          <DialogTitle>{employeeName}&apos;s subscription sales</DialogTitle>
+          <DialogDescription>Subscriptions and renewals sold in the selected date range.</DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? <p className="text-muted-foreground text-sm">Loading subscription details…</p> : null}
+        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+        {!isLoading && !error ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subscriptionPagination.pageRows.map((subscription) => (
+                  <TableRow key={String(subscription.id)}>
+                    <TableCell className="font-medium">
+                      <div>{String(subscription.member_name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(subscription.member_code ?? "")}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{String(subscription.member_phone ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(subscription.member_email ?? "")}</div>
+                    </TableCell>
+                    <TableCell>{String(subscription.plan_name ?? "-")}</TableCell>
+                    <TableCell>
+                      {subscription.type === "renewal"
+                        ? "Renewal"
+                        : subscription.type === "add_on"
+                          ? "Extra plan"
+                          : "New subscription"}
+                    </TableCell>
+                    <TableCell>{currency(subscription.price_paid)}</TableCell>
+                    <TableCell>
+                      {String(subscription.start_date ?? "-")} – {String(subscription.end_date ?? "-")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {String(subscription.lifecycle_status ?? subscription.status ?? "-")}
+                      </Badge>
+                      {Number(subscription.refund_total ?? 0) > 0 ? (
+                        <div className="mt-1 text-muted-foreground text-xs">
+                          Refunded: {currency(subscription.refund_total)}
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {subscriptions.length === 0 ? (
+                  <EmptyTableRow columns={7} label="No subscriptions or renewals were sold in this date range." />
+                ) : null}
+                <TablePagination columns={7} pagination={subscriptionPagination} />
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
+  const employees = asRows(data.employees);
+  const employeePagination = useTablePagination(employees);
+  const currency = (value: unknown) =>
+    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Employee bookings, sales & commission</CardTitle>
+        <CardDescription>
+          Assigned bookings, subscriptions, sales revenue, extra plans sold, and earned commission for the selected
+          dates.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Bookings</TableHead>
+              <TableHead>Subscriptions</TableHead>
+              <TableHead>Sales</TableHead>
+              <TableHead>Sales revenue</TableHead>
+              <TableHead>Extra plans sold</TableHead>
+              <TableHead>Commission</TableHead>
+              <TableHead className="text-right">Details</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employeePagination.pageRows.map((employee) => (
+              <TableRow key={String(employee.employee_id)}>
+                <TableCell className="font-medium">{String(employee.name ?? "-")}</TableCell>
+                <TableCell>{String(employee.role ?? "-")}</TableCell>
+                <TableCell>{String(employee.bookings_count ?? 0)}</TableCell>
+                <TableCell>{String(employee.subscriptions_count ?? 0)}</TableCell>
+                <TableCell>{String(employee.sales_count ?? 0)}</TableCell>
+                <TableCell>{currency(employee.sales_volume)}</TableCell>
+                <TableCell>
+                  {String(employee.coached_services_count ?? 0)} · {currency(employee.coached_services_revenue)}
+                </TableCell>
+                <TableCell>{currency(employee.commissions_earned)}</TableCell>
+                <TableCell className="text-right">
+                  <EmployeeSubscriptionDetailsDialog employee={employee} from={from} to={to} />
+                </TableCell>
+              </TableRow>
+            ))}
+            {employees.length === 0 ? (
+              <EmptyTableRow columns={9} label="No employee activity in this date range." />
+            ) : null}
+            <TablePagination columns={9} pagination={employeePagination} />
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CaptainsReportView({ data }: { data: Record<string, unknown> }) {
+  const kpis = asRecord(data.kpis);
+  const coaches = asRows(data.coaches);
+  const coachPagination = useTablePagination(coaches);
+  const currency = (value: unknown) =>
+    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <ReportMetric
+          title="Coached plans"
+          value={String(kpis.total_coached_addons ?? 0)}
+          detail="Services and studio plans"
+        />
+        <ReportMetric
+          title="Subscribers"
+          value={String(kpis.total_subscribed_members ?? 0)}
+          detail="Unique subscribed members"
+        />
+        <ReportMetric
+          title="Attendance days"
+          value={String(kpis.total_attended_days ?? 0)}
+          detail="Days with captain sessions"
+        />
+        <ReportMetric title="Paid revenue" value={currency(kpis.total_addon_revenue)} detail="Coached plan payments" />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Captains & session performance</CardTitle>
+          <CardDescription>
+            Subscribers, paid amount, sessions/visits, and active coached plans for the selected dates.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Captain</TableHead>
+                <TableHead>Subscribers</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Visits / days</TableHead>
+                <TableHead>Active plans</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {coachPagination.pageRows.map((coach) => (
+                <TableRow key={String(coach.coach_id)}>
+                  <TableCell>
+                    <div className="font-medium">{String(coach.coach_name ?? "-")}</div>
+                    <div className="text-muted-foreground text-xs">{String(coach.coach_role ?? "")}</div>
+                  </TableCell>
+                  <TableCell>{String(coach.subscribed_members_count ?? 0)}</TableCell>
+                  <TableCell>{currency(coach.total_revenue)}</TableCell>
+                  <TableCell>
+                    {String(coach.total_visits_count ?? 0)} / {String(coach.attended_days_count ?? 0)} days
+                  </TableCell>
+                  <TableCell>{String(coach.active_addons_count ?? 0)}</TableCell>
+                </TableRow>
+              ))}
+              {coaches.length === 0 ? (
+                <EmptyTableRow columns={5} label="No captain sessions or services in this date range." />
+              ) : null}
+              <TablePagination columns={5} pagination={coachPagination} />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ReportMetric({
+  title,
+  value,
+  detail,
+  destructive = false,
+}: {
+  title: string;
+  value: string;
+  detail: string;
+  destructive?: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader className="space-y-1 pb-2">
+        <CardDescription>{title}</CardDescription>
+        <CardTitle className={destructive ? "text-destructive" : ""}>{value}</CardTitle>
+        <p className="text-muted-foreground text-xs">{detail}</p>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function EmptyTableRow({ columns, label }: { columns: number; label: string }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={columns} className="py-8 text-center text-muted-foreground">
+        {label}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function asRows(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+    : [];
+}
+
+type TablePaginationState<T> = {
+  currentPage: number;
+  pageRows: T[];
+  setPage: (page: number) => void;
+  total: number;
+  totalPages: number;
+};
+
+function useTablePagination<T>(rows: T[], pageSize = 10): TablePaginationState<T> {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+
+  return {
+    currentPage,
+    pageRows: rows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    setPage,
+    total: rows.length,
+    totalPages,
+  };
+}
+
+function TablePagination<T>({ columns, pagination }: { columns: number; pagination: TablePaginationState<T> }) {
+  if (pagination.total <= 10) return null;
+
+  return (
+    <TableRow>
+      <TableCell colSpan={columns}>
+        <div className="flex items-center justify-between gap-3 text-muted-foreground text-xs">
+          <span>
+            Page {pagination.currentPage} of {pagination.totalPages} · {pagination.total} records
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pagination.currentPage === 1}
+              onClick={() => pagination.setPage(pagination.currentPage - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pagination.currentPage === pagination.totalPages}
+              onClick={() => pagination.setPage(pagination.currentPage + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function parseReportDate(value: string) {
+  if (!value) return undefined;
+  const date = parseISO(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 // ---------------------------------------------------------------------------
 // 1. Classes & Plans View
 // ---------------------------------------------------------------------------
@@ -225,6 +704,9 @@ function ClassesPlansView({
   const plansSummary = (data.plans_summary as Record<string, unknown>[]) ?? [];
   const subscriptions = (data.subscriptions as Record<string, unknown>[]) ?? [];
   const endingSoonMembers = (data.ending_soon_members as Record<string, unknown>[]) ?? [];
+  const endingSoonPagination = useTablePagination(endingSoonMembers);
+  const planPagination = useTablePagination(plansSummary);
+  const subscriptionPagination = useTablePagination(subscriptions);
 
   function handleExport() {
     const headers = [
@@ -351,7 +833,7 @@ function ClassesPlansView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {endingSoonMembers.map((sub) => {
+              {endingSoonPagination.pageRows.map((sub) => {
                 const daysLeft = sub.days_left !== null && sub.days_left !== undefined ? Number(sub.days_left) : null;
                 const reason = String(sub.attention_reason ?? "ending_soon");
 
@@ -472,6 +954,7 @@ function ClassesPlansView({
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={9} pagination={endingSoonPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -498,7 +981,7 @@ function ClassesPlansView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {plansSummary.map((plan) => (
+              {planPagination.pageRows.map((plan) => (
                 <TableRow key={String(plan.id)}>
                   <TableCell className="font-medium">{String(plan.name)}</TableCell>
                   <TableCell>EGP {String(plan.price)}</TableCell>
@@ -529,6 +1012,7 @@ function ClassesPlansView({
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={8} pagination={planPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -578,7 +1062,7 @@ function ClassesPlansView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {subscriptions.map((sub) => {
+              {subscriptionPagination.pageRows.map((sub) => {
                 const daysLeft = sub.days_left !== null && sub.days_left !== undefined ? Number(sub.days_left) : null;
                 const reason = String(sub.attention_reason ?? "normal");
 
@@ -642,6 +1126,7 @@ function ClassesPlansView({
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={9} pagination={subscriptionPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -653,10 +1138,125 @@ function ClassesPlansView({
 // ---------------------------------------------------------------------------
 // 2. Products & POS View
 // ---------------------------------------------------------------------------
+function ProductSaleDetailsDialog({
+  product,
+  from,
+  to,
+}: {
+  product: Record<string, unknown>;
+  from: string;
+  to: string;
+}) {
+  const [details, setDetails] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [isLoading, startTransition] = useTransition();
+  const sales = asRows(details?.product_sales);
+  const salePagination = useTablePagination(sales);
+  const productId = Number(product.id);
+  const productName = String(product.name ?? "Product");
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (!nextOpen || details || isLoading) return;
+
+    setError(null);
+    startTransition(async () => {
+      try {
+        setDetails(await getProductSaleDetails(productId, from, to));
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : "Could not load product sales.");
+      }
+    });
+  }
+
+  const currency = (value: unknown) =>
+    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        <FileText />
+        Details
+      </DialogTrigger>
+      <DialogContent className="max-h-[80dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[calc(100vw-4rem)] xl:max-w-7xl">
+        <DialogHeader>
+          <DialogTitle>{productName} sales</DialogTitle>
+          <DialogDescription>
+            Every completed sale for this product in the selected date range. Net received accounts for the
+            product&apos;s share of an order discount.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? <p className="text-muted-foreground text-sm">Loading sale details…</p> : null}
+        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+        {!isLoading && !error ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Buyer</TableHead>
+                  <TableHead>Seller</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Unit price</TableHead>
+                  <TableHead>Subtotal</TableHead>
+                  <TableHead>Discount</TableHead>
+                  <TableHead>Net received</TableHead>
+                  <TableHead>Net profit</TableHead>
+                  <TableHead>Payment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {salePagination.pageRows.map((sale) => (
+                  <TableRow key={String(sale.sale_id)}>
+                    <TableCell>{String(sale.sold_at ?? "-")}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{String(sale.member_name ?? "Walk-in customer")}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {String(sale.member_phone ?? sale.member_email ?? "")}
+                      </div>
+                    </TableCell>
+                    <TableCell>{String(sale.seller_name ?? "-")}</TableCell>
+                    <TableCell>{String(sale.quantity ?? 0)}</TableCell>
+                    <TableCell>{currency(sale.unit_price)}</TableCell>
+                    <TableCell>{currency(sale.line_subtotal)}</TableCell>
+                    <TableCell>
+                      <div>{currency(sale.allocated_discount)}</div>
+                      {Number(sale.order_discount ?? 0) > 0 ? (
+                        <div className="text-muted-foreground text-xs">Order: {currency(sale.order_discount)}</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {currency(sale.net_received)}
+                    </TableCell>
+                    <TableCell className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {currency(sale.net_profit)}
+                      <div className="text-muted-foreground text-xs">Cost: {currency(sale.unit_cost)}/unit</div>
+                    </TableCell>
+                    <TableCell>{String(sale.payment_method ?? "-")}</TableCell>
+                  </TableRow>
+                ))}
+                {sales.length === 0 ? (
+                  <EmptyTableRow columns={10} label="No completed sales in this date range." />
+                ) : null}
+                <TablePagination columns={10} pagination={salePagination} />
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ProductsFinanceView({
   data,
   categoryFilter,
+  from,
   searchFilter,
+  to,
   onCategoryChange,
   onSearchChange,
   onExport,
@@ -664,7 +1264,9 @@ function ProductsFinanceView({
 }: {
   data: Record<string, unknown>;
   categoryFilter: string;
+  from: string;
   searchFilter: string;
+  to: string;
   onCategoryChange: (val: string) => void;
   onSearchChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
@@ -673,16 +1275,30 @@ function ProductsFinanceView({
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const productsSummary = (data.products_summary as Record<string, unknown>[]) ?? [];
   const transactions = (data.transactions as Record<string, unknown>[]) ?? [];
+  const productPagination = useTablePagination(productsSummary);
+  const transactionPagination = useTablePagination(transactions);
 
   function handleExport() {
-    const headers = ["Product Name", "Category", "Stock", "Units Sold", "Price", "Revenue", "Status"];
+    const headers = [
+      "Product Name",
+      "Category",
+      "Stock",
+      "Units Sold",
+      "Price",
+      "Cost",
+      "Net Revenue",
+      "Net Profit",
+      "Status",
+    ];
     const rows = productsSummary.map((p) => [
       String(p.name ?? ""),
       String(p.category ?? ""),
       String(p.stock_quantity ?? 0),
       String(p.units_sold_period ?? 0),
       String(p.price ?? "0.00"),
-      String(p.revenue_period ?? "0.00"),
+      String(p.cost ?? "0.00"),
+      String(p.net_revenue_period ?? "0.00"),
+      String(p.net_profit_period ?? "0.00"),
       String(p.status ?? ""),
     ]);
     onExport("products_pos_report", headers, rows);
@@ -752,22 +1368,29 @@ function ProductsFinanceView({
                 <TableHead>Product Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
+                <TableHead>Cost</TableHead>
                 <TableHead>Current Stock</TableHead>
                 <TableHead>Units Sold (Period)</TableHead>
-                <TableHead className="text-end">Revenue (Period)</TableHead>
+                <TableHead className="text-end">Net revenue</TableHead>
+                <TableHead className="text-end">Net profit</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {productsSummary.map((prod) => (
+              {productPagination.pageRows.map((prod) => (
                 <TableRow key={String(prod.id)}>
                   <TableCell className="font-medium">{String(prod.name)}</TableCell>
                   <TableCell>{String(prod.category)}</TableCell>
                   <TableCell>EGP {String(prod.price)}</TableCell>
+                  <TableCell>EGP {String(prod.cost)}</TableCell>
                   <TableCell>{String(prod.stock_quantity)}</TableCell>
                   <TableCell className="font-semibold">{String(prod.units_sold_period)}</TableCell>
                   <TableCell className="text-end font-semibold text-emerald-600 dark:text-emerald-400">
-                    EGP {String(prod.revenue_period)}
+                    EGP {String(prod.net_revenue_period)}
+                  </TableCell>
+                  <TableCell className="text-end font-semibold text-emerald-600 dark:text-emerald-400">
+                    EGP {String(prod.net_profit_period)}
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -783,15 +1406,24 @@ function ProductsFinanceView({
                       {String(prod.status)}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <ProductSaleDetailsDialog
+                      key={`${String(prod.id)}-${from}-${to}`}
+                      product={prod}
+                      from={from}
+                      to={to}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
               {productsSummary.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
                     No products found matching criteria.
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={10} pagination={productPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -816,7 +1448,7 @@ function ProductsFinanceView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((tx) => (
+              {transactionPagination.pageRows.map((tx) => (
                 <TableRow key={String(tx.id)}>
                   <TableCell className="font-medium">{String(tx.id)}</TableCell>
                   <TableCell>{String(tx.customer_name)}</TableCell>
@@ -835,6 +1467,7 @@ function ProductsFinanceView({
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={6} pagination={transactionPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -861,6 +1494,7 @@ function SubsShiftsView({
 }) {
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const shifts = (data.shifts as Record<string, unknown>[]) ?? [];
+  const shiftPagination = useTablePagination(shifts);
 
   function handleExport() {
     const headers = [
@@ -970,7 +1604,7 @@ function SubsShiftsView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shifts.map((s) => (
+              {shiftPagination.pageRows.map((s) => (
                 <TableRow key={String(s.id)}>
                   <TableCell className="font-medium">#{String(s.id)}</TableCell>
                   <TableCell>{String(s.opened_by)}</TableCell>
@@ -997,6 +1631,7 @@ function SubsShiftsView({
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={10} pagination={shiftPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -1019,6 +1654,7 @@ function IncomeOutcomeView({
 }) {
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const timeline = (data.timeline as Record<string, unknown>[]) ?? [];
+  const timelinePagination = useTablePagination(timeline);
 
   function handleExport() {
     const headers = [
@@ -1113,7 +1749,7 @@ function IncomeOutcomeView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {timeline.map((row) => (
+              {timelinePagination.pageRows.map((row) => (
                 <TableRow key={String(row.period)}>
                   <TableCell className="font-medium">{String(row.period)}</TableCell>
                   <TableCell>EGP {String(row.subscription_income)}</TableCell>
@@ -1141,6 +1777,7 @@ function IncomeOutcomeView({
                   </TableCell>
                 </TableRow>
               )}
+              <TablePagination columns={9} pagination={timelinePagination} />
             </TableBody>
           </Table>
         </CardContent>

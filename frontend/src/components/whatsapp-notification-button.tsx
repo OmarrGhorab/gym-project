@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import { MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,8 +11,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  defaultWhatsAppTemplates,
+  renderWhatsAppTemplate,
+  type WhatsAppTemplateKey,
+  type WhatsAppTemplates,
+  whatsappTemplateKeys,
+} from "@/lib/whatsapp-templates";
 
-export function buildWhatsAppLink(phone: string, data: Record<string, unknown>, lang: "ar" | "en" = "ar") {
+export function buildWhatsAppLink(
+  phone: string,
+  data: Record<string, unknown>,
+  templates: WhatsAppTemplates = {},
+  lang: "ar" | "en" = "ar",
+  messageType?: WhatsAppTemplateKey,
+) {
   const cleanPhone = phone.replace(/[^0-9]/g, "");
   const formattedPhone = cleanPhone.startsWith("01") ? `20${cleanPhone.slice(1)}` : cleanPhone;
 
@@ -20,31 +35,38 @@ export function buildWhatsAppLink(phone: string, data: Record<string, unknown>, 
   const sessionsRemaining =
     data.sessions_remaining !== undefined && data.sessions_remaining !== null ? Number(data.sessions_remaining) : null;
 
-  let message = "";
+  const templateKey = messageType ?? resolveTemplateKey(sessionsRemaining, endDate);
 
-  if (lang === "ar") {
+  let message = renderWhatsAppTemplate(templates[templateKey] || defaultWhatsAppTemplates[templateKey], {
+    amount_paid: String(data.amount_paid ?? data.price_paid ?? data.paid_amount ?? ""),
+    barcode_url: String(data.barcode_url ?? data.attendance_qr ?? ""),
+    end_date: endDate,
+    member_name: memberName,
+    plan_name: planName,
+    sessions_remaining: sessionsRemaining,
+    start_date: String(data.start_date ?? data.startDate ?? ""),
+  });
+
+  if (!templates[templateKey] && lang === "en") {
     if (sessionsRemaining !== null && sessionsRemaining === 0) {
-      message = `مرحباً ${memberName} 👋\n\nنود إعلامك بأن جميع الحصص الخاصة باشتراكك (${planName}) قد انتهت.\nيسعدنا زيارتك للصالة الرياضية لتجديد اشتراكك وحجز حصصك القادمة! 🏋️‍♂️✨`;
+      message = `Hello ${memberName} 👋\n\nAll sessions for your ${planName} subscription have been completed. We look forward to helping you renew!`;
     } else if (sessionsRemaining !== null && sessionsRemaining > 0) {
-      message = `مرحباً ${memberName} 👋\n\nنود تذكيرك بأنه متبقي لديك (${sessionsRemaining}) حصة فقط في اشتراكك (${planName}).\nيسعدنا زيارتك للصالة الرياضية لتجديد اشتراكك ومتابعة تدريباتك! 🏋️‍♂️✨`;
+      message = `Hello ${memberName} 👋\n\nYou have ${sessionsRemaining} session(s) remaining in ${planName}.`;
     } else if (endDate) {
-      message = `مرحباً ${memberName} 👋\n\nنود تذكيرك بأن اشتراكك في (${planName}) ينتهي بتاريخ (${endDate}).\nيسعدنا زيارتك للصالة الرياضية لتجديد الاشتراك ومتابعة لياقتك البدنية! 🏋️‍♂️✨`;
+      message = `Hello ${memberName} 👋\n\nYour ${planName} subscription expires on ${endDate}. We look forward to helping you renew.`;
     } else {
-      message = `مرحباً ${memberName} 👋\n\nنود تذكيرك بمتابعة وتجديد اشتراكك في (${planName}). يسعدنا دوماً حضورك وتدريبك معنا! 🏋️‍♂️✨`;
-    }
-  } else {
-    if (sessionsRemaining !== null && sessionsRemaining === 0) {
-      message = `Hello ${memberName} 👋\n\nWe would like to remind you that all sessions for your subscription (${planName}) have been completed.\nWe look forward to seeing you at the gym to renew your plan! 🏋️‍♂️✨`;
-    } else if (sessionsRemaining !== null && sessionsRemaining > 0) {
-      message = `Hello ${memberName} 👋\n\nWe would like to remind you that you have only (${sessionsRemaining}) session(s) remaining for your subscription (${planName}).\nWe look forward to seeing you at the gym to renew your plan! 🏋️‍♂️✨`;
-    } else if (endDate) {
-      message = `Hello ${memberName} 👋\n\nWe would like to remind you that your subscription (${planName}) expires on (${endDate}).\nWe look forward to seeing you at the gym to renew your membership! 🏋️‍♂️✨`;
-    } else {
-      message = `Hello ${memberName} 👋\n\nWe would like to remind you to renew your subscription (${planName}). We look forward to seeing you at the gym! 🏋️‍♂️✨`;
+      message = `Hello ${memberName} 👋\n\nYour ${planName} subscription has been renewed successfully.`;
     }
   }
 
   return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+}
+
+function resolveTemplateKey(sessionsRemaining: number | null, endDate: string): WhatsAppTemplateKey {
+  if (sessionsRemaining === 0) return "sessions_finished_reminder";
+  if (sessionsRemaining !== null && sessionsRemaining > 0) return "low_sessions_reminder";
+  if (endDate) return "expiry_reminder";
+  return "renewal_confirmation";
 }
 
 export function WhatsAppNotificationButton({
@@ -60,12 +82,22 @@ export function WhatsAppNotificationButton({
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   className?: string;
 }) {
+  const [templates, setTemplates] = React.useState<WhatsAppTemplates>({});
+
+  React.useEffect(() => {
+    void fetch("/api/whatsapp/templates")
+      .then((response) => response.json())
+      .then((payload) => setTemplates(payload?.data?.templates ?? {}))
+      .catch(() => undefined);
+  }, []);
+
   if (!phone) {
     return null;
   }
 
-  const arLink = buildWhatsAppLink(phone, data, "ar");
-  const enLink = buildWhatsAppLink(phone, data, "en");
+  const links = Object.fromEntries(
+    whatsappTemplateKeys.map((key) => [key, buildWhatsAppLink(phone, data, templates, "ar", key)]),
+  ) as Record<WhatsAppTemplateKey, string>;
 
   return (
     <DropdownMenu>
@@ -86,17 +118,25 @@ export function WhatsAppNotificationButton({
           </Button>
         }
       />
-      <DropdownMenuContent align="end" className="min-w-40">
-        <DropdownMenuItem
-          render={<a href={arLink} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} />}
-        >
-          WhatsApp (العربية)
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          render={<a href={enLink} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} />}
-        >
-          WhatsApp (English)
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="min-w-56">
+        {(
+          [
+            ["subscription_confirmation", "Subscription confirmation"],
+            ["renewal_confirmation", "Renewal confirmation"],
+            ["expiry_reminder", "Expiry reminder"],
+            ["low_sessions_reminder", "Low sessions reminder"],
+            ["sessions_finished_reminder", "Sessions finished"],
+          ] as const
+        ).map(([key, label]) => (
+          <DropdownMenuItem
+            key={key}
+            render={
+              <a href={links[key]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} />
+            }
+          >
+            {label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

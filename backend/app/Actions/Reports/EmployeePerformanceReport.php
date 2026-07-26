@@ -2,6 +2,8 @@
 
 namespace App\Actions\Reports;
 
+use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -49,13 +51,13 @@ class EmployeePerformanceReport
             )
             ->leftJoinSub(
                 DB::table('subscription_addons')
-                    ->select('coach_id', DB::raw('COUNT(*) as coached_services_count'), DB::raw('SUM(price_paid) as coached_services_revenue'))
+                    ->select('sold_by_user_id', DB::raw('COUNT(*) as coached_services_count'), DB::raw('SUM(price_paid) as coached_services_revenue'))
                     ->whereBetween('created_at', [$startDate, $endDate])
-                    ->groupBy('coach_id'),
+                    ->groupBy('sold_by_user_id'),
                 'sa',
-                'employees.id',
+                'employees.user_id',
                 '=',
-                'sa.coach_id'
+                'sa.sold_by_user_id'
             )
             ->leftJoinSub(
                 DB::table('commissions')
@@ -79,6 +81,17 @@ class EmployeePerformanceReport
                 'a.employee_id'
             )
             ->leftJoinSub(
+                DB::table('member_bookings')
+                    ->select('coach_id', DB::raw('COUNT(*) as bookings_count'))
+                    ->whereBetween('starts_at', [$startDate, $endDate])
+                    ->where('status', '!=', 'cancelled')
+                    ->groupBy('coach_id'),
+                'b',
+                'employees.id',
+                '=',
+                'b.coach_id'
+            )
+            ->leftJoinSub(
                 DB::table('sales')
                     ->select('sold_by_user_id', DB::raw('COUNT(*) as previous_sales_count'), DB::raw('SUM(total) as previous_sales_volume'))
                     ->whereBetween('created_at', [$previousStart->toDateTimeString(), $previousEnd->toDateTimeString()])
@@ -100,13 +113,13 @@ class EmployeePerformanceReport
             )
             ->leftJoinSub(
                 DB::table('subscription_addons')
-                    ->select('coach_id', DB::raw('COUNT(*) as previous_coached_services_count'), DB::raw('SUM(price_paid) as previous_coached_services_revenue'))
+                    ->select('sold_by_user_id', DB::raw('COUNT(*) as previous_coached_services_count'), DB::raw('SUM(price_paid) as previous_coached_services_revenue'))
                     ->whereBetween('created_at', [$previousStart->toDateTimeString(), $previousEnd->toDateTimeString()])
-                    ->groupBy('coach_id'),
+                    ->groupBy('sold_by_user_id'),
                 'psa',
-                'employees.id',
+                'employees.user_id',
                 '=',
-                'psa.coach_id'
+                'psa.sold_by_user_id'
             )
             ->leftJoinSub(
                 DB::table('commissions')
@@ -120,6 +133,7 @@ class EmployeePerformanceReport
             )
             ->select([
                 'employees.id as employee_id',
+                'employees.user_id',
                 DB::raw('COALESCE(users.name, employees.name) as name'),
                 'employees.role',
                 DB::raw('COALESCE(s.sales_count, 0) as sales_count'),
@@ -129,6 +143,7 @@ class EmployeePerformanceReport
                 DB::raw('COALESCE(sa.coached_services_revenue, 0.00) as coached_services_revenue'),
                 DB::raw('COALESCE(c.commissions_earned, 0.00) as commissions_earned'),
                 DB::raw('COALESCE(a.attendance_count, 0) as attendance_count'),
+                DB::raw('COALESCE(b.bookings_count, 0) as bookings_count'),
                 DB::raw('COALESCE(ps.previous_sales_count, 0) as previous_sales_count'),
                 DB::raw('COALESCE(ps.previous_sales_volume, 0.00) as previous_sales_volume'),
                 DB::raw('COALESCE(psub.previous_subscriptions_count, 0) as previous_subscriptions_count'),
@@ -141,12 +156,13 @@ class EmployeePerformanceReport
             $row = $query->where('employees.id', $params['employee_id'])->first();
             if ($row) {
                 $this->formatRow($row);
+                $row->subscriptions = $this->subscriptionDetails((int) $row->user_id, $startDate, $endDate);
             }
 
             return $row;
         }
 
-        return $query->orderBy('employees.id', 'asc')
+        return $query->orderBy('employee_id', 'asc')
             ->cursorPaginate(15)->through(function ($item) {
                 $this->formatRow($item);
 
@@ -166,6 +182,7 @@ class EmployeePerformanceReport
         $row->subscriptions_count = (int) $row->subscriptions_count;
         $row->coached_services_count = (int) $row->coached_services_count;
         $row->attendance_count = (int) $row->attendance_count;
+        $row->bookings_count = (int) $row->bookings_count;
         $row->previous_sales_count = (int) $row->previous_sales_count;
         $row->previous_subscriptions_count = (int) $row->previous_subscriptions_count;
         $row->previous_coached_services_count = (int) $row->previous_coached_services_count;
@@ -177,5 +194,94 @@ class EmployeePerformanceReport
             'sales_volume_delta' => number_format((float) $row->sales_volume - (float) $row->previous_sales_volume, 2, '.', ''),
             'coached_services_revenue_delta' => number_format((float) $row->coached_services_revenue - (float) $row->previous_coached_services_revenue, 2, '.', ''),
         ];
+    }
+
+    /**
+     * @return list<array<string, int|string|null>>
+     */
+    private function subscriptionDetails(int $userId, string $startDate, string $endDate): array
+    {
+        if ($userId < 1) {
+            return [];
+        }
+
+        $subscriptions = Subscription::query()
+            ->with([
+                'member:id,name,phone,email,attendance_code',
+                'plan:id,name',
+                'freezes:id,subscription_id,freeze_start,freeze_end,resumed_on',
+                'refunds:id,subscription_id,amount,refunded_at',
+            ])
+            ->where('sold_by_user_id', $userId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->latest()
+            ->get([
+                'id',
+                'member_id',
+                'plan_id',
+                'upgraded_from_subscription_id',
+                'start_date',
+                'end_date',
+                'status',
+                'price_paid',
+                'created_at',
+            ])
+            ->map(function (Subscription $subscription): array {
+                $isFrozen = $subscription->freezes->contains(fn ($freeze): bool => ! $freeze->resumed_on
+                    && $freeze->freeze_start?->isPast()
+                    && $freeze->freeze_end?->isFuture()
+                );
+                $refundTotal = (float) $subscription->refunds->sum('amount');
+
+                return [
+                    'id' => $subscription->id,
+                    'member_id' => $subscription->member_id,
+                    'member_name' => $subscription->member?->name,
+                    'member_phone' => $subscription->member?->phone,
+                    'member_email' => $subscription->member?->email,
+                    'member_code' => $subscription->member?->attendance_code,
+                    'plan_name' => $subscription->plan?->name,
+                    'type' => $subscription->upgraded_from_subscription_id ? 'renewal' : 'new_subscription',
+                    'price_paid' => number_format((float) $subscription->price_paid, 2, '.', ''),
+                    'status' => $subscription->status,
+                    'lifecycle_status' => $refundTotal > 0 ? 'refunded' : ($isFrozen ? 'frozen' : $subscription->status),
+                    'refund_total' => number_format($refundTotal, 2, '.', ''),
+                    'start_date' => $subscription->start_date?->toDateString(),
+                    'end_date' => $subscription->end_date?->toDateString(),
+                    'created_at' => $subscription->created_at?->toDateTimeString(),
+                ];
+            })
+            ->all();
+
+        $addons = SubscriptionAddon::query()
+            ->with([
+                'member:id,name,phone,email,attendance_code',
+                'plan:id,name',
+            ])
+            ->where('sold_by_user_id', $userId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->latest()
+            ->get(['id', 'member_id', 'plan_id', 'start_date', 'end_date', 'status', 'price_paid', 'created_at'])
+            ->map(fn (SubscriptionAddon $addon): array => [
+                'id' => 'addon-'.$addon->id,
+                'member_id' => $addon->member_id,
+                'member_name' => $addon->member?->name,
+                'member_phone' => $addon->member?->phone,
+                'member_email' => $addon->member?->email,
+                'member_code' => $addon->member?->attendance_code,
+                'plan_name' => $addon->plan?->name,
+                'type' => 'add_on',
+                'price_paid' => number_format((float) $addon->price_paid, 2, '.', ''),
+                'status' => $addon->status,
+                'start_date' => $addon->start_date?->toDateString(),
+                'end_date' => $addon->end_date?->toDateString(),
+                'created_at' => $addon->created_at?->toDateTimeString(),
+            ])
+            ->all();
+
+        return collect([...$subscriptions, ...$addons])
+            ->sortByDesc('created_at')
+            ->values()
+            ->all();
     }
 }

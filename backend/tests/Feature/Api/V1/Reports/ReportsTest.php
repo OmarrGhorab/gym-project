@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Member;
+use App\Models\Product;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -45,6 +49,49 @@ test('admin can access products finance report', function (): void {
                 'products_summary',
                 'transactions',
             ],
+        ]);
+});
+
+test('products finance report returns itemized sales details for a product', function (): void {
+    $user = User::factory()->create(['name' => 'Cashier']);
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create([
+        'email' => 'buyer@example.com',
+        'name' => 'Buyer One',
+        'phone' => '01000000000',
+    ]);
+    $product = Product::factory()->create(['cost' => '10.00', 'name' => 'Electrolyte Water']);
+    $sale = Sale::factory()->create([
+        'created_at' => '2026-06-15 12:00:00',
+        'discount' => '20.00',
+        'member_id' => $member->id,
+        'payment_method' => 'cash',
+        'sold_by_user_id' => $user->id,
+        'subtotal' => '100.00',
+        'total' => '80.00',
+    ]);
+    SaleItem::factory()->create([
+        'product_id' => $product->id,
+        'quantity' => 2,
+        'sale_id' => $sale->id,
+        'total' => '50.00',
+        'unit_price' => '25.00',
+    ]);
+
+    $response = $this->getJson("/api/v1/reports/products-finance?product_id={$product->id}&from=2026-06-01&to=2026-06-30")
+        ->assertOk();
+
+    expect($response->json('data.product_sales'))->toHaveCount(1)
+        ->and($response->json('data.product_sales.0'))->toMatchArray([
+            'allocated_discount' => '10.00',
+            'member_email' => 'buyer@example.com',
+            'member_name' => 'Buyer One',
+            'net_received' => '40.00',
+            'net_profit' => '20.00',
+            'quantity' => 2,
+            'seller_name' => 'Cashier',
         ]);
 });
 

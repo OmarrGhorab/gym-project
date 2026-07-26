@@ -90,6 +90,10 @@ final class UpdateSettings
             }
         }
 
+        if (isset($validated['whatsapp']['templates'])) {
+            $flat['whatsapp.templates'] = $validated['whatsapp']['templates'];
+        }
+
         return $flat;
     }
 }

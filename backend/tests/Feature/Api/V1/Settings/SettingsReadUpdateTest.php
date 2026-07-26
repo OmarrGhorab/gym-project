@@ -80,6 +80,25 @@ test('admin can update settings', function (): void {
         ->assertJsonPath('data.attendance.gym_radius_meters', 120);
 });
 
+test('admin can save and retrieve whatsapp message templates', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $templates = [
+        'expiry_reminder' => 'Hello {{member_name}}, your plan ends {{end_date}}.',
+        'renewal_confirmation' => 'Renewed {{plan_name}}.',
+    ];
+
+    $this->putJson('/api/v1/settings', ['whatsapp' => ['templates' => $templates]])
+        ->assertOk()
+        ->assertJsonPath('data.whatsapp.templates.expiry_reminder', $templates['expiry_reminder']);
+
+    $this->getJson('/api/v1/settings/whatsapp-templates')
+        ->assertOk()
+        ->assertJsonPath('data.templates.renewal_confirmation', $templates['renewal_confirmation']);
+});
+
 test('non-admin cannot read or update settings', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CASHIER);

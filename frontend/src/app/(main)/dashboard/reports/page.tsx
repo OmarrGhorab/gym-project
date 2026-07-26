@@ -17,7 +17,7 @@ export default async function ReportsPage({
   }>;
 }) {
   const query = await searchParams;
-  const activeType = query.type ?? "classes_plans";
+  const activeType = query.type ?? "overview";
   const from = query.from ?? "";
   const to = query.to ?? "";
 
@@ -28,7 +28,16 @@ export default async function ReportsPage({
     if (from) params.set("from", from);
     if (to) params.set("to", to);
 
-    if (activeType === "classes_plans") {
+    if (activeType === "overview") {
+      const res = await serverApiFetch<Record<string, unknown>>(`/reports/overview?${params.toString()}`);
+      initialData = res.data;
+    } else if (activeType === "employees") {
+      const res = await serverApiFetch<Record<string, unknown>>(`/reports/employees?${params.toString()}`);
+      initialData = { employees: res.data };
+    } else if (activeType === "captains") {
+      const res = await serverApiFetch<Record<string, unknown>>(`/reports/coach-extra-plans?${params.toString()}`);
+      initialData = res.data;
+    } else if (activeType === "classes_plans") {
       if (query.status) params.set("status", query.status);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/classes-plans?${params.toString()}`);
       initialData = res.data;

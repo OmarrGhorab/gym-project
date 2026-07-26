@@ -20,6 +20,7 @@ final class ProductsFinanceReport
         $category = $params['category'] ?? null;
         $search = $params['search'] ?? null;
         $paymentMethod = $params['payment_method'] ?? null;
+        $productId = isset($params['product_id']) ? (int) $params['product_id'] : null;
 
         $productsQuery = Product::query()
             ->when($category, fn ($q) => $q->where('category', $category))
@@ -37,6 +38,11 @@ final class ProductsFinanceReport
 
             $unitsSold = (int) (clone $salesItemsQuery)->sum('sale_items.quantity');
             $revenue = (float) (clone $salesItemsQuery)->sum('sale_items.total');
+            $netRevenue = (float) (clone $salesItemsQuery)
+                ->selectRaw('COALESCE(SUM(sale_items.total - (sales.discount * sale_items.total / NULLIF(sales.subtotal, 0))), 0) as net_revenue')
+                ->value('net_revenue');
+            $unitProfit = (float) $product->price - (float) $product->cost;
+            $netProfit = $netRevenue - ((float) $product->cost * $unitsSold);
 
             return [
                 'id' => $product->id,
@@ -49,6 +55,9 @@ final class ProductsFinanceReport
                 'low_stock_threshold' => $product->low_stock_threshold,
                 'units_sold_period' => $unitsSold,
                 'revenue_period' => number_format($revenue, 2, '.', ''),
+                'net_revenue_period' => number_format($netRevenue, 2, '.', ''),
+                'unit_profit' => number_format($unitProfit, 2, '.', ''),
+                'net_profit_period' => number_format($netProfit, 2, '.', ''),
                 'status' => $product->stock_quantity <= 0 ? 'out_of_stock' : ($product->stock_quantity <= $product->low_stock_threshold ? 'low_stock' : 'in_stock'),
             ];
         })->values()->all();
@@ -95,7 +104,63 @@ final class ProductsFinanceReport
                 'low_stock_products_count' => $lowStockCount,
             ],
             'products_summary' => $productsTable,
+            'product_sales' => $productId
+                ? $this->productSales($productId, $from, $to, $paymentMethod)
+                : [],
             'transactions' => $transactions,
         ];
+    }
+
+    /**
+     * @return list<array<string, int|string|null>>
+     */
+    private function productSales(int $productId, Carbon $from, Carbon $to, ?string $paymentMethod): array
+    {
+        $productCost = (float) Product::query()->findOrFail($productId)->cost;
+
+        return SaleItem::query()
+            ->with([
+                'sale.member:id,name,phone,email,attendance_code',
+                'sale.soldBy:id,name',
+            ])
+            ->where('product_id', $productId)
+            ->whereHas('sale', function ($query) use ($from, $to, $paymentMethod): void {
+                $query
+                    ->completed()
+                    ->whereBetween('created_at', [$from, $to])
+                    ->when($paymentMethod, fn ($sales) => $sales->where('payment_method', $paymentMethod));
+            })
+            ->latest('id')
+            ->get()
+            ->map(function (SaleItem $item) use ($productCost): array {
+                $sale = $item->sale;
+                $lineSubtotal = (float) $item->total;
+                $saleSubtotal = (float) ($sale?->subtotal ?? 0);
+                $discountShare = $saleSubtotal > 0
+                    ? ((float) ($sale?->discount ?? 0) * ($lineSubtotal / $saleSubtotal))
+                    : 0;
+                $netReceived = max(0, $lineSubtotal - $discountShare);
+                $lineCost = $productCost * $item->quantity;
+
+                return [
+                    'sale_id' => $sale?->id,
+                    'sold_at' => $sale?->created_at?->toDateTimeString(),
+                    'member_name' => $sale?->member?->name,
+                    'member_phone' => $sale?->member?->phone,
+                    'member_email' => $sale?->member?->email,
+                    'member_code' => $sale?->member?->attendance_code,
+                    'seller_name' => $sale?->soldBy?->name,
+                    'quantity' => $item->quantity,
+                    'unit_price' => number_format((float) $item->unit_price, 2, '.', ''),
+                    'line_subtotal' => number_format($lineSubtotal, 2, '.', ''),
+                    'order_discount' => number_format((float) ($sale?->discount ?? 0), 2, '.', ''),
+                    'allocated_discount' => number_format($discountShare, 2, '.', ''),
+                    'net_received' => number_format($netReceived, 2, '.', ''),
+                    'unit_cost' => number_format($productCost, 2, '.', ''),
+                    'net_profit' => number_format($netReceived - $lineCost, 2, '.', ''),
+                    'payment_method' => $sale?->payment_method,
+                ];
+            })
+            ->all();
     }
 }

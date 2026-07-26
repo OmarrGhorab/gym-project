@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
+import { whatsappTemplateKeys } from "@/lib/whatsapp-templates";
 
 export type SettingsActionResult = {
   ok: boolean;
@@ -130,6 +131,33 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
   revalidatePath("/dashboard/academy/staff");
 
   return { ok: true, message: "Settings saved.", errors: {} };
+}
+
+export async function saveWhatsAppTemplates(input: FormData): Promise<SettingsActionResult> {
+  const parsed = z
+    .object(Object.fromEntries(whatsappTemplateKeys.map((key) => [key, z.string().trim().min(1).max(5000)])))
+    .safeParse(Object.fromEntries(whatsappTemplateKeys.map((key) => [key, input.get(`whatsapp.${key}`) ?? ""])));
+
+  if (!parsed.success) {
+    return invalidResult("Please complete each WhatsApp message template.", parsed.error);
+  }
+
+  try {
+    await serverApiFetch("/settings", {
+      body: JSON.stringify({ whatsapp: { templates: parsed.data } }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+    });
+  } catch (error) {
+    return errorResult(error, "Could not save WhatsApp templates.");
+  }
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/reports");
+
+  return { ok: true, message: "WhatsApp templates saved.", errors: {} };
 }
 
 export async function saveShift(input: FormData): Promise<SettingsActionResult> {

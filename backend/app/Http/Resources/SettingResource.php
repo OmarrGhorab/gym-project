@@ -48,6 +48,9 @@ class SettingResource extends JsonResource
                 'handover_auto_accept_on_match_only' => (bool) ($settings['shifts.handover_auto_accept_on_match_only'] ?? true),
                 'require_handover_to_open' => (bool) ($settings['shifts.require_handover_to_open'] ?? true),
             ],
+            'whatsapp' => [
+                'templates' => $settings['whatsapp.templates'] ?? [],
+            ],
         ];
     }
 

@@ -1,4 +1,5 @@
 import { serverApiFetch } from "@/lib/api/server";
+import type { WhatsAppTemplates } from "@/lib/whatsapp-templates";
 
 export type DashboardSettings = {
   attendance: {
@@ -28,6 +29,9 @@ export type DashboardSettings = {
   receipt_template: string;
   reminder_days: number[];
   vat_rate: number;
+  whatsapp: {
+    templates: WhatsAppTemplates;
+  };
 };
 
 export type EmployeeShift = {
@@ -96,6 +100,7 @@ const emptySettings: DashboardSettings = {
   receipt_template: "default",
   reminder_days: [7],
   vat_rate: 14,
+  whatsapp: { templates: {} },
 };
 
 export async function getSettingsPageData() {

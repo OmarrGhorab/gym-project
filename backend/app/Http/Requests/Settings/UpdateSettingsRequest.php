@@ -158,6 +158,12 @@ class UpdateSettingsRequest extends FormRequest
             $normalized['shifts'] = $shifts;
         }
 
+        if ($this->has('whatsapp.templates') && is_array($this->input('whatsapp.templates'))) {
+            $normalized['whatsapp'] = ['templates' => $this->input('whatsapp.templates')];
+        } elseif ($this->has('whatsapp') && is_array($this->input('whatsapp'))) {
+            $normalized['whatsapp'] = array_intersect_key($this->input('whatsapp'), ['templates' => true]);
+        }
+
         $this->replace($normalized);
     }
 
@@ -186,6 +192,9 @@ class UpdateSettingsRequest extends FormRequest
             'shifts.handover_auto_accept' => ['nullable', 'boolean'],
             'shifts.handover_auto_accept_on_match_only' => ['nullable', 'boolean'],
             'shifts.require_handover_to_open' => ['nullable', 'boolean'],
+            'whatsapp' => ['nullable', 'array'],
+            'whatsapp.templates' => ['nullable', 'array'],
+            'whatsapp.templates.*' => ['nullable', 'string', 'max:5000'],
         ];
 
         if ($this->hasFile('gym.logo')) {
