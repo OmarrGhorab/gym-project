@@ -9,6 +9,7 @@ use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use App\Support\PosPermissions;
 use Carbon\Carbon;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
@@ -118,7 +119,10 @@ test('dashboard summary returns accurate numbers and is cached and invalidated c
     expect($response1->json('data.sales_today.count'))->toBe(1);
     expect($response1->json('data.sales_today.revenue'))->toBe('80.00');
     expect($response1->json('data.captain_leaderboard.0.name'))->toBe('Captain America');
-    expect($response1->json('data.captain_leaderboard.0.commissions_total'))->toBe('60.00');
+    // The leaderboard aggregates every commission the employee earned this month:
+    // the 60.00 seeded above plus the 3.00 `subscription_sale` commission that
+    // CalculateCommission auto-creates (1% of the 300.00 subscription sold by this user).
+    expect($response1->json('data.captain_leaderboard.0.commissions_total'))->toBe('63.00');
 
     // Create another sale today bypassing events - output should be cached and NOT change
     Sale::withoutEvents(function () use ($employeeUser) {
@@ -152,9 +156,13 @@ test('unauthenticated users cannot view dashboard summary', function (): void {
 });
 
 test('users without reports.view permission cannot view dashboard summary', function (): void {
+    // Captain is no longer a valid stand-in for "lacks reports.view": HrFinanceAccessSeeder
+    // deliberately grants Captain reports.view so floor staff can open the shift desk.
+    // A plain authenticated user with no role still holds no permission at all.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
+
+    expect($user->can(PosPermissions::PERM_REPORTS_VIEW))->toBeFalse();
 
     $this->getJson('/api/v1/dashboard/summary')
         ->assertStatus(403);

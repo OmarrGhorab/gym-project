@@ -32,9 +32,9 @@ export default async function Page({
   const paymentMethod = normalizePosPaymentMethodFilter(params?.payment_method);
   const from = normalizePosDate(params?.from);
   const to = normalizePosDate(params?.to);
-  const data = await getPosDashboardData({ dateRange: { from, to }, paymentMethod, period });
-  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
   const canCreateSale = user ? canAccess(user, "sales.create") : false;
+  const data = await getPosDashboardData({ dateRange: { from, to }, paymentMethod, period }, { canCreateSale });
+  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
   const canViewReports = user ? canAccess(user, "reports.view") : false;
   const canViewProducts = user ? canAccess(user, "products.view") : false;
   const canVoidSale = user ? canAccess(user, "sales.void") : false;

@@ -112,7 +112,7 @@ final class MembershipMetrics
      */
     public function outstandingDues(): array
     {
-        $rows = $this->duesQuery()->get();
+        $rows = $this->duesQuery()->withoutEagerLoads()->get();
 
         $total = 0.0;
         foreach ($rows as $subscription) {

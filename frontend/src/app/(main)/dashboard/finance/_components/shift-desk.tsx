@@ -13,7 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { closeShiftSession, openShiftSession, reviewShiftHandover, submitShiftHandover } from "./actions";
+import {
+  assignShiftStaff,
+  closeShiftSession,
+  openShiftSession,
+  reviewShiftHandover,
+  submitShiftHandover,
+} from "./actions";
 
 export type ShiftDeskStaff = {
   id: number;
@@ -185,6 +191,15 @@ export function ShiftDesk({
                 </>
               ) : null}
             </p>
+            {canOperate && currentSession.status === "open" ? (
+              <AssignStaffControl
+                currentStaffId={currentSession.staff_on_duty?.id ?? null}
+                pending={pending}
+                sessionId={currentSession.id}
+                staff={shifts.find((shift) => shift.id === currentSession.shift?.id)?.employees ?? []}
+                onAssign={run}
+              />
+            ) : null}
           </div>
           {canOperate && currentSession.status === "open" ? (
             <div className="flex flex-col items-end gap-1">
@@ -461,6 +476,60 @@ export function ShiftDesk({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Hand the open drawer to another employee of the same shift, or name one on a
+ * session that was opened before the responsible employee was recorded.
+ */
+function AssignStaffControl({
+  currentStaffId,
+  pending,
+  sessionId,
+  staff,
+  onAssign,
+}: {
+  currentStaffId: number | null;
+  pending: boolean;
+  sessionId: number;
+  staff: ShiftDeskStaff[];
+  onAssign: (action: () => Promise<{ ok: boolean; message: string }>) => void;
+}) {
+  const [employeeId, setEmployeeId] = useState(currentStaffId ? String(currentStaffId) : "");
+
+  if (staff.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <Label className="text-muted-foreground text-xs" htmlFor={`assign-staff-${sessionId}`}>
+        Change staff on duty
+      </Label>
+      <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "")}>
+        <SelectTrigger id={`assign-staff-${sessionId}`} className="h-8 w-56">
+          <SelectValue placeholder="Select employee" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {staff.map((employee) => (
+              <SelectItem key={employee.id} value={String(employee.id)}>
+                {employee.role ? `${employee.name} — ${employee.role}` : employee.name}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={pending || !employeeId || employeeId === String(currentStaffId ?? "")}
+        onClick={() => onAssign(() => assignShiftStaff(sessionId, Number(employeeId)))}
+      >
+        Assign
+      </Button>
+    </div>
   );
 }
 

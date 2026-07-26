@@ -38,7 +38,24 @@ class SubscriptionController extends ApiController
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $subscriptions = QueryBuilder::for(Subscription::class)
-            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes', 'refunds', 'addons.plan', 'addons.coach', 'addons.payments'])
+            ->with([
+                'member',
+                'plan',
+                'soldBy',
+                'payments',
+                'freezes',
+                'refunds',
+                'addons.plan',
+                'addons.coach',
+                'addons.payments',
+                'member.latestSubscription.plan',
+                'member.latestSubscription.payments',
+                'member.latestSubscription.refunds',
+                'member.latestSubscription.freezes',
+                'member.latestSubscription.addons.plan',
+                'member.latestSubscription.addons.coach',
+                'member.latestSubscription.addons.payments',
+            ])
             ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),
@@ -150,7 +167,23 @@ class SubscriptionController extends ApiController
     {
         $this->authorize('view', $subscription);
 
-        return (new SubscriptionResource($subscription->load(['member', 'plan', 'soldBy', 'payments', 'freezes', 'addons.plan', 'addons.coach', 'addons.payments'])))
+        return (new SubscriptionResource($subscription->load([
+            'member',
+            'plan',
+            'soldBy',
+            'payments',
+            'freezes',
+            'addons.plan',
+            'addons.coach',
+            'addons.payments',
+            'member.latestSubscription.plan',
+            'member.latestSubscription.payments',
+            'member.latestSubscription.refunds',
+            'member.latestSubscription.freezes',
+            'member.latestSubscription.addons.plan',
+            'member.latestSubscription.addons.coach',
+            'member.latestSubscription.addons.payments',
+        ])))
             ->withMessage('Subscription retrieved')
             ->response()
             ->setStatusCode(200);

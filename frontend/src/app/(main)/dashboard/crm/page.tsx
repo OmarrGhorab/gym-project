@@ -8,8 +8,7 @@ import { PipelineActivity } from "./_components/pipeline-activity";
 import { TaskReminders } from "./_components/task-reminders";
 
 export default async function Page() {
-  const user = await getCurrentUser();
-  const data = await getMembershipDashboardData();
+  const [user, data] = await Promise.all([getCurrentUser(), getMembershipDashboardData()]);
   const canViewMoney = user
     ? canAccess(user, ["reports.view", "payroll.view", "expenses.view", "export.reports"])
     : false;

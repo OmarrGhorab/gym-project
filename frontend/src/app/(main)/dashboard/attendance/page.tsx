@@ -109,6 +109,7 @@ export default async function Page({ searchParams }: PageProps) {
         employees={data.employees}
         overtimeShifts={data.overtimeShifts}
         selectedDate={selectedDate}
+        shifts={data.shifts}
       />
 
       <AttendanceWarningsTable

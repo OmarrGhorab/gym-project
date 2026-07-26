@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { type AttendanceActionResult, createOvertimeShift, reviewOvertimeShift } from "./actions";
-import type { EmployeeOption, OvertimeCandidate, OvertimeShiftRecord } from "./data";
+import type { EmployeeOption, EmployeeShift, OvertimeCandidate, OvertimeShiftRecord } from "./data";
 
 const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
 
@@ -24,9 +24,10 @@ type Props = {
   employees: EmployeeOption[];
   overtimeShifts: OvertimeShiftRecord[];
   selectedDate: string;
+  shifts: EmployeeShift[];
 };
 
-export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, selectedDate }: Props) {
+export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, selectedDate, shifts }: Props) {
   const t = useTranslations("Dashboard.attendance");
   const openSlots = candidates.filter((candidate) => !candidate.covered_by);
 
@@ -78,6 +79,11 @@ export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, sel
               </TableBody>
             </Table>
           </div>
+        </section>
+
+        <section className="grid gap-2">
+          <SectionHeading title={t("overtimeManualTitle")} help={t("overtimeManualHelp")} />
+          <ManualAssignmentForm employees={employees} selectedDate={selectedDate} shifts={shifts} />
         </section>
 
         <section className="grid gap-2">
@@ -208,6 +214,139 @@ function ClaimRow({
         )}
       </TableCell>
     </TableRow>
+  );
+}
+
+/**
+ * Assign a replacement for anyone on the roster, not just the auto-detected absences.
+ * Covers planned swaps and employees whose absence the schedule cannot infer. The API
+ * still refuses to record a cover for someone who has already checked in.
+ */
+function ManualAssignmentForm({
+  employees,
+  selectedDate,
+  shifts,
+}: {
+  employees: EmployeeOption[];
+  selectedDate: string;
+  shifts: EmployeeShift[];
+}) {
+  const t = useTranslations("Dashboard.attendance");
+  const [state, action, pending] = useActionState(createOvertimeShift, initialState);
+  const [coveringEmployeeId, setCoveringEmployeeId] = useState("");
+  const [replacedEmployeeId, setReplacedEmployeeId] = useState("");
+  const [shiftId, setShiftId] = useState("");
+  const [date, setDate] = useState(selectedDate);
+
+  useActionToast(state);
+
+  useEffect(() => {
+    setDate(selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    if (state.ok && state.message) {
+      setCoveringEmployeeId("");
+      setReplacedEmployeeId("");
+      setShiftId("");
+    }
+  }, [state]);
+
+  const employeeOptions = (exclude: string) =>
+    employees
+      .filter((employee) => String(employee.id) !== exclude)
+      .map((employee) => ({
+        key: `manual-${exclude}-${employee.id}`,
+        label: `${employee.name} - ${employee.role}`,
+        value: String(employee.id),
+      }));
+
+  return (
+    <form action={action} className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4">
+      <input name="employee_id" type="hidden" value={coveringEmployeeId} />
+      <input name="covering_for_employee_id" type="hidden" value={replacedEmployeeId} />
+      <input name="employee_shift_id" type="hidden" value={shiftId} />
+      <input name="date" type="hidden" value={date} />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-1.5">
+          <Label className="text-xs" htmlFor="manual-overtime-cover">
+            {t("overtimeSelectCover")}
+          </Label>
+          <FormSelect
+            className="w-full"
+            contentClassName="max-h-72"
+            id="manual-overtime-cover"
+            name="employee_id_lookup"
+            options={employeeOptions(replacedEmployeeId)}
+            placeholder={t("selectEmployee")}
+            searchPlaceholder={t("searchEmployees")}
+            value={coveringEmployeeId}
+            onValueChange={(value) => setCoveringEmployeeId(value ?? "")}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label className="text-xs" htmlFor="manual-overtime-replaced">
+            {t("overtimeReplacing")}
+          </Label>
+          <FormSelect
+            className="w-full"
+            contentClassName="max-h-72"
+            id="manual-overtime-replaced"
+            name="covering_for_employee_id_lookup"
+            options={employeeOptions(coveringEmployeeId)}
+            placeholder={t("selectEmployee")}
+            searchPlaceholder={t("searchEmployees")}
+            value={replacedEmployeeId}
+            onValueChange={(value) => setReplacedEmployeeId(value ?? "")}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label className="text-xs" htmlFor="manual-overtime-shift">
+            {t("shiftLabel")}
+          </Label>
+          <FormSelect
+            className="w-full"
+            contentClassName="max-h-72"
+            id="manual-overtime-shift"
+            name="employee_shift_id_lookup"
+            options={shifts.map((shift) => ({
+              key: `manual-shift-${shift.id}`,
+              label: `${shift.name} (${shift.starts_at} - ${shift.ends_at})`,
+              value: String(shift.id),
+            }))}
+            placeholder={t("overtimeShiftAuto")}
+            searchPlaceholder={t("shiftLabel")}
+            value={shiftId}
+            onValueChange={(value) => setShiftId(value ?? "")}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label className="text-xs" htmlFor="manual-overtime-date">
+            {t("attendanceDate")}
+          </Label>
+          <Input id="manual-overtime-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        </div>
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label className="text-xs" htmlFor="manual-overtime-notes">
+          {t("notesLabel")}
+        </Label>
+        <Input id="manual-overtime-notes" name="notes" placeholder={t("notesPlaceholder")} />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-muted-foreground text-xs">{t("overtimeManualBonusHint")}</span>
+        <Button disabled={pending || !coveringEmployeeId || !replacedEmployeeId} size="sm" type="submit">
+          <HandCoins className="size-3.5" />
+          {t("overtimeAssign")}
+        </Button>
+      </div>
+    </form>
   );
 }
 

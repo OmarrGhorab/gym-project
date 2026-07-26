@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\ShiftSessions\AssignShiftStaff;
 use App\Actions\ShiftSessions\CloseShiftSession;
 use App\Actions\ShiftSessions\ComputeShiftSessionTotals;
 use App\Actions\ShiftSessions\OpenShiftSession;
@@ -10,6 +11,8 @@ use App\Actions\ShiftSessions\SubmitShiftHandover;
 use App\Http\Resources\EmployeeShiftResource;
 use App\Http\Resources\ShiftSessionResource;
 use App\Models\EmployeeShift;
+use App\Models\Expense;
+use App\Models\Payment;
 use App\Models\ShiftSession;
 use App\Support\FoundationPermissions;
 use Illuminate\Http\JsonResponse;
@@ -27,9 +30,38 @@ class ShiftSessionController extends ApiController
             ->latest('opened_at')
             ->paginate(min(max((int) $request->integer('per_page', 15), 1), 100));
 
-        $payload = $sessions->getCollection()->map(function (ShiftSession $session) use ($request, $totals): array {
+        $rows = $sessions->getCollection();
+
+        // Claim untagged money for every listed session first, then read the tagged
+        // rows in two batched queries instead of five statements per session.
+        foreach ($rows as $session) {
+            $totals->claimOrphanMoney($session);
+        }
+
+        $ids = $rows->pluck('id');
+
+        $paymentsBySession = Payment::query()
+            ->revenue()
+            ->whereIn('shift_session_id', $ids)
+            ->get(['id', 'amount', 'method', 'status', 'payable_type', 'payable_id', 'paid_at', 'shift_session_id'])
+            ->groupBy('shift_session_id');
+
+        $expenseAgg = Expense::query()
+            ->whereIn('shift_session_id', $ids)
+            ->selectRaw('shift_session_id, COUNT(*) as rows_count, COALESCE(SUM(amount), 0) as amount_sum')
+            ->groupBy('shift_session_id')
+            ->get()
+            ->keyBy('shift_session_id');
+
+        $payload = $rows->map(function (ShiftSession $session) use ($request, $totals, $paymentsBySession, $expenseAgg): array {
             $row = (new ShiftSessionResource($session))->toArray($request);
-            $live = $totals->handle($session);
+            $agg = $expenseAgg->get($session->id);
+            $live = $totals->computeFrom(
+                $session,
+                $paymentsBySession->get($session->id, collect()),
+                (int) ($agg->rows_count ?? 0),
+                bcadd((string) ($agg->amount_sum ?? 0), '0.00', 2),
+            );
             $row['live_totals'] = $live;
             $row['variance'] = $this->varianceSnapshot($session);
 
@@ -150,6 +182,22 @@ class ShiftSessionController extends ApiController
 
         return (new ShiftSessionResource($session))
             ->withMessage('Shift session closed')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function assignStaff(Request $request, ShiftSession $shiftSession, AssignShiftStaff $action): JsonResponse
+    {
+        $this->authorizeFinanceCreate($request);
+
+        $data = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+        ]);
+
+        $session = $action->handle($shiftSession, $data, $request->user());
+
+        return (new ShiftSessionResource($session))
+            ->withMessage('Staff on duty updated')
             ->response()
             ->setStatusCode(200);
     }

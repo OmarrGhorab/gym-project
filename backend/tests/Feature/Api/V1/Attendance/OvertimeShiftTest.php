@@ -83,6 +83,39 @@ test('an employee can pick up the shift of an absent colleague', function (): vo
         ->assertJsonPath('data.0.covered_by.employee_id', $cover->id);
 });
 
+test('an admin can manually assign a replacement for someone auto-detection never surfaces', function (): void {
+    actingAsOvertimeManager();
+
+    // Off-day employees are filtered out of the uncovered-shift list, so this pairing
+    // can only be created by hand.
+    $shift = EmployeeShift::factory()->create([
+        'name' => 'Evening',
+        'starts_at' => '16:00:00',
+        'ends_at' => '21:00:00',
+        'off_days' => [(int) today()->dayOfWeek],
+    ]);
+    $replaced = Employee::factory()->create(['shift_id' => $shift->id, 'status' => 'active']);
+    $replacement = Employee::factory()->create(['name' => 'Standby Sami', 'status' => 'active']);
+
+    $this->getJson('/api/v1/overtime-shifts/candidates?date='.today()->toDateString())
+        ->assertOk()
+        ->assertJsonCount(0, 'data');
+
+    $this->postJson('/api/v1/overtime-shifts', [
+        'employee_id' => $replacement->id,
+        'covering_for_employee_id' => $replaced->id,
+        'employee_shift_id' => $shift->id,
+        'date' => today()->toDateString(),
+        'notes' => 'Manual swap agreed with the manager.',
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.status', 'pending')
+        ->assertJsonPath('data.employee_id', $replacement->id)
+        ->assertJsonPath('data.covering_for_employee_id', $replaced->id)
+        ->assertJsonPath('data.employee_shift_id', $shift->id)
+        ->assertJsonPath('data.bonus_amount', '0.00');
+});
+
 test('overtime cannot be claimed for a colleague who did attend', function (): void {
     actingAsOvertimeManager();
 

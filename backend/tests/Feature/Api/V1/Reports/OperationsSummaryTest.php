@@ -88,9 +88,13 @@ test('accountant can view operations summary', function (): void {
 });
 
 test('users without reports permission cannot view operations summary', function (): void {
+    // Captain/Cashier now hold reports.view so they can open the Finance shift
+    // desk (see RoleMatrixSeeder + PosAccessSeeder/HrFinanceAccessSeeder), so a
+    // roleless user is the honest "lacks reports.view" subject for this gate.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
+
+    expect($user->can('reports.view'))->toBeFalse();
 
     $this->getJson('/api/v1/reports/operations-summary')
         ->assertForbidden();

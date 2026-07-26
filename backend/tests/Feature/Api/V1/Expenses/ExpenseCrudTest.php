@@ -3,6 +3,7 @@
 use App\Models\Expense;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use App\Support\HrFinancePermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
 use Laravel\Sanctum\Sanctum;
@@ -30,9 +31,13 @@ test('unauthenticated users cannot list expenses', function (): void {
 });
 
 test('users without expenses.view permission cannot list expenses', function (): void {
+    // Captain/Cashier deliberately hold expenses.view: ShiftSessionController gates
+    // the shift-desk read endpoints on expenses.view|attendance.view|payments.view,
+    // so floor staff need it. A roleless user is the honest subject for this gate.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
+
+    expect($user->can(HrFinancePermissions::PERM_EXPENSES_VIEW))->toBeFalse();
 
     $this->getJson('/api/v1/expenses')
         ->assertStatus(403);
@@ -176,7 +181,9 @@ test('manager can delete expense and receives 204', function (): void {
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
     Sanctum::actingAs($manager);
 
-    $expense = Expense::factory()->create();
+    // Pin the category: the factory randomises it over a list that includes 'payroll',
+    // which ExpensePolicy@delete deliberately locks — that made this test fail ~1 run in 6.
+    $expense = Expense::factory()->create(['category' => 'utilities']);
 
     $this->deleteJson("/api/v1/expenses/{$expense->id}")
         ->assertStatus(204);
@@ -212,9 +219,13 @@ test('payroll payout expenses cannot be updated or deleted from expense endpoint
 });
 
 test('user without expenses.create permission cannot create expense', function (): void {
+    // Captain/Cashier deliberately hold expenses.create: the shift desk records
+    // petty-cash spend during a shift (ShiftSessionController gates the write
+    // endpoints on it). A roleless user is the honest subject for this gate.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
+
+    expect($user->can(HrFinancePermissions::PERM_EXPENSES_CREATE))->toBeFalse();
 
     $this->postJson('/api/v1/expenses', [
         'category' => 'utilities',

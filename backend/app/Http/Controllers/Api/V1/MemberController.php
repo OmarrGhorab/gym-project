@@ -50,6 +50,8 @@ final class MemberController extends ApiController
         $members = QueryBuilder::for(Member::withTotalPaid()->with([
             'latestSubscription.plan',
             'latestSubscription.payments',
+            'latestSubscription.refunds',
+            'latestSubscription.freezes',
             'latestSubscription.addons.plan',
             'latestSubscription.addons.coach',
             'latestSubscription.addons.payments',
@@ -192,6 +194,8 @@ final class MemberController extends ApiController
             ->with([
                 'latestSubscription.plan',
                 'latestSubscription.payments',
+                'latestSubscription.refunds',
+                'latestSubscription.freezes',
                 'latestSubscription.addons.plan',
                 'latestSubscription.addons.coach',
                 'latestSubscription.addons.payments',
@@ -594,6 +598,8 @@ final class MemberController extends ApiController
             ->with([
                 'latestSubscription.plan',
                 'latestSubscription.payments',
+                'latestSubscription.refunds',
+                'latestSubscription.freezes',
                 'latestSubscription.addons.plan',
                 'latestSubscription.addons.coach',
                 'latestSubscription.addons.payments',

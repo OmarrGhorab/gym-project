@@ -56,6 +56,10 @@ class UpdateSettingsRequest extends FormRequest
                     static fn (string $value): string => trim($value),
                     explode(',', $reminderDays),
                 ), static fn (string $value): bool => $value !== ''));
+            } elseif (is_int($reminderDays) || is_float($reminderDays)) {
+                // Legacy/simple clients send a single lead time (e.g. `reminder_days: 10`).
+                // Normalize it into the list shape without relaxing the per-day rules below.
+                $reminderDays = [$reminderDays];
             }
 
             $normalized['reminder_days'] = $reminderDays;

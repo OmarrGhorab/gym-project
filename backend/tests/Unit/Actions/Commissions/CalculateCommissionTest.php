@@ -72,7 +72,33 @@ test('it resolves plan commission rate for subscriptions', function (): void {
         ->and($commission->amount)->toBe('60.00');
 });
 
-test('it skips subscription seller commission when the plan has no commission rate', function (): void {
+test('it skips subscription seller commission when the plan pays a zero commission rate', function (): void {
+    $user = User::factory()->create();
+    Employee::factory()->captain()->create([
+        'user_id' => $user->id,
+    ]);
+
+    // An explicitly configured 0% plan pays no sales commission. (A plan with a
+    // *null* rate is merely unconfigured and falls back to the default 1%, see
+    // tests/Feature/Api/V1/Commissions/CommissionLiveTriggerTest.php.)
+    $plan = Plan::factory()->create([
+        'commission_rate' => '0.0000',
+    ]);
+
+    $subscription = Subscription::factory()->create([
+        'sold_by_user_id' => $user->id,
+        'plan_id' => $plan->id,
+        'price_paid' => 500.00,
+    ]);
+    Commission::query()->delete();
+
+    $created = app(CalculateCommission::class)->forSource($subscription);
+
+    expect($created)->toBe(0)
+        ->and(Commission::query()->count())->toBe(0);
+});
+
+test('it falls back to the default one percent seller rate when the plan rate is unconfigured', function (): void {
     $user = User::factory()->create();
     Employee::factory()->captain()->create([
         'user_id' => $user->id,
@@ -90,9 +116,11 @@ test('it skips subscription seller commission when the plan has no commission ra
     Commission::query()->delete();
 
     $created = app(CalculateCommission::class)->forSource($subscription);
+    $commission = Commission::query()->first();
 
-    expect($created)->toBe(0)
-        ->and(Commission::query()->count())->toBe(0);
+    expect($created)->toBe(1)
+        ->and($commission->rate)->toBe('0.0100')
+        ->and($commission->amount)->toBe('5.00');
 });
 
 test('it calculates percentage coach commission for subscription add ons from subscription plus add on total', function (): void {

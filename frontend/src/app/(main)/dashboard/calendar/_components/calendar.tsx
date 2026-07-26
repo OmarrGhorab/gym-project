@@ -6,7 +6,6 @@ import { useCalendarController } from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
-import multiMonthPlugin from "@fullcalendar/react/multimonth";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import { differenceInCalendarDays, endOfMonth, format, startOfMonth } from "date-fns";
 import {
@@ -145,7 +144,7 @@ const typeColors: Record<CalendarEventType, string> = {
   finance: "#0891b2",
 };
 
-const plugins = [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin, multiMonthPlugin];
+const plugins = [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin];
 
 type CalendarProps = {
   events: OperationsCalendarEvent[];

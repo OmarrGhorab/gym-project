@@ -17,6 +17,15 @@ test('every non-public route in api v1 has auth:sanctum and a permission or role
         'api/v1/auth/{provider}/callback',
     ];
 
+    // Routes that are deliberately reachable without a session: access is granted by a
+    // cryptographically signed, expiring URL minted by an already-authorised user.
+    // (members.report.share is permission:members.view gated and hands out a 7-day
+    // temporary signed link so a member can fetch their own report copy.)
+    // These must still carry the 'signed' middleware — that is their gate.
+    $signedUrlRoutes = [
+        'api/v1/members/{member}/report/share/download',
+    ];
+
     $unprotectedRoutes = [];
 
     foreach ($routes as $route) {
@@ -36,6 +45,18 @@ test('every non-public route in api v1 has auth:sanctum and a permission or role
 
         $hasAuth = in_array('auth:sanctum', $middleware, true);
 
+        if (in_array($uri, $signedUrlRoutes, true)) {
+            if (! in_array('signed', $middleware, true)) {
+                $unprotectedRoutes[] = [
+                    'uri' => $uri,
+                    'methods' => $route->methods(),
+                    'middleware' => $middleware,
+                ];
+            }
+
+            continue;
+        }
+
         // These require authentication but no specific permission
         $authOnlyRoutes = [
             'api/v1/auth/me',
@@ -54,11 +75,20 @@ test('every non-public route in api v1 has auth:sanctum and a permission or role
             continue;
         }
 
+        // Every authorisation middleware the app registers counts as a gate:
+        // Spatie's permission/role/role_or_permission aliases plus Laravel's
+        // policy-backed 'can:' (used where the rule is per-record, e.g. an
+        // employee may read only their own payslip).
+        $gatePrefixes = ['permission:', 'role:', 'role_or_permission:', 'can:'];
+
         $hasGate = false;
         foreach ($middleware as $m) {
-            if (str_starts_with($m, 'permission:') || str_starts_with($m, 'role:') || str_starts_with($m, 'can:')) {
-                $hasGate = true;
-                break;
+            foreach ($gatePrefixes as $prefix) {
+                if (str_starts_with($m, $prefix)) {
+                    $hasGate = true;
+
+                    break 2;
+                }
             }
         }
 

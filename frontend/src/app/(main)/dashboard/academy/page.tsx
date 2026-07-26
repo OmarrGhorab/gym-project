@@ -29,10 +29,10 @@ type AcademyPeriod = {
 
 export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.academy");
-  const user = await getCurrentUser();
   const resolvedSearchParams = await searchParams;
   const period = getAcademyPeriod(resolvedSearchParams);
-  const [data, employees, payrollSettings] = await Promise.all([
+  const [user, data, employees, payrollSettings] = await Promise.all([
+    getCurrentUser(),
     getStaffAcademyData(period),
     getAcademyEmployees(),
     getPayrollSettings(),

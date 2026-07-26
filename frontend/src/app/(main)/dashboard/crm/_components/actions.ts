@@ -44,18 +44,6 @@ const recordPaymentSchema = z.object({
   method: paymentMethodSchema,
   subscription_id: subscriptionIdSchema,
 });
-const changePlanSchema = z.object({
-  amount_due: optionalMoneySchema,
-  credit_mode: z.enum(["full_difference", "day_proration"]).optional(),
-  discount: optionalMoneySchema,
-  payment: paymentSchema.extend({
-    amount: z
-      .string()
-      .trim()
-      .refine((value) => Number(value) >= 0, "Payment amount cannot be negative."),
-  }),
-  plan_id: z.coerce.number().int().positive("Plan is required."),
-});
 const freezeSchema = z
   .object({
     freeze_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid freeze end date."),
@@ -184,85 +172,6 @@ export async function recordMembershipPayment(input: RecordMembershipPaymentInpu
   return mutateSubscription("/payments", "Payment recorded.", parsed.data);
 }
 
-export type ChangeMembershipPlanInput = {
-  plan_id: number;
-  credit_mode?: "full_difference" | "day_proration";
-  amount_due?: string;
-  discount?: string;
-  payment: {
-    amount: string;
-    method: "cash" | "card" | "bank_transfer";
-  };
-};
-
-export async function changeMembershipPlan(
-  id: number,
-  input: ChangeMembershipPlanInput,
-  mode: "upgrade" | "renew" = "upgrade",
-): Promise<MembershipActionResult> {
-  const parsedId = subscriptionIdSchema.safeParse(id);
-  const parsedInput = changePlanSchema.safeParse(input);
-
-  if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
-  if (!parsedInput.success) return invalidResult("Please fix the highlighted plan fields.", parsedInput.error);
-
-  const rawAmount = String(parsedInput.data.payment.amount ?? "0");
-  const numAmount = Number.parseFloat(rawAmount);
-  const safeAmount = Number.isNaN(numAmount) || numAmount < 0 ? "0.00" : rawAmount;
-
-  const rawDue = String(parsedInput.data.amount_due ?? rawAmount);
-  const numDue = Number.parseFloat(rawDue);
-  const safeDue = Number.isNaN(numDue) || numDue < 0 ? "0.00" : rawDue;
-
-  return mutateSubscription(`/subscriptions/${parsedId.data}/${mode}`, "Main membership plan changed.", {
-    ...parsedInput.data,
-    amount_due: safeDue,
-    payment: {
-      ...parsedInput.data.payment,
-      amount: safeAmount,
-    },
-  });
-}
-
-export type AddMembershipExtraInput = {
-  plan_id: number;
-  coach_id?: number;
-  discount?: string;
-  payment: {
-    amount: string;
-    method: "cash" | "card" | "bank_transfer";
-  };
-};
-
-const addExtraSchema = z.object({
-  plan_id: z.coerce.number().int().positive("Extra plan is required."),
-  coach_id: z.coerce.number().int().positive().optional(),
-  discount: optionalMoneySchema,
-  payment: paymentSchema.extend({
-    amount: z
-      .string()
-      .trim()
-      .refine((value) => Number(value) >= 0, "Payment amount cannot be negative."),
-  }),
-});
-
-export async function addMembershipExtra(
-  subscriptionId: number,
-  input: AddMembershipExtraInput,
-): Promise<MembershipActionResult> {
-  const parsedId = subscriptionIdSchema.safeParse(subscriptionId);
-  const parsedInput = addExtraSchema.safeParse(input);
-
-  if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
-  if (!parsedInput.success) return invalidResult("Please fix the highlighted extra-service fields.", parsedInput.error);
-
-  return mutateSubscription(
-    `/subscriptions/${parsedId.data}/addons`,
-    "Extra service added to membership.",
-    parsedInput.data,
-  );
-}
-
 export type FreezeMembershipSubscriptionInput = {
   freeze_start: string;
   freeze_end: string;
@@ -314,10 +223,11 @@ async function mutateSubscription(
   };
 }
 
-function invalidResult(message: string, error: z.ZodError): MembershipActionResult {
+/** `error` is optional: some guards fail on more than one parse and have no single field to blame. */
+function invalidResult(message: string, error?: z.ZodError): MembershipActionResult {
   return {
     ok: false,
     message,
-    errors: error.flatten().fieldErrors,
+    errors: error ? error.flatten().fieldErrors : {},
   };
 }

@@ -5,6 +5,7 @@ use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use App\Support\PosPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\PosAccessSeeder;
 use Laravel\Sanctum\Sanctum;
@@ -19,9 +20,13 @@ test('unauthenticated users cannot view periodic sales report', function (): voi
 });
 
 test('users without reports.view permission cannot view periodic sales report', function (): void {
+    // Cashier deliberately holds reports.view (PosAccessSeeder / RoleMatrixSeeder)
+    // so front desk can open the Finance shift desk, so a roleless user is the
+    // honest "lacks reports.view" subject for this gate.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CASHIER);
     Sanctum::actingAs($user);
+
+    expect($user->can(PosPermissions::PERM_REPORTS_VIEW))->toBeFalse();
 
     $this->getJson('/api/v1/sales/report')->assertStatus(403);
 });

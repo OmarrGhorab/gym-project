@@ -190,6 +190,7 @@ export function normalizePosDate(value: string | string[] | undefined): string |
 
 export async function getPosDashboardData(
   filters: { dateRange?: PosDateRange; period?: PosPeriodFilter; paymentMethod?: PosPaymentMethodFilter } = {},
+  access: { canCreateSale: boolean } = { canCreateSale: true },
 ): Promise<PosDashboardData> {
   try {
     const params = new URLSearchParams();
@@ -215,14 +216,18 @@ export async function getPosDashboardData(
 
     const [result, productsResult, membersResult, dailySalesResult, recentSalesResult] = await Promise.all([
       safeFetch<PosDashboardData>(`/reports/pos-summary?${params.toString()}`, emptyPosData),
-      safeFetch<PosProductOption[] | { data: PosProductOption[] }>(
-        "/products?filter[is_active]=1&sort=name&per_page=100",
-        [],
-      ),
-      safeFetch<PosMemberOption[] | { data: PosMemberOption[] }>(
-        "/members?filter[status]=active&sort=name&per_page=100",
-        [],
-      ),
+      access.canCreateSale
+        ? safeFetch<PosProductOption[] | { data: PosProductOption[] }>(
+            "/products?filter[is_active]=1&sort=name&per_page=100",
+            [],
+          )
+        : { data: [] as PosProductOption[] },
+      access.canCreateSale
+        ? safeFetch<PosMemberOption[] | { data: PosMemberOption[] }>(
+            "/members?filter[status]=active&sort=name&per_page=100",
+            [],
+          )
+        : { data: [] as PosMemberOption[] },
       safeFetch<{ total_revenue: string; sales: unknown[] }>(`/sales/daily?date=${formatDateParam(new Date())}`, {
         total_revenue: "0.00",
         sales: [],

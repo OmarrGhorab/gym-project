@@ -112,6 +112,10 @@ test('cashier role has correct membership permissions', function (): void {
         MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE,
         MembershipPermissions::PERM_PAYMENTS_VIEW,
         MembershipPermissions::PERM_PAYMENTS_CREATE,
+        // The front-desk shell route "/dashboard" is itself gated on dashboard.view
+        // (frontend/src/lib/authorization.tsx), so a cashier cannot log in without it.
+        // RoleMatrixSeeder — the authoritative preset matrix — grants it too.
+        MembershipPermissions::PERM_DASHBOARD_VIEW,
     ];
 
     $notExpected = array_values(array_diff(MembershipPermissions::ALL_PERMISSIONS, $expected));

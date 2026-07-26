@@ -28,19 +28,23 @@ final class ProductsFinanceReport
 
         $products = $productsQuery->get();
 
-        $productsTable = $products->map(function (Product $product) use ($from, $to, $paymentMethod): array {
-            $salesItemsQuery = SaleItem::query()
-                ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
-                ->where('sale_items.product_id', $product->id)
-                ->where('sales.status', 'completed')
-                ->whereBetween('sales.created_at', [$from, $to])
-                ->when($paymentMethod, fn ($q) => $q->where('sales.payment_method', $paymentMethod));
+        $productStats = SaleItem::query()
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sales.status', 'completed')
+            ->whereBetween('sales.created_at', [$from, $to])
+            ->when($paymentMethod, fn ($q) => $q->where('sales.payment_method', $paymentMethod))
+            ->whereIn('sale_items.product_id', $products->pluck('id'))
+            ->groupBy('sale_items.product_id')
+            ->selectRaw('sale_items.product_id as product_id, SUM(sale_items.quantity) as units, SUM(sale_items.total) as revenue, COALESCE(SUM(sale_items.total - (sales.discount * sale_items.total / NULLIF(sales.subtotal, 0))), 0) as net_revenue')
+            ->get()
+            ->keyBy('product_id');
 
-            $unitsSold = (int) (clone $salesItemsQuery)->sum('sale_items.quantity');
-            $revenue = (float) (clone $salesItemsQuery)->sum('sale_items.total');
-            $netRevenue = (float) (clone $salesItemsQuery)
-                ->selectRaw('COALESCE(SUM(sale_items.total - (sales.discount * sale_items.total / NULLIF(sales.subtotal, 0))), 0) as net_revenue')
-                ->value('net_revenue');
+        $productsTable = $products->map(function (Product $product) use ($productStats): array {
+            $stats = $productStats->get($product->id);
+
+            $unitsSold = (int) ($stats->units ?? 0);
+            $revenue = (float) ($stats->revenue ?? 0);
+            $netRevenue = (float) ($stats->net_revenue ?? 0);
             $unitProfit = (float) $product->price - (float) $product->cost;
             $netProfit = $netRevenue - ((float) $product->cost * $unitsSold);
 

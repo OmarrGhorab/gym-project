@@ -9,8 +9,7 @@ import { StaffOperations } from "../_components/staff-operations";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.academy");
-  const user = await getCurrentUser();
-  const data = await getStaffManagementPageData();
+  const [user, data] = await Promise.all([getCurrentUser(), getStaffManagementPageData()]);
   const employeePermissions = {
     canCreate: user ? canAccess(user, "employees.create") : false,
     canDelete: user ? canAccess(user, "employees.delete") : false,

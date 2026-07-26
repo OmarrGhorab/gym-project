@@ -95,6 +95,9 @@ type SubscriptionResource = {
   cancellation_grace_ends_on?: string | null;
   renewal_health?: string | null;
   renewal_health_reason?: string | null;
+  /** Both null on an unlimited plan; otherwise total = sessions_count x cycles, remaining counts down per visit. */
+  sessions_total?: number | null;
+  sessions_remaining?: number | null;
   refunds?: Array<{
     id: number;
     amount?: string | number | null;
@@ -153,6 +156,9 @@ type PlanResource = {
   duration_months?: string | number | null;
   category?: string | null;
   type?: string | null;
+  /** null when the plan is unlimited — there is no session count to track. */
+  sessions_count?: number | null;
+  is_unlimited_sessions?: boolean | null;
 };
 
 type CoachOptionResource = {

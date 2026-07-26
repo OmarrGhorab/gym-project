@@ -9,6 +9,7 @@ use App\Models\ShiftSession;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class ComputeShiftSessionTotals
 {
@@ -45,6 +46,47 @@ class ComputeShiftSessionTotals
             ->where('shift_session_id', $session->id)
             ->get(['id', 'amount', 'method', 'status', 'payable_type', 'payable_id', 'paid_at', 'shift_session_id']);
 
+        $expenseAgg = Expense::query()
+            ->where('shift_session_id', $session->id)
+            ->selectRaw('COUNT(*) as rows_count, COALESCE(SUM(amount), 0) as amount_sum')
+            ->first();
+
+        return $this->computeFrom(
+            $session,
+            $payments,
+            (int) ($expenseAgg->rows_count ?? 0),
+            bcadd((string) ($expenseAgg->amount_sum ?? 0), '0.00', 2),
+        );
+    }
+
+    /**
+     * Aggregate pre-fetched payments/expense totals for a session.
+     *
+     * @param  Collection<int, Payment>  $payments
+     * @return array{
+     *     cash: string,
+     *     card: string,
+     *     bank: string,
+     *     expenses: string,
+     *     net: string,
+     *     opening_float: string,
+     *     collections: string,
+     *     refunds: string,
+     *     payment_count: int,
+     *     expense_count: int,
+     *     by_method: array{cash: string, card: string, bank: string},
+     *     by_source: array{
+     *         subscriptions: string,
+     *         addons: string,
+     *         pos: string,
+     *         other: string,
+     *         refunds: string,
+     *         expenses: string
+     *     }
+     * }
+     */
+    public function computeFrom(ShiftSession $session, Collection $payments, int $expenseCount, string $expenses): array
+    {
         $methodCash = '0.00';
         $methodCard = '0.00';
         $methodBank = '0.00';
@@ -85,10 +127,6 @@ class ComputeShiftSessionTotals
             }
         }
 
-        $expenseQuery = Expense::query()->where('shift_session_id', $session->id);
-        $expenseCount = (int) (clone $expenseQuery)->count();
-        $expenses = bcadd((string) $expenseQuery->sum('amount'), '0.00', 2);
-
         $openingFloat = bcadd((string) $session->opening_float, '0.00', 2);
         $collections = bcadd(bcadd($methodCash, $methodCard, 2), $methodBank, 2);
         $cashWithFloat = bcadd($methodCash, $openingFloat, 2);
@@ -124,7 +162,7 @@ class ComputeShiftSessionTotals
     /**
      * Attach untagged payments/expenses that belong to this session's window or business day.
      */
-    private function claimOrphanMoney(ShiftSession $session): void
+    public function claimOrphanMoney(ShiftSession $session): void
     {
         $window = $this->window($session);
         $businessDate = $session->business_date?->toDateString()

@@ -52,9 +52,13 @@ test('accountant can view system health summary with setup warnings', function (
 });
 
 test('users without reports permission cannot view system health summary', function (): void {
-    $captain = User::factory()->create();
-    $captain->assignRole(FoundationPermissions::ROLE_CAPTAIN);
-    Sanctum::actingAs($captain);
+    // Captain/Cashier now hold reports.view so they can open the Finance shift
+    // desk (see RoleMatrixSeeder + PosAccessSeeder/HrFinanceAccessSeeder), so a
+    // roleless user is the honest "lacks reports.view" subject for this gate.
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    expect($user->can('reports.view'))->toBeFalse();
 
     $this->getJson('/api/v1/reports/system-health')
         ->assertForbidden();

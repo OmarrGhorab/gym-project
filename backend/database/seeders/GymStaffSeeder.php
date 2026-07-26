@@ -22,12 +22,25 @@ class GymStaffSeeder extends Seeder
      */
     public function run(): void
     {
-        $cashierRole = Role::findByName(FoundationPermissions::ROLE_CASHIER, 'web');
-        $managerRole = Role::findByName(FoundationPermissions::ROLE_MANAGER, 'web');
-        $accountantRole = Role::findByName(FoundationPermissions::ROLE_ACCOUNTANT, 'web');
-        $captainRole = Role::findByName(FoundationPermissions::ROLE_CAPTAIN, 'web');
+        // Roles are normally provisioned by the access seeders that run before this
+        // one, but the staff roster must also seed standalone (tests, partial reseeds).
+        // firstOrCreate only guarantees the role *exists*; its permission set is still
+        // owned exclusively by RoleMatrixSeeder, so nothing is granted here.
+        $roles = [];
 
-        DB::transaction(function () use ($cashierRole, $managerRole, $accountantRole, $captainRole): void {
+        foreach ([
+            FoundationPermissions::ROLE_CASHIER,
+            FoundationPermissions::ROLE_MANAGER,
+            FoundationPermissions::ROLE_ACCOUNTANT,
+            FoundationPermissions::ROLE_CAPTAIN,
+        ] as $roleName) {
+            $roles[$roleName] = Role::firstOrCreate([
+                'name' => $roleName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        DB::transaction(function () use ($roles): void {
             foreach (self::staffRecords() as $staffMember) {
                 $user = null;
 
@@ -45,14 +58,9 @@ class GymStaffSeeder extends Seeder
                     }
 
                     $roleName = $staffMember['login_role'] ?? null;
-                    if ($roleName === FoundationPermissions::ROLE_CASHIER) {
-                        $user->syncRoles([$cashierRole->name]);
-                    } elseif ($roleName === FoundationPermissions::ROLE_MANAGER) {
-                        $user->syncRoles([$managerRole->name]);
-                    } elseif ($roleName === FoundationPermissions::ROLE_ACCOUNTANT) {
-                        $user->syncRoles([$accountantRole->name]);
-                    } elseif ($roleName === FoundationPermissions::ROLE_CAPTAIN) {
-                        $user->syncRoles([$captainRole->name]);
+
+                    if ($roleName !== null && isset($roles[$roleName])) {
+                        $user->syncRoles([$roles[$roleName]->name]);
                     }
                 }
 

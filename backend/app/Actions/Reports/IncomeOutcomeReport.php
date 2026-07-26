@@ -11,6 +11,9 @@ use App\Models\SubscriptionAddon;
 use App\Models\SubscriptionRefund;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 final class IncomeOutcomeReport
 {
@@ -64,46 +67,108 @@ final class IncomeOutcomeReport
         $timeline = [];
         $period = CarbonPeriod::create($from, $groupBy === 'month' ? '1 month' : '1 day', $to);
 
+        // The timeline buckets are startOfMonth/endOfMonth for group_by=month, so they can extend
+        // outside [$from, $to]. Widen the window for the bucketed queries so no row a bucket used to
+        // count gets dropped. The full-range totals above keep the un-widened range.
+        $qFrom = $groupBy === 'month' ? $from->copy()->startOfMonth() : $from;
+        $qTo = $groupBy === 'month' ? $to->copy()->endOfMonth() : $to;
+
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+
+        $bucketExpr = function (string $column) use ($groupBy, $isSqlite): string {
+            if ($groupBy === 'month') {
+                return $isSqlite ? 'strftime("%Y-%m", '.$column.')' : 'DATE_FORMAT('.$column.', "%Y-%m")';
+            }
+
+            return $isSqlite ? 'strftime("%Y-%m-%d", '.$column.')' : 'DATE('.$column.')';
+        };
+
+        /**
+         * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+         * @return Collection<array-key, mixed>
+         */
+        $bucketTotals = function ($query, string $expr, string $aggregate) {
+            return $query
+                ->toBase()
+                ->groupBy(DB::raw($expr))
+                ->selectRaw($expr.' as bucket, '.$aggregate.' as total')
+                ->get()
+                ->pluck('total', 'bucket');
+        };
+
+        $paidAtBucket = $bucketExpr('paid_at');
+
+        $subIncomeByBucket = $bucketTotals(
+            Payment::query()
+                ->revenue()
+                ->whereIn('payable_type', [Subscription::class, SubscriptionAddon::class])
+                ->whereBetween('paid_at', [$qFrom, $qTo]),
+            $paidAtBucket,
+            'SUM(amount)'
+        );
+
+        $posIncomeByBucket = $bucketTotals(
+            Payment::query()
+                ->revenue()
+                ->where('payable_type', Sale::class)
+                ->whereBetween('paid_at', [$qFrom, $qTo]),
+            $paidAtBucket,
+            'SUM(amount)'
+        );
+
+        $otherIncomeByBucket = $bucketTotals(
+            Payment::query()
+                ->revenue()
+                ->whereNotIn('payable_type', [Subscription::class, SubscriptionAddon::class, Sale::class])
+                ->whereBetween('paid_at', [$qFrom, $qTo]),
+            $paidAtBucket,
+            'SUM(amount)'
+        );
+
+        $expensesByBucket = $bucketTotals(
+            Expense::query()
+                ->whereBetween('date', [$qFrom->toDateString(), $qTo->toDateString()]),
+            $bucketExpr('date'),
+            'SUM(amount)'
+        );
+
+        $payrollByBucket = $bucketTotals(
+            Payroll::query()
+                ->where('status', 'paid')
+                ->whereBetween('paid_at', [$qFrom, $qTo]),
+            $paidAtBucket,
+            'SUM(net_salary)'
+        );
+
+        $refundsByBucket = $bucketTotals(
+            SubscriptionRefund::query()
+                ->whereBetween('refunded_at', [$qFrom, $qTo]),
+            $bucketExpr('refunded_at'),
+            'SUM(amount)'
+        );
+
         foreach ($period as $date) {
             $periodStart = $groupBy === 'month' ? $date->copy()->startOfMonth() : $date->copy()->startOfDay();
-            $periodEnd = $groupBy === 'month' ? $date->copy()->endOfMonth() : $date->copy()->endOfDay();
 
             if ($periodStart->gt($to)) {
                 break;
             }
 
-            $daySubIncome = (float) Payment::query()
-                ->revenue()
-                ->whereIn('payable_type', [Subscription::class, SubscriptionAddon::class])
-                ->whereBetween('paid_at', [$periodStart, $periodEnd])
-                ->sum('amount');
+            $bucketKey = $groupBy === 'month' ? $date->format('Y-m') : $date->format('Y-m-d');
 
-            $dayPosIncome = (float) Payment::query()
-                ->revenue()
-                ->where('payable_type', Sale::class)
-                ->whereBetween('paid_at', [$periodStart, $periodEnd])
-                ->sum('amount');
+            $daySubIncome = (float) ($subIncomeByBucket[$bucketKey] ?? 0);
 
-            $dayOtherIncome = (float) Payment::query()
-                ->revenue()
-                ->whereNotIn('payable_type', [Subscription::class, SubscriptionAddon::class, Sale::class])
-                ->whereBetween('paid_at', [$periodStart, $periodEnd])
-                ->sum('amount');
+            $dayPosIncome = (float) ($posIncomeByBucket[$bucketKey] ?? 0);
+
+            $dayOtherIncome = (float) ($otherIncomeByBucket[$bucketKey] ?? 0);
 
             $dayIncome = $daySubIncome + $dayPosIncome + $dayOtherIncome;
 
-            $dayExpenses = (float) Expense::query()
-                ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-                ->sum('amount');
+            $dayExpenses = (float) ($expensesByBucket[$bucketKey] ?? 0);
 
-            $dayPayroll = (float) Payroll::query()
-                ->where('status', 'paid')
-                ->whereBetween('paid_at', [$periodStart, $periodEnd])
-                ->sum('net_salary');
+            $dayPayroll = (float) ($payrollByBucket[$bucketKey] ?? 0);
 
-            $dayRefunds = (float) SubscriptionRefund::query()
-                ->whereBetween('refunded_at', [$periodStart, $periodEnd])
-                ->sum('amount');
+            $dayRefunds = (float) ($refundsByBucket[$bucketKey] ?? 0);
 
             $dayOutcome = $dayExpenses + $dayPayroll + $dayRefunds;
             $dayNet = $dayIncome - $dayOutcome;

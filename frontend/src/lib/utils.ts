@@ -19,6 +19,8 @@ export const getInitials = (str: string): string => {
   );
 };
 
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+
 export function formatCurrency(
   amount: number,
   opts?: {
@@ -38,5 +40,14 @@ export function formatCurrency(
     maximumFractionDigits: noDecimals ? 0 : maximumFractionDigits,
   };
 
-  return new Intl.NumberFormat(locale, formatOptions).format(amount);
+  const key = `${locale}|${currency}|${minimumFractionDigits}|${maximumFractionDigits}|${noDecimals}`;
+
+  let formatter = currencyFormatters.get(key);
+
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, formatOptions);
+    currencyFormatters.set(key, formatter);
+  }
+
+  return formatter.format(amount);
 }

@@ -26,9 +26,17 @@ final class Geofence
             ];
         }
 
-        $gymLat = $this->settingFloat('attendance.gym_latitude');
-        $gymLng = $this->settingFloat('attendance.gym_longitude');
-        $radius = $this->settingInt('attendance.gym_radius_meters', 150);
+        $settings = Setting::query()
+            ->whereIn('key', [
+                'attendance.gym_latitude',
+                'attendance.gym_longitude',
+                'attendance.gym_radius_meters',
+            ])
+            ->pluck('value', 'key');
+
+        $gymLat = $this->toFloat($settings->get('attendance.gym_latitude'));
+        $gymLng = $this->toFloat($settings->get('attendance.gym_longitude'));
+        $radius = $this->toInt($settings->get('attendance.gym_radius_meters'), 150);
 
         if ($gymLat === null || $gymLng === null) {
             return [
@@ -51,10 +59,8 @@ final class Geofence
         ];
     }
 
-    private function settingFloat(string $key): ?float
+    private function toFloat(mixed $value): ?float
     {
-        $value = Setting::query()->where('key', $key)->value('value');
-
         if ($value === null || $value === '') {
             return null;
         }
@@ -62,10 +68,8 @@ final class Geofence
         return (float) $value;
     }
 
-    private function settingInt(string $key, int $default): int
+    private function toInt(mixed $value, int $default): int
     {
-        $value = Setting::query()->where('key', $key)->value('value');
-
         return $value === null || $value === '' ? $default : (int) $value;
     }
 

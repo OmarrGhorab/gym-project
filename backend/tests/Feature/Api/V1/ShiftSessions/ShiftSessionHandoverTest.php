@@ -103,6 +103,80 @@ test('staff can open close and submit matching handover for admin review', funct
     expect($review->json('data.status'))->toBe(ShiftSession::STATUS_ACCEPTED);
 });
 
+test('an admin can hand an open session to another employee of the same shift', function (): void {
+    $admin = User::factory()->create(['name' => 'Admin User']);
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    $opener = shiftStaff($admin, $shift, 'Nour Morning');
+    $successor = Employee::factory()->create([
+        'shift_id' => $shift->id,
+        'name' => 'Hana Morning',
+        'status' => 'active',
+    ]);
+
+    $open = $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'force_open' => true,
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.staff_on_duty.name', 'Nour Morning');
+
+    $sessionId = $open->json('data.id');
+
+    $this->putJson("/api/v1/shift-sessions/{$sessionId}/staff", ['employee_id' => $successor->id])
+        ->assertStatus(200)
+        ->assertJsonPath('data.staff_on_duty.name', 'Hana Morning');
+
+    $session = ShiftSession::find($sessionId);
+    expect($session->opened_by_employee_id)->toBe($successor->id)
+        // Reassigning changes accountability only — the money is untouched.
+        ->and($session->opening_float)->toBe($open->json('data.opening_float'))
+        ->and($opener->id)->not->toBe($successor->id);
+});
+
+test('staff on duty cannot be handed to an employee from another shift', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    shiftStaff($admin, $shift);
+    $outsider = Employee::factory()->create([
+        'shift_id' => EmployeeShift::factory()->create()->id,
+        'status' => 'active',
+    ]);
+
+    $sessionId = $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'force_open' => true,
+    ])->assertStatus(201)->json('data.id');
+
+    $this->putJson("/api/v1/shift-sessions/{$sessionId}/staff", ['employee_id' => $outsider->id])
+        ->assertStatus(422);
+});
+
+test('staff on duty cannot be changed once the session is closed', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    shiftStaff($admin, $shift);
+    $successor = Employee::factory()->create(['shift_id' => $shift->id, 'status' => 'active']);
+
+    $sessionId = $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'force_open' => true,
+    ])->assertStatus(201)->json('data.id');
+
+    $this->postJson("/api/v1/shift-sessions/{$sessionId}/close")->assertStatus(200);
+
+    $this->putJson("/api/v1/shift-sessions/{$sessionId}/staff", ['employee_id' => $successor->id])
+        ->assertStatus(422);
+});
+
 test('a session cannot be opened by someone who is not on that shift', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CASHIER);

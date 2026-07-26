@@ -21,6 +21,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+const dayMonthYearFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function getDayMonthYearFormatter(locale: string) {
+  let formatter = dayMonthYearFormatters.get(locale);
+
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" });
+    dayMonthYearFormatters.set(locale, formatter);
+  }
+
+  return formatter;
+}
+
 type FormSelectOption = {
   data?: unknown;
   key?: string;
@@ -267,7 +280,7 @@ export function FormDatePicker({
           }
         >
           {selectedDate
-            ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(selectedDate)
+            ? getDayMonthYearFormatter(locale).format(selectedDate)
             : (placeholder ?? t("selectDate"))}
           <CalendarIcon data-icon="inline-end" className="text-muted-foreground" />
         </PopoverTrigger>

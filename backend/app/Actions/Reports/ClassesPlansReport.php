@@ -31,26 +31,35 @@ final class ClassesPlansReport
 
         $plans = $plansQuery->get();
 
-        $plansTable = $plans->map(function (Plan $plan) use ($from, $to): array {
-            $periodSubs = Subscription::query()
-                ->where('plan_id', $plan->id)
-                ->whereBetween('created_at', [$from, $to]);
+        $periodStats = Subscription::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->groupBy('plan_id')
+            ->selectRaw('plan_id, COUNT(*) as c, SUM(price_paid) as rev')
+            ->toBase()
+            ->get()
+            ->keyBy('plan_id');
 
-            $periodRevenue = (float) (clone $periodSubs)->sum('price_paid');
-            $periodCount = (clone $periodSubs)->count();
+        $expiringSoon = Subscription::query()
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
+                    ->orWhere(function ($sq) {
+                        $sq->whereNotNull('sessions_total')
+                            ->where('sessions_total', '>', 0)
+                            ->where('sessions_remaining', '<=', 3);
+                    });
+            })
+            ->groupBy('plan_id')
+            ->selectRaw('plan_id, COUNT(*) as c')
+            ->toBase()
+            ->get()
+            ->pluck('c', 'plan_id');
 
-            $expiringSoonCount = Subscription::query()
-                ->where('plan_id', $plan->id)
-                ->where('status', 'active')
-                ->where(function ($q) {
-                    $q->whereBetween('end_date', [now()->toDateString(), now()->addDays(7)->toDateString()])
-                        ->orWhere(function ($sq) {
-                            $sq->whereNotNull('sessions_total')
-                                ->where('sessions_total', '>', 0)
-                                ->where('sessions_remaining', '<=', 3);
-                        });
-                })
-                ->count();
+        $plansTable = $plans->map(function (Plan $plan) use ($periodStats, $expiringSoon): array {
+            $periodRevenue = (float) ($periodStats->get($plan->id)?->rev ?? 0);
+            $periodCount = (int) ($periodStats->get($plan->id)?->c ?? 0);
+
+            $expiringSoonCount = (int) ($expiringSoon[$plan->id] ?? 0);
 
             return [
                 'id' => $plan->id,

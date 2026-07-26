@@ -42,7 +42,7 @@ final class PayrollController extends ApiController
             ->withQueryString();
         $payroll->getCollection()->each(function (Payroll $row) use ($payrollGenerator): void {
             if ($row->status === 'pending') {
-                $payrollGenerator->refreshPendingPayroll($row);
+                $payrollGenerator->refreshPendingPayroll($row, $row->employee);
             }
         });
 

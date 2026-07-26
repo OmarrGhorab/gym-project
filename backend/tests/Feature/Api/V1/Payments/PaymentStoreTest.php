@@ -63,17 +63,52 @@ test('admin can record a payment that settles the balance', function (): void {
         ->assertJsonPath('data.status', 'paid');
 });
 
-test('payment store rejects overpayment with 422', function (): void {
+/*
+ * Overpayment is NOT rejected any more. Commit 85aaddf1 deliberately replaced the
+ * "reject overpayment / reject settled subscription" rule with "the excess buys extra
+ * subscription days", and rewrote tests/Unit/Actions/Payments/RecordPaymentTest.php to
+ * match. This endpoint test was simply left behind on the old contract. The money is
+ * still fully accounted for: the excess is converted into days at the subscription's
+ * daily rate inside the same locked transaction, and RecordPayment still throws a 422
+ * when it cannot do so (no end_date/plan, or a zero-value subscription).
+ */
+test('payment store converts an overpayment into extra subscription days', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
 
     $subscription = makePayableSubscription();
+    $originalEndDate = $subscription->end_date->copy();
+
     Payment::factory()->partial()->create([
         'payable_type' => Subscription::class,
         'payable_id' => $subscription->id,
         'amount' => '250.00',
     ]);
+
+    // 250.00 already paid + 60.00 now = 310.00 against a 300.00 package.
+    // The 10.00 excess buys 1 day at the 300.00 / 30-day daily rate of 10.00.
+    $this->postJson('/api/v1/payments', [
+        'subscription_id' => $subscription->id,
+        'amount' => '60.00',
+        'method' => 'cash',
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.status', 'paid');
+
+    expect($subscription->fresh()->end_date->toDateString())
+        ->toBe($originalEndDate->addDay()->toDateString());
+});
+
+test('payment store rejects an overpayment it cannot convert into days', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    // A zero-value subscription has no daily rate, so the excess cannot be turned into
+    // service and the payment must be refused rather than silently pocketed.
+    $subscription = makePayableSubscription();
+    $subscription->forceFill(['price_paid' => '0.00'])->save();
 
     $this->postJson('/api/v1/payments', [
         'subscription_id' => $subscription->id,
@@ -82,6 +117,8 @@ test('payment store rejects overpayment with 422', function (): void {
     ])
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed');
+
+    expect(Payment::query()->where('payable_id', $subscription->id)->count())->toBe(0);
 });
 
 test('payment store returns 422 for missing subscription', function (): void {

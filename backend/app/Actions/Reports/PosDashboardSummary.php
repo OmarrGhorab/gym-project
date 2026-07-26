@@ -64,15 +64,14 @@ final class PosDashboardSummary
      */
     private function salesChart(CarbonImmutable $from, CarbonImmutable $to, ?string $paymentMethod): array
     {
-        $rows = $this->salesQuery($from, $to, $paymentMethod)
+        $agg = $this->salesQuery($from, $to, $paymentMethod)
+            ->toBase()
             ->selectRaw('DATE(created_at) as sale_date, SUM(total) as revenue, COUNT(*) as orders')
             ->groupBy('sale_date')
-            ->pluck('revenue', 'sale_date');
+            ->get();
 
-        $orders = $this->salesQuery($from, $to, $paymentMethod)
-            ->selectRaw('DATE(created_at) as sale_date, COUNT(*) as orders')
-            ->groupBy('sale_date')
-            ->pluck('orders', 'sale_date');
+        $rows = $agg->pluck('revenue', 'sale_date');
+        $orders = $agg->pluck('orders', 'sale_date');
 
         return collect(range(0, max(0, $from->diffInDays($to))))->map(function (int $offset) use ($from, $rows, $orders): array {
             $date = $from->addDays($offset)->toDateString();

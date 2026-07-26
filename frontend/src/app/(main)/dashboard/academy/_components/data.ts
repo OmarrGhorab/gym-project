@@ -202,26 +202,12 @@ export async function getPayrollSettings(): Promise<PayrollSettings["payroll"] |
 
 export async function getStaffManagementPageData(): Promise<{
   employees: AcademyEmployee[];
-  plans: {
-    id: number;
-    name: string;
-    price: string;
-  }[];
   settings: DashboardSettings;
   shifts: EmployeeShift[];
   users: UserOption[];
-  roles: AccessRole[];
 }> {
-  const [employees, plans, settings, shifts, users, roles] = await Promise.all([
+  const [employees, settings, shifts, users] = await Promise.all([
     safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?per_page=100", []),
-    safeFetch<
-      | Array<{
-          id: number;
-          name: string;
-          price: string;
-        }>
-      | PaginatedData<{ id: number; name: string; price: string }>
-    >("/plans?per_page=100&sort=name", []),
     safeFetch<DashboardSettings>("/settings", {
       attendance: {
         default_grace_minutes: 15,
@@ -250,6 +236,7 @@ export async function getStaffManagementPageData(): Promise<{
       receipt_template: "default",
       reminder_days: [7],
       vat_rate: 14,
+      whatsapp: { templates: {} },
     }),
     safeFetch<EmployeeShift[]>("/attendance/shifts/manage", []).then(async (managed) => {
       if (managed.length > 0) {
@@ -259,13 +246,10 @@ export async function getStaffManagementPageData(): Promise<{
       return safeFetch<EmployeeShift[]>("/attendance/shifts", []);
     }),
     safeFetch<UserOption[]>("/employees/user-options", []),
-    safeFetch<AccessRole[]>("/roles", []),
   ]);
 
   return {
     employees: unwrapMaybeList(employees),
-    plans: unwrapMaybeList(plans),
-    roles,
     settings,
     shifts,
     users: unwrapMaybeList(users),

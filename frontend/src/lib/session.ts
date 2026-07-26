@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -45,7 +47,7 @@ export async function requireAuth() {
   return token;
 }
 
-export async function getCurrentUser(): Promise<DashboardUser | null> {
+async function loadCurrentUser(): Promise<DashboardUser | null> {
   const token = await getAuthToken();
 
   if (!token) {
@@ -89,6 +91,8 @@ export async function getCurrentUser(): Promise<DashboardUser | null> {
     return null;
   }
 }
+
+export const getCurrentUser = cache(loadCurrentUser);
 
 export async function redirectIfAuthenticated() {
   const token = await getAuthToken();

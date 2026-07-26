@@ -40,9 +40,11 @@ final class ApplyAttendanceBonuses
 
     private function automaticBonusTotal(Payroll $payroll): string
     {
+        $hasViolation = $this->hasViolationInMonth($payroll);
+
         $total = $this->offDayBonusTotal($payroll);
-        $total = bcadd($total, $this->cleanAttendanceBonus($payroll), 2);
-        $total = bcadd($total, $this->coachPerformanceBonus($payroll), 2);
+        $total = bcadd($total, $this->cleanAttendanceBonus($payroll, $hasViolation), 2);
+        $total = bcadd($total, $this->coachPerformanceBonus($payroll, $hasViolation), 2);
 
         return $total;
     }
@@ -59,18 +61,18 @@ final class ApplyAttendanceBonuses
         return number_format((float) $total, 2, '.', '');
     }
 
-    private function cleanAttendanceBonus(Payroll $payroll): string
+    private function cleanAttendanceBonus(Payroll $payroll, bool $hasViolation): string
     {
-        if (! $this->hasAttendanceInMonth($payroll) || $this->hasViolationInMonth($payroll)) {
+        if (! $this->hasAttendanceInMonth($payroll) || $hasViolation) {
             return '0.00';
         }
 
         return bcmul((string) $payroll->base_salary, self::CLEAN_ATTENDANCE_BONUS_RATE, 2);
     }
 
-    private function coachPerformanceBonus(Payroll $payroll): string
+    private function coachPerformanceBonus(Payroll $payroll, bool $hasViolation): string
     {
-        if ($this->hasViolationInMonth($payroll) || $this->coachedAddonsCount($payroll) < self::COACH_PERFORMANCE_MIN_ADDONS) {
+        if ($hasViolation || $this->coachedAddonsCount($payroll) < self::COACH_PERFORMANCE_MIN_ADDONS) {
             return '0.00';
         }
 

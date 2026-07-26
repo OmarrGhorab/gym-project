@@ -142,10 +142,6 @@ export async function recordPayment(input: FormData): Promise<FinanceActionResul
   return mutateFinance("/payments", "POST", payload, "Payment recorded.");
 }
 
-export async function recordPaymentForm(input: FormData): Promise<void> {
-  await recordPayment(input);
-}
-
 export async function openShiftSession(input: {
   employee_shift_id: number;
   employee_id?: number;
@@ -175,6 +171,10 @@ export async function closeShiftSession(id: number, employeeId?: number): Promis
   );
 }
 
+export async function assignShiftStaff(id: number, employeeId: number): Promise<FinanceActionResult> {
+  return mutateFinance(`/shift-sessions/${id}/staff`, "PUT", { employee_id: employeeId }, "Staff on duty updated.");
+}
+
 export async function submitShiftHandover(
   id: number,
   input: {
@@ -199,14 +199,6 @@ export async function reviewShiftHandover(
     { decision, ...(notes ? { notes } : {}) },
     decision === "accepted" ? "Handover accepted." : "Handover rejected.",
   );
-}
-
-export async function updateExpenseForm(input: FormData): Promise<void> {
-  await updateExpense(input);
-}
-
-export async function deleteExpenseForm(input: FormData): Promise<void> {
-  await deleteExpense(input);
 }
 
 async function mutateFinance(

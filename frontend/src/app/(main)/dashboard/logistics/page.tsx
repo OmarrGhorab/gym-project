@@ -6,8 +6,7 @@ import { Logistics } from "./_components/logistics";
 import { emptyInventoryLogisticsData } from "./_components/shipment-data";
 
 export default async function Page() {
-  const user = await getCurrentUser();
-  const rawData = await getInventoryLogisticsData();
+  const [user, rawData] = await Promise.all([getCurrentUser(), getInventoryLogisticsData()]);
   const data = { ...emptyInventoryLogisticsData, ...rawData };
   const productPermissions = {
     canAdjustInventory: user ? canAccess(user, "inventory.adjust") : false,

@@ -27,25 +27,27 @@ test('renewal reminders dispatch only for in window active subscriptions and are
         'value' => 7,
     ]);
 
-    $member = Member::factory()->active()->create();
     $plan = Plan::factory()->active()->create();
 
+    // Each scenario needs its own member: a member holding a later active
+    // subscription is treated as already renewed and is intentionally skipped
+    // by the reminder finder (Subscription::scopeWithoutLaterActiveRenewal).
     $inWindow = Subscription::factory()->active()->create([
-        'member_id' => $member->id,
+        'member_id' => Member::factory()->active()->create()->id,
         'plan_id' => $plan->id,
         'end_date' => '2026-06-15',
         'last_reminded_on' => null,
     ]);
 
     $outsideWindow = Subscription::factory()->active()->create([
-        'member_id' => $member->id,
+        'member_id' => Member::factory()->active()->create()->id,
         'plan_id' => $plan->id,
         'end_date' => '2026-06-30',
         'last_reminded_on' => null,
     ]);
 
     $alreadyReminded = Subscription::factory()->active()->create([
-        'member_id' => $member->id,
+        'member_id' => Member::factory()->active()->create()->id,
         'plan_id' => $plan->id,
         'end_date' => '2026-06-14',
         'last_reminded_on' => '2026-06-10',

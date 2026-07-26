@@ -37,18 +37,20 @@ final class SubsShiftsReport
 
         $sessions = $sessionsQuery->get();
 
-        $shiftsTable = $sessions->map(function (ShiftSession $session): array {
-            $subRevenue = (float) Payment::query()
-                ->revenue()
-                ->where('shift_session_id', $session->id)
-                ->whereIn('payable_type', [Subscription::class, SubscriptionAddon::class])
-                ->sum('amount');
+        $revenueByShift = Payment::query()
+            ->revenue()
+            ->whereIn('shift_session_id', $sessions->pluck('id'))
+            ->selectRaw(
+                'shift_session_id, SUM(CASE WHEN payable_type IN (?, ?) THEN amount ELSE 0 END) as sub_revenue, SUM(CASE WHEN payable_type = ? THEN amount ELSE 0 END) as pos_revenue',
+                [Subscription::class, SubscriptionAddon::class, Sale::class]
+            )
+            ->groupBy('shift_session_id')
+            ->get()
+            ->keyBy('shift_session_id');
 
-            $posRevenue = (float) Payment::query()
-                ->revenue()
-                ->where('shift_session_id', $session->id)
-                ->where('payable_type', Sale::class)
-                ->sum('amount');
+        $shiftsTable = $sessions->map(function (ShiftSession $session) use ($revenueByShift): array {
+            $subRevenue = (float) ($revenueByShift[$session->id]->sub_revenue ?? 0);
+            $posRevenue = (float) ($revenueByShift[$session->id]->pos_revenue ?? 0);
 
             $totalShiftRevenue = $subRevenue + $posRevenue;
             $cashDiscrepancy = $session->counted_cash !== null && $session->expected_cash !== null

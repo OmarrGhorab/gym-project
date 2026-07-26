@@ -73,7 +73,7 @@ test('admin can update settings', function (): void {
     $this->getJson('/api/v1/settings')
         ->assertStatus(200)
         ->assertJsonPath('data.gym.name', 'Super Power Gym')
-        ->assertJsonPath('data.reminder_days', 10)
+        ->assertJsonPath('data.reminder_days', [10])
         ->assertJsonPath('data.currency', 'EUR')
         ->assertJsonPath('data.vat_rate', 18.5)
         ->assertJsonPath('data.receipt_template', 'premium_style')

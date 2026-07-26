@@ -22,6 +22,9 @@ Route::prefix('payroll')->group(function (): void {
     Route::post('/{payroll}/pay', [PayrollController::class, 'pay'])
         ->middleware(['permission:payroll.pay', 'throttle:sensitive']);
 
+    // Not payroll.view: an employee may always pull their OWN payslip. The
+    // PayrollPolicy@view check (payroll.view permission OR owning employee) is
+    // the real gate, declared here so it is enforced before the controller too.
     Route::get('/{payroll}/payslip', [PayrollController::class, 'payslip'])
-        ->middleware('throttle:api');
+        ->middleware(['can:view,payroll', 'throttle:api']);
 });

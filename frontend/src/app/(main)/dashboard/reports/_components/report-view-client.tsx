@@ -262,8 +262,6 @@ function ReportsOverviewView({
   const totals = asRecord(data.totals);
   const daily = asRows(data.daily);
   const dailyPagination = useTablePagination(daily);
-  const currency = (value: unknown) =>
-    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-4">
@@ -360,9 +358,6 @@ function EmployeeSubscriptionDetailsDialog({
     });
   }
 
-  const currency = (value: unknown) =>
-    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size="sm" variant="outline" />}>
@@ -442,8 +437,6 @@ function EmployeeSubscriptionDetailsDialog({
 function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
   const employees = asRows(data.employees);
   const employeePagination = useTablePagination(employees);
-  const currency = (value: unknown) =>
-    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   return (
     <Card>
@@ -499,8 +492,6 @@ function CaptainsReportView({ data }: { data: Record<string, unknown> }) {
   const kpis = asRecord(data.kpis);
   const coaches = asRows(data.coaches);
   const coachPagination = useTablePagination(coaches);
-  const currency = (value: unknown) =>
-    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-4">
@@ -597,6 +588,12 @@ function EmptyTableRow({ columns, label }: { columns: number; label: string }) {
       </TableCell>
     </TableRow>
   );
+}
+
+const currencyFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 });
+
+function currency(value: unknown) {
+  return `EGP ${currencyFormatter.format(Number(value ?? 0))}`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1158,9 +1155,6 @@ function ProductSaleDetailsDialog({
       }
     });
   }
-
-  const currency = (value: unknown) =>
-    `EGP ${Number(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

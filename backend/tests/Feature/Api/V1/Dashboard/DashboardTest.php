@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use App\Support\MembershipPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -129,9 +130,13 @@ test('dashboard expiring soon endpoint returns 401 when unauthenticated', functi
 });
 
 test('user without dashboard permission receives 403', function (): void {
+    // Cashier deliberately holds dashboard.view: the front-desk shell route
+    // "/dashboard" itself is gated on it (frontend/src/lib/authorization.tsx) and
+    // RoleMatrixSeeder grants it. A roleless user is the honest subject here.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CASHIER);
     Sanctum::actingAs($user);
+
+    expect($user->can(MembershipPermissions::PERM_DASHBOARD_VIEW))->toBeFalse();
 
     $this->getJson('/api/v1/dashboard/active-subscriptions')
         ->assertStatus(403)

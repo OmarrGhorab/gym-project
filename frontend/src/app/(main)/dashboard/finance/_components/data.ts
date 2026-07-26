@@ -217,6 +217,7 @@ export async function getFinanceDashboardData(
     expensesResult,
     currentSession,
     pendingSessions,
+    pendingHandover,
     shifts,
     settings,
   ] = await Promise.all([
@@ -245,6 +246,12 @@ export async function getFinanceDashboardData(
         )
       : { data: [] },
     access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
+          "/shift-sessions?status=pending_handover&per_page=10",
+          [],
+        )
+      : { data: [] },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
       ? safeFetch<ShiftOptionPayload[] | PaginatedData<ShiftOptionPayload>>("/shift-sessions/options", [])
       : { data: [] },
     access.canViewExpenses || access.canViewPayments || access.canCollectDue
@@ -255,14 +262,6 @@ export async function getFinanceDashboardData(
         }>("/settings", {})
       : { data: {} },
   ]);
-
-  const pendingHandover =
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
-      ? await safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
-          "/shift-sessions?status=pending_handover&per_page=10",
-          [],
-        )
-      : { data: [] };
 
   const pending = [...unwrapList(pendingSessions.data), ...unwrapList(pendingHandover.data)];
   const shiftOptions = unwrapList(shifts.data).map((shift) => ({

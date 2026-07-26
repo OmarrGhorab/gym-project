@@ -22,7 +22,24 @@ class ListExpiringSoonSubscriptions
         $end = $today->copy()->addDays($this->reminderSettings->reminderDays());
 
         return Subscription::query()
-            ->with(['member', 'plan', 'soldBy', 'payments', 'freezes'])
+            ->with([
+                'member',
+                'plan',
+                'soldBy',
+                'payments',
+                'freezes',
+                'refunds',
+                'addons.plan',
+                'addons.coach',
+                'addons.payments',
+                'member.latestSubscription.plan',
+                'member.latestSubscription.payments',
+                'member.latestSubscription.refunds',
+                'member.latestSubscription.freezes',
+                'member.latestSubscription.addons.plan',
+                'member.latestSubscription.addons.coach',
+                'member.latestSubscription.addons.payments',
+            ])
             ->where('status', 'active')
             ->withoutLaterActiveRenewal()
             ->whereBetween('end_date', [$today->toDateString(), $end->toDateString()])

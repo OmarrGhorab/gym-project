@@ -137,13 +137,18 @@ final class CoachExtraPlansReport
             $cAddonIds = $cAddons->pluck('id')->filter();
             $cStudioIds = $cStudio->pluck('id')->filter();
 
-            $cVisits = $visits->filter(function ($v) use ($cAddonIds, $cStudioIds, $cMemberIds) {
-                return ($v->subscription_addon_id && $cAddonIds->contains($v->subscription_addon_id))
-                    || ($v->subscription_id && $cStudioIds->contains($v->subscription_id))
-                    || ($v->member_id && $cMemberIds->contains($v->member_id));
+            $addonSet = array_flip($cAddonIds->all());
+            $studioSet = array_flip($cStudioIds->all());
+            $memberSet = array_flip($cMemberIds->all());
+
+            $cVisits = $visits->filter(function ($v) use ($addonSet, $studioSet, $memberSet) {
+                return ($v->subscription_addon_id && isset($addonSet[$v->subscription_addon_id]))
+                    || ($v->subscription_id && isset($studioSet[$v->subscription_id]))
+                    || ($v->member_id && isset($memberSet[$v->member_id]));
             });
 
             $cAttendedDates = $cVisits->map(fn ($v) => $v->check_in_at?->toDateString())->filter()->unique();
+            $visitsByMember = $cVisits->groupBy('member_id');
             $cRevenue = $cAddons->sum(fn ($a) => (float) $a->price_paid) + $cStudio->sum(fn ($s) => (float) $s->price_paid);
 
             // Combine plan summaries
@@ -181,7 +186,7 @@ final class CoachExtraPlansReport
             $membersList = [];
             foreach ($allCoachItems as $wrapped) {
                 $item = $wrapped['item'];
-                $mVisits = $cVisits->where('member_id', $item->member_id);
+                $mVisits = $visitsByMember->get($item->member_id, collect());
                 $mAttendedDays = $mVisits->map(fn ($v) => $v->check_in_at?->toDateString())->filter()->unique()->count();
                 $lastVisit = $mVisits->sortByDesc('check_in_at')->first()?->check_in_at?->toIso8601String();
 

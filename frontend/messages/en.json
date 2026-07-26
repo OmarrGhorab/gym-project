@@ -785,7 +785,12 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "settled": "Added to salary"
-      }
+      },
+      "overtimeManualTitle": "Assign a replacement manually",
+      "overtimeManualHelp": "Put any employee on another employee's shift, even if the absence was not detected automatically. The replacement earns a bonus that you approve and add to their salary in Payroll.",
+      "overtimeReplacing": "Taking the place of",
+      "overtimeShiftAuto": "Use the replaced employee's shift",
+      "overtimeManualBonusHint": "Recorded as pending — you set the bonus amount when you approve it."
     },
     "analytics": {
       "title": "Live Gym Analytics",

@@ -16,7 +16,8 @@ use Spatie\Permission\PermissionRegistrar;
  *   Admin      — all membership permissions
  *   Manager    — all membership permissions except *.delete
  *   Cashier    — members.view/create/update, subscriptions.view/create/renew/upgrade,
- *                payments.view/create (shift desk money + sell memberships)
+ *                payments.view/create, dashboard.view
+ *                (shift desk money + sell memberships + reach the /dashboard shell)
  *   Accountant — payments.view, members.view, subscriptions.view, dashboard.view
  *   Captain    — subscriptions.view (+ shift desk perms added in RoleMatrixSeeder)
  *

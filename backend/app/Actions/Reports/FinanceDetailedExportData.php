@@ -17,6 +17,9 @@ use Illuminate\Support\Str;
 
 class FinanceDetailedExportData
 {
+    /** @var array<string, array<string, string>> */
+    private array $translationCache = [];
+
     /**
      * @param  array{from?: string, to?: string, group_by?: string|null}  $filters
      * @return array<string, mixed>
@@ -45,7 +48,11 @@ class FinanceDetailedExportData
             ->get();
 
         $payments = Payment::query()
-            ->with(['creator.employee.shift', 'payable'])
+            ->with(['creator.employee.shift', 'payable' => fn ($morphTo) => $morphTo->morphWith([
+                Sale::class => ['items.product:id,name', 'member:id,name'],
+                Subscription::class => ['plan:id,name', 'member:id,name'],
+                SubscriptionAddon::class => ['plan:id,name', 'member:id,name'],
+            ])])
             ->whereBetween('paid_at', [$from->toDateTimeString(), $to->toDateTimeString()])
             ->orderBy('paid_at')
             ->get();
@@ -289,6 +296,16 @@ class FinanceDetailedExportData
     ): array {
         $rows = collect();
 
+        $shiftMeta = $shifts
+            ->map(fn (EmployeeShift $shift): array => [
+                'shift' => $shift,
+                'start' => $this->timeToMinutes($shift->starts_at),
+                'end' => $this->timeToMinutes($shift->ends_at),
+                'time_label' => $this->shiftTimeLabel($shift),
+                'staff' => $shift->employees?->pluck('name')->join(', ') ?? '',
+            ])
+            ->values();
+
         foreach ($subscriptions as $subscription) {
             $actor = $subscription->soldBy ?? $subscription->creator;
             $collected = $subscription->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
@@ -305,7 +322,7 @@ class FinanceDetailedExportData
                 paymentMethod: $this->paymentMethodsLabel($subscription->payments, $locale),
                 status: $this->normalizeLabel($subscription->status, $locale),
                 actor: $actor,
-                shifts: $shifts,
+                shiftMeta: $shiftMeta,
                 locale: $locale,
             ));
         }
@@ -326,7 +343,7 @@ class FinanceDetailedExportData
                 paymentMethod: $this->paymentMethodsLabel($addon->payments, $locale),
                 status: $this->normalizeLabel($addon->status, $locale),
                 actor: $actor,
-                shifts: $shifts,
+                shiftMeta: $shiftMeta,
                 locale: $locale,
             ));
         }
@@ -347,7 +364,7 @@ class FinanceDetailedExportData
                 paymentMethod: $this->normalizeLabel($sale->payment_method, $locale),
                 status: $this->normalizeLabel($sale->status, $locale),
                 actor: $sale->soldBy,
-                shifts: $shifts,
+                shiftMeta: $shiftMeta,
                 locale: $locale,
             ));
         }
@@ -366,7 +383,7 @@ class FinanceDetailedExportData
                 paymentMethod: '',
                 status: '',
                 actor: $expense->creator,
-                shifts: $shifts,
+                shiftMeta: $shiftMeta,
                 locale: $locale,
             ));
         }
@@ -395,7 +412,7 @@ class FinanceDetailedExportData
                 paymentMethod: $this->normalizeLabel($payment->method, $locale),
                 status: $this->normalizeLabel($payment->status, $locale),
                 actor: $payment->creator,
-                shifts: $shifts,
+                shiftMeta: $shiftMeta,
                 locale: $locale,
             ));
         }
@@ -439,7 +456,7 @@ class FinanceDetailedExportData
     }
 
     /**
-     * @param  Collection<int, EmployeeShift>  $shifts
+     * @param  Collection<int, array<string, mixed>>  $shiftMeta
      * @return array<string, mixed>
      */
     private function shiftTransactionRow(
@@ -455,17 +472,18 @@ class FinanceDetailedExportData
         string $paymentMethod,
         string $status,
         ?User $actor,
-        Collection $shifts,
+        Collection $shiftMeta,
         string $locale,
     ): array {
-        $shift = $this->shiftForTime($occurredAt, $shifts);
+        $matched = $this->shiftForTime($occurredAt, $shiftMeta);
+        $shift = $matched['shift'] ?? null;
 
         return [
             'date' => $occurredAt->toDateString(),
             'transaction_at' => $this->dateTime($occurredAt),
             'shift' => $shift?->name ?? $this->t('outside_shift', $locale),
-            'shift_time' => $shift ? $this->shiftTimeLabel($shift) : '',
-            'staff_on_shift' => $shift?->employees?->pluck('name')->join(', ') ?? '',
+            'shift_time' => $matched ? $matched['time_label'] : '',
+            'staff_on_shift' => $matched ? $matched['staff'] : '',
             'source' => $source,
             'record_id' => $recordId,
             'member' => $member,
@@ -484,15 +502,16 @@ class FinanceDetailedExportData
     }
 
     /**
-     * @param  Collection<int, EmployeeShift>  $shifts
+     * @param  Collection<int, array<string, mixed>>  $shiftMeta
+     * @return array<string, mixed>|null
      */
-    private function shiftForTime(Carbon $time, Collection $shifts): ?EmployeeShift
+    private function shiftForTime(Carbon $time, Collection $shiftMeta): ?array
     {
         $timeMinutes = ((int) $time->format('H')) * 60 + (int) $time->format('i');
 
-        return $shifts->first(function (EmployeeShift $shift) use ($timeMinutes): bool {
-            $start = $this->timeToMinutes($shift->starts_at);
-            $end = $this->timeToMinutes($shift->ends_at);
+        return $shiftMeta->first(function (array $meta) use ($timeMinutes): bool {
+            $start = $meta['start'];
+            $end = $meta['end'];
 
             if ($start === $end) {
                 return true;
@@ -523,16 +542,39 @@ class FinanceDetailedExportData
      */
     private function buildDuesRows(string $locale): array
     {
+        $subscriptionPaidTotals = Payment::query()
+            ->selectRaw('payable_id, SUM(amount) as paid_total')
+            ->where('payable_type', Subscription::class)
+            ->groupBy('payable_id');
+
+        $addonPaidTotals = Payment::query()
+            ->join('subscription_addons', 'subscription_addons.id', '=', 'payments.payable_id')
+            ->selectRaw('subscription_addons.subscription_id, SUM(payments.amount) as paid_total')
+            ->where('payments.payable_type', SubscriptionAddon::class)
+            ->groupBy('subscription_addons.subscription_id');
+
+        $addonPriceTotals = SubscriptionAddon::query()
+            ->selectRaw('subscription_id, SUM(price_paid) as price_total')
+            ->groupBy('subscription_id');
+
         $subscriptions = Subscription::query()
-            ->with(['member:id,name', 'plan:id,name', 'payments', 'addons.payments'])
+            ->with(['member:id,name', 'plan:id,name'])
+            ->leftJoinSub($subscriptionPaidTotals, 'subscription_paid_totals', 'subscription_paid_totals.payable_id', '=', 'subscriptions.id')
+            ->leftJoinSub($addonPaidTotals, 'addon_paid_totals', 'addon_paid_totals.subscription_id', '=', 'subscriptions.id')
+            ->leftJoinSub($addonPriceTotals, 'addon_price_totals', 'addon_price_totals.subscription_id', '=', 'subscriptions.id')
+            ->select('subscriptions.*')
+            ->selectRaw('COALESCE(subscription_paid_totals.paid_total, 0) as base_paid_total')
+            ->selectRaw('COALESCE(addon_paid_totals.paid_total, 0) as addon_paid_total')
+            ->selectRaw('COALESCE(addon_price_totals.price_total, 0) as addon_price_total')
+            ->whereRaw('(subscriptions.price_paid + COALESCE(addon_price_totals.price_total, 0)) > (COALESCE(subscription_paid_totals.paid_total, 0) + COALESCE(addon_paid_totals.paid_total, 0))')
             ->orderBy('end_date')
             ->get();
 
         return $subscriptions
             ->map(function (Subscription $subscription) use ($locale): ?array {
-                $basePaid = $subscription->payments->sum(fn (Payment $payment): float => (float) $payment->amount);
-                $addonPrice = $subscription->addons->sum(fn (SubscriptionAddon $addon): float => (float) $addon->price_paid);
-                $addonPaid = $subscription->addons->sum(fn (SubscriptionAddon $addon): float => $addon->payments->sum(fn (Payment $payment): float => (float) $payment->amount));
+                $basePaid = (float) ($subscription->base_paid_total ?? 0);
+                $addonPrice = (float) ($subscription->addon_price_total ?? 0);
+                $addonPaid = (float) ($subscription->addon_paid_total ?? 0);
                 $booked = (float) $subscription->price_paid + $addonPrice;
                 $collected = $basePaid + $addonPaid;
                 $balance = max($booked - $collected, 0);
@@ -574,7 +616,7 @@ class FinanceDetailedExportData
         return match (true) {
             $payable instanceof Subscription => $payable->plan?->name ?? $this->t('subscription', $locale).' #'.$payable->id,
             $payable instanceof SubscriptionAddon => $payable->plan?->name ?? $this->t('addon', $locale).' #'.$payable->id,
-            $payable instanceof Sale => $payable->items()->with('product:id,name')->get()->map(fn ($item): string => ($item->product?->name ?? $this->t('product', $locale)).' x'.$item->quantity)->join(', '),
+            $payable instanceof Sale => $payable->items->map(fn ($item): string => ($item->product?->name ?? $this->t('product', $locale)).' x'.$item->quantity)->join(', '),
             default => $this->t('payment', $locale).' #'.$payment->id,
         };
     }
@@ -627,8 +669,12 @@ class FinanceDetailedExportData
      */
     private function translations(string $locale): array
     {
+        if (isset($this->translationCache[$locale])) {
+            return $this->translationCache[$locale];
+        }
+
         if ($locale === 'ar') {
-            return [
+            return $this->translationCache[$locale] = [
                 'active' => 'نشط',
                 'add on' => 'إضافة',
                 'addon' => 'إضافة',
@@ -663,7 +709,7 @@ class FinanceDetailedExportData
             ];
         }
 
-        return [
+        return $this->translationCache[$locale] = [
             'addon' => 'Add-on',
             'discount' => 'Discount',
             'expense' => 'Expense',

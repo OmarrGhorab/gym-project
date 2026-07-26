@@ -21,11 +21,13 @@ export default async function Page({
 }) {
   const t = await getTranslations("Dashboard.membersPage");
   const locale = await getLocale();
-  const user = await getCurrentUser();
   const numberFormatter = new Intl.NumberFormat(locale);
   const params = await searchParams;
   const query = normalizeQuery(params);
-  const { dues, members, meta, plans, staff } = await getMembersPageData(query);
+  const [user, { dues, members, meta, plans, staff }] = await Promise.all([
+    getCurrentUser(),
+    getMembersPageData(query),
+  ]);
   const active = members.filter((member) => member.status === "active").length;
   const inactive = members.length - active;
   const withQr = members.filter((member) => member.attendance_qr).length;

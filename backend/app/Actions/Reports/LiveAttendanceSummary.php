@@ -118,7 +118,10 @@ final class LiveAttendanceSummary
         $lastHour = $isToday ? min(23, (int) $now->format('G')) : 23;
         $firstHour = max(0, $lastHour - $visibleHours + 1);
 
-        return collect(range($firstHour, $lastHour))->map(function (int $hour) use ($memberVisits, $staffAttendance, $comparisonMemberVisits, $comparisonStaffAttendance, $start, $now, $isToday, $filters): array {
+        $staffTimes = $this->attendanceTimeMap($staffAttendance);
+        $comparisonStaffTimes = $this->attendanceTimeMap($comparisonStaffAttendance);
+
+        return collect(range($firstHour, $lastHour))->map(function (int $hour) use ($memberVisits, $staffAttendance, $comparisonMemberVisits, $comparisonStaffAttendance, $staffTimes, $comparisonStaffTimes, $start, $now, $isToday, $filters): array {
             $slotStart = $start->addHours($hour);
             $slotEnd = $slotStart->endOfHour();
 
@@ -134,11 +137,11 @@ final class LiveAttendanceSummary
             }
 
             $members = $this->memberPointValue($memberVisits, $slotStart, $slotEnd, $filters['metric']);
-            $staff = $this->staffPointValue($staffAttendance, $slotStart, $slotEnd, $filters['metric']);
+            $staff = $this->staffPointValue($staffAttendance, $staffTimes, $slotStart, $slotEnd, $filters['metric']);
             $comparisonSlotStart = $slotStart->subDay();
             $comparisonSlotEnd = $comparisonSlotStart->endOfHour();
             $comparisonMembers = $this->memberPointValue($comparisonMemberVisits, $comparisonSlotStart, $comparisonSlotEnd, $filters['metric']);
-            $comparisonStaff = $this->staffPointValue($comparisonStaffAttendance, $comparisonSlotStart, $comparisonSlotEnd, $filters['metric']);
+            $comparisonStaff = $this->staffPointValue($comparisonStaffAttendance, $comparisonStaffTimes, $comparisonSlotStart, $comparisonSlotEnd, $filters['metric']);
             $total = $members + $staff;
 
             return [
@@ -180,30 +183,53 @@ final class LiveAttendanceSummary
         };
     }
 
-    private function staffPointValue(Collection $staffAttendance, CarbonImmutable $slotStart, CarbonImmutable $slotEnd, string $metric): int
+    /**
+     * @param  array<int, array{in: ?CarbonImmutable, out: ?CarbonImmutable}>  $times
+     */
+    private function staffPointValue(Collection $staffAttendance, array $times, CarbonImmutable $slotStart, CarbonImmutable $slotEnd, string $metric): int
     {
         return match ($metric) {
-            'entries' => $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
-                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+            'entries' => $staffAttendance->filter(function (Attendance $attendance) use ($times, $slotStart, $slotEnd): bool {
+                $checkIn = $times[$attendance->id]['in'] ?? null;
 
                 return $checkIn && $checkIn->betweenIncluded($slotStart, $slotEnd);
             })->count(),
-            'alerts' => $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
-                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+            'alerts' => $staffAttendance->filter(function (Attendance $attendance) use ($times, $slotStart, $slotEnd): bool {
+                $checkIn = $times[$attendance->id]['in'] ?? null;
 
                 return $checkIn && $checkIn->betweenIncluded($slotStart, $slotEnd)
                     && (((int) $attendance->late_minutes) > 0
                         || $attendance->approval_status === 'pending'
                         || in_array($attendance->schedule_status, ['off_shift', 'late'], true));
             })->count(),
-            default => $staffAttendance->filter(function (Attendance $attendance) use ($slotStart, $slotEnd): bool {
-                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
-                $checkOut = $this->attendanceDateTime($attendance, 'check_out');
+            default => $staffAttendance->filter(function (Attendance $attendance) use ($times, $slotStart, $slotEnd): bool {
+                $checkIn = $times[$attendance->id]['in'] ?? null;
+                $checkOut = $times[$attendance->id]['out'] ?? null;
 
                 return $checkIn && $checkIn->lessThanOrEqualTo($slotEnd)
                     && (! $checkOut || $checkOut->greaterThanOrEqualTo($slotStart));
             })->count(),
         };
+    }
+
+    /**
+     * Precomputed check-in/check-out datetimes keyed by attendance id.
+     *
+     * @param  Collection<int, Attendance>  $staffAttendance
+     * @return array<int, array{in: ?CarbonImmutable, out: ?CarbonImmutable}>
+     */
+    private function attendanceTimeMap(Collection $staffAttendance): array
+    {
+        $map = [];
+
+        foreach ($staffAttendance as $attendance) {
+            $map[$attendance->id] = [
+                'in' => $this->attendanceDateTime($attendance, 'check_in'),
+                'out' => $this->attendanceDateTime($attendance, 'check_out'),
+            ];
+        }
+
+        return $map;
     }
 
     private function attendanceDateTime(Attendance $attendance, string $field): ?CarbonImmutable

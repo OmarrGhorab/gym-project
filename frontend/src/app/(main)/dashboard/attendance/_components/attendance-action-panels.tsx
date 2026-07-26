@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
@@ -93,9 +93,9 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
     },
     [members, selectedMember],
   );
-  const idOptions = memberIdSelectOptions(lookupMembers);
-  const phoneOptions = memberPhoneSelectOptions(lookupMembers);
-  const nameOptions = memberNameSelectOptions(lookupMembers);
+  const idOptions = useMemo(() => memberIdSelectOptions(lookupMembers), [lookupMembers]);
+  const phoneOptions = useMemo(() => memberPhoneSelectOptions(lookupMembers), [lookupMembers]);
+  const nameOptions = useMemo(() => memberNameSelectOptions(lookupMembers), [lookupMembers]);
   const activeAddons = (selectedMember?.latest_subscription?.addons ?? []).filter(
     (addon) => !addon.status || addon.status === "active",
   );
@@ -331,7 +331,7 @@ function StaffScanCard({
     },
     [employees, selectedEmployee],
   );
-  const employeeOptions = employeeSelectOptions(lookupEmployees, true);
+  const employeeOptions = useMemo(() => employeeSelectOptions(lookupEmployees, true), [lookupEmployees]);
 
   useEffect(() => {
     const query = scanValue.trim();
@@ -459,7 +459,7 @@ function ManualAttendanceCard({
 }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(createManualAttendance, initialState);
-  const employeeOptions = employeeSelectOptions(employees);
+  const employeeOptions = useMemo(() => employeeSelectOptions(employees), [employees]);
   const isCorrection = Boolean(correctionRecord);
 
   return (

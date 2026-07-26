@@ -24,17 +24,13 @@ class FindExpiringSubscriptions
     public function query(): Builder
     {
         $today = Carbon::today();
-        $dates = collect($this->reminderDayList())
-            ->map(fn (int $days): string => $today->copy()->addDays($days)->toDateString())
-            ->unique()
-            ->values()
-            ->all();
+        $windowEnd = $today->copy()->addDays($this->reminderDays());
 
         return Subscription::query()
             ->with(['member', 'soldBy'])
             ->where('status', 'active')
             ->withoutLaterActiveRenewal()
-            ->whereIn('end_date', $dates)
+            ->whereBetween('end_date', [$today->toDateString(), $windowEnd->toDateString()])
             ->where(function ($query) use ($today): void {
                 $query->whereNull('last_reminded_on')
                     ->orWhereDate('last_reminded_on', '<', $today->toDateString());

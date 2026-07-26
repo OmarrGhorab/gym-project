@@ -271,48 +271,6 @@ export async function saveShiftOffRotation(
   return { ok: true, message: "Off-day rotation saved.", errors: {} };
 }
 
-export async function saveOffDayOverride(input: FormData): Promise<SettingsActionResult> {
-  const parsed = z
-    .object({
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
-      employee_id: z.coerce.number().int().positive("Employee is required."),
-      notes: z.string().trim().max(1000).optional(),
-      type: z.enum(["off", "work"]),
-    })
-    .safeParse({
-      date: input.get("date") || "",
-      employee_id: input.get("employee_id"),
-      notes: input.get("notes") || undefined,
-      type: input.get("type") || "off",
-    });
-
-  if (!parsed.success) {
-    return invalidResult("Please fix the off-day override fields.", parsed.error);
-  }
-
-  try {
-    await serverApiFetch("/attendance/off-day-overrides", {
-      body: JSON.stringify({
-        date: parsed.data.date,
-        employee_id: parsed.data.employee_id,
-        notes: parsed.data.notes || null,
-        type: parsed.data.type,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-    });
-  } catch (error) {
-    return errorResult(error, "Could not save off-day override.");
-  }
-
-  revalidatePath("/dashboard/academy/staff");
-  revalidatePath("/dashboard/attendance");
-
-  return { ok: true, message: "Off-day override saved.", errors: {} };
-}
-
 export async function deactivateShift(input: FormData): Promise<SettingsActionResult> {
   const id = z.coerce.number().int().positive("Shift is required.").safeParse(input.get("id"));
 

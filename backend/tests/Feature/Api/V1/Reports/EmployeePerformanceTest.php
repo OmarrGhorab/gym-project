@@ -196,9 +196,13 @@ test('unauthenticated users cannot view performance reports', function (): void 
 });
 
 test('users without reports.view permission cannot view employee performance list', function (): void {
+    // Captain/Cashier now hold reports.view so they can open the Finance shift
+    // desk (see RoleMatrixSeeder + PosAccessSeeder/HrFinanceAccessSeeder), so a
+    // roleless user is the honest "lacks reports.view" subject for this gate.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
+
+    expect($user->can('reports.view'))->toBeFalse();
 
     $this->getJson('/api/v1/reports/employees')
         ->assertStatus(403);

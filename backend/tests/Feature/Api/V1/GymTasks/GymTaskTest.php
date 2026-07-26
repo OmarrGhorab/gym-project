@@ -5,6 +5,7 @@ use App\Models\Employee;
 use App\Models\GymTask;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use App\Support\PosPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
 use Laravel\Sanctum\Sanctum;
@@ -70,9 +71,13 @@ test('accountant can manage manual gym tasks and see generated alerts', function
 });
 
 test('users without reports permission cannot view gym tasks', function (): void {
+    // Captain/Cashier now hold reports.view so they can open the Finance shift
+    // desk (see RoleMatrixSeeder + HrFinanceAccessSeeder), so a roleless user is
+    // the honest "lacks reports.view" subject for this gate.
     $user = User::factory()->create();
-    $user->assignRole(FoundationPermissions::ROLE_CAPTAIN);
     Sanctum::actingAs($user);
+
+    expect($user->can(PosPermissions::PERM_REPORTS_VIEW))->toBeFalse();
 
     GymTask::query()->create([
         'title' => 'Manager only task',

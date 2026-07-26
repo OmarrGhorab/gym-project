@@ -1,6 +1,8 @@
 import { serverApiFetch } from "@/lib/api/server";
 
 export type CoachExtraPlanMember = {
+  /** "addon" or "studio" — which side of the report the row came from. */
+  type?: string;
   addon_id: number;
   member_id: number;
   member_name: string;
