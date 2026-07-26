@@ -25,7 +25,7 @@ class CreateSubscription
     public function handle(array $data, User $seller): Subscription
     {
         $member = Member::query()->findOrFail($data['member_id']);
-        $plan = Plan::query()->findOrFail($data['plan_id']);
+        $plan = Plan::query()->with('packageItems.includedPlan')->findOrFail($data['plan_id']);
 
         if ($member->status !== 'active') {
             throw ValidationException::withMessages([
@@ -76,6 +76,10 @@ class CreateSubscription
 
             if (bccomp($pricePaid, '0.00', 2) === 1) {
                 $this->recordPayment->handle($subscription, $data['payment'], $seller);
+            }
+
+            if ($plan->type === 'offer_package') {
+                $this->createIncludedPackageAddons($subscription, $plan, $startDate, $seller);
             }
 
             foreach (($data['addons'] ?? []) as $addonData) {
@@ -172,5 +176,44 @@ class CreateSubscription
             ->where('employee_id', $coachId)
             ->where('is_active', true)
             ->exists();
+    }
+
+    private function createIncludedPackageAddons(Subscription $subscription, Plan $package, Carbon $startDate, User $seller): void
+    {
+        foreach ($package->packageItems as $item) {
+            $addonPlan = $item->includedPlan;
+
+            if ($addonPlan === null || ! $addonPlan->isSellable() || $addonPlan->category === 'gym_access') {
+                throw ValidationException::withMessages([
+                    'plan_id' => 'This offer package has an invalid or unavailable included add-on.',
+                ]);
+            }
+
+            if (! $this->coachCanSellAddon($addonPlan->id, $item->coach_id)) {
+                throw ValidationException::withMessages([
+                    'plan_id' => 'A coach must be assigned to every included add-on in this offer package.',
+                ]);
+            }
+
+            $sessionAllowance = $addonPlan->is_unlimited_sessions || $addonPlan->sessions_count === null
+                ? null
+                : (int) $addonPlan->sessions_count;
+
+            SubscriptionAddon::create([
+                'subscription_id' => $subscription->id,
+                'member_id' => $subscription->member_id,
+                'plan_id' => $addonPlan->id,
+                'coach_id' => $item->coach_id,
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $addonPlan->endDateFrom($startDate)->toDateString(),
+                'status' => 'active',
+                'price_paid' => '0.00',
+                'discount' => (string) $addonPlan->price,
+                'sessions_total' => $sessionAllowance,
+                'sessions_remaining' => $sessionAllowance,
+                'sold_by_user_id' => $seller->id,
+                'created_by' => $seller->id,
+            ]);
+        }
     }
 }

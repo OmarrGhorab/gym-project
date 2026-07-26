@@ -17,6 +17,7 @@ import type { CoachExtraPlanItem } from "./data";
 export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) {
   const [search, setSearch] = useState("");
   const [selectedCoach, setSelectedCoach] = useState<CoachExtraPlanItem | null>(null);
+  const [memberPage, setMemberPage] = useState(1);
 
   const filteredCoaches = coaches.filter((c) => {
     const query = search.toLowerCase().trim();
@@ -27,6 +28,13 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
       c.plans_summary.some((p) => p.plan_name.toLowerCase().includes(query))
     );
   });
+  const memberPageSize = 10;
+  const memberTotalPages = Math.max(1, Math.ceil((selectedCoach?.members.length ?? 0) / memberPageSize));
+  const currentMemberPage = Math.min(memberPage, memberTotalPages);
+  const displayedMembers = selectedCoach?.members.slice(
+    (currentMemberPage - 1) * memberPageSize,
+    currentMemberPage * memberPageSize,
+  );
 
   return (
     <Card className="shadow-2xs">
@@ -114,7 +122,10 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                         size="sm"
                         variant="outline"
                         className="h-8 gap-1 text-xs"
-                        onClick={() => setSelectedCoach(coach)}
+                        onClick={() => {
+                          setMemberPage(1);
+                          setSelectedCoach(coach);
+                        }}
                       >
                         <Eye className="size-3.5" />
                         View Members ({coach.members.length})
@@ -188,7 +199,7 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                           </TableCell>
                         </TableRow>
                       ) : (
-                        selectedCoach.members.map((m, index) => (
+                        displayedMembers?.map((m, index) => (
                           <TableRow key={`${m.type ?? "item"}-${m.addon_id}-${m.member_id}-${index}`}>
                             <TableCell>
                               <div>
@@ -250,6 +261,31 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                     </TableBody>
                   </Table>
                 </div>
+                {selectedCoach.members.length > memberPageSize ? (
+                  <div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
+                    <span>
+                      Page {currentMemberPage} of {memberTotalPages} · {selectedCoach.members.length} members
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={currentMemberPage === 1}
+                        onClick={() => setMemberPage((page) => Math.max(1, page - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={currentMemberPage === memberTotalPages}
+                        onClick={() => setMemberPage((page) => Math.min(memberTotalPages, page + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </DialogContent>
           ) : null}

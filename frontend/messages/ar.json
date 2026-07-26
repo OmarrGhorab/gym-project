@@ -1255,6 +1255,7 @@
       "planTypes": {
         "membership": "عضوية",
         "offer": "عرض",
+        "offerPackage": "باقة عرض (عضوية + خدمات مشمولة)",
         "fitnessStudio": "استوديو لياقة (بدون دخول الجيم)",
         "extraService": "خدمة إضافية مستقلة",
         "membershipExtraService": "عضوية + خدمة إضافية"

@@ -70,6 +70,11 @@ final class Plan extends Model
         return $this->hasMany(EmployeePlanCommissionRule::class);
     }
 
+    public function packageItems(): HasMany
+    {
+        return $this->hasMany(PlanPackageItem::class, 'package_plan_id');
+    }
+
     public function endDateFrom(Carbon $startDate): Carbon
     {
         if ((int) ($this->duration_months ?? 0) > 0) {

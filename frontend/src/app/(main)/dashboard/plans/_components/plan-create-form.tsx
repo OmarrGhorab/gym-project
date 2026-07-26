@@ -33,6 +33,7 @@ const initialPlanFormState: PlanFormState = {
 };
 
 type PlanFormProps = {
+  availablePlans?: PlanRow[];
   categories?: PlanCategoryOption[];
   employees: PlanEmployeeOption[];
   mode?: "create" | "edit";
@@ -90,7 +91,14 @@ function normalizeEmployeeRule(value: unknown, index: number): PlanEmployeeCommi
   };
 }
 
-export function PlanCreateForm({ categories = [], employees, mode = "create", onSuccess, plan }: PlanFormProps) {
+export function PlanCreateForm({
+  availablePlans = [],
+  categories = [],
+  employees,
+  mode = "create",
+  onSuccess,
+  plan,
+}: PlanFormProps) {
   const t = useTranslations("Dashboard.plans");
   const formRef = React.useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(mode === "edit" ? updatePlan : createPlan, initialPlanFormState);
@@ -195,6 +203,13 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
   const [validFrom, setValidFrom] = React.useState(initialValidFrom);
   const [validTo, setValidTo] = React.useState(initialValidTo);
   const [planPrice, setPlanPrice] = React.useState(valueOrPlan(state, plan, "price") || "0");
+  const [packageAddons, setPackageAddons] = React.useState(
+    plan?.package_addons?.map((item, index) => ({
+      _key: `package-${item.plan_id}-${index}`,
+      coach_id: String(item.coach_id),
+      plan_id: String(item.plan_id),
+    })) ?? [],
+  );
   const initialEmployeeRules = React.useMemo(
     () => readInitialEmployeeRules(state.values.employee_commission_rules, employees, plan?.id),
     [employees, plan?.id, state.values.employee_commission_rules],
@@ -221,6 +236,11 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
   const planPriceNumber = Math.max(0, Number(planPrice || 0));
   const gymNetBeforeExpenses = Math.max(0, planPriceNumber - employeeCommissionTotal);
   const selectedCategoryScope = categoryScopeByValue.get(category) ?? "extra_service";
+  const isOfferLike = planType === "offer" || planType === "offer_package";
+  const packageServicePlans = availablePlans.filter(
+    (candidate) =>
+      candidate.id !== plan?.id && candidate.category !== "gym_access" && candidate.type !== "offer_package",
+  );
   const isServicePlan =
     selectedCategoryScope !== "gym_access" || planType === "extra_service" || planType === "membership_extra_service";
   const submittedEmployeeRules = isServicePlan ? employeeRules : [];
@@ -245,6 +265,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
         setValidTo("");
         setEmployeeRules([]);
         setPlanPrice("0");
+        setPackageAddons([]);
       }
     }
   }, [mode, onSuccess, state.ok, t]);
@@ -264,6 +285,13 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
       setValidTo(state.values.valid_to || valueOrPlan(state, plan, "valid_to"));
       setEmployeeRules(readInitialEmployeeRules(state.values.employee_commission_rules, employees, plan?.id));
       setPlanPrice(state.values.price || valueOrPlan(state, plan, "price") || "0");
+      setPackageAddons(
+        plan?.package_addons?.map((item, index) => ({
+          _key: `package-${item.plan_id}-${index}`,
+          coach_id: String(item.coach_id),
+          plan_id: String(item.plan_id),
+        })) ?? [],
+      );
     }
   }, [
     employees,
@@ -288,6 +316,13 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
     <form ref={formRef} action={action} className="grid gap-4">
       {mode === "edit" && plan ? <input type="hidden" name="id" value={plan.id} /> : null}
       <input type="hidden" name="employee_commission_rules" value={JSON.stringify(submittedEmployeeRules)} />
+      <input
+        type="hidden"
+        name="package_addons"
+        value={JSON.stringify(
+          packageAddons.map(({ coach_id, plan_id }) => ({ coach_id: Number(coach_id), plan_id: Number(plan_id) })),
+        )}
+      />
       <input
         type="hidden"
         name="initial_employee_commission_rule_ids"
@@ -329,6 +364,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
           options={[
             { label: t("planTypes.membership"), value: "membership" },
             { label: t("planTypes.offer"), value: "offer" },
+            { label: t("planTypes.offerPackage"), value: "offer_package" },
             { label: t("planTypes.fitnessStudio"), value: "fitness_studio" },
             { label: t("planTypes.extraService"), value: "extra_service" },
             { label: t("planTypes.membershipExtraService"), value: "membership_extra_service" },
@@ -425,7 +461,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
         defaultValue={planPrice}
         onChange={(event) => setPlanPrice(event.currentTarget.value)}
       />
-      {planType === "offer" ? (
+      {isOfferLike ? (
         <>
           <input type="hidden" name="duration_basis" value="days" />
           <input type="hidden" name="duration_months" value="" />
@@ -463,7 +499,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
           />
         </div>
       )}
-      {planType !== "offer" && durationBasis === "months" ? (
+      {planType !== "offer" && planType !== "offer_package" && durationBasis === "months" ? (
         <>
           <input type="hidden" name="valid_from" value="" />
           <input type="hidden" name="valid_to" value="" />
@@ -479,7 +515,7 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
           />
         </>
       ) : null}
-      {planType !== "offer" && durationBasis === "days" ? (
+      {planType !== "offer" && planType !== "offer_package" && durationBasis === "days" ? (
         <>
           <input type="hidden" name="valid_from" value="" />
           <input type="hidden" name="valid_to" value="" />
@@ -492,6 +528,74 @@ export function PlanCreateForm({ categories = [], employees, mode = "create", on
             defaultValue={valueOrPlan(state, plan, "duration_days") || "30"}
           />
         </>
+      ) : null}
+
+      {planType === "offer_package" ? (
+        <div className="grid gap-3 rounded-lg border border-dashed p-4">
+          <div>
+            <Label>Included extra services</Label>
+            <p className="text-muted-foreground text-xs">
+              These add-ons are created automatically when this package is sold. Their cost is included in the package
+              price.
+            </p>
+          </div>
+          {packageAddons.map((item, index) => (
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]" key={item._key}>
+              <FormSelect
+                name={`package_addon_plan_${index}`}
+                value={item.plan_id}
+                onValueChange={(value) =>
+                  setPackageAddons((items) =>
+                    items.map((current) => (current._key === item._key ? { ...current, plan_id: value } : current)),
+                  )
+                }
+                options={packageServicePlans.map((candidate) => ({
+                  label: `${candidate.name} - ${candidate.price} EGP`,
+                  value: String(candidate.id),
+                }))}
+                placeholder="Select extra service"
+              />
+              <FormSelect
+                name={`package_addon_coach_${index}`}
+                value={item.coach_id}
+                onValueChange={(value) =>
+                  setPackageAddons((items) =>
+                    items.map((current) => (current._key === item._key ? { ...current, coach_id: value } : current)),
+                  )
+                }
+                options={employees.map((employee) => ({
+                  label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+                  value: String(employee.id),
+                }))}
+                placeholder="Select coach"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPackageAddons((items) => items.filter((current) => current._key !== item._key))}
+              >
+                Remove
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={packageServicePlans.length === 0 || employees.length === 0}
+            onClick={() =>
+              setPackageAddons((items) => [
+                ...items,
+                {
+                  _key: `package-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
+                  coach_id: employees[0] ? String(employees[0].id) : "",
+                  plan_id: packageServicePlans[0] ? String(packageServicePlans[0].id) : "",
+                },
+              ])
+            }
+          >
+            Add included service
+          </Button>
+        </div>
       ) : null}
 
       <div className="flex items-center gap-2">

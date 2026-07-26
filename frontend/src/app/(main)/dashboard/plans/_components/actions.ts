@@ -36,14 +36,21 @@ const planInputSchema = z
     max_freeze_days: z.coerce.number().int().min(0, "Max freeze days cannot be negative."),
     min_freeze_days: z.coerce.number().int().min(0, "Min freeze days cannot be negative."),
     name: z.string().trim().min(1, "Plan name is required.").max(150),
+    package_addons: z.array(
+      z.object({ coach_id: z.coerce.number().int().positive(), plan_id: z.coerce.number().int().positive() }),
+    ),
     price: z.coerce.number().min(0, "Price cannot be negative."),
     sessions_count: z.preprocess(
       (value) => (String(value ?? "").trim() === "" ? null : value),
       z.coerce.number().int().min(1, "Sessions count must be at least 1.").nullable(),
     ),
-    type: z.enum(["membership", "offer", "fitness_studio", "extra_service", "membership_extra_service"], {
-      error: "Plan type must be Membership, Offer, Fitness Studio, Extra service, or Membership + extra service.",
-    }),
+    type: z.enum(
+      ["membership", "offer", "offer_package", "fitness_studio", "extra_service", "membership_extra_service"],
+      {
+        error:
+          "Plan type must be Membership, Offer, Offer package, Fitness Studio, Extra service, or Membership + extra service.",
+      },
+    ),
     valid_from: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
     valid_to: z.preprocess((value) => (String(value ?? "").trim() === "" ? null : value), z.string().nullable()),
   })
@@ -51,11 +58,11 @@ const planInputSchema = z
     message: "Max freeze days cannot be greater than the plan duration.",
     path: ["max_freeze_days"],
   })
-  .refine((value) => value.type !== "offer" || Boolean(value.valid_from), {
+  .refine((value) => !["offer", "offer_package"].includes(value.type) || Boolean(value.valid_from), {
     message: "Offer valid from date is required.",
     path: ["valid_from"],
   })
-  .refine((value) => value.type !== "offer" || Boolean(value.valid_to), {
+  .refine((value) => !["offer", "offer_package"].includes(value.type) || Boolean(value.valid_to), {
     message: "Offer valid to date is required.",
     path: ["valid_to"],
   })
@@ -112,6 +119,7 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
     min_freeze_days: input.get("min_freeze_days"),
     name: input.get("name"),
     price: input.get("price"),
+    package_addons: parsePackageAddons(input),
     sessions_count: input.get("sessions_count"),
     type: input.get("type"),
     valid_from: input.get("valid_from"),
@@ -175,6 +183,7 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
     min_freeze_days: input.get("min_freeze_days"),
     name: input.get("name"),
     price: input.get("price"),
+    package_addons: parsePackageAddons(input),
     sessions_count: input.get("sessions_count"),
     type: input.get("type"),
     valid_from: input.get("valid_from"),
@@ -232,6 +241,21 @@ function getFormValues(input: FormData): Record<string, string> {
   return Object.fromEntries(
     Array.from(input.entries()).map(([key, value]) => [key, typeof value === "string" ? value : ""]),
   );
+}
+
+function parsePackageAddons(input: FormData) {
+  const raw = String(input.get("package_addons") ?? "[]");
+  let value: unknown = [];
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const parsed = z
+    .array(z.object({ coach_id: z.coerce.number().int().positive(), plan_id: z.coerce.number().int().positive() }))
+    .safeParse(value);
+
+  return parsed.success ? parsed.data : [];
 }
 export async function togglePlan(input: FormData): Promise<void> {
   await mutate(`/plans/${Number(input.get("id"))}/toggle`, "PATCH");

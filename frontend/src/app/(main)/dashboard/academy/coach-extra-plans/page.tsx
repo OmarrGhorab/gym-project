@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { ArrowLeft, Dumbbell, ReceiptText, UserCheck, Users } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormDatePicker } from "@/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
@@ -56,7 +56,7 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
         </div>
 
         {/* Date filter form */}
-        <form className="flex flex-wrap items-end gap-2" action="/dashboard/academy/coach-extra-plans">
+        <form action="/dashboard/academy/coach-extra-plans" className="flex flex-wrap items-end gap-2" method="get">
           <div className="grid gap-1 text-muted-foreground text-xs">
             <Label htmlFor="from-date">From Date</Label>
             <FormDatePicker className="h-8 w-[8.5rem] min-w-0" defaultValue={from} id="from-date" name="from" />
@@ -65,9 +65,9 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
             <Label htmlFor="to-date">To Date</Label>
             <FormDatePicker className="h-8 w-[8.5rem] min-w-0" defaultValue={to} id="to-date" name="to" />
           </div>
-          <Button className="h-8" size="sm" type="submit" variant="secondary">
+          <button className={buttonVariants({ className: "h-8", size: "sm", variant: "secondary" })} type="submit">
             Filter Report
-          </Button>
+          </button>
         </form>
       </div>
 

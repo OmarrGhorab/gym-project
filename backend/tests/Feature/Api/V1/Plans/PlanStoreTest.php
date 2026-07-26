@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Employee;
 use App\Models\Plan;
 use App\Models\User;
 use App\Support\FoundationPermissions;
@@ -148,6 +149,36 @@ test('admin can create a plan and receives 201 with plan resource', function ():
         );
 
     $this->assertDatabaseHas('plans', ['name' => 'Monthly Membership']);
+});
+
+test('admin can create an offer package with included add-on services', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $service = Plan::factory()->create(['category' => 'personal_training', 'type' => 'extra_service']);
+    $coach = Employee::factory()->create();
+
+    $this->postJson('/api/v1/plans', [
+        'name' => 'Summer Membership + PT',
+        'price' => '1000.00',
+        'duration_days' => 30,
+        'type' => 'offer_package',
+        'category' => 'gym_access',
+        'valid_from' => '2026-07-01',
+        'valid_to' => '2026-08-31',
+        'package_addons' => [['plan_id' => $service->id, 'coach_id' => $coach->id]],
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.type', 'offer_package')
+        ->assertJsonPath('data.package_addons.0.plan_id', $service->id)
+        ->assertJsonPath('data.package_addons.0.coach_id', $coach->id);
+
+    $this->assertDatabaseHas('plan_package_items', [
+        'package_plan_id' => Plan::query()->where('name', 'Summer Membership + PT')->value('id'),
+        'included_plan_id' => $service->id,
+        'coach_id' => $coach->id,
+    ]);
 });
 
 test('admin can create membership with an extra service plan type', function (): void {

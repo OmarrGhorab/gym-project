@@ -1255,6 +1255,7 @@
       "planTypes": {
         "membership": "Membership",
         "offer": "Offer",
+        "offerPackage": "Offer package (membership + included services)",
         "fitnessStudio": "Fitness studio (no gym access)",
         "extraService": "Extra service (standalone)",
         "membershipExtraService": "Membership + extra service"

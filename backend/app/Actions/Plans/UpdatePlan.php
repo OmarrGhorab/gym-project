@@ -16,10 +16,20 @@ final class UpdatePlan
     public function handle(Plan $plan, array $data): Plan
     {
         $data = $this->normalize($data);
+        $packageAddons = $data['package_addons'] ?? [];
+        unset($data['package_addons']);
 
         $plan->update($data);
+        $plan->packageItems()->delete();
 
-        return $plan->fresh();
+        if ($plan->type === 'offer_package') {
+            $plan->packageItems()->createMany(array_map(
+                fn (array $item): array => ['included_plan_id' => $item['plan_id'], 'coach_id' => $item['coach_id']],
+                $packageAddons,
+            ));
+        }
+
+        return $plan->fresh(['packageItems.includedPlan', 'packageItems.coach']);
     }
 
     /**
@@ -29,6 +39,11 @@ final class UpdatePlan
     private function normalize(array $data): array
     {
         $data['is_unlimited_sessions'] = (bool) ($data['is_unlimited_sessions'] ?? false);
+        $data['max_freeze_days'] = (int) ($data['max_freeze_days'] ?? 0);
+        $data['access_grace_days'] = (int) ($data['access_grace_days'] ?? 0);
+        $data['cancellation_grace_days'] = (int) ($data['cancellation_grace_days'] ?? 2);
+        $data['min_freeze_days'] = (int) ($data['min_freeze_days'] ?? 0);
+        $data['freeze_requires_approval'] = (bool) ($data['freeze_requires_approval'] ?? false);
 
         if ($data['is_unlimited_sessions']) {
             $data['sessions_count'] = null;

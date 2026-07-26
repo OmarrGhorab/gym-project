@@ -31,7 +31,7 @@ final class PlanController extends ApiController
         $this->authorize('viewAny', Plan::class);
         $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
-        $plans = QueryBuilder::for(Plan::with(['employeeCommissionRules.employee']))
+        $plans = QueryBuilder::for(Plan::with(['employeeCommissionRules.employee', 'packageItems.includedPlan', 'packageItems.coach']))
             ->allowedFilters(
                 AllowedFilter::exact('type'),
                 AllowedFilter::exact('is_active'),

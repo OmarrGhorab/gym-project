@@ -77,3 +77,32 @@ test('accountant can view coach extra plans report with member attendance', func
         ->assertJsonPath('data.coaches.0.members.0.member_name', 'Member Sherif')
         ->assertJsonPath('data.coaches.0.members.0.attended_days_this_month', 2);
 });
+
+test('coach extra plans report excludes active plans outside the selected date range', function (): void {
+    Carbon::setTestNow('2026-07-20 12:00:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $coach = Employee::factory()->create(['role' => 'Coach', 'status' => 'active']);
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->create();
+    $subscription = Subscription::factory()->active()->create(['member_id' => $member->id]);
+
+    SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'coach_id' => $coach->id,
+        'start_date' => '2026-08-01',
+        'end_date' => '2026-08-31',
+        'status' => 'active',
+        'price_paid' => '1200.00',
+    ]);
+
+    $this->getJson('/api/v1/reports/coach-extra-plans?from=2026-06-01&to=2026-06-30')
+        ->assertOk()
+        ->assertJsonPath('data.kpis.total_coached_addons', 0)
+        ->assertJsonPath('data.kpis.total_subscribed_members', 0);
+});

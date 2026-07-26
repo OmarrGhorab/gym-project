@@ -49,6 +49,12 @@ export type PlanRow = {
   cancellation_grace_days: number;
   min_freeze_days: number;
   freeze_requires_approval: boolean;
+  package_addons?: Array<{
+    plan_id: number;
+    plan_name: string | null;
+    coach_id: number;
+    coach_name: string | null;
+  }>;
   created_at: string | null;
   employee_commission_rules?: Array<{
     id: number;

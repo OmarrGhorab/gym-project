@@ -121,7 +121,7 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
 function formatMonthOnly(period: string, locale: string) {
   const date = new Date(`${period}-01T00:00:00`);
   if (Number.isNaN(date.getTime())) return period;
-  return new Intl.DateTimeFormat(locale, { month: "short" }).format(date);
+  return new Intl.DateTimeFormat(locale, { month: "short", year: "numeric" }).format(date);
 }
 
 function formatDayOnly(period: string, locale: string) {

@@ -267,7 +267,7 @@ function ReportsOverviewView({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <ReportMetric
           title="POS sales"
           value={currency(totals.pos_sales)}
@@ -279,17 +279,12 @@ function ReportsOverviewView({
           detail={`${Number(totals.memberships ?? 0)} memberships`}
         />
         <ReportMetric title="Expenses" value={currency(totals.expenses)} detail="Recorded expenses" destructive />
-        <ReportMetric
-          title="Bookings & sessions"
-          value={String(Number(totals.bookings ?? 0))}
-          detail={`${Number(totals.session_visits ?? 0)} session visits`}
-        />
       </div>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
           <div>
-            <CardTitle>Daily sales, expenses & bookings</CardTitle>
+            <CardTitle>Daily sales & expenses</CardTitle>
             <CardDescription>Each row uses the selected calendar date range.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -308,10 +303,8 @@ function ReportsOverviewView({
                 <TableHead>Date</TableHead>
                 <TableHead>POS sales</TableHead>
                 <TableHead>Expenses</TableHead>
-                <TableHead>Bookings</TableHead>
                 <TableHead>Memberships</TableHead>
                 <TableHead>Membership paid</TableHead>
-                <TableHead>Session visits</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -320,14 +313,12 @@ function ReportsOverviewView({
                   <TableCell className="font-medium">{String(row.date ?? "-")}</TableCell>
                   <TableCell>{currency(row.pos_sales)}</TableCell>
                   <TableCell className="text-destructive">{currency(row.expenses)}</TableCell>
-                  <TableCell>{String(row.bookings ?? 0)}</TableCell>
                   <TableCell>{String(row.memberships ?? 0)}</TableCell>
                   <TableCell>{currency(row.membership_revenue)}</TableCell>
-                  <TableCell>{String(row.session_visits ?? 0)}</TableCell>
                 </TableRow>
               ))}
-              {daily.length === 0 ? <EmptyTableRow columns={7} label="No activity in this date range." /> : null}
-              <TablePagination columns={7} pagination={dailyPagination} />
+              {daily.length === 0 ? <EmptyTableRow columns={5} label="No activity in this date range." /> : null}
+              <TablePagination columns={5} pagination={dailyPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -457,10 +448,9 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Employee bookings, sales & commission</CardTitle>
+        <CardTitle>Employee sales & commission</CardTitle>
         <CardDescription>
-          Assigned bookings, subscriptions, sales revenue, extra plans sold, and earned commission for the selected
-          dates.
+          Subscriptions, sales revenue, extra plans sold, and earned commission for the selected dates.
         </CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
@@ -469,7 +459,6 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
             <TableRow>
               <TableHead>Employee</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Bookings</TableHead>
               <TableHead>Subscriptions</TableHead>
               <TableHead>Sales</TableHead>
               <TableHead>Sales revenue</TableHead>
@@ -483,7 +472,6 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
               <TableRow key={String(employee.employee_id)}>
                 <TableCell className="font-medium">{String(employee.name ?? "-")}</TableCell>
                 <TableCell>{String(employee.role ?? "-")}</TableCell>
-                <TableCell>{String(employee.bookings_count ?? 0)}</TableCell>
                 <TableCell>{String(employee.subscriptions_count ?? 0)}</TableCell>
                 <TableCell>{String(employee.sales_count ?? 0)}</TableCell>
                 <TableCell>{currency(employee.sales_volume)}</TableCell>
@@ -497,9 +485,9 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
               </TableRow>
             ))}
             {employees.length === 0 ? (
-              <EmptyTableRow columns={9} label="No employee activity in this date range." />
+              <EmptyTableRow columns={8} label="No employee activity in this date range." />
             ) : null}
-            <TablePagination columns={9} pagination={employeePagination} />
+            <TablePagination columns={8} pagination={employeePagination} />
           </TableBody>
         </Table>
       </CardContent>

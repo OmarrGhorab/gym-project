@@ -15,15 +15,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import type { PlanCategoryOption, PlanEmployeeOption } from "./data";
+import type { PlanCategoryOption, PlanEmployeeOption, PlanRow } from "./data";
 import { PlanCreateForm } from "./plan-create-form";
 
 type PlanCreateDialogProps = {
   categories?: PlanCategoryOption[];
   employees: PlanEmployeeOption[];
+  plans: PlanRow[];
 };
 
-export function PlanCreateDialog({ categories, employees }: PlanCreateDialogProps) {
+export function PlanCreateDialog({ categories, employees, plans }: PlanCreateDialogProps) {
   const t = useTranslations("Dashboard.plans");
   const [open, setOpen] = React.useState(false);
 
@@ -38,7 +39,12 @@ export function PlanCreateDialog({ categories, employees }: PlanCreateDialogProp
           <DialogTitle>{t("createPlan")}</DialogTitle>
           <DialogDescription>{t("createDescription")}</DialogDescription>
         </DialogHeader>
-        <PlanCreateForm categories={categories} employees={employees} onSuccess={() => setOpen(false)} />
+        <PlanCreateForm
+          availablePlans={plans}
+          categories={categories}
+          employees={employees}
+          onSuccess={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

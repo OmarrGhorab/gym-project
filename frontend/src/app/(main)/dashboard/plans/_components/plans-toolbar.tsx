@@ -84,6 +84,7 @@ export function PlansToolbar() {
             <SelectItem value="all">{t("allTypes")}</SelectItem>
             <SelectItem value="membership">{t("planTypes.membership")}</SelectItem>
             <SelectItem value="offer">{t("planTypes.offer")}</SelectItem>
+            <SelectItem value="offer_package">{t("planTypes.offerPackage")}</SelectItem>
             <SelectItem value="fitness_studio">{t("planTypes.fitnessStudio")}</SelectItem>
             <SelectItem value="extra_service">{t("planTypes.extraService")}</SelectItem>
             <SelectItem value="membership_extra_service">{t("planTypes.membershipExtraService")}</SelectItem>

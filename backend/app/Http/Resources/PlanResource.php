@@ -37,6 +37,12 @@ final class PlanResource extends JsonResource
             'min_freeze_days' => $this->min_freeze_days,
             'freeze_requires_approval' => $this->freeze_requires_approval,
             'is_sellable' => $this->isSellable(),
+            'package_addons' => $this->whenLoaded('packageItems', fn () => $this->packageItems->map(fn ($item): array => [
+                'plan_id' => $item->included_plan_id,
+                'plan_name' => $item->includedPlan?->name,
+                'coach_id' => $item->coach_id,
+                'coach_name' => $item->coach?->name,
+            ])->values()),
             'employee_commission_rules' => EmployeePlanCommissionRuleResource::collection(
                 $this->whenLoaded('employeeCommissionRules')
             ),

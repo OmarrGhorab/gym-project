@@ -29,9 +29,12 @@ final class CoachExtraPlansReport
                 'plan:id,name,category',
             ])
             ->where(function ($q) use ($monthStart, $monthEnd): void {
-                $q->whereBetween('start_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                    ->orWhereBetween('created_at', [$monthStart, $monthEnd])
-                    ->orWhere('status', 'active');
+                $q->whereBetween('created_at', [$monthStart, $monthEnd])
+                    ->orWhere(function ($plans) use ($monthStart, $monthEnd): void {
+                        $plans
+                            ->whereDate('start_date', '<=', $monthEnd->toDateString())
+                            ->whereDate('end_date', '>=', $monthStart->toDateString());
+                    });
             });
 
         if ($coachIdFilter) {
@@ -54,9 +57,12 @@ final class CoachExtraPlansReport
                     });
             })
             ->where(function ($q) use ($monthStart, $monthEnd): void {
-                $q->whereBetween('start_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                    ->orWhereBetween('created_at', [$monthStart, $monthEnd])
-                    ->orWhere('status', 'active');
+                $q->whereBetween('created_at', [$monthStart, $monthEnd])
+                    ->orWhere(function ($plans) use ($monthStart, $monthEnd): void {
+                        $plans
+                            ->whereDate('start_date', '<=', $monthEnd->toDateString())
+                            ->whereDate('end_date', '>=', $monthStart->toDateString());
+                    });
             });
 
         if ($coachIdFilter) {

@@ -50,6 +50,7 @@ export default async function Page({ searchParams }: PageProps) {
     membership: t("planTypes.membership"),
     membership_extra_service: t("planTypes.membershipExtraService"),
     offer: t("planTypes.offer"),
+    offer_package: t("planTypes.offerPackage"),
   };
   const active = plans.filter((plan) => plan.is_active).length;
   const sellable = plans.filter((plan) => plan.is_sellable).length;
@@ -61,7 +62,7 @@ export default async function Page({ searchParams }: PageProps) {
           <h1 className="text-3xl tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <PlanCreateDialog categories={categories} employees={employees} />
+        <PlanCreateDialog categories={categories} employees={employees} plans={plans} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -137,7 +138,13 @@ export default async function Page({ searchParams }: PageProps) {
                               <DialogTitle>{t("editPlan")}</DialogTitle>
                               <DialogDescription>{t("editDescription")}</DialogDescription>
                             </DialogHeader>
-                            <PlanCreateForm categories={categories} employees={employees} mode="edit" plan={plan} />
+                            <PlanCreateForm
+                              availablePlans={plans}
+                              categories={categories}
+                              employees={employees}
+                              mode="edit"
+                              plan={plan}
+                            />
                           </DialogContent>
                         </Dialog>
                         <form action={deletePlan}>
