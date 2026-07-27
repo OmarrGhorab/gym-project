@@ -572,6 +572,13 @@ function AssignStaffControl({
 }) {
   const [employeeId, setEmployeeId] = useState(currentStaffId ? String(currentStaffId) : "");
 
+  const selectedStaff = staff.find((employee) => String(employee.id) === employeeId);
+  const selectedStaffLabel = selectedStaff
+    ? selectedStaff.role
+      ? `${selectedStaff.name} — ${selectedStaff.role}`
+      : selectedStaff.name
+    : undefined;
+
   if (staff.length === 0) {
     return null;
   }
@@ -583,7 +590,7 @@ function AssignStaffControl({
       </Label>
       <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "")}>
         <SelectTrigger id={`assign-staff-${sessionId}`} className="h-8 w-56">
-          <SelectValue placeholder="Select employee" />
+          <SelectValue placeholder="Select employee">{selectedStaffLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
@@ -628,6 +635,16 @@ function OpenSessionForm({
 
   const selectedShift = shifts.find((shift) => String(shift.id) === shiftId);
   const staff = selectedShift?.employees ?? [];
+
+  const selectedStaff = staff.find((employee) => String(employee.id) === employeeId);
+  const selectedStaffLabel =
+    employeeId === "self"
+      ? "Me"
+      : selectedStaff
+        ? selectedStaff.role
+          ? `${selectedStaff.name} — ${selectedStaff.role}`
+          : selectedStaff.name
+        : undefined;
 
   if (shifts.length === 0) {
     return (
@@ -674,7 +691,7 @@ function OpenSessionForm({
           <Label htmlFor="open-shift-staff">Staff on duty</Label>
           <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "self")}>
             <SelectTrigger id="open-shift-staff" className="w-full">
-              <SelectValue />
+              <SelectValue>{selectedStaffLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>

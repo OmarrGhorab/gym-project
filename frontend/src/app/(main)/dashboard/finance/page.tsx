@@ -92,23 +92,27 @@ export default async function Page({
           </TabsList>
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-            <FinanceFilters
-              defaults={{
-                from: resolvedFrom,
-                to: resolvedTo,
-              }}
-            />
-            <FinanceToolbarActions
-              canExport={canExportReports}
-              canRecordExpense={canRecordExpense}
-              exportDefaults={{
-                from: resolvedFrom,
-                groupBy,
-                locale,
-                to: resolvedTo,
-              }}
-              updatedAt={new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date())}
-            />
+            <Suspense>
+              <FinanceFilters
+                defaults={{
+                  from: resolvedFrom,
+                  to: resolvedTo,
+                }}
+              />
+            </Suspense>
+            <Suspense>
+              <FinanceToolbarActions
+                canExport={canExportReports}
+                canRecordExpense={canRecordExpense}
+                exportDefaults={{
+                  from: resolvedFrom,
+                  groupBy,
+                  locale,
+                  to: resolvedTo,
+                }}
+                updatedAt={new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date())}
+              />
+            </Suspense>
           </div>
         </div>
 
