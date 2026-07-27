@@ -78,8 +78,8 @@ class CreateSubscription
                 $this->recordPayment->handle($subscription, $data['payment'], $seller);
             }
 
-            if ($plan->type === 'offer_package') {
-                $this->createIncludedPackageAddons($subscription, $plan, $startDate, $seller);
+            if (in_array($plan->type, ['offer_package', 'membership_extra_service'], true)) {
+                $this->createIncludedPackageAddons($subscription, $plan, $startDate, $seller, $data['included_addons'] ?? []);
             }
 
             foreach (($data['addons'] ?? []) as $addonData) {
@@ -178,10 +178,13 @@ class CreateSubscription
             ->exists();
     }
 
-    private function createIncludedPackageAddons(Subscription $subscription, Plan $package, Carbon $startDate, User $seller): void
+    private function createIncludedPackageAddons(Subscription $subscription, Plan $package, Carbon $startDate, User $seller, array $overrides = []): void
     {
         foreach ($package->packageItems as $item) {
             $addonPlan = $item->includedPlan;
+
+            $override = collect($overrides)->firstWhere('plan_id', $item->included_plan_id);
+            $coachId = (int) ($override['coach_id'] ?? $item->coach_id);
 
             if ($addonPlan === null || ! $addonPlan->isSellable() || $addonPlan->category === 'gym_access') {
                 throw ValidationException::withMessages([
@@ -189,7 +192,7 @@ class CreateSubscription
                 ]);
             }
 
-            if (! $this->coachCanSellAddon($addonPlan->id, $item->coach_id)) {
+            if (! $this->coachCanSellAddon($addonPlan->id, $coachId)) {
                 throw ValidationException::withMessages([
                     'plan_id' => 'A coach must be assigned to every included add-on in this offer package.',
                 ]);
@@ -203,7 +206,7 @@ class CreateSubscription
                 'subscription_id' => $subscription->id,
                 'member_id' => $subscription->member_id,
                 'plan_id' => $addonPlan->id,
-                'coach_id' => $item->coach_id,
+                'coach_id' => $coachId,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $addonPlan->endDateFrom($startDate)->toDateString(),
                 'status' => 'active',

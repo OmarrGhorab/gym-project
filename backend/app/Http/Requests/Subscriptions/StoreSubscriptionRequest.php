@@ -31,6 +31,9 @@ class StoreSubscriptionRequest extends FormRequest
             'addons.*.payment.amount' => ['required', 'numeric', 'gt:0'],
             'addons.*.payment.method' => ['required', 'string', 'in:cash,card,bank_transfer'],
             'addons.*.payment.paid_at' => ['nullable', 'date'],
+            'included_addons' => ['sometimes', 'array'],
+            'included_addons.*.plan_id' => ['required', 'integer', 'exists:plans,id'],
+            'included_addons.*.coach_id' => ['required', 'integer', 'exists:employees,id'],
         ];
     }
 }

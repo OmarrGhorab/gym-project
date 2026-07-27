@@ -232,6 +232,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
 
   const parsed = subscriptionInputSchema.safeParse({
     addons: parseSubscriptionAddons(input),
+    included_addons: parseIncludedAddons(input),
     coach_id: input.get("coach_id"),
     discount: input.get("discount"),
     end_date: input.get("end_date"),
@@ -268,6 +269,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
           },
           plan_id: addon.plan_id,
         })),
+        included_addons: parsed.data.included_addons,
         payment: {
           amount: parsed.data.payment_amount,
           method: parsed.data.payment_method,
@@ -545,6 +547,14 @@ const subscriptionInputSchema = z.object({
       }),
     )
     .default([]),
+  included_addons: z
+    .array(
+      z.object({
+        coach_id: z.coerce.number().int().positive("Captain is required for included services."),
+        plan_id: z.coerce.number().int().min(1, "Included service is required."),
+      }),
+    )
+    .default([]),
   coach_id: z.coerce.number().int().positive().nullable().optional(),
   discount: optionalTextInput(),
   end_date: optionalDateInput,
@@ -575,6 +585,16 @@ function parseSubscriptionAddons(input: FormData) {
   try {
     const parsed = JSON.parse(raw) as unknown;
 
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseIncludedAddons(input: FormData) {
+  const raw = String(input.get("included_addons") ?? "[]");
+  try {
+    const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];

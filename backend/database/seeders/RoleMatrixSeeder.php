@@ -44,7 +44,7 @@ class RoleMatrixSeeder extends Seeder
         $managerPermissions = [
             'members.view', 'members.create', 'members.update', 'members.delete',
             'plans.view', 'plans.create', 'plans.update', 'plans.delete',
-            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.freeze', 'subscriptions.stop',
+            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade', 'subscriptions.freeze', 'subscriptions.stop', 'subscriptions.force_refund',
             'payments.view', 'payments.create',
             'products.view', 'products.create', 'products.update', 'products.delete',
             'sales.view', 'sales.create', 'sales.void',
@@ -64,7 +64,7 @@ class RoleMatrixSeeder extends Seeder
         $cashierPermissions = [
             'members.view', 'members.create', 'members.update',
             'plans.view',
-            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade',
+            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade', 'subscriptions.freeze', 'subscriptions.stop', 'subscriptions.force_refund',
             'payments.view', 'payments.create',
             'products.view',
             'sales.view', 'sales.create',

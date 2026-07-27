@@ -97,6 +97,7 @@ export function PlanCreateForm({
 }: PlanFormProps) {
   const t = useTranslations("Dashboard.plans");
   const formRef = React.useRef<HTMLFormElement>(null);
+  const lastHandledStateRef = React.useRef<PlanFormState | null>(null);
   const [state, action, pending] = useActionState(mode === "edit" ? updatePlan : createPlan, initialPlanFormState);
 
   const [localCategories, setLocalCategories] = React.useState<PlanCategoryOption[]>(categories);
@@ -296,9 +297,16 @@ export function PlanCreateForm({
   }, [maxFreezeDaysNumber]);
 
   React.useEffect(() => {
+    if (!state.message || lastHandledStateRef.current === state) {
+      return;
+    }
+
+    lastHandledStateRef.current = state;
+
     if (state.ok) {
+      toast.success(t(mode === "edit" ? "planUpdated" : "planCreated"));
+
       if (mode === "create") {
-        toast.success(t("planCreated"));
         onSuccess?.();
         formRef.current?.reset();
         setPlanType("membership");
@@ -320,8 +328,10 @@ export function PlanCreateForm({
         setPlanPrice("0");
         setPackageAddons([]);
       }
+    } else {
+      toast.error(state.message);
     }
-  }, [mode, onSuccess, state.ok, t]);
+  }, [mode, onSuccess, state, t]);
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -393,18 +403,6 @@ export function PlanCreateForm({
         name="initial_employee_commission_rule_ids"
         value={JSON.stringify(initialEmployeeRules.map((rule) => rule.id).filter((id) => id > 0))}
       />
-      {state.message && (!state.ok || mode === "edit") ? (
-        <div
-          className={
-            state.ok
-              ? "rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-600 text-sm"
-              : "rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm"
-          }
-        >
-          {state.ok ? t(mode === "edit" ? "planUpdated" : "planCreated") : state.message}
-        </div>
-      ) : null}
-
       <Field
         error={fieldError(state, "name")}
         label={t("name")}
@@ -579,13 +577,13 @@ export function PlanCreateForm({
         </>
       ) : null}
 
-      {planType === "offer_package" ? (
+      {planType === "offer_package" || planType === "membership_extra_service" ? (
         <div className="grid gap-3 rounded-lg border border-dashed p-4">
           <div>
             <Label>Included extra services</Label>
             <p className="text-muted-foreground text-xs">
-              These add-ons are created automatically when this package is sold. Their cost is included in the package
-              price.
+              These add-ons are created automatically when this combined plan is sold. Their cost is included in the
+              plan price.
             </p>
           </div>
           {packageAddons.map((item, index) => (
@@ -1080,14 +1078,24 @@ function PlanEmployeesSection({
       label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
     }));
 
+    const employeesById = new Map(employees.map((employee) => [String(employee.id), employee]));
     const knownValues = new Set(baseOptions.map((option) => option.value));
     const missingOptions = rules
       .map((rule) => rule.employee_id)
       .filter((employeeId) => employeeId && !knownValues.has(employeeId))
-      .map((employeeId) => ({
-        value: employeeId,
-        label: `Employee #${employeeId}`,
-      }));
+      .map((employeeId) => {
+        const employee = employeesById.get(employeeId);
+        let label = `Employee #${employeeId}`;
+
+        if (employee) {
+          label = employee.role ? `${employee.name} - ${employee.role}` : employee.name;
+        }
+
+        return {
+          value: employeeId,
+          label,
+        };
+      });
 
     return [...baseOptions, ...missingOptions];
   }, [employees, rules]);

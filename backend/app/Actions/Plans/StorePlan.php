@@ -48,7 +48,7 @@ final class StorePlan
     /** @param array<int, array{plan_id: int, coach_id: int}> $items */
     private function syncPackageAddons(Plan $plan, array $items): void
     {
-        if ($plan->type !== 'offer_package') {
+        if (! in_array($plan->type, ['offer_package', 'membership_extra_service'], true)) {
             return;
         }
 

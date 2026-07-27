@@ -8,7 +8,10 @@ class CancelSubscriptionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('stop', $this->route('subscription'));
+        $subscription = $this->route('subscription');
+
+        return $this->user()->can('stop', $subscription)
+            && (! $this->boolean('force') || $this->user()->can('forceRefund', $subscription));
     }
 
     /**
@@ -20,6 +23,7 @@ class CancelSubscriptionRequest extends FormRequest
             'refund_amount' => ['nullable', 'numeric', 'min:0'],
             'method' => ['nullable', 'string', 'in:cash,card,bank_transfer'],
             'reason' => ['nullable', 'string', 'max:1000'],
+            'force' => ['nullable', 'boolean'],
         ];
     }
 }

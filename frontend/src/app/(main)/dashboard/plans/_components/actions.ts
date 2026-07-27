@@ -313,14 +313,39 @@ async function syncPlanEmployeeRules(
   initialRuleIds: number[],
   rules: Array<z.infer<typeof planEmployeeRuleSchema>>,
 ) {
-  const currentRuleIds = rules.flatMap((rule) => (rule.id && rule.id > 0 ? [rule.id] : []));
+  // A rule belongs to the employee in its URL. When an admin changes the coach,
+  // the old rule cannot be PUT through the newly selected employee's route: the
+  // API correctly returns 404 for that ownership mismatch. Load the current
+  // owners first so reassignment becomes a create-for-new + delete-for-old.
+  const employeesResponse = await serverApiFetch<
+    Array<{
+      id: number;
+      plan_commission_rules?: Array<{
+        id: number;
+      }>;
+    }>
+  >("/employees?filter[status]=active&per_page=100");
+  const ruleOwnerIds = new Map<number, number>();
+
+  for (const employee of employeesResponse.data) {
+    for (const rule of employee.plan_commission_rules ?? []) {
+      ruleOwnerIds.set(rule.id, employee.id);
+    }
+  }
+
+  const currentRuleIds = rules.flatMap((rule) => {
+    const ownerId = rule.id ? ruleOwnerIds.get(rule.id) : undefined;
+
+    return rule.id && rule.id > 0 && ownerId === rule.employee_id ? [rule.id] : [];
+  });
   const deletedRuleIds = initialRuleIds.filter((ruleId) => !currentRuleIds.includes(ruleId));
 
   for (const rule of rules) {
-    const path =
-      rule.id && rule.id > 0
-        ? `/employees/${rule.employee_id}/plan-commission-rules/${rule.id}`
-        : `/employees/${rule.employee_id}/plan-commission-rules`;
+    const ownerId = rule.id ? ruleOwnerIds.get(rule.id) : undefined;
+    const isExistingRuleForSelectedEmployee = rule.id && rule.id > 0 && ownerId === rule.employee_id;
+    const path = isExistingRuleForSelectedEmployee
+      ? `/employees/${rule.employee_id}/plan-commission-rules/${rule.id}`
+      : `/employees/${rule.employee_id}/plan-commission-rules`;
 
     await serverApiFetch(path, {
       body: JSON.stringify({
@@ -332,7 +357,7 @@ async function syncPlanEmployeeRules(
       headers: {
         "Content-Type": "application/json",
       },
-      method: rule.id && rule.id > 0 ? "PUT" : "POST",
+      method: isExistingRuleForSelectedEmployee ? "PUT" : "POST",
     });
   }
 

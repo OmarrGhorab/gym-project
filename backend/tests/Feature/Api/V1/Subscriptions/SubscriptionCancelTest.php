@@ -5,6 +5,7 @@ use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\SubscriptionRefund;
 use App\Models\User;
 use App\Notifications\OperationalNotification;
@@ -147,6 +148,65 @@ test('cancel with refund is blocked after grace period', function (): void {
     $this->postJson("/api/v1/subscriptions/{$subscription->id}/cancel", [])
         ->assertStatus(422);
 
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/cancel", [
+        'force' => true,
+        'reason' => 'Manager-approved late refund',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'stopped')
+        ->assertJsonPath('data.refund_total', '300.00');
+
+    expect(SubscriptionRefund::count())->toBe(1);
+});
+
+test('force refund requires its dedicated permission', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_CASHIER);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create(['cancellation_grace_days' => 2]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => Member::factory()->active()->create()->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-01',
+        'price_paid' => '100.00',
+        'cancellation_grace_days' => 2,
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '100.00',
+        'status' => 'paid',
+    ]);
+
+    $user->revokePermissionTo('subscriptions.force_refund');
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/cancel", ['force' => true])
+        ->assertForbidden();
+});
+
+test('stop remains available after a late refund is not authorized', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create(['cancellation_grace_days' => 2]);
+    $member = Member::factory()->active()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-01',
+        'price_paid' => '300.00',
+        'cancellation_grace_days' => 2,
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '300.00',
+        'status' => 'paid',
+    ]);
+
     $this->postJson("/api/v1/subscriptions/{$subscription->id}/stop")
         ->assertStatus(200)
         ->assertJsonPath('data.status', 'stopped');
@@ -203,7 +263,7 @@ test('cancel allows refunding full package price including add-ons', function ()
         'status' => 'paid',
     ]);
 
-    $addon = \App\Models\SubscriptionAddon::query()->create([
+    $addon = SubscriptionAddon::query()->create([
         'subscription_id' => $subscription->id,
         'member_id' => $member->id,
         'plan_id' => $addonPlan->id,
@@ -215,7 +275,7 @@ test('cancel allows refunding full package price including add-ons', function ()
         'created_by' => $user->id,
     ]);
     Payment::factory()->create([
-        'payable_type' => \App\Models\SubscriptionAddon::class,
+        'payable_type' => SubscriptionAddon::class,
         'payable_id' => $addon->id,
         'amount' => '2500.00',
         'status' => 'paid',

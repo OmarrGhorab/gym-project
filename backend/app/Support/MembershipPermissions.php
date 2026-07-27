@@ -58,6 +58,9 @@ final class MembershipPermissions
 
     public const PERM_SUBSCRIPTIONS_STOP = 'subscriptions.stop';
 
+    /** Allow a refund after the plan cancellation grace period. */
+    public const PERM_SUBSCRIPTIONS_FORCE_REFUND = 'subscriptions.force_refund';
+
     // -------------------------------------------------------------------------
     // Permissions — Payments module
     // -------------------------------------------------------------------------
@@ -101,6 +104,7 @@ final class MembershipPermissions
         self::PERM_SUBSCRIPTIONS_UPGRADE,
         self::PERM_SUBSCRIPTIONS_FREEZE,
         self::PERM_SUBSCRIPTIONS_STOP,
+        self::PERM_SUBSCRIPTIONS_FORCE_REFUND,
         // Payments
         self::PERM_PAYMENTS_VIEW,
         self::PERM_PAYMENTS_CREATE,

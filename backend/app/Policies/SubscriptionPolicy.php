@@ -42,4 +42,9 @@ class SubscriptionPolicy
     {
         return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_STOP);
     }
+
+    public function forceRefund(User $user, Subscription $subscription): bool
+    {
+        return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FORCE_REFUND);
+    }
 }

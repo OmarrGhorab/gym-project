@@ -297,6 +297,7 @@ export function MemberActionsMenu({
   const canAddSubscription = canAccess(currentUser, "subscriptions.create");
   const canChangePlan = canAccess(currentUser, "subscriptions.upgrade");
   const canCancelSubscription = canAccess(currentUser, "subscriptions.stop");
+  const canForceRefund = canAccess(currentUser, "subscriptions.force_refund");
   const canAddPayment = canAccess(currentUser, "payments.create");
   const canUpdateMember = canAccess(currentUser, "members.update");
   const canDeleteMember = canAccess(currentUser, "members.delete");
@@ -332,7 +333,6 @@ export function MemberActionsMenu({
   }, [detailsOpen, member.id, resolvedLabels]);
 
   const hasActiveSubscription = member.latest_subscription?.status === "active";
-  const hasCurrentSubscription = hasActiveSubscription || member.latest_subscription?.status === "frozen";
 
   return (
     <>
@@ -372,7 +372,7 @@ export function MemberActionsMenu({
                   {resolvedLabels.changePlan}
                 </DropdownMenuItem>
               ) : null}
-              {canAddSubscription && !hasCurrentSubscription ? (
+              {canAddSubscription ? (
                 <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>
                   <PlusCircle className="mr-2 size-4 text-emerald-600 dark:text-emerald-400" />
                   {resolvedLabels.addSubscription}
@@ -429,7 +429,12 @@ export function MemberActionsMenu({
         open={changePlanOpen}
         onOpenChange={setChangePlanOpen}
       />
-      <MemberCancelSubscriptionDialog member={member} open={cancelOpen} onOpenChange={setCancelOpen} />
+      <MemberCancelSubscriptionDialog
+        canForceRefund={canForceRefund}
+        member={member}
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+      />
       <MemberPaymentDialog
         due={due}
         member={member}
@@ -442,10 +447,12 @@ export function MemberActionsMenu({
 }
 
 function MemberCancelSubscriptionDialog({
+  canForceRefund,
   member,
   onOpenChange,
   open,
 }: {
+  canForceRefund: boolean;
   member: MemberRow;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -514,7 +521,6 @@ function MemberCancelSubscriptionDialog({
         <form action={submit} className="grid gap-4">
           <input type="hidden" name="subscription_id" value={String(subscription.id)} />
           <input type="hidden" name="refund_addon_id" value={refundAddonId} />
-          <input type="hidden" name="force" value="true" />
           {state.message && !state.ok ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
               {state.message}
@@ -645,6 +651,17 @@ function MemberCancelSubscriptionDialog({
             />
             <FieldError errors={state.errors.refund_amount} />
           </div>
+          {canForceRefund ? (
+            <label className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+              <input className="mt-0.5" name="force" type="checkbox" value="true" />
+              <span>
+                <span className="block font-medium">Force refund after grace period</span>
+                <span className="text-muted-foreground text-xs">
+                  Use only when a manager-approved exception is required.
+                </span>
+              </span>
+            </label>
+          ) : null}
           <div className="grid gap-2">
             <Label htmlFor="method">{t("paymentMethod")}</Label>
             <FormSelect
@@ -955,12 +972,12 @@ function SubscriptionFormContent({
   );
 
   const basePlans = React.useMemo(
-    () => plans.filter((plan) => plan.category === "gym_access" && !isStudioPlanItem(plan)),
+    () => plans.filter((plan) => plan.type !== "extra_service" && !isStudioPlanItem(plan)),
     [isStudioPlanItem, plans],
   );
   const studioPlans = React.useMemo(() => plans.filter((plan) => isStudioPlanItem(plan)), [isStudioPlanItem, plans]);
   const servicePlans = React.useMemo(
-    () => plans.filter((plan) => plan.category !== "gym_access" && !isStudioPlanItem(plan)),
+    () => plans.filter((plan) => plan.type === "extra_service" && !isStudioPlanItem(plan)),
     [isStudioPlanItem, plans],
   );
   const currentSubscription = member.latest_subscription;
@@ -1007,6 +1024,7 @@ function SubscriptionFormContent({
       plan_id: string;
     }>
   >([]);
+  const [includedAddons, setIncludedAddons] = React.useState<Array<{ coach_id: string; plan_id: string }>>([]);
   const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? availablePlans[0];
   const isStudioPlan = selectedPlan ? isStudioPlanItem(selectedPlan) : false;
   const endDate = kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
@@ -1036,6 +1054,16 @@ function SubscriptionFormContent({
       setSelectedCoachId(defaultCoach);
     }
   }, [plans, selectedPlan, staff]);
+
+  React.useEffect(() => {
+    if (kind !== "create") return;
+    setIncludedAddons(
+      (selectedPlan?.package_addons ?? []).map((item) => ({
+        coach_id: String(item.coach_id),
+        plan_id: String(item.plan_id),
+      })),
+    );
+  }, [kind, selectedPlan?.package_addons]);
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -1159,6 +1187,16 @@ function SubscriptionFormContent({
                 };
               })
               .filter(Boolean),
+          )}
+        />
+        <input
+          type="hidden"
+          name="included_addons"
+          value={JSON.stringify(
+            includedAddons.map((item) => ({
+              coach_id: Number(item.coach_id),
+              plan_id: Number(item.plan_id),
+            })),
           )}
         />
         {state.message ? (
@@ -1390,6 +1428,38 @@ function SubscriptionFormContent({
           </div>
         </div>
         <div className="grid gap-3 rounded-lg border border-dashed p-4">
+          {includedAddons.length > 0 ? (
+            <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+              <div>
+                <Label>Included extra services</Label>
+                <p className="text-muted-foreground text-xs">
+                  Included in the selected plan price. Choose the captain for each service.
+                </p>
+              </div>
+              {includedAddons.map((included, index) => {
+                const includedPlan = servicePlans.find((plan) => String(plan.id) === included.plan_id);
+                const coachOptions = getPlanCoachOptions(includedPlan, plans, staff).map((employee) => ({
+                  value: String(employee.id),
+                  label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+                }));
+                return (
+                  <div className="grid gap-2 sm:grid-cols-2" key={included.plan_id}>
+                    <Input readOnly value={includedPlan?.name ?? "Included extra service"} />
+                    <FormSelect
+                      value={included.coach_id}
+                      onValueChange={(value) =>
+                        setIncludedAddons((items) =>
+                          items.map((item, itemIndex) => (itemIndex === index ? { ...item, coach_id: value } : item)),
+                        )
+                      }
+                      options={coachOptions}
+                      placeholder="Select captain"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
           <div className="space-y-1">
             <Label>{t("addSubscriptionExtra")}</Label>
             <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraDescription")}</p>

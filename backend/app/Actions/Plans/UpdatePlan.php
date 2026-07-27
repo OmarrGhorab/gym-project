@@ -22,7 +22,7 @@ final class UpdatePlan
         $plan->update($data);
         $plan->packageItems()->delete();
 
-        if ($plan->type === 'offer_package') {
+        if (in_array($plan->type, ['offer_package', 'membership_extra_service'], true)) {
             $plan->packageItems()->createMany(array_map(
                 fn (array $item): array => ['included_plan_id' => $item['plan_id'], 'coach_id' => $item['coach_id']],
                 $packageAddons,
