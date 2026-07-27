@@ -124,9 +124,32 @@ export default async function Page({ searchParams }: PageProps) {
                         : t("days", { count: plan.duration_days })}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={plan.is_active ? "secondary" : "outline"}>
-                        {plan.is_active ? t("active") : t("inactive")}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={plan.is_active ? "secondary" : "outline"}>
+                          {plan.is_active ? t("active") : t("inactive")}
+                        </Badge>
+                        {(() => {
+                          const daysUntilStart = daysUntilDate(plan.valid_from);
+
+                          if (plan.is_active && daysUntilStart !== null && daysUntilStart > 0) {
+                            return (
+                              <span className="text-amber-600 text-xs dark:text-amber-400">
+                                {t("startsInDays", { count: daysUntilStart })}
+                              </span>
+                            );
+                          }
+
+                          if (plan.is_active && !plan.is_sellable && plan.valid_to) {
+                            const daysSinceEnd = daysUntilDate(plan.valid_to);
+
+                            if (daysSinceEnd !== null && daysSinceEnd < 0) {
+                              return <span className="text-muted-foreground text-xs">{t("offerEnded")}</span>;
+                            }
+                          }
+
+                          return null;
+                        })()}
+                      </div>
                     </TableCell>
                     <TableCell className="text-end">
                       <div className="flex justify-end gap-2">
@@ -179,6 +202,25 @@ export default async function Page({ searchParams }: PageProps) {
       </div>
     </div>
   );
+}
+
+/** Calendar-day delta from today to a YYYY-MM-DD date. Positive = future. */
+function daysUntilDate(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parts = value.slice(0, 10).split("-").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) {
+    return null;
+  }
+
+  const [year, month, day] = parts;
+  const target = Date.UTC(year, month - 1, day);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+
+  return Math.round((target - today) / 86_400_000);
 }
 
 function Summary({ label, value }: { label: string; value: string }) {

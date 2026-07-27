@@ -972,14 +972,18 @@ function SubscriptionFormContent({
     [studioPlanCategories],
   );
 
+  const sellablePlans = React.useMemo(() => plans.filter((plan) => plan.is_sellable), [plans]);
   const basePlans = React.useMemo(
-    () => plans.filter((plan) => plan.type !== "extra_service" && !isStudioPlanItem(plan)),
-    [isStudioPlanItem, plans],
+    () => sellablePlans.filter((plan) => plan.type !== "extra_service" && !isStudioPlanItem(plan)),
+    [isStudioPlanItem, sellablePlans],
   );
-  const studioPlans = React.useMemo(() => plans.filter((plan) => isStudioPlanItem(plan)), [isStudioPlanItem, plans]);
+  const studioPlans = React.useMemo(
+    () => sellablePlans.filter((plan) => isStudioPlanItem(plan)),
+    [isStudioPlanItem, sellablePlans],
+  );
   const servicePlans = React.useMemo(
-    () => plans.filter((plan) => plan.type === "extra_service" && !isStudioPlanItem(plan)),
-    [isStudioPlanItem, plans],
+    () => sellablePlans.filter((plan) => plan.type === "extra_service" && !isStudioPlanItem(plan)),
+    [isStudioPlanItem, sellablePlans],
   );
   const currentSubscription = member.latest_subscription;
   const currentPlan = plans.find((plan) => {
@@ -996,7 +1000,7 @@ function SubscriptionFormContent({
     let plansInTab = planCategoryTab === "fitness_studio" ? studioPlans : basePlans;
 
     if (plansInTab.length === 0) {
-      plansInTab = plans;
+      plansInTab = sellablePlans;
     }
 
     if (kind === "change" && currentPlanId) {
@@ -1004,7 +1008,7 @@ function SubscriptionFormContent({
     }
 
     return plansInTab;
-  }, [basePlans, currentPlanId, kind, planCategoryTab, plans, studioPlans]);
+  }, [basePlans, currentPlanId, kind, planCategoryTab, sellablePlans, studioPlans]);
 
   const initialPlan = availablePlans[0] ?? basePlans[0];
   const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);
@@ -1086,9 +1090,9 @@ function SubscriptionFormContent({
 
       setPlanCategoryTab(defaultTab);
 
-      let targetPlans = basePlans.length > 0 ? basePlans : plans;
+      let targetPlans = basePlans.length > 0 ? basePlans : sellablePlans;
       if (defaultTab === "fitness_studio") {
-        targetPlans = studioPlans.length > 0 ? studioPlans : plans;
+        targetPlans = studioPlans.length > 0 ? studioPlans : sellablePlans;
       }
 
       const selectablePlans =
@@ -1146,6 +1150,7 @@ function SubscriptionFormContent({
     kind,
     open,
     plans,
+    sellablePlans,
     studioPlans,
   ]);
 
@@ -1220,12 +1225,7 @@ function SubscriptionFormContent({
                 setPlanCategoryTab("gym_access");
                 const gymPlans =
                   kind === "change" ? basePlans.filter((plan) => String(plan.id) !== currentPlanId) : basePlans;
-                const firstGym = gymPlans[0] ?? (kind === "change" ? undefined : plans[0]);
-                if (firstGym) {
-                  setSelectedPlanId(String(firstGym.id));
-                } else {
-                  setSelectedPlanId("");
-                }
+                setSelectedPlanId(gymPlans[0] ? String(gymPlans[0].id) : "");
                 setPaymentAmountOverride(null);
               }}
               className={
@@ -1242,12 +1242,7 @@ function SubscriptionFormContent({
                 setPlanCategoryTab("fitness_studio");
                 const studioPlansForChange =
                   kind === "change" ? studioPlans.filter((plan) => String(plan.id) !== currentPlanId) : studioPlans;
-                const firstStudio = studioPlansForChange[0] ?? (kind === "change" ? undefined : plans[0]);
-                if (firstStudio) {
-                  setSelectedPlanId(String(firstStudio.id));
-                } else {
-                  setSelectedPlanId("");
-                }
+                setSelectedPlanId(studioPlansForChange[0] ? String(studioPlansForChange[0].id) : "");
                 setPaymentAmountOverride(null);
               }}
               className={
