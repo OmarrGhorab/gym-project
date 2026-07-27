@@ -27,6 +27,9 @@ class ShiftSessionController extends ApiController
         $sessions = ShiftSession::query()
             ->with(['shift', 'openedBy', 'closedBy', 'receivedBy', 'adminReviewer', 'openedByEmployee', 'closedByEmployee'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
+            ->when($request->query('business_date'), fn ($q, $date) => $q->whereDate('business_date', $date))
+            ->when($request->query('from'), fn ($q, $from) => $q->whereDate('business_date', '>=', $from))
+            ->when($request->query('to'), fn ($q, $to) => $q->whereDate('business_date', '<=', $to))
             ->latest('opened_at')
             ->paginate(min(max((int) $request->integer('per_page', 15), 1), 100));
 

@@ -333,6 +333,7 @@ export function MemberActionsMenu({
   }, [detailsOpen, member.id, resolvedLabels]);
 
   const hasActiveSubscription = member.latest_subscription?.status === "active";
+  const hasCurrentSubscription = hasActiveSubscription || member.latest_subscription?.status === "frozen";
 
   return (
     <>
@@ -372,7 +373,7 @@ export function MemberActionsMenu({
                   {resolvedLabels.changePlan}
                 </DropdownMenuItem>
               ) : null}
-              {canAddSubscription ? (
+              {canAddSubscription && !hasCurrentSubscription ? (
                 <DropdownMenuItem onClick={() => setSubscriptionOpen(true)}>
                   <PlusCircle className="mr-2 size-4 text-emerald-600 dark:text-emerald-400" />
                   {resolvedLabels.addSubscription}

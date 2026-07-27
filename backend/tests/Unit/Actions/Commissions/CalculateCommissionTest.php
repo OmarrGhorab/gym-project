@@ -163,3 +163,52 @@ test('it calculates percentage coach commission for subscription add ons from su
         ->and($commission->commission_type)->toBe('subscription_addon_coach')
         ->and($commission->amount)->toBe('400.00');
 });
+
+test('it calculates package-included coach commission from the included service list price', function (): void {
+    $coach = Employee::factory()->create([
+        'role' => 'coach',
+        'status' => 'active',
+    ]);
+    $member = Member::factory()->active()->create();
+    $packagePlan = Plan::factory()->create([
+        'type' => 'offer_package',
+        'category' => 'gym_access',
+        'price' => '1500.00',
+    ]);
+    $servicePlan = Plan::factory()->create([
+        'category' => 'nutrition',
+        'price' => '300.00',
+    ]);
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $packagePlan->id,
+        'price_paid' => '1500.00',
+    ]);
+    $addon = SubscriptionAddon::create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $servicePlan->id,
+        'coach_id' => $coach->id,
+        'start_date' => '2026-07-07',
+        'end_date' => '2026-08-07',
+        'status' => 'active',
+        'price_paid' => '0.00',
+        'discount' => '300.00',
+    ]);
+    EmployeePlanCommissionRule::create([
+        'employee_id' => $coach->id,
+        'plan_id' => $servicePlan->id,
+        'calculation_type' => 'percentage',
+        'value' => '50.0000',
+        'is_active' => true,
+    ]);
+
+    $created = app(CalculateCommission::class)->forSource($addon->fresh(['plan', 'subscription', 'coach.planCommissionRules']) ?? $addon);
+    $commission = Commission::query()->first();
+
+    expect($created)->toBe(1)
+        ->and($commission)->not->toBeNull()
+        ->and($commission->employee_id)->toBe($coach->id)
+        ->and($commission->commission_type)->toBe('subscription_addon_coach')
+        ->and($commission->amount)->toBe('150.00');
+});

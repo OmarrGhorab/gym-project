@@ -364,6 +364,39 @@ class OperationalNotifier
         );
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $shifts
+     * @param  array{sessions: int, collections: string, expenses: string, net: string, unresolved_sessions: int, shifts_without_session: int}  $totals
+     */
+    public function dailyShiftSummary(string $businessDate, array $shifts, array $totals): void
+    {
+        $unresolved = (int) $totals['unresolved_sessions'];
+        $withoutSession = (int) $totals['shifts_without_session'];
+        $severity = $unresolved > 0 || $withoutSession > 0 ? 'warning' : 'success';
+
+        $body = "{$totals['sessions']} session(s): collections EGP {$totals['collections']}, ".
+            "expenses EGP {$totals['expenses']}, net EGP {$totals['net']}.";
+        if ($unresolved > 0 || $withoutSession > 0) {
+            $body .= " {$unresolved} unresolved session(s), {$withoutSession} scheduled shift(s) without a session.";
+        }
+
+        $this->notifyAdmins(
+            title: 'Daily shift summary — '.$businessDate,
+            body: $body,
+            category: 'shifts.daily_summary',
+            link: NotificationLink::to('finance', 'shift_day', $businessDate, [
+                'from' => $businessDate,
+                'to' => $businessDate,
+            ]),
+            severity: $severity,
+            extra: [
+                'business_date' => $businessDate,
+                'totals' => $totals,
+                'shifts' => $shifts,
+            ],
+        );
+    }
+
     public function subscriptionCancelled(Subscription $subscription, string $refundAmount, User $actor): void
     {
         $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);

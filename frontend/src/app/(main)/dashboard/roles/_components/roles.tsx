@@ -239,7 +239,7 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
             >
               <EllipsisVertical />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-auto min-w-48">
               <DropdownMenuGroup>
                 <DropdownMenuItem className="whitespace-nowrap" onClick={() => setOpen((value) => !value)}>
                   <ShieldCheck />
@@ -431,28 +431,40 @@ function PermissionPicker({
         <div className="rounded-lg border p-3" key={group.group}>
           <div className="mb-2 font-medium text-sm">{groupLabel(group.group)}</div>
           <div className="grid gap-2">
-            {group.permissions.map((permission) => (
-              <div
-                key={permission.name}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
-                  disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
-                )}
-              >
-                <Checkbox
-                  id={`permission-${permission.name}`}
-                  name="permissions"
-                  value={permission.name}
-                  checked={checkedPermissions.has(permission.name)}
-                  onCheckedChange={(checked) => togglePermission(permission.name, Boolean(checked))}
-                  disabled={disabled}
-                  aria-label={t("togglePermission", { permission: permission.name })}
-                />
-                <Label htmlFor={`permission-${permission.name}`} className="min-w-0 truncate">
-                  {permissionActionLabel(permission.name)}
-                </Label>
-              </div>
-            ))}
+            {group.permissions.map((permission) => {
+              const isChecked = checkedPermissions.has(permission.name);
+
+              return (
+                <div
+                  key={permission.name}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
+                    disabled && "opacity-60 hover:bg-transparent",
+                  )}
+                >
+                  <Checkbox
+                    id={`permission-${permission.name}`}
+                    name="permissions"
+                    value={permission.name}
+                    checked={isChecked}
+                    onCheckedChange={(checked) => togglePermission(permission.name, Boolean(checked))}
+                    disabled={disabled}
+                    aria-label={t("togglePermission", { permission: permission.name })}
+                  />
+                  <button
+                    type="button"
+                    className={cn(
+                      "min-w-0 flex-1 select-none truncate text-start font-medium leading-none",
+                      disabled ? "cursor-not-allowed" : "cursor-pointer",
+                    )}
+                    disabled={disabled}
+                    onClick={() => togglePermission(permission.name, !isChecked)}
+                  >
+                    {permissionActionLabel(permission.name)}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}

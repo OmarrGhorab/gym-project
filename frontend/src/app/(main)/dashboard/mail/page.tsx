@@ -138,6 +138,7 @@ const notificationCategoryOptions = [
   "membership.subscription_created",
   "payroll.paid",
   "payroll.ready",
+  "shifts.daily_summary",
   "tasks.assigned",
 ] as const;
 

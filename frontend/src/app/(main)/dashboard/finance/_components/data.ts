@@ -97,6 +97,7 @@ export type FinanceExpense = {
 
 export type FinanceShiftSession = {
   id: number;
+  business_date?: string | null;
   status: string;
   opening_float: string;
   expected_cash: string | null;
@@ -163,6 +164,7 @@ export type FinancePageData = FinanceDashboardData & {
   shiftDesk: {
     current: FinanceShiftSession | null;
     pending: FinanceShiftSession[];
+    history: FinanceShiftSession[];
     shifts: Array<{ id: number; name: string; employees: ShiftStaffOption[] }>;
     requireHandoverToOpen: boolean;
   };
@@ -218,6 +220,8 @@ export async function getFinanceDashboardData(
     currentSession,
     pendingSessions,
     pendingHandover,
+    disputedHandover,
+    shiftHistory,
     shifts,
     settings,
   ] = await Promise.all([
@@ -252,6 +256,18 @@ export async function getFinanceDashboardData(
         )
       : { data: [] },
     access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
+          "/shift-sessions?status=disputed&per_page=10",
+          [],
+        )
+      : { data: [] },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+      ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
+          `/shift-sessions?from=${from}&to=${to}&per_page=100`,
+          [],
+        )
+      : { data: [] },
+    access.canViewExpenses || access.canViewPayments || access.canCollectDue
       ? safeFetch<ShiftOptionPayload[] | PaginatedData<ShiftOptionPayload>>("/shift-sessions/options", [])
       : { data: [] },
     access.canViewExpenses || access.canViewPayments || access.canCollectDue
@@ -263,7 +279,11 @@ export async function getFinanceDashboardData(
       : { data: {} },
   ]);
 
-  const pending = [...unwrapList(pendingSessions.data), ...unwrapList(pendingHandover.data)];
+  const pending = [
+    ...unwrapList(pendingSessions.data),
+    ...unwrapList(pendingHandover.data),
+    ...unwrapList(disputedHandover.data),
+  ];
   const shiftOptions = unwrapList(shifts.data).map((shift) => ({
     id: Number(shift.id),
     name: String(shift.name ?? `Shift #${shift.id}`),
@@ -296,6 +316,7 @@ export async function getFinanceDashboardData(
     shiftDesk: {
       current: normalizeCurrentSession(currentSession.data),
       pending,
+      history: unwrapList(shiftHistory.data).filter((session) => session.status !== "open"),
       shifts: shiftOptions,
       requireHandoverToOpen: Boolean(
         settings.data && "shifts" in settings.data ? settings.data.shifts?.require_handover_to_open : false,

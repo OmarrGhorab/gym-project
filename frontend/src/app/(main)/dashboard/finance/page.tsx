@@ -75,6 +75,7 @@ export default async function Page({
       quickActionPermissions.canCollectDue ? (
         <ShiftDesk
           currentSession={data.shiftDesk.current}
+          historySessions={data.shiftDesk.history}
           pendingSessions={data.shiftDesk.pending}
           shifts={data.shiftDesk.shifts}
           requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}

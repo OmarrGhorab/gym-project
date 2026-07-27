@@ -35,6 +35,7 @@ export type ShiftDeskShift = {
 
 export type ShiftDeskSession = {
   id: number;
+  business_date?: string | null;
   status: string;
   opening_float: string;
   expected_cash: string | null;
@@ -107,6 +108,7 @@ function formatScheduledEnd(endsAt?: string) {
 
 export function ShiftDesk({
   currentSession,
+  historySessions = [],
   pendingSessions = [],
   shifts = [],
   requireHandoverToOpen: _requireHandoverToOpen = true,
@@ -114,6 +116,7 @@ export function ShiftDesk({
   canReview,
 }: {
   currentSession: ShiftDeskSession | null;
+  historySessions?: ShiftDeskSession[];
   pendingSessions?: ShiftDeskSession[];
   shifts?: ShiftDeskShift[];
   requireHandoverToOpen?: boolean;
@@ -474,8 +477,79 @@ export function ShiftDesk({
             })}
           </div>
         ) : null}
+
+        {canReview && historySessions.length > 0 ? <ShiftSessionHistory sessions={historySessions} /> : null}
       </CardContent>
     </Card>
+  );
+}
+
+function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
+  const t = useTranslations("Dashboard.finance");
+
+  return (
+    <div className="grid gap-3 border-t pt-4">
+      <div>
+        <p className="font-medium text-sm">{t("shiftHistory")}</p>
+        <p className="text-muted-foreground text-xs">{t("shiftHistoryHelp")}</p>
+      </div>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[48rem] text-left text-sm">
+          <thead className="bg-muted/40 text-muted-foreground text-xs">
+            <tr>
+              <th className="px-3 py-2 font-medium">{t("shiftHistoryDate")}</th>
+              <th className="px-3 py-2 font-medium">{t("shift")}</th>
+              <th className="px-3 py-2 font-medium">{t("shiftHistoryStaff")}</th>
+              <th className="px-3 py-2 font-medium">{t("shiftNet")}</th>
+              <th className="px-3 py-2 font-medium">{t("shiftExpensesLabel")}</th>
+              <th className="px-3 py-2 font-medium">{t("shiftStatus")}</th>
+              <th className="px-3 py-2 font-medium">{t("shiftHistoryDetails")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((session) => (
+              <tr key={session.id} className="border-t align-top">
+                <td className="px-3 py-2 tabular-nums">{session.business_date ?? "—"}</td>
+                <td className="px-3 py-2 font-medium">{session.shift?.name ?? t("unknownShift")}</td>
+                <td className="px-3 py-2">{session.staff_on_duty?.name ?? session.opened_by?.name ?? "—"}</td>
+                <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_net, "0.00")}</td>
+                <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_expenses, "0.00")}</td>
+                <td className="px-3 py-2">{session.status}</td>
+                <td className="px-3 py-2">
+                  <details className="min-w-56">
+                    <summary className="cursor-pointer text-primary underline-offset-4 hover:underline">
+                      {t("shiftHistoryView")}
+                    </summary>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-md bg-muted/40 p-2 text-xs">
+                      <dt className="text-muted-foreground">{t("openingFloat")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.opening_float, "0.00")}</dd>
+                      <dt className="text-muted-foreground">{t("expectedCash")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.expected_cash, "0.00")}</dd>
+                      <dt className="text-muted-foreground">{t("counted_cash")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.counted_cash, "—")}</dd>
+                      <dt className="text-muted-foreground">{t("expectedCard")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.expected_card, "0.00")}</dd>
+                      <dt className="text-muted-foreground">{t("counted_card")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.counted_card, "—")}</dd>
+                      <dt className="text-muted-foreground">{t("expectedBank")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.expected_bank, "0.00")}</dd>
+                      <dt className="text-muted-foreground">{t("counted_bank")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.counted_bank, "—")}</dd>
+                    </dl>
+                    {session.variance_notes ? (
+                      <p className="mt-2 rounded-md bg-muted/40 p-2 text-xs">
+                        <span className="font-medium">{t("varianceNotes")}: </span>
+                        {session.variance_notes}
+                      </p>
+                    ) : null}
+                  </details>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -583,7 +657,7 @@ function OpenSessionForm({
             }}
           >
             <SelectTrigger id="open-shift-id" className="w-full">
-              <SelectValue placeholder="Select shift" />
+              <span className="flex flex-1 text-start">{selectedShift?.name ?? t("selectShift")}</span>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>

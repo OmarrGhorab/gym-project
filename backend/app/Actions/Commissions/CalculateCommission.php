@@ -199,7 +199,11 @@ final class CalculateCommission
         $specs = [];
         $month = $addon->created_at ? $addon->created_at->format('Y-m') : now()->format('Y-m');
         $base = (string) $addon->price_paid;
-        $coachPercentageBase = bcadd((string) ($addon->subscription?->price_paid ?? '0.00'), $base, 2);
+        // Paid add-on: coach % of (membership + add-on). Bundled package include
+        // (price_paid is 0): coach % of the included service list price only.
+        $coachPercentageBase = bccomp($base, '0.00', 2) === 0
+            ? number_format((float) ($addon->plan?->price ?? 0), 2, '.', '')
+            : bcadd((string) ($addon->subscription?->price_paid ?? '0.00'), $base, 2);
 
         $salesEmployee = $this->resolveSalesEmployee($addon->sold_by_user_id, $addon);
 

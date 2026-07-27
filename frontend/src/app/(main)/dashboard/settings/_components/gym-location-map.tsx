@@ -300,7 +300,7 @@ export function GymLocationMap({ latitude, longitude, radiusMeters, className }:
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_minmax(14rem,1.4fr)_auto]">
         <div className="space-y-2">
           <Label htmlFor="attendance.gym_latitude">{t("latitude")}</Label>
           <Input
@@ -329,32 +329,33 @@ export function GymLocationMap({ latitude, longitude, radiusMeters, className }:
           <Label htmlFor="attendance.gym_radius_meters">
             {t("radiusMeters")} ({radiusNumber}m)
           </Label>
-          <input
-            id="attendance.gym_radius_meters"
-            name="attendance.gym_radius_meters"
-            type="range"
-            min={MIN_RADIUS}
-            max={MAX_RADIUS}
-            step={10}
-            value={radiusNumber}
-            onChange={(event) => setRadius(event.target.value)}
-            className="h-8 w-full cursor-pointer accent-teal-700"
-          />
-          <Input
-            type="number"
-            min={MIN_RADIUS}
-            max={MAX_RADIUS}
-            value={radius}
-            onChange={(event) => setRadius(event.target.value)}
-            aria-label={t("radiusMeters")}
-          />
+          <div className="flex items-center gap-2">
+            <input
+              id="attendance.gym_radius_meters"
+              name="attendance.gym_radius_meters"
+              type="range"
+              min={MIN_RADIUS}
+              max={MAX_RADIUS}
+              step={10}
+              value={radiusNumber}
+              onChange={(event) => setRadius(event.target.value)}
+              className="h-8 min-w-0 flex-1 cursor-pointer accent-teal-700"
+            />
+            <Input
+              type="number"
+              min={MIN_RADIUS}
+              max={MAX_RADIUS}
+              value={radius}
+              onChange={(event) => setRadius(event.target.value)}
+              aria-label={t("radiusMeters")}
+              className="w-20 shrink-0"
+            />
+          </div>
         </div>
-        <div className="flex items-end">
-          <Button type="button" variant="secondary" className="w-full" onClick={applyManualCoordinates}>
-            <Crosshair className="size-3.5" />
-            {t("centerMap")}
-          </Button>
-        </div>
+        <Button type="button" variant="secondary" className="w-full xl:w-auto" onClick={applyManualCoordinates}>
+          <Crosshair className="size-3.5" />
+          {t("centerMap")}
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-muted-foreground text-xs">

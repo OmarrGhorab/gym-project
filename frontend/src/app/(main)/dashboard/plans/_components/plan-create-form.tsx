@@ -395,7 +395,10 @@ export function PlanCreateForm({
         type="hidden"
         name="package_addons"
         value={JSON.stringify(
-          packageAddons.map(({ coach_id, plan_id }) => ({ coach_id: Number(coach_id), plan_id: Number(plan_id) })),
+          packageAddons.map(({ coach_id, plan_id }) => ({
+            coach_id: Number(resolveCoachIdForPlan(employees, plan_id, coach_id)),
+            plan_id: Number(plan_id),
+          })),
         )}
       />
       <input
@@ -586,59 +589,87 @@ export function PlanCreateForm({
               plan price.
             </p>
           </div>
-          {packageAddons.map((item, index) => (
-            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]" key={item._key}>
-              <FormSelect
-                name={`package_addon_plan_${index}`}
-                value={item.plan_id}
-                onValueChange={(value) =>
-                  setPackageAddons((items) =>
-                    items.map((current) => (current._key === item._key ? { ...current, plan_id: value } : current)),
-                  )
-                }
-                options={packageServicePlans.map((candidate) => ({
-                  label: `${candidate.name} - ${candidate.price} EGP`,
-                  value: String(candidate.id),
-                }))}
-                placeholder="Select extra service"
-              />
-              <FormSelect
-                name={`package_addon_coach_${index}`}
-                value={item.coach_id}
-                onValueChange={(value) =>
-                  setPackageAddons((items) =>
-                    items.map((current) => (current._key === item._key ? { ...current, coach_id: value } : current)),
-                  )
-                }
-                options={employees.map((employee) => ({
-                  label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
-                  value: String(employee.id),
-                }))}
-                placeholder="Select coach"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setPackageAddons((items) => items.filter((current) => current._key !== item._key))}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
+          {packageAddons.map((item, index) => {
+            const assignedCoaches = coachesAssignedToPlan(employees, item.plan_id);
+            const coachOptions = assignedCoaches.map((employee) => ({
+              label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+              value: String(employee.id),
+            }));
+            const coachValue = coachOptions.some((option) => option.value === item.coach_id)
+              ? item.coach_id
+              : (coachOptions[0]?.value ?? "");
+
+            return (
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]" key={item._key}>
+                <FormSelect
+                  name={`package_addon_plan_${index}`}
+                  value={item.plan_id}
+                  onValueChange={(value) =>
+                    setPackageAddons((items) =>
+                      items.map((current) =>
+                        current._key === item._key
+                          ? {
+                              ...current,
+                              coach_id: defaultCoachIdForPlan(employees, value),
+                              plan_id: value,
+                            }
+                          : current,
+                      ),
+                    )
+                  }
+                  options={packageServicePlans.map((candidate) => ({
+                    label: `${candidate.name} - ${candidate.price} EGP`,
+                    value: String(candidate.id),
+                  }))}
+                  placeholder="Select extra service"
+                />
+                <div className="grid gap-1">
+                  <FormSelect
+                    name={`package_addon_coach_${index}`}
+                    value={coachValue}
+                    onValueChange={(value) =>
+                      setPackageAddons((items) =>
+                        items.map((current) =>
+                          current._key === item._key ? { ...current, coach_id: value } : current,
+                        ),
+                      )
+                    }
+                    options={coachOptions}
+                    placeholder={coachOptions.length === 0 ? "No coaches assigned to this service" : "Select coach"}
+                    disabled={coachOptions.length === 0}
+                  />
+                  {coachOptions.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">
+                      Add a commission rule for this service on the coach first.
+                    </p>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPackageAddons((items) => items.filter((current) => current._key !== item._key))}
+                >
+                  Remove
+                </Button>
+              </div>
+            );
+          })}
           <Button
             type="button"
             variant="outline"
-            disabled={packageServicePlans.length === 0 || employees.length === 0}
-            onClick={() =>
+            disabled={packageServicePlans.length === 0}
+            onClick={() => {
+              const planId = packageServicePlans[0] ? String(packageServicePlans[0].id) : "";
+
               setPackageAddons((items) => [
                 ...items,
                 {
                   _key: `package-${globalThis.crypto?.randomUUID?.() ?? Date.now()}`,
-                  coach_id: employees[0] ? String(employees[0].id) : "",
-                  plan_id: packageServicePlans[0] ? String(packageServicePlans[0].id) : "",
+                  coach_id: defaultCoachIdForPlan(employees, planId),
+                  plan_id: planId,
                 },
-              ])
-            }
+              ]);
+            }}
           >
             Add included service
           </Button>
@@ -996,6 +1027,35 @@ function TimeField({
       <FormTimePicker id={name} name={name} defaultValue={defaultValue} error={error} />
     </div>
   );
+}
+
+/** Coaches/captains with an active commission rule on the included service plan. */
+function coachesAssignedToPlan(employees: PlanEmployeeOption[], planId: string): PlanEmployeeOption[] {
+  const id = Number(planId);
+
+  if (!Number.isFinite(id) || id <= 0) {
+    return [];
+  }
+
+  return employees.filter((employee) =>
+    (employee.plan_commission_rules ?? []).some((rule) => rule.is_active && rule.plan_id === id),
+  );
+}
+
+function defaultCoachIdForPlan(employees: PlanEmployeeOption[], planId: string): string {
+  const [first] = coachesAssignedToPlan(employees, planId);
+
+  return first ? String(first.id) : "";
+}
+
+function resolveCoachIdForPlan(employees: PlanEmployeeOption[], planId: string, coachId: string): string {
+  const assigned = coachesAssignedToPlan(employees, planId);
+
+  if (assigned.some((employee) => String(employee.id) === coachId)) {
+    return coachId;
+  }
+
+  return assigned[0] ? String(assigned[0].id) : "";
 }
 
 function readInitialEmployeeRules(

@@ -13,4 +13,5 @@ Schedule::command('subscriptions:enforce-lifecycle')->daily();
 Schedule::command('subscriptions:mark-expired')->daily();
 Schedule::command('subscriptions:expire')->daily();
 Schedule::command('member-visits:auto-close')->everyTenMinutes();
+Schedule::command('shifts:send-daily-summary')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('exports:prune')->hourly();
