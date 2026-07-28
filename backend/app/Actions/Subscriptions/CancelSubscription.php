@@ -2,6 +2,7 @@
 
 namespace App\Actions\Subscriptions;
 
+use App\Actions\Commissions\ReverseRefundedCommissions;
 use App\Actions\ShiftSessions\ResolveOpenShiftSession;
 use App\Models\Payment;
 use App\Models\Subscription;
@@ -17,6 +18,7 @@ class CancelSubscription
     public function __construct(
         private readonly OperationalNotifier $notifier,
         private readonly ResolveOpenShiftSession $openShiftSession,
+        private readonly ReverseRefundedCommissions $reverseCommissions,
     ) {}
 
     /**
@@ -97,6 +99,12 @@ class CancelSubscription
                     'created_by' => $actor->id,
                     'shift_session_id' => $this->openShiftSession->current()?->id,
                 ]);
+
+                $this->reverseCommissions->handle(
+                    collect([$locked])->concat($locked->addons),
+                    $refundAmount,
+                    $paidTotal,
+                );
             }
 
             // End access immediately so days_left is 0 and renew starts a fresh period today.

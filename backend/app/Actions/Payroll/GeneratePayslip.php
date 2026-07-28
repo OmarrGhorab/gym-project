@@ -7,6 +7,8 @@ use App\Models\Attendance;
 use App\Models\AttendanceViolation;
 use App\Models\Commission;
 use App\Models\Payroll;
+use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use ArPHP\I18N\Arabic;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class GeneratePayslip
 {
+    public function __construct(private readonly BuildPayslipBreakdown $buildBreakdown) {}
+
     /**
      * Generate HTML, PDF, or JSON payslip for a payroll record.
      */
@@ -24,7 +28,13 @@ class GeneratePayslip
 
             $monthCommissions = Commission::where('employee_id', $payroll->employee_id)
                 ->where('month', $payroll->month)
+                ->orderBy('created_at')
+                ->orderBy('id')
                 ->get();
+            $monthCommissions->loadMorph('source', [
+                Subscription::class => ['member', 'plan'],
+                SubscriptionAddon::class => ['member', 'plan', 'subscription.member'],
+            ]);
             $payroll->setRelation('monthCommissions', $monthCommissions);
             $attendanceRows = Attendance::query()
                 ->where('employee_id', $payroll->employee_id)
@@ -46,6 +56,14 @@ class GeneratePayslip
                 ->orderBy('id')
                 ->get();
             $payroll->setRelation('attendanceViolations', $violations);
+            $breakdown = $this->buildBreakdown->execute(
+                $payroll,
+                $monthCommissions,
+                $attendanceRows,
+                $violations,
+            );
+            $payroll->setRelation('commissionBreakdown', $breakdown['commissions']);
+            $payroll->setRelation('bonusBreakdown', $breakdown['bonuses']);
 
             if (str_contains($acceptHeader, 'application/pdf')) {
                 $arabic = new Arabic;

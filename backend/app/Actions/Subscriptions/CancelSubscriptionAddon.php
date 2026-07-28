@@ -2,6 +2,7 @@
 
 namespace App\Actions\Subscriptions;
 
+use App\Actions\Commissions\ReverseRefundedCommissions;
 use App\Actions\ShiftSessions\ResolveOpenShiftSession;
 use App\Models\Payment;
 use App\Models\Subscription;
@@ -13,7 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 final class CancelSubscriptionAddon
 {
-    public function __construct(private readonly ResolveOpenShiftSession $openShiftSession) {}
+    public function __construct(
+        private readonly ResolveOpenShiftSession $openShiftSession,
+        private readonly ReverseRefundedCommissions $reverseCommissions,
+    ) {}
 
     /** @param array<string, mixed> $data */
     public function handle(Subscription $subscription, SubscriptionAddon $addon, array $data, User $actor): Subscription
@@ -50,6 +54,8 @@ final class CancelSubscriptionAddon
                     'created_by' => $actor->id,
                     'shift_session_id' => $this->openShiftSession->current()?->id,
                 ]);
+
+                $this->reverseCommissions->handle([$lockedAddon], $refundAmount, $paidTotal);
             }
 
             $lockedAddon->update([
