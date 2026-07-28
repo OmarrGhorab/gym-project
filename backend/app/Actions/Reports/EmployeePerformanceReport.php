@@ -2,9 +2,12 @@
 
 namespace App\Actions\Reports;
 
+use App\Models\Commission;
+use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\DB;
 
 class EmployeePerformanceReport
@@ -61,7 +64,12 @@ class EmployeePerformanceReport
             )
             ->leftJoinSub(
                 DB::table('commissions')
-                    ->select('employee_id', DB::raw('SUM(amount) as commissions_earned'))
+                    ->select(
+                        'employee_id',
+                        DB::raw('SUM(amount) as commissions_earned'),
+                        DB::raw('SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as commissions_positive'),
+                        DB::raw('ABS(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END)) as commissions_reversed'),
+                    )
                     ->whereBetween('created_at', [$startDate, $endDate])
                     ->groupBy('employee_id'),
                 'c',
@@ -142,6 +150,8 @@ class EmployeePerformanceReport
                 DB::raw('COALESCE(sa.coached_services_count, 0) as coached_services_count'),
                 DB::raw('COALESCE(sa.coached_services_revenue, 0.00) as coached_services_revenue'),
                 DB::raw('COALESCE(c.commissions_earned, 0.00) as commissions_earned'),
+                DB::raw('COALESCE(c.commissions_positive, 0.00) as commissions_positive'),
+                DB::raw('COALESCE(c.commissions_reversed, 0.00) as commissions_reversed'),
                 DB::raw('COALESCE(a.attendance_count, 0) as attendance_count'),
                 DB::raw('COALESCE(b.bookings_count, 0) as bookings_count'),
                 DB::raw('COALESCE(ps.previous_sales_count, 0) as previous_sales_count'),
@@ -157,6 +167,7 @@ class EmployeePerformanceReport
             if ($row) {
                 $this->formatRow($row);
                 $row->subscriptions = $this->subscriptionDetails((int) $row->user_id, $startDate, $endDate);
+                $row->commissions = $this->commissionDetails((int) $row->employee_id, $startDate, $endDate);
             }
 
             return $row;
@@ -173,6 +184,8 @@ class EmployeePerformanceReport
     private function formatRow(object $row): void
     {
         $row->commissions_earned = number_format((float) $row->commissions_earned, 2, '.', '');
+        $row->commissions_positive = number_format((float) $row->commissions_positive, 2, '.', '');
+        $row->commissions_reversed = number_format((float) $row->commissions_reversed, 2, '.', '');
         $row->sales_volume = number_format((float) $row->sales_volume, 2, '.', '');
         $row->coached_services_revenue = number_format((float) $row->coached_services_revenue, 2, '.', '');
         $row->previous_sales_volume = number_format((float) $row->previous_sales_volume, 2, '.', '');
@@ -282,6 +295,59 @@ class EmployeePerformanceReport
         return collect([...$subscriptions, ...$addons])
             ->sortByDesc('created_at')
             ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array<string, int|string|null>>
+     */
+    private function commissionDetails(int $employeeId, string $startDate, string $endDate): array
+    {
+        return Commission::query()
+            ->with([
+                'source' => function (MorphTo $morphTo): void {
+                    $morphTo->constrain([
+                        Subscription::class => fn ($query) => $query->with([
+                            'member:id,name,attendance_code',
+                            'plan:id,name',
+                        ]),
+                        SubscriptionAddon::class => fn ($query) => $query->with([
+                            'member:id,name,attendance_code',
+                            'plan:id,name',
+                        ]),
+                        Sale::class => fn ($query) => $query->with([
+                            'member:id,name,attendance_code',
+                        ]),
+                    ]);
+                },
+            ])
+            ->where('employee_id', $employeeId)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (Commission $commission): array {
+                $source = $commission->source;
+
+                return [
+                    'id' => $commission->id,
+                    'occurred_at' => $commission->created_at?->toDateTimeString(),
+                    'source_kind' => match ($commission->source_type) {
+                        SubscriptionAddon::class => 'extra_service',
+                        Sale::class => 'pos_sale',
+                        default => 'membership',
+                    },
+                    'source_id' => $commission->source_id,
+                    'commission_type' => $commission->commission_type,
+                    'calculation_type' => $commission->calculation_type,
+                    'rate' => number_format((float) $commission->rate, 4, '.', ''),
+                    'rule_value' => number_format((float) $commission->rule_value, 4, '.', ''),
+                    'amount' => number_format((float) $commission->amount, 2, '.', ''),
+                    'status' => $commission->status,
+                    'member_name' => $source?->member?->name,
+                    'member_code' => $source?->member?->attendance_code,
+                    'plan_name' => $source instanceof Sale ? null : $source?->plan?->name,
+                ];
+            })
             ->all();
     }
 }

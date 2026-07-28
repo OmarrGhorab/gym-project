@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -18,7 +18,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
 
 import { DateRangePicker } from "@/components/date-range-picker";
@@ -226,7 +226,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
 
       {activeTab === "employees" && <EmployeesReportView data={initialData} from={fromDate} to={toDate} />}
 
-      {activeTab === "captains" && <CaptainsReportView data={initialData} />}
+      {activeTab === "captains" && <CaptainsReportView data={initialData} from={fromDate} to={toDate} />}
 
       {activeTab === "classes_plans" && (
         <ClassesPlansView
@@ -354,7 +354,7 @@ function ReportsOverviewView({
   );
 }
 
-function EmployeeSubscriptionDetailsDialog({
+function EmployeeDetailsDialog({
   employee,
   from,
   to,
@@ -363,14 +363,17 @@ function EmployeeSubscriptionDetailsDialog({
   from: string;
   to: string;
 }) {
+  const t = useTranslations("Dashboard.reports.employeePerformance");
   const [details, setDetails] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [isLoading, startTransition] = useTransition();
   const subscriptions = asRows(details?.subscriptions);
+  const commissions = asRows(details?.commissions);
   const subscriptionPagination = useTablePagination(subscriptions);
+  const commissionPagination = useTablePagination(commissions);
   const employeeId = Number(employee.employee_id);
-  const employeeName = String(employee.name ?? "Employee");
+  const employeeName = String(employee.name ?? t("employeeFallback"));
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -382,7 +385,7 @@ function EmployeeSubscriptionDetailsDialog({
       try {
         setDetails(await getEmployeeSubscriptionDetails(employeeId, from, to));
       } catch (requestError) {
-        setError(requestError instanceof Error ? requestError.message : "Could not load employee subscriptions.");
+        setError(requestError instanceof Error ? requestError.message : t("loadError"));
       }
     });
   }
@@ -391,71 +394,154 @@ function EmployeeSubscriptionDetailsDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size="sm" variant="outline" />}>
         <FileText />
-        Details
+        {t("details")}
       </DialogTrigger>
       <DialogContent className="max-h-[80dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[calc(100vw-4rem)] xl:max-w-7xl">
         <DialogHeader>
-          <DialogTitle>{employeeName}&apos;s subscription sales</DialogTitle>
-          <DialogDescription>Subscriptions and renewals sold in the selected date range.</DialogDescription>
+          <DialogTitle>{t("detailsTitle", { name: employeeName })}</DialogTitle>
+          <DialogDescription>{t("detailsDescription", { from, to })}</DialogDescription>
         </DialogHeader>
 
-        {isLoading ? <p className="text-muted-foreground text-sm">Loading subscription details…</p> : null}
+        {isLoading ? <p className="text-muted-foreground text-sm">{t("loading")}</p> : null}
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         {!isLoading && !error ? (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subscriptionPagination.pageRows.map((subscription) => (
-                  <TableRow key={String(subscription.id)}>
-                    <TableCell className="font-medium">
-                      <div>{String(subscription.member_name ?? "-")}</div>
-                      <div className="text-muted-foreground text-xs">{String(subscription.member_code ?? "")}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div>{String(subscription.member_phone ?? "-")}</div>
-                      <div className="text-muted-foreground text-xs">{String(subscription.member_email ?? "")}</div>
-                    </TableCell>
-                    <TableCell>{String(subscription.plan_name ?? "-")}</TableCell>
-                    <TableCell>
-                      {subscription.type === "renewal"
-                        ? "Renewal"
-                        : subscription.type === "add_on"
-                          ? "Extra plan"
-                          : "New subscription"}
-                    </TableCell>
-                    <TableCell>{currency(subscription.price_paid)}</TableCell>
-                    <TableCell>
-                      {String(subscription.start_date ?? "-")} – {String(subscription.end_date ?? "-")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {String(subscription.lifecycle_status ?? subscription.status ?? "-")}
-                      </Badge>
-                      {Number(subscription.refund_total ?? 0) > 0 ? (
-                        <div className="mt-1 text-muted-foreground text-xs">
-                          Refunded: {currency(subscription.refund_total)}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {subscriptions.length === 0 ? (
-                  <EmptyTableRow columns={7} label="No subscriptions or renewals were sold in this date range." />
-                ) : null}
-                <TablePagination columns={7} pagination={subscriptionPagination} />
-              </TableBody>
-            </Table>
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <ReportMetric
+                title={t("membershipsSold")}
+                value={String(employee.subscriptions_count ?? 0)}
+                detail={t("sellerMetric")}
+              />
+              <ReportMetric
+                title={t("posSales")}
+                value={currency(employee.sales_volume)}
+                detail={t("orders", { count: Number(employee.sales_count ?? 0) })}
+              />
+              <ReportMetric
+                title={t("earned")}
+                value={currency(employee.commissions_positive)}
+                detail={t("positiveCommissions")}
+              />
+              <ReportMetric
+                title={t("netCommission")}
+                value={currency(employee.commissions_earned)}
+                detail={t("reversedDetail", { amount: currency(employee.commissions_reversed) })}
+                destructive={Number(employee.commissions_earned ?? 0) < 0}
+              />
+            </div>
+
+            <section className="space-y-2">
+              <div>
+                <h3 className="font-semibold text-sm">{t("commissionLedger")}</h3>
+                <p className="text-muted-foreground text-xs">{t("commissionLedgerDescription")}</p>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("date")}</TableHead>
+                      <TableHead>{t("source")}</TableHead>
+                      <TableHead>{t("reason")}</TableHead>
+                      <TableHead>{t("calculation")}</TableHead>
+                      <TableHead>{t("amount")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commissionPagination.pageRows.map((commission) => {
+                      const amount = Number(commission.amount ?? 0);
+
+                      return (
+                        <TableRow key={String(commission.id)}>
+                          <TableCell className="whitespace-nowrap">{String(commission.occurred_at ?? "-")}</TableCell>
+                          <TableCell>
+                            <div className="font-medium">
+                              {String(commission.plan_name ?? commissionSourceLabel(commission.source_kind, t))}
+                            </div>
+                            <div className="text-muted-foreground text-xs">
+                              {String(commission.member_name ?? t("noMember"))}
+                              {commission.member_code ? ` · ${String(commission.member_code)}` : ""}
+                            </div>
+                          </TableCell>
+                          <TableCell>{commissionReasonLabel(String(commission.commission_type ?? ""), t)}</TableCell>
+                          <TableCell>
+                            {commissionCalculationLabel(
+                              String(commission.calculation_type ?? ""),
+                              commission.rule_value,
+                              t,
+                            )}
+                          </TableCell>
+                          <TableCell
+                            className={amount < 0 ? "font-semibold text-destructive" : "font-semibold text-emerald-600"}
+                          >
+                            {currency(amount)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{String(commission.status ?? "-")}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {commissions.length === 0 ? <EmptyTableRow columns={6} label={t("noCommissions")} /> : null}
+                    <TablePagination columns={6} pagination={commissionPagination} />
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+
+            <section className="space-y-2">
+              <div>
+                <h3 className="font-semibold text-sm">{t("soldSubscriptions")}</h3>
+                <p className="text-muted-foreground text-xs">{t("soldSubscriptionsDescription")}</p>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("member")}</TableHead>
+                      <TableHead>{t("contact")}</TableHead>
+                      <TableHead>{t("plan")}</TableHead>
+                      <TableHead>{t("type")}</TableHead>
+                      <TableHead>{t("paid")}</TableHead>
+                      <TableHead>{t("period")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subscriptionPagination.pageRows.map((subscription) => (
+                      <TableRow key={String(subscription.id)}>
+                        <TableCell className="font-medium">
+                          <div>{String(subscription.member_name ?? "-")}</div>
+                          <div className="text-muted-foreground text-xs">{String(subscription.member_code ?? "")}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>{String(subscription.member_phone ?? "-")}</div>
+                          <div className="text-muted-foreground text-xs">{String(subscription.member_email ?? "")}</div>
+                        </TableCell>
+                        <TableCell>{String(subscription.plan_name ?? "-")}</TableCell>
+                        <TableCell>{subscriptionTypeLabel(String(subscription.type ?? ""), t)}</TableCell>
+                        <TableCell>{currency(subscription.price_paid)}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {String(subscription.start_date ?? "-")} – {String(subscription.end_date ?? "-")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {String(subscription.lifecycle_status ?? subscription.status ?? "-")}
+                          </Badge>
+                          {Number(subscription.refund_total ?? 0) > 0 ? (
+                            <div className="mt-1 text-muted-foreground text-xs">
+                              {t("refundedAmount", { amount: currency(subscription.refund_total) })}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {subscriptions.length === 0 ? <EmptyTableRow columns={7} label={t("noSubscriptions")} /> : null}
+                    <TablePagination columns={7} pagination={subscriptionPagination} />
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
           </div>
         ) : null}
       </DialogContent>
@@ -464,60 +550,111 @@ function EmployeeSubscriptionDetailsDialog({
 }
 
 function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
+  const t = useTranslations("Dashboard.reports.employeePerformance");
   const employees = asRows(data.employees);
   const employeePagination = useTablePagination(employees);
+  const totals = employees.reduce(
+    (summary, employee) => ({
+      commissions: summary.commissions + Number(employee.commissions_earned ?? 0),
+      earned: summary.earned + Number(employee.commissions_positive ?? 0),
+      memberships: summary.memberships + Number(employee.subscriptions_count ?? 0),
+      posOrders: summary.posOrders + Number(employee.sales_count ?? 0),
+      posRevenue: summary.posRevenue + Number(employee.sales_volume ?? 0),
+      reversed: summary.reversed + Number(employee.commissions_reversed ?? 0),
+    }),
+    { commissions: 0, earned: 0, memberships: 0, posOrders: 0, posRevenue: 0, reversed: 0 },
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Employee sales & commission</CardTitle>
-        <CardDescription>
-          Subscriptions, sales revenue, extra plans sold, and earned commission for the selected dates.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Subscriptions</TableHead>
-              <TableHead>Sales</TableHead>
-              <TableHead>Sales revenue</TableHead>
-              <TableHead>Extra plans sold</TableHead>
-              <TableHead>Commission</TableHead>
-              <TableHead className="text-right">Details</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employeePagination.pageRows.map((employee) => (
-              <TableRow key={String(employee.employee_id)}>
-                <TableCell className="font-medium">{String(employee.name ?? "-")}</TableCell>
-                <TableCell>{String(employee.role ?? "-")}</TableCell>
-                <TableCell>{String(employee.subscriptions_count ?? 0)}</TableCell>
-                <TableCell>{String(employee.sales_count ?? 0)}</TableCell>
-                <TableCell>{currency(employee.sales_volume)}</TableCell>
-                <TableCell>
-                  {String(employee.coached_services_count ?? 0)} · {currency(employee.coached_services_revenue)}
-                </TableCell>
-                <TableCell>{currency(employee.commissions_earned)}</TableCell>
-                <TableCell className="text-right">
-                  <EmployeeSubscriptionDetailsDialog employee={employee} from={from} to={to} />
-                </TableCell>
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <ReportMetric title={t("membershipsSold")} value={String(totals.memberships)} detail={t("soldByEmployees")} />
+        <ReportMetric
+          title={t("posRevenue")}
+          value={currency(totals.posRevenue)}
+          detail={t("orders", { count: totals.posOrders })}
+        />
+        <ReportMetric title={t("earnedCommission")} value={currency(totals.earned)} detail={t("beforeRefunds")} />
+        <ReportMetric
+          title={t("netCommission")}
+          value={currency(totals.commissions)}
+          detail={t("reversedDetail", { amount: currency(totals.reversed) })}
+          destructive={totals.commissions < 0}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("title")}</CardTitle>
+          <CardDescription>{t("description")}</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("employee")}</TableHead>
+                <TableHead>{t("membershipsSold")}</TableHead>
+                <TableHead>{t("posSales")}</TableHead>
+                <TableHead>{t("extraServicesSold")}</TableHead>
+                <TableHead>{t("earned")}</TableHead>
+                <TableHead>{t("reversed")}</TableHead>
+                <TableHead>{t("net")}</TableHead>
+                <TableHead className="text-end">{t("details")}</TableHead>
               </TableRow>
-            ))}
-            {employees.length === 0 ? (
-              <EmptyTableRow columns={8} label="No employee activity in this date range." />
-            ) : null}
-            <TablePagination columns={8} pagination={employeePagination} />
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {employeePagination.pageRows.map((employee) => {
+                const netCommission = Number(employee.commissions_earned ?? 0);
+
+                return (
+                  <TableRow key={String(employee.employee_id)}>
+                    <TableCell>
+                      <div className="font-medium">{String(employee.name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(employee.role ?? "-")}</div>
+                    </TableCell>
+                    <TableCell>{String(employee.subscriptions_count ?? 0)}</TableCell>
+                    <TableCell>
+                      <div>{currency(employee.sales_volume)}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {t("orders", { count: Number(employee.sales_count ?? 0) })}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{currency(employee.coached_services_revenue)}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {t("services", { count: Number(employee.coached_services_count ?? 0) })}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium text-emerald-600">
+                      {currency(employee.commissions_positive)}
+                    </TableCell>
+                    <TableCell className="font-medium text-destructive">
+                      {Number(employee.commissions_reversed ?? 0) > 0
+                        ? currency(-Number(employee.commissions_reversed))
+                        : currency(0)}
+                    </TableCell>
+                    <TableCell
+                      className={netCommission < 0 ? "font-semibold text-destructive" : "font-semibold text-foreground"}
+                    >
+                      {currency(netCommission)}
+                    </TableCell>
+                    <TableCell className="text-end">
+                      <EmployeeDetailsDialog employee={employee} from={from} to={to} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {employees.length === 0 ? <EmptyTableRow columns={8} label={t("empty")} /> : null}
+              <TablePagination columns={8} pagination={employeePagination} />
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
-function CaptainsReportView({ data }: { data: Record<string, unknown> }) {
+function CaptainsReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
   const kpis = asRecord(data.kpis);
   const coaches = asRows(data.coaches);
   const coachPagination = useTablePagination(coaches);
@@ -558,6 +695,7 @@ function CaptainsReportView({ data }: { data: Record<string, unknown> }) {
                 <TableHead>Paid</TableHead>
                 <TableHead>Visits / days</TableHead>
                 <TableHead>Active plans</TableHead>
+                <TableHead className="text-end">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -573,17 +711,220 @@ function CaptainsReportView({ data }: { data: Record<string, unknown> }) {
                     {String(coach.total_visits_count ?? 0)} / {String(coach.attended_days_count ?? 0)} days
                   </TableCell>
                   <TableCell>{String(coach.active_addons_count ?? 0)}</TableCell>
+                  <TableCell className="text-end">
+                    <CaptainDetailsDialog coach={coach} from={from} to={to} />
+                  </TableCell>
                 </TableRow>
               ))}
               {coaches.length === 0 ? (
-                <EmptyTableRow columns={5} label="No captain sessions or services in this date range." />
+                <EmptyTableRow columns={6} label="No captain sessions or services in this date range." />
               ) : null}
-              <TablePagination columns={5} pagination={coachPagination} />
+              <TablePagination columns={6} pagination={coachPagination} />
             </TableBody>
           </Table>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+type EmployeeReportT = ReturnType<typeof useTranslations<"Dashboard.reports.employeePerformance">>;
+
+function subscriptionTypeLabel(type: string, t: EmployeeReportT): string {
+  if (type === "renewal") return t("renewal");
+  if (type === "add_on") return t("extraPlan");
+
+  return t("newSubscription");
+}
+
+function commissionSourceLabel(source: unknown, t: EmployeeReportT): string {
+  if (source === "extra_service") return t("extraService");
+  if (source === "pos_sale") return t("posSale");
+
+  return t("membership");
+}
+
+function commissionReasonLabel(type: string, t: EmployeeReportT): string {
+  const isRefund = type.endsWith("_refund");
+  const baseType = isRefund ? type.slice(0, -"_refund".length) : type;
+  let reason = t("otherCommission");
+
+  if (baseType === "subscription_sale") reason = t("membershipSaleCommission");
+  if (baseType === "subscription_coach") reason = t("membershipCoachCommission");
+  if (baseType === "subscription_addon_sale") reason = t("extraSaleCommission");
+  if (baseType === "subscription_addon_coach") reason = t("extraCoachCommission");
+  if (baseType === "sale") reason = t("posSaleCommission");
+
+  return isRefund ? t("refundReversalOf", { reason }) : reason;
+}
+
+function commissionCalculationLabel(type: string, ruleValue: unknown, t: EmployeeReportT): string {
+  if (type === "refund") return t("refundReversal");
+  if (type === "percentage") return t("percentageCalculation", { value: Number(ruleValue ?? 0) });
+  if (type === "fixed") return t("fixedCalculation", { amount: currency(ruleValue) });
+
+  return t("recordedAmount");
+}
+
+function CaptainDetailsDialog({ coach, from, to }: { coach: Record<string, unknown>; from: string; to: string }) {
+  const t = useTranslations("Dashboard.reports.captainDetails");
+  const members = asRows(coach.members);
+  const pagination = useTablePagination(members);
+  const coachName = String(coach.coach_name ?? t("captainFallback"));
+  const period = from || to ? `${from || "…"} → ${to || "…"}` : t("currentPeriod");
+
+  return (
+    <Dialog>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        <FileText />
+        {t("details")}
+      </DialogTrigger>
+      <DialogContent className="max-h-[85dvh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[calc(100vw-4rem)] xl:max-w-7xl">
+        <DialogHeader>
+          <DialogTitle>{t("title", { name: coachName })}</DialogTitle>
+          <DialogDescription>{t("description", { period })}</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ReportMetric
+            title={t("subscribers")}
+            value={String(coach.subscribed_members_count ?? 0)}
+            detail={t("subscriptionBreakdown", {
+              stopped: Number(coach.stopped_subscriptions_count ?? 0),
+              total: Number(coach.subscription_rows_count ?? members.length),
+            })}
+          />
+          <ReportMetric title={t("collected")} value={currency(coach.total_revenue)} detail={t("netPayments")} />
+          <ReportMetric
+            title={t("attendance")}
+            value={String(coach.total_visits_count ?? 0)}
+            detail={t("attendanceDays", { count: Number(coach.attended_days_count ?? 0) })}
+          />
+        </div>
+
+        <div className="overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("member")}</TableHead>
+                <TableHead>{t("contact")}</TableHead>
+                <TableHead>{t("plan")}</TableHead>
+                <TableHead>{t("period")}</TableHead>
+                <TableHead>{t("paid")}</TableHead>
+                <TableHead>{t("paymentDates")}</TableHead>
+                <TableHead>{t("visits")}</TableHead>
+                <TableHead>{t("sessions")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pagination.pageRows.map((member) => {
+                const attendanceDates = asRows(member.attendance_dates);
+                const paymentBreakdown = asRows(member.payment_breakdown);
+                const paymentDates = asStringArray(member.payment_dates);
+                const sessionsTotal = Number(member.sessions_total ?? 0);
+                let sessionsLabel = t("unlimited");
+                if (sessionsTotal > 0) {
+                  sessionsLabel =
+                    member.status === "stopped"
+                      ? t("stoppedSessionSummary", {
+                          attended: Number(member.sessions_used ?? 0),
+                          total: sessionsTotal,
+                        })
+                      : t("sessionSummary", {
+                          remaining: Number(member.sessions_remaining ?? 0),
+                          total: sessionsTotal,
+                          used: Number(member.sessions_used ?? 0),
+                        });
+                }
+                let paymentHistory: ReactNode = t("noPaymentDate");
+                if (paymentDates.length > 0) {
+                  paymentHistory = paymentDates.join(", ");
+                }
+                if (paymentBreakdown.length > 0) {
+                  paymentHistory = paymentBreakdown.map((payment) => {
+                    const status = String(payment.status ?? "");
+                    let statusLabel = t("paidStatus");
+                    if (status === "refunded") {
+                      statusLabel = t("refundedStatus");
+                    } else if (status === "partial") {
+                      statusLabel = t("partialStatus");
+                    }
+
+                    return (
+                      <div className="whitespace-nowrap" key={String(payment.id)}>
+                        {String(payment.date ?? "-")} · {currency(payment.amount)} · {statusLabel}
+                      </div>
+                    );
+                  });
+                }
+
+                return (
+                  <TableRow key={`${String(member.type)}-${String(member.addon_id)}-${String(member.member_id)}`}>
+                    <TableCell className="font-medium">
+                      <div>{String(member.member_name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(member.member_code ?? "")}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="whitespace-nowrap">{String(member.member_phone ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {member.type === "addon" ? t("extraService") : t("mainSubscription")}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>{String(member.plan_name ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">{String(member.plan_category ?? "")}</div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <div>{String(member.start_date ?? "-")}</div>
+                      <div className="text-muted-foreground text-xs">→ {String(member.end_date ?? "-")}</div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-medium">
+                      <div>{currency(member.paid_amount)}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {member.payment_source === "parent_package"
+                          ? t("paidThroughPackage", {
+                              amount: currency(member.payment_price),
+                              plan: String(member.payment_plan_name ?? "-"),
+                            })
+                          : t("packagePrice", { amount: currency(member.payment_price ?? member.price_paid) })}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-28 text-xs">{paymentHistory}</TableCell>
+                    <TableCell className="min-w-40">
+                      <div className="font-medium">
+                        {t("visitSummary", {
+                          days: Number(member.attended_days_this_month ?? 0),
+                          visits: Number(member.total_visits_this_month ?? 0),
+                        })}
+                      </div>
+                      <div className="mt-1 space-y-0.5 text-muted-foreground text-xs">
+                        {attendanceDates.length > 0
+                          ? attendanceDates.map((attendance) => (
+                              <div key={String(attendance.date)}>
+                                {String(attendance.date)} ·{" "}
+                                {t("visitsCount", { count: Number(attendance.visits ?? 0) })}
+                              </div>
+                            ))
+                          : t("noAttendance")}
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{sessionsLabel}</TableCell>
+                    <TableCell>
+                      <Badge variant={SUBSCRIPTION_STATUS_VARIANTS[String(member.status)] ?? "secondary"}>
+                        {String(member.status ?? "-")}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {members.length === 0 ? <EmptyTableRow columns={9} label={t("empty")} /> : null}
+              <TablePagination columns={9} pagination={pagination} />
+            </TableBody>
+          </Table>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -633,6 +974,10 @@ function asRows(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value)
     ? value.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
     : [];
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 type TablePaginationState<T> = {

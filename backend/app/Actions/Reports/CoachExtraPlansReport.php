@@ -4,6 +4,7 @@ namespace App\Actions\Reports;
 
 use App\Models\Employee;
 use App\Models\MemberVisit;
+use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use Carbon\CarbonImmutable;
@@ -27,6 +28,10 @@ final class CoachExtraPlansReport
                 'coach:id,name,role,phone',
                 'member:id,name,attendance_code,phone',
                 'plan:id,name,category',
+                'payments:id,payable_type,payable_id,amount,status,paid_at',
+                'subscription:id,plan_id,price_paid',
+                'subscription.plan:id,name',
+                'subscription.payments:id,payable_type,payable_id,amount,status,paid_at',
             ])
             ->where(function ($q) use ($monthStart, $monthEnd): void {
                 $q->whereBetween('created_at', [$monthStart, $monthEnd])
@@ -49,6 +54,7 @@ final class CoachExtraPlansReport
                 'coach:id,name,role,phone',
                 'member:id,name,attendance_code,phone',
                 'plan:id,name,category',
+                'payments:id,payable_type,payable_id,amount,status,paid_at',
             ])
             ->where(function ($q): void {
                 $q->whereNotNull('coach_id')
@@ -73,18 +79,20 @@ final class CoachExtraPlansReport
 
         $addonIds = $addons->pluck('id')->filter()->all();
         $subscriptionIds = $studioSubscriptions->pluck('id')->filter()->all();
-        $memberIds = $addons->pluck('member_id')
-            ->merge($studioSubscriptions->pluck('member_id'))
-            ->filter()->unique()->all();
-
         $visits = MemberVisit::query()
             ->whereBetween('check_in_at', [$monthStart, $monthEnd])
-            ->where(function ($q) use ($addonIds, $subscriptionIds, $memberIds): void {
+            ->where(function ($q) use ($addonIds, $subscriptionIds): void {
                 $q->whereIn('subscription_addon_id', $addonIds)
-                    ->orWhereIn('subscription_id', $subscriptionIds)
-                    ->orWhereIn('member_id', $memberIds);
+                    ->orWhereIn('subscription_id', $subscriptionIds);
             })
             ->get(['id', 'member_id', 'subscription_id', 'subscription_addon_id', 'check_in_at']);
+
+        $allVisits = MemberVisit::query()
+            ->where(function ($q) use ($addonIds, $subscriptionIds): void {
+                $q->whereIn('subscription_addon_id', $addonIds)
+                    ->orWhereIn('subscription_id', $subscriptionIds);
+            })
+            ->get(['id', 'subscription_id', 'subscription_addon_id']);
 
         $addonsGroupedByCoach = $addons->groupBy('coach_id');
         $studioGroupedByCoach = $studioSubscriptions->groupBy('coach_id');
@@ -122,7 +130,7 @@ final class CoachExtraPlansReport
 
         $coachesData = [];
         $totalCoachedPlansCount = 0;
-        $totalRevenue = '0.00';
+        $allRevenueSources = collect();
         $allSubscribedMemberIds = collect();
         $allAttendedDates = collect();
 
@@ -139,38 +147,55 @@ final class CoachExtraPlansReport
 
             $addonSet = array_flip($cAddonIds->all());
             $studioSet = array_flip($cStudioIds->all());
-            $memberSet = array_flip($cMemberIds->all());
-
-            $cVisits = $visits->filter(function ($v) use ($addonSet, $studioSet, $memberSet) {
+            $cVisits = $visits->filter(function ($v) use ($addonSet, $studioSet) {
                 return ($v->subscription_addon_id && isset($addonSet[$v->subscription_addon_id]))
-                    || ($v->subscription_id && isset($studioSet[$v->subscription_id]))
-                    || ($v->member_id && isset($memberSet[$v->member_id]));
+                    || ($v->subscription_id && isset($studioSet[$v->subscription_id]));
             });
 
             $cAttendedDates = $cVisits->map(fn ($v) => $v->check_in_at?->toDateString())->filter()->unique();
-            $visitsByMember = $cVisits->groupBy('member_id');
-            $cRevenue = $cAddons->sum(fn ($a) => (float) $a->price_paid) + $cStudio->sum(fn ($s) => (float) $s->price_paid);
-
             // Combine plan summaries
             $allCoachItems = collect();
             foreach ($cAddons as $a) {
+                $payment = $this->paymentContext($a);
                 $allCoachItems->push([
                     'type' => 'addon',
                     'item' => $a,
                     'plan_id' => $a->plan_id,
                     'plan_name' => $a->plan?->name ?? 'Add-on Plan',
                     'category' => 'Extra-on',
+                    ...$payment,
                 ]);
             }
             foreach ($cStudio as $s) {
+                $payment = $this->paymentContext($s);
                 $allCoachItems->push([
                     'type' => 'studio',
                     'item' => $s,
                     'plan_id' => $s->plan_id,
                     'plan_name' => $s->plan?->name ?? 'Fitness Studio Plan',
                     'category' => $s->plan?->category === 'fitness_studio' ? 'Fitness Studio' : 'Main Plan',
+                    ...$payment,
                 ]);
             }
+
+            $revenueSources = $allCoachItems
+                ->map(fn (array $wrapped): array => [
+                    'key' => $wrapped['payment_key'],
+                    'amount' => $wrapped['paid_amount'],
+                ])
+                ->unique('key')
+                ->values();
+            $cRevenue = $revenueSources->reduce(
+                fn (string $total, array $source): string => bcadd($total, $source['amount'], 2),
+                '0.00',
+            );
+            $activeCoachItems = $allCoachItems->filter(
+                fn (array $wrapped): bool => $wrapped['item']->status === 'active',
+            );
+            $activeMemberIds = $activeCoachItems
+                ->pluck('item.member_id')
+                ->filter()
+                ->unique();
 
             $plansSummary = $allCoachItems->groupBy('plan_id')->map(function ($items) {
                 $first = $items->first();
@@ -186,9 +211,56 @@ final class CoachExtraPlansReport
             $membersList = [];
             foreach ($allCoachItems as $wrapped) {
                 $item = $wrapped['item'];
-                $mVisits = $visitsByMember->get($item->member_id, collect());
+                $mVisits = $visits->filter(function (MemberVisit $visit) use ($item, $wrapped): bool {
+                    if ($wrapped['type'] === 'addon') {
+                        return (int) $visit->subscription_addon_id === (int) $item->id;
+                    }
+
+                    return (int) $visit->subscription_id === (int) $item->id
+                        && $visit->subscription_addon_id === null;
+                });
                 $mAttendedDays = $mVisits->map(fn ($v) => $v->check_in_at?->toDateString())->filter()->unique()->count();
                 $lastVisit = $mVisits->sortByDesc('check_in_at')->first()?->check_in_at?->toIso8601String();
+                $attendanceDates = $mVisits
+                    ->map(fn (MemberVisit $visit): ?string => $visit->check_in_at?->toDateString())
+                    ->filter()
+                    ->countBy()
+                    ->sortKeys()
+                    ->map(fn (int $count, string $date): array => ['date' => $date, 'visits' => $count])
+                    ->values()
+                    ->all();
+                $paymentRows = $item->payments;
+                if ($wrapped['payment_source'] === 'parent_package' && $item instanceof SubscriptionAddon) {
+                    $paymentRows = $item->subscription?->payments ?? collect();
+                }
+                $revenuePaymentRows = $paymentRows
+                    ->filter(fn (Payment $payment): bool => in_array($payment->status, Payment::REVENUE_STATUSES, true))
+                    ->sortBy('paid_at');
+                $paymentDates = $revenuePaymentRows
+                    ->map(fn (Payment $payment): ?string => $payment->paid_at?->toDateString())
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values()
+                    ->all();
+                $paymentBreakdown = $revenuePaymentRows
+                    ->map(fn (Payment $payment): array => [
+                        'id' => $payment->id,
+                        'date' => $payment->paid_at?->toDateString(),
+                        'amount' => number_format((float) $payment->amount, 2, '.', ''),
+                        'status' => $payment->status,
+                    ])
+                    ->values()
+                    ->all();
+                $allTimeVisitCount = $allVisits->filter(function (MemberVisit $visit) use ($item, $wrapped): bool {
+                    if ($wrapped['type'] === 'addon') {
+                        return (int) $visit->subscription_addon_id === (int) $item->id;
+                    }
+
+                    return (int) $visit->subscription_id === (int) $item->id
+                        && $visit->subscription_addon_id === null;
+                })->count();
+                $sessionsTotal = (int) ($item->sessions_total ?? 0);
 
                 $membersList[] = [
                     'addon_id' => $item->id,
@@ -203,19 +275,26 @@ final class CoachExtraPlansReport
                     'end_date' => $item->end_date?->toDateString(),
                     'status' => $item->status,
                     'price_paid' => number_format((float) $item->price_paid, 2, '.', ''),
-                    'sessions_total' => (int) ($item->sessions_total ?? 0),
+                    'paid_amount' => $wrapped['paid_amount'],
+                    'payment_source' => $wrapped['payment_source'],
+                    'payment_plan_name' => $wrapped['payment_plan_name'],
+                    'payment_price' => $wrapped['payment_price'],
+                    'payment_dates' => $paymentDates,
+                    'payment_breakdown' => $paymentBreakdown,
+                    'sessions_total' => $sessionsTotal,
                     'sessions_remaining' => (int) ($item->sessions_remaining ?? 0),
-                    'sessions_used' => max(0, (int) ($item->sessions_total ?? 0) - (int) ($item->sessions_remaining ?? 0)),
+                    'sessions_used' => min($sessionsTotal, $allTimeVisitCount),
                     'attended_days_this_month' => $mAttendedDays,
                     'total_visits_this_month' => $mVisits->count(),
+                    'attendance_dates' => $attendanceDates,
                     'last_visit_at' => $lastVisit,
                     'coach_name' => $coach->name,
                 ];
             }
 
-            $totalCoachedPlansCount += $allCoachItems->count();
-            $totalRevenue = bcadd($totalRevenue, number_format($cRevenue, 2, '.', ''), 2);
-            $allSubscribedMemberIds = $allSubscribedMemberIds->merge($cMemberIds);
+            $totalCoachedPlansCount += $activeCoachItems->count();
+            $allRevenueSources = $allRevenueSources->merge($revenueSources);
+            $allSubscribedMemberIds = $allSubscribedMemberIds->merge($activeMemberIds);
             $allAttendedDates = $allAttendedDates->merge($cAttendedDates);
 
             $coachesData[] = [
@@ -223,18 +302,26 @@ final class CoachExtraPlansReport
                 'coach_name' => $coach->name,
                 'coach_role' => $coach->role,
                 'coach_phone' => $coach->phone,
-                'active_addons_count' => $allCoachItems->where('item.status', 'active')->count(),
+                'active_addons_count' => $activeCoachItems->count(),
                 'total_addons_count' => $allCoachItems->count(),
-                'subscribed_members_count' => $cMemberIds->count(),
+                'subscribed_members_count' => $activeMemberIds->count(),
+                'subscription_rows_count' => $allCoachItems->count(),
+                'stopped_subscriptions_count' => $allCoachItems->where('item.status', 'stopped')->count(),
                 'attended_days_count' => $cAttendedDates->count(),
                 'total_visits_count' => $cVisits->count(),
-                'total_revenue' => number_format($cRevenue, 2, '.', ''),
+                'total_revenue' => $cRevenue,
                 'plans_summary' => $plansSummary,
                 'members' => $membersList,
             ];
         }
 
         usort($coachesData, fn ($a, $b) => $b['subscribed_members_count'] <=> $a['subscribed_members_count']);
+        $totalRevenue = $allRevenueSources
+            ->unique('key')
+            ->reduce(
+                fn (string $total, array $source): string => bcadd($total, $source['amount'], 2),
+                '0.00',
+            );
 
         return [
             'generated_at' => $now->toIso8601String(),
@@ -250,5 +337,62 @@ final class CoachExtraPlansReport
             ],
             'coaches' => $coachesData,
         ];
+    }
+
+    /**
+     * @return array{
+     *     paid_amount: string,
+     *     payment_key: string,
+     *     payment_source: 'direct'|'parent_package',
+     *     payment_plan_name: string,
+     *     payment_price: string
+     * }
+     */
+    private function paymentContext(Subscription|SubscriptionAddon $item): array
+    {
+        $revenuePayments = $item->payments
+            ->filter(fn (Payment $payment): bool => in_array($payment->status, Payment::REVENUE_STATUSES, true));
+
+        if (
+            $item instanceof SubscriptionAddon
+            && $revenuePayments->isEmpty()
+            && bccomp((string) $item->price_paid, '0.00', 2) === 0
+            && $item->subscription !== null
+        ) {
+            return [
+                'paid_amount' => $this->netPaymentsOrPrice(
+                    $item->subscription->payments->filter(
+                        fn (Payment $payment): bool => in_array($payment->status, Payment::REVENUE_STATUSES, true),
+                    ),
+                    (string) $item->subscription->price_paid,
+                ),
+                'payment_key' => 'subscription:'.$item->subscription->id,
+                'payment_source' => 'parent_package',
+                'payment_plan_name' => $item->subscription->plan?->name ?? 'Parent package',
+                'payment_price' => number_format((float) $item->subscription->price_paid, 2, '.', ''),
+            ];
+        }
+
+        return [
+            'paid_amount' => $this->netPaymentsOrPrice($revenuePayments, (string) $item->price_paid),
+            'payment_key' => $item instanceof Subscription
+                ? 'subscription:'.$item->id
+                : 'subscription_addon:'.$item->id,
+            'payment_source' => 'direct',
+            'payment_plan_name' => $item->plan?->name ?? 'Coached plan',
+            'payment_price' => number_format((float) $item->price_paid, 2, '.', ''),
+        ];
+    }
+
+    private function netPaymentsOrPrice($payments, string $fallbackPrice): string
+    {
+        if ($payments->isEmpty()) {
+            return number_format((float) $fallbackPrice, 2, '.', '');
+        }
+
+        return $payments->reduce(
+            fn (string $total, Payment $payment): string => bcadd($total, (string) $payment->amount, 2),
+            '0.00',
+        );
     }
 }

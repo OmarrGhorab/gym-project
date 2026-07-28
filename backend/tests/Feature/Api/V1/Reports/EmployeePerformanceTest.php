@@ -37,6 +37,8 @@ test('authenticated user with reports.view permission can view employee performa
                     'sales_count',
                     'subscriptions_count',
                     'commissions_earned',
+                    'commissions_positive',
+                    'commissions_reversed',
                 ],
             ],
             'meta',
@@ -100,6 +102,13 @@ test('employee performance reports are accurate and attributed correctly', funct
         'amount' => '50.00',
         'created_at' => '2026-06-15 15:00:00',
     ]);
+    Commission::factory()->create([
+        'employee_id' => $employee->id,
+        'amount' => '-15.00',
+        'commission_type' => 'subscription_sale_refund',
+        'calculation_type' => 'refund',
+        'created_at' => '2026-06-20 15:00:00',
+    ]);
 
     // Another employee's data
     $otherUser = User::factory()->create();
@@ -122,7 +131,9 @@ test('employee performance reports are accurate and attributed correctly', funct
     expect($jackData['bookings_count'])->toBe(1);
     expect($jackData['coached_services_count'])->toBe(1);
     expect($jackData['coached_services_revenue'])->toBe('900.00');
-    expect($jackData['commissions_earned'])->toBe('50.00');
+    expect($jackData['commissions_positive'])->toBe('50.00');
+    expect($jackData['commissions_reversed'])->toBe('15.00');
+    expect($jackData['commissions_earned'])->toBe('35.00');
 });
 
 test('can view single employee performance report', function (): void {
@@ -147,7 +158,11 @@ test('can view single employee performance report', function (): void {
         ->assertStatus(200)
         ->assertJsonPath('data.employee_id', $employee->id)
         ->assertJsonPath('data.name', 'Captain Jack')
-        ->assertJsonPath('data.commissions_earned', '50.00');
+        ->assertJsonPath('data.commissions_positive', '50.00')
+        ->assertJsonPath('data.commissions_reversed', '0.00')
+        ->assertJsonPath('data.commissions_earned', '50.00')
+        ->assertJsonPath('data.commissions.0.amount', '50.00')
+        ->assertJsonPath('data.commissions.0.source_kind', 'pos_sale');
 });
 
 test('single employee performance includes the subscriptions and renewals they sold', function (): void {
