@@ -2,27 +2,30 @@
 
 namespace App\Actions\Payroll;
 
-use App\Models\Attendance;
-use App\Models\AttendanceViolation;
 use App\Models\Payroll;
-use App\Models\SubscriptionAddon;
-use Illuminate\Support\Carbon;
 
 final class ApplyAttendanceBonuses
 {
-    private const CLEAN_ATTENDANCE_BONUS_RATE = '0.0200';
+    public function __construct(private readonly CalculatePayrollBonuses $calculator) {}
 
-    private const COACH_PERFORMANCE_BONUS_RATE = '0.0300';
-
-    private const COACH_PERFORMANCE_MIN_ADDONS = 1;
-
-    public function execute(Payroll $payroll): Payroll
+    public function execute(Payroll $payroll, ?string $manualBonusOverride = null): Payroll
     {
-        $automaticBonusTotal = $this->automaticBonusTotal($payroll);
-
-        if (bccomp((string) $payroll->bonuses, $automaticBonusTotal, 2) === -1) {
-            $payroll->bonuses = $automaticBonusTotal;
-        }
+        $components = $this->calculator->execute($payroll);
+        $snapshot = $payroll->attendance_snapshot ?? [];
+        $savedBonusSnapshot = is_array($snapshot['bonuses'] ?? null) ? $snapshot['bonuses'] : [];
+        $manualBonus = $manualBonusOverride ?? $this->manualBonus($payroll, $savedBonusSnapshot);
+        $payroll->bonuses = bcadd($components['total'], $manualBonus, 2);
+        $snapshot['bonuses'] = [
+            'automatic_total' => $components['total'],
+            'manual_total' => $manualBonus,
+            'off_day_total' => $components['off_day_total'],
+            'clean_attendance' => $components['clean_attendance'],
+            'clean_attendance_percentage' => $components['clean_attendance_percentage'],
+            'coach_performance' => $components['coach_performance'],
+            'coach_performance_percentage' => $components['coach_performance_percentage'],
+            'coached_addons_count' => $components['coached_addons']->count(),
+        ];
+        $payroll->attendance_snapshot = $snapshot;
 
         $netSalary = bcadd((string) $payroll->base_salary, (string) $payroll->commissions_total, 2);
         $netSalary = bcadd($netSalary, (string) $payroll->bonuses, 2);
@@ -31,106 +34,29 @@ final class ApplyAttendanceBonuses
 
         $payroll->net_salary = $netSalary;
 
-        if ($payroll->exists && $payroll->isDirty(['bonuses', 'net_salary'])) {
+        if ($payroll->exists && $payroll->isDirty(['bonuses', 'attendance_snapshot', 'net_salary'])) {
             $payroll->save();
         }
 
         return $payroll;
     }
 
-    private function automaticBonusTotal(Payroll $payroll): string
+    /** @param array<string, mixed> $savedBonusSnapshot */
+    private function manualBonus(Payroll $payroll, array $savedBonusSnapshot): string
     {
-        $hasViolation = $this->hasViolationInMonth($payroll);
-
-        $total = $this->offDayBonusTotal($payroll);
-        $total = bcadd($total, $this->cleanAttendanceBonus($payroll, $hasViolation), 2);
-        $total = bcadd($total, $this->coachPerformanceBonus($payroll, $hasViolation), 2);
-
-        return $total;
-    }
-
-    private function offDayBonusTotal(Payroll $payroll): string
-    {
-        $from = "{$payroll->month}-01";
-        $to = Carbon::parse($from)->endOfMonth()->toDateString();
-        $total = Attendance::query()
-            ->where('employee_id', $payroll->employee_id)
-            ->whereBetween('date', [$from, $to])
-            ->sum('off_day_bonus_amount');
-
-        return number_format((float) $total, 2, '.', '');
-    }
-
-    private function cleanAttendanceBonus(Payroll $payroll, bool $hasViolation): string
-    {
-        if (! $this->hasAttendanceInMonth($payroll) || $hasViolation) {
-            return '0.00';
+        if (array_key_exists('manual_total', $savedBonusSnapshot)) {
+            return number_format((float) $savedBonusSnapshot['manual_total'], 2, '.', '');
         }
 
-        return bcmul((string) $payroll->base_salary, self::CLEAN_ATTENDANCE_BONUS_RATE, 2);
-    }
+        // Legacy payroll stored automatic and manual bonuses in one field.
+        // Infer the old automatic portion once, then persist the split in the
+        // snapshot so future setting changes never erase a manual adjustment.
+        $legacyAutomatic = $this->calculator->legacyTotal($payroll);
+        $legacyAutomatic = bccomp($legacyAutomatic, (string) $payroll->bonuses, 2) === 1
+            ? (string) $payroll->bonuses
+            : $legacyAutomatic;
+        $manual = bcsub((string) $payroll->bonuses, $legacyAutomatic, 2);
 
-    private function coachPerformanceBonus(Payroll $payroll, bool $hasViolation): string
-    {
-        if ($hasViolation || $this->coachedAddonsCount($payroll) < self::COACH_PERFORMANCE_MIN_ADDONS) {
-            return '0.00';
-        }
-
-        return bcmul((string) $payroll->base_salary, self::COACH_PERFORMANCE_BONUS_RATE, 2);
-    }
-
-    private function hasAttendanceInMonth(Payroll $payroll): bool
-    {
-        [$from, $to] = $this->monthRange($payroll);
-
-        return Attendance::query()
-            ->where('employee_id', $payroll->employee_id)
-            ->whereBetween('date', [$from, $to])
-            ->whereIn('status', ['present', 'late'])
-            ->where(function ($query): void {
-                $query->whereNull('schedule_status')
-                    ->orWhere('schedule_status', '!=', 'off_day');
-            })
-            ->exists();
-    }
-
-    private function hasViolationInMonth(Payroll $payroll): bool
-    {
-        [$from, $to] = $this->monthRange($payroll);
-
-        return AttendanceViolation::query()
-            ->where('employee_id', $payroll->employee_id)
-            ->whereBetween('violation_date', [$from, $to])
-            ->whereIn('status', ['approved', 'pending', 'auto_applied'])
-            ->exists();
-    }
-
-    private function coachedAddonsCount(Payroll $payroll): int
-    {
-        [$from, $to] = $this->monthDateTimeRange($payroll);
-
-        return SubscriptionAddon::query()
-            ->where('coach_id', $payroll->employee_id)
-            ->whereBetween('created_at', [$from, $to])
-            ->count();
-    }
-
-    /** @return array{string, string} */
-    private function monthRange(Payroll $payroll): array
-    {
-        $from = "{$payroll->month}-01";
-
-        return [$from, Carbon::parse($from)->endOfMonth()->toDateString()];
-    }
-
-    /** @return array{string, string} */
-    private function monthDateTimeRange(Payroll $payroll): array
-    {
-        [$from, $to] = $this->monthRange($payroll);
-
-        return [
-            Carbon::parse($from)->startOfDay()->toDateTimeString(),
-            Carbon::parse($to)->endOfDay()->toDateTimeString(),
-        ];
+        return bccomp($manual, '0.00', 2) === -1 ? '0.00' : $manual;
     }
 }

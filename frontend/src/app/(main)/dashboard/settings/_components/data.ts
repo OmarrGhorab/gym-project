@@ -18,6 +18,10 @@ export type DashboardSettings = {
     name: string;
   };
   payroll?: {
+    clean_attendance_bonus_enabled: boolean;
+    clean_attendance_bonus_percentage: number;
+    coach_performance_bonus_enabled: boolean;
+    coach_performance_bonus_percentage: number;
     default_pay_day: number;
     schedule_mode: "fixed" | "per_employee";
   };
@@ -89,6 +93,10 @@ const emptySettings: DashboardSettings = {
     name: "ATP Gym",
   },
   payroll: {
+    clean_attendance_bonus_enabled: true,
+    clean_attendance_bonus_percentage: 2,
+    coach_performance_bonus_enabled: true,
+    coach_performance_bonus_percentage: 3,
     default_pay_day: 30,
     schedule_mode: "fixed",
   },

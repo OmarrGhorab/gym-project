@@ -2,13 +2,18 @@
 
 namespace App\Actions\Settings;
 
+use App\Actions\Payroll\GeneratePayroll;
+use App\Models\Payroll;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
 final class UpdateSettings
 {
-    public function __construct(private readonly StoreSetting $store) {}
+    public function __construct(
+        private readonly StoreSetting $store,
+        private readonly GeneratePayroll $generatePayroll,
+    ) {}
 
     /**
      * Persist all provided settings and log the change.
@@ -26,6 +31,13 @@ final class UpdateSettings
 
         foreach ($flatSettings as $key => $value) {
             $this->store->execute($key, $value);
+        }
+
+        if ($this->updatesPayrollBonusRules($flatSettings)) {
+            Payroll::query()
+                ->where('status', 'pending')
+                ->with('employee')
+                ->each(fn (Payroll $payroll) => $this->generatePayroll->refreshPendingPayroll($payroll, $payroll->employee));
         }
 
         $fresh = Setting::all()->pluck('value', 'key')->toArray();
@@ -67,7 +79,14 @@ final class UpdateSettings
         }
 
         if (isset($validated['payroll'])) {
-            foreach (['schedule_mode', 'default_pay_day'] as $key) {
+            foreach ([
+                'schedule_mode',
+                'default_pay_day',
+                'clean_attendance_bonus_enabled',
+                'clean_attendance_bonus_percentage',
+                'coach_performance_bonus_enabled',
+                'coach_performance_bonus_percentage',
+            ] as $key) {
                 if (array_key_exists($key, $validated['payroll'])) {
                     $flat["payroll.{$key}"] = $validated['payroll'][$key];
                 }
@@ -95,5 +114,14 @@ final class UpdateSettings
         }
 
         return $flat;
+    }
+
+    /** @param array<string, mixed> $flatSettings */
+    private function updatesPayrollBonusRules(array $flatSettings): bool
+    {
+        return collect(array_keys($flatSettings))->contains(
+            fn (string $key): bool => str_starts_with($key, 'payroll.')
+                && str_contains($key, '_bonus_'),
+        );
     }
 }

@@ -36,6 +36,14 @@ class SettingResource extends JsonResource
             'payroll' => [
                 'schedule_mode' => $settings['payroll.schedule_mode'] ?? 'fixed',
                 'default_pay_day' => isset($settings['payroll.default_pay_day']) ? (int) $settings['payroll.default_pay_day'] : 30,
+                'clean_attendance_bonus_enabled' => (bool) ($settings['payroll.clean_attendance_bonus_enabled'] ?? true),
+                'clean_attendance_bonus_percentage' => isset($settings['payroll.clean_attendance_bonus_percentage'])
+                    ? (float) $settings['payroll.clean_attendance_bonus_percentage']
+                    : 2.0,
+                'coach_performance_bonus_enabled' => (bool) ($settings['payroll.coach_performance_bonus_enabled'] ?? true),
+                'coach_performance_bonus_percentage' => isset($settings['payroll.coach_performance_bonus_percentage'])
+                    ? (float) $settings['payroll.coach_performance_bonus_percentage']
+                    : 3.0,
             ],
             'attendance' => [
                 'gym_latitude' => isset($settings['attendance.gym_latitude']) ? (float) $settings['attendance.gym_latitude'] : null,

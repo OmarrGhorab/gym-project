@@ -1,4 +1,4 @@
-import { MapPinned, MessageCircle, ShieldAlert } from "lucide-react";
+import { MapPinned, MessageCircle, Percent, ShieldAlert } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +99,54 @@ export default async function Page() {
                     defaultChecked={settings.shifts?.require_handover_to_open ?? true}
                   />
                   <Label htmlFor="shifts.require_handover_to_open">{t("requireHandoverToOpen")}</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 rounded-lg border p-3">
+              <div>
+                <p className="flex items-center gap-2 font-medium text-sm">
+                  <Percent className="size-4" />
+                  {t("automaticBonusRules")}
+                </p>
+                <p className="text-muted-foreground text-xs">{t("automaticBonusRulesHelp")}</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 rounded-md border bg-background p-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="payroll.clean_attendance_bonus_enabled"
+                      name="payroll.clean_attendance_bonus_enabled"
+                      defaultChecked={settings.payroll?.clean_attendance_bonus_enabled ?? true}
+                    />
+                    <Label htmlFor="payroll.clean_attendance_bonus_enabled">{t("cleanAttendanceBonus")}</Label>
+                  </div>
+                  <Field
+                    label={t("bonusPercentage")}
+                    name="payroll.clean_attendance_bonus_percentage"
+                    type="number"
+                    step="0.01"
+                    defaultValue={settings.payroll?.clean_attendance_bonus_percentage ?? 2}
+                    hint={t("cleanAttendanceBonusHelp")}
+                  />
+                </div>
+                <div className="grid gap-3 rounded-md border bg-background p-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="payroll.coach_performance_bonus_enabled"
+                      name="payroll.coach_performance_bonus_enabled"
+                      defaultChecked={settings.payroll?.coach_performance_bonus_enabled ?? true}
+                    />
+                    <Label htmlFor="payroll.coach_performance_bonus_enabled">{t("coachPerformanceBonus")}</Label>
+                  </div>
+                  <Field
+                    label={t("bonusPercentage")}
+                    name="payroll.coach_performance_bonus_percentage"
+                    type="number"
+                    step="0.01"
+                    defaultValue={settings.payroll?.coach_performance_bonus_percentage ?? 3}
+                    hint={t("coachPerformanceBonusHelp")}
+                  />
                 </div>
               </div>
             </div>

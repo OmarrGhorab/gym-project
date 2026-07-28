@@ -7,7 +7,10 @@ use Illuminate\Validation\ValidationException;
 
 final class UpdatePayroll
 {
-    public function __construct(private readonly ApplyAttendanceDeductions $attendanceDeductions) {}
+    public function __construct(
+        private readonly ApplyAttendanceDeductions $attendanceDeductions,
+        private readonly ApplyAttendanceBonuses $attendanceBonuses,
+    ) {}
 
     /**
      * Update bonuses and deductions for a pending payroll entry.
@@ -22,7 +25,19 @@ final class UpdatePayroll
             ]);
         }
 
-        $bonuses = isset($data['bonuses']) ? number_format((float) $data['bonuses'], 2, '.', '') : (string) $payroll->bonuses;
+        $payroll = $this->attendanceBonuses->execute($payroll);
+        $automaticBonuses = (string) ($payroll->attendance_snapshot['bonuses']['automatic_total'] ?? '0.00');
+        $requestedBonuses = isset($data['bonuses'])
+            ? number_format((float) $data['bonuses'], 2, '.', '')
+            : (string) $payroll->bonuses;
+        if (bccomp($requestedBonuses, $automaticBonuses, 2) === -1) {
+            throw ValidationException::withMessages([
+                'bonuses' => "Bonus cannot be lower than the automatic bonus ({$automaticBonuses}). Disable or reduce the automatic rule in Settings first.",
+            ]);
+        }
+        $manualBonuses = bcsub($requestedBonuses, $automaticBonuses, 2);
+        $payroll = $this->attendanceBonuses->execute($payroll, $manualBonuses);
+        $bonuses = (string) $payroll->bonuses;
         $deductions = isset($data['deductions']) ? number_format((float) $data['deductions'], 2, '.', '') : (string) $payroll->deductions;
         $attendanceDeductions = isset($data['attendance_deductions'])
             ? number_format((float) $data['attendance_deductions'], 2, '.', '')

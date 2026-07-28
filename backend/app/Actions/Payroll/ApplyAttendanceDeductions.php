@@ -66,7 +66,12 @@ final class ApplyAttendanceDeductions
         }
 
         $payroll->attendance_deductions = $total;
-        $payroll->attendance_snapshot = $this->snapshot($applicable, $total);
+        $snapshot = $this->snapshot($applicable, $total);
+        $existingBonusSnapshot = $payroll->attendance_snapshot['bonuses'] ?? null;
+        if (is_array($existingBonusSnapshot)) {
+            $snapshot['bonuses'] = $existingBonusSnapshot;
+        }
+        $payroll->attendance_snapshot = $snapshot;
 
         return $payroll;
     }

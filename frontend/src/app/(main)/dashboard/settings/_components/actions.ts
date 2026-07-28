@@ -24,6 +24,16 @@ const settingsSchema = z.object({
     .min(1, "Pay day must be between 1 and 31.")
     .max(31, "Pay day must be between 1 and 31."),
   payroll_schedule_mode: z.enum(["fixed", "per_employee"]),
+  payroll_clean_attendance_bonus_enabled: z.boolean(),
+  payroll_clean_attendance_bonus_percentage: z.coerce
+    .number()
+    .min(0, "Clean-attendance bonus cannot be negative.")
+    .max(100, "Clean-attendance bonus cannot exceed 100%."),
+  payroll_coach_performance_bonus_enabled: z.boolean(),
+  payroll_coach_performance_bonus_percentage: z.coerce
+    .number()
+    .min(0, "Coach-performance bonus cannot be negative.")
+    .max(100, "Coach-performance bonus cannot exceed 100%."),
   reminder_days: z
     .array(z.coerce.number().int().min(0, "Reminder days cannot be negative."))
     .min(1, "Add at least one reminder day."),
@@ -80,6 +90,14 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
     attendance_gym_radius_meters: input.get("attendance.gym_radius_meters") || "150",
     payroll_default_pay_day: input.get("payroll.default_pay_day") || "30",
     payroll_schedule_mode: input.get("payroll.schedule_mode") || "fixed",
+    payroll_clean_attendance_bonus_enabled:
+      input.get("payroll.clean_attendance_bonus_enabled") === "on" ||
+      input.get("payroll.clean_attendance_bonus_enabled") === "true",
+    payroll_clean_attendance_bonus_percentage: input.get("payroll.clean_attendance_bonus_percentage") || "0",
+    payroll_coach_performance_bonus_enabled:
+      input.get("payroll.coach_performance_bonus_enabled") === "on" ||
+      input.get("payroll.coach_performance_bonus_enabled") === "true",
+    payroll_coach_performance_bonus_percentage: input.get("payroll.coach_performance_bonus_percentage") || "0",
     reminder_days: parseReminderDays(input.get("reminder_days")),
     shifts_handover_auto_accept:
       input.get("shifts.handover_auto_accept") === "on" || input.get("shifts.handover_auto_accept") === "true",
@@ -102,6 +120,10 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
       gym_radius_meters: parsed.data.attendance_gym_radius_meters,
     },
     payroll: {
+      clean_attendance_bonus_enabled: parsed.data.payroll_clean_attendance_bonus_enabled,
+      clean_attendance_bonus_percentage: parsed.data.payroll_clean_attendance_bonus_percentage,
+      coach_performance_bonus_enabled: parsed.data.payroll_coach_performance_bonus_enabled,
+      coach_performance_bonus_percentage: parsed.data.payroll_coach_performance_bonus_percentage,
       default_pay_day: parsed.data.payroll_default_pay_day,
       schedule_mode: parsed.data.payroll_schedule_mode,
     },
@@ -129,6 +151,7 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
   revalidatePath("/dashboard/infrastructure");
   revalidatePath("/dashboard/finance");
   revalidatePath("/dashboard/academy/staff");
+  revalidatePath("/dashboard/payroll");
 
   return { ok: true, message: "Settings saved.", errors: {} };
 }

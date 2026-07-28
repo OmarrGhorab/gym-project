@@ -98,6 +98,23 @@ class UpdateSettingsRequest extends FormRequest
             $payroll['default_pay_day'] = $this->input('payroll')['default_pay_day'];
         }
 
+        foreach ([
+            'clean_attendance_bonus_enabled',
+            'clean_attendance_bonus_percentage',
+            'coach_performance_bonus_enabled',
+            'coach_performance_bonus_percentage',
+        ] as $key) {
+            if ($this->has("payroll.{$key}")) {
+                $payroll[$key] = str_ends_with($key, '_enabled')
+                    ? $this->boolean("payroll.{$key}")
+                    : $this->input("payroll.{$key}");
+            } elseif ($this->has('payroll') && is_array($this->input('payroll')) && array_key_exists($key, $this->input('payroll'))) {
+                $payroll[$key] = str_ends_with($key, '_enabled')
+                    ? filter_var($this->input('payroll')[$key], FILTER_VALIDATE_BOOL)
+                    : $this->input('payroll')[$key];
+            }
+        }
+
         if (! empty($payroll)) {
             $normalized['payroll'] = $payroll;
         }
@@ -187,6 +204,10 @@ class UpdateSettingsRequest extends FormRequest
             'payroll' => ['nullable', 'array'],
             'payroll.schedule_mode' => ['nullable', 'string', 'in:fixed,per_employee'],
             'payroll.default_pay_day' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'payroll.clean_attendance_bonus_enabled' => ['nullable', 'boolean'],
+            'payroll.clean_attendance_bonus_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'payroll.coach_performance_bonus_enabled' => ['nullable', 'boolean'],
+            'payroll.coach_performance_bonus_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'attendance' => ['nullable', 'array'],
             'attendance.gym_latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'attendance.gym_longitude' => ['nullable', 'numeric', 'between:-180,180'],

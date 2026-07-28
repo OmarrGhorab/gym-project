@@ -2,11 +2,9 @@
 
 namespace App\Actions\Payroll;
 
-use App\Models\Attendance;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\Payroll;
-use Illuminate\Support\Carbon;
 
 final class GeneratePayroll
 {
@@ -44,14 +42,6 @@ final class GeneratePayroll
             ->selectRaw('employee_id, SUM(amount) as total')
             ->pluck('total', 'employee_id');
 
-        $from = "{$month}-01";
-        $to = Carbon::parse($from)->endOfMonth()->toDateString();
-        $offDayBonusTotals = Attendance::whereIn('employee_id', $employeeIds)
-            ->whereBetween('date', [$from, $to])
-            ->groupBy('employee_id')
-            ->selectRaw('employee_id, SUM(off_day_bonus_amount) as total')
-            ->pluck('total', 'employee_id');
-
         $generated = [];
         $refreshed = [];
         $skipped = 0;
@@ -73,17 +63,14 @@ final class GeneratePayroll
             }
 
             $commissionsTotal = $commissionTotals->get($employee->id, '0.00');
-            $offDayBonusTotal = $this->formatMoney($offDayBonusTotals->get($employee->id, '0.00'));
-
             $netSalary = bcadd((string) $employee->base_salary, (string) $commissionsTotal, 2);
-            $netSalary = bcadd($netSalary, (string) $offDayBonusTotal, 2);
 
             $payroll = new Payroll([
                 'employee_id' => $employee->id,
                 'month' => $month,
                 'base_salary' => $employee->base_salary,
                 'commissions_total' => $commissionsTotal,
-                'bonuses' => $offDayBonusTotal,
+                'bonuses' => '0.00',
                 'deductions' => 0.00,
                 'attendance_deductions' => 0.00,
                 'net_salary' => $netSalary,

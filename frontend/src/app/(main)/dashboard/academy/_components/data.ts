@@ -225,6 +225,10 @@ export async function getStaffManagementPageData(): Promise<{
         name: "ATP Gym",
       },
       payroll: {
+        clean_attendance_bonus_enabled: true,
+        clean_attendance_bonus_percentage: 2,
+        coach_performance_bonus_enabled: true,
+        coach_performance_bonus_percentage: 3,
         default_pay_day: 30,
         schedule_mode: "fixed",
       },

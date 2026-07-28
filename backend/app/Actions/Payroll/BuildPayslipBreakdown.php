@@ -2,37 +2,28 @@
 
 namespace App\Actions\Payroll;
 
-use App\Models\Attendance;
-use App\Models\AttendanceViolation;
 use App\Models\Commission;
 use App\Models\Payroll;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 final class BuildPayslipBreakdown
 {
-    private const CLEAN_ATTENDANCE_BONUS_RATE = '0.0200';
-
-    private const COACH_PERFORMANCE_BONUS_RATE = '0.0300';
+    public function __construct(private readonly CalculatePayrollBonuses $bonusCalculator) {}
 
     /**
      * @param  EloquentCollection<int, Commission>  $commissions
-     * @param  EloquentCollection<int, Attendance>  $attendance
-     * @param  EloquentCollection<int, AttendanceViolation>  $violations
      * @return array{commissions: Collection<int, array<string, mixed>>, bonuses: Collection<int, array<string, mixed>>}
      */
     public function execute(
         Payroll $payroll,
         EloquentCollection $commissions,
-        EloquentCollection $attendance,
-        EloquentCollection $violations,
     ): array {
         return [
             'commissions' => $this->commissionRows($payroll, $commissions),
-            'bonuses' => $this->bonusRows($payroll, $attendance, $violations),
+            'bonuses' => $this->bonusRows($payroll),
         ];
     }
 
@@ -83,26 +74,17 @@ final class BuildPayslipBreakdown
             });
     }
 
-    /**
-     * @param  EloquentCollection<int, Attendance>  $attendance
-     * @param  EloquentCollection<int, AttendanceViolation>  $violations
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function bonusRows(
-        Payroll $payroll,
-        EloquentCollection $attendance,
-        EloquentCollection $violations,
-    ): Collection {
+    /** @return Collection<int, array<string, mixed>> */
+    private function bonusRows(Payroll $payroll): Collection
+    {
         $rows = collect();
-        $hasViolation = $violations->contains(
-            fn (AttendanceViolation $violation): bool => in_array(
-                $violation->status,
-                ['approved', 'pending', 'auto_applied'],
-                true,
-            ),
-        );
+        $saved = $payroll->attendance_snapshot['bonuses'] ?? null;
+        $components = $payroll->status === 'paid' && ! is_array($saved)
+            ? $this->bonusCalculator->legacy($payroll)
+            : $this->bonusCalculator->execute($payroll);
+        $saved = is_array($saved) ? $saved : [];
 
-        foreach ($attendance->where('off_day_bonus_amount', '>', 0) as $row) {
+        foreach ($components['off_day_rows'] as $row) {
             $date = $row->date?->toDateString() ?? '-';
             $rows->push([
                 'type' => 'Off-day attendance',
@@ -113,72 +95,55 @@ final class BuildPayslipBreakdown
             ]);
         }
 
-        $hasRegularAttendance = $attendance->contains(
-            fn (Attendance $row): bool => in_array($row->status, ['present', 'late'], true)
-                && $row->schedule_status !== 'off_day',
+        $cleanAmount = (string) ($saved['clean_attendance'] ?? $components['clean_attendance']);
+        $cleanPercentage = $this->percentageLabel(
+            (string) ($saved['clean_attendance_percentage'] ?? $components['clean_attendance_percentage']),
         );
-
-        if ($hasRegularAttendance && ! $hasViolation) {
-            $amount = bcmul((string) $payroll->base_salary, self::CLEAN_ATTENDANCE_BONUS_RATE, 2);
+        if (bccomp($cleanAmount, '0.00', 2) === 1) {
             $rows->push([
                 'type' => 'Clean attendance bonus',
                 'type_ar' => 'مكافأة انتظام الحضور',
-                'details' => 'No attendance violations (2% of base salary)',
-                'details_ar' => 'لا توجد مخالفات حضور (2% من الراتب الأساسي)',
-                'amount' => $amount,
+                'details' => "No attendance violations ({$cleanPercentage} of base salary)",
+                'details_ar' => "لا توجد مخالفات حضور ({$cleanPercentage} من الراتب الأساسي)",
+                'amount' => $cleanAmount,
             ]);
         }
 
-        $coachedAddons = $this->coachedAddons($payroll);
-
-        if ($coachedAddons->isNotEmpty() && ! $hasViolation) {
-            $amount = bcmul((string) $payroll->base_salary, self::COACH_PERFORMANCE_BONUS_RATE, 2);
-
+        $coachAmount = (string) ($saved['coach_performance'] ?? $components['coach_performance']);
+        $coachPercentage = $this->percentageLabel(
+            (string) ($saved['coach_performance_percentage'] ?? $components['coach_performance_percentage']),
+        );
+        $coachedAddonsCount = (int) ($saved['coached_addons_count'] ?? $components['coached_addons']->count());
+        if (bccomp($coachAmount, '0.00', 2) === 1) {
             $rows->push([
                 'type' => 'Coach performance bonus',
                 'type_ar' => 'مكافأة أداء المدرب',
-                'details' => $coachedAddons->count().' coached add-on(s) this month (3% of base salary)',
-                'details_ar' => $coachedAddons->count().' خدمة إضافية تم تدريبها هذا الشهر (3% من الراتب الأساسي)',
-                'amount' => $amount,
+                'details' => "{$coachedAddonsCount} coached add-on(s) this month ({$coachPercentage} of base salary)",
+                'details_ar' => "{$coachedAddonsCount} خدمة إضافية تم تدريبها هذا الشهر ({$coachPercentage} من الراتب الأساسي)",
+                'amount' => $coachAmount,
             ]);
         }
 
-        $explained = $rows->reduce(
-            fn (string $total, array $row): string => bcadd($total, (string) $row['amount'], 2),
-            '0.00',
-        );
-        $unexplained = bcsub((string) $payroll->bonuses, $explained, 2);
+        $manual = array_key_exists('manual_total', $saved)
+            ? (string) $saved['manual_total']
+            : bcsub((string) $payroll->bonuses, $components['total'], 2);
 
-        if (bccomp($unexplained, '0.00', 2) !== 0) {
+        if (bccomp($manual, '0.00', 2) === 1) {
             $rows->push([
-                'type' => $unexplained > 0 ? 'Manual management bonus' : 'Bonus reconciliation adjustment',
-                'type_ar' => $unexplained > 0 ? 'مكافأة إدارية يدوية' : 'تسوية قيمة المكافآت',
-                'details' => $unexplained > 0
-                    ? 'Entered manually in payroll; no separate reason was recorded'
-                    : 'Keeps the itemized breakdown equal to the saved payroll total',
-                'details_ar' => $unexplained > 0
-                    ? 'تم إدخالها يدويا في المرتب ولم يسجل سبب منفصل'
-                    : 'تسوية ليتطابق التفصيل مع إجمالي المكافآت المحفوظ',
-                'amount' => $unexplained,
+                'type' => 'Manual management bonus',
+                'type_ar' => 'مكافأة إدارية يدوية',
+                'details' => 'Entered manually in payroll; no separate reason was recorded',
+                'details_ar' => 'تم إدخالها يدويا في المرتب ولم يسجل سبب منفصل',
+                'amount' => $manual,
             ]);
         }
 
         return $rows;
     }
 
-    /** @return EloquentCollection<int, SubscriptionAddon> */
-    private function coachedAddons(Payroll $payroll): EloquentCollection
+    private function percentageLabel(string $percentage): string
     {
-        $from = Carbon::parse("{$payroll->month}-01")->startOfDay();
-        $to = $from->copy()->endOfMonth()->endOfDay();
-
-        return SubscriptionAddon::query()
-            ->with(['member', 'plan'])
-            ->where('coach_id', $payroll->employee_id)
-            ->whereBetween('created_at', [$from, $to])
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->get();
+        return rtrim(rtrim(number_format((float) $percentage, 2, '.', ''), '0'), '.').'%';
     }
 
     /** @return array{string, string} */

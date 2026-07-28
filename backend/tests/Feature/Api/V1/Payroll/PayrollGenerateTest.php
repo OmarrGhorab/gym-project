@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
+use Database\Seeders\RoleMatrixSeeder;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function (): void {
@@ -291,6 +292,86 @@ test('generating payroll includes dynamic clean attendance and coach performance
         ->assertJsonPath('data.0.commissions_total', '200.00')
         ->assertJsonPath('data.0.bonuses', '250.00')
         ->assertJsonPath('data.0.net_salary', '5450.00');
+});
+
+test('admin can customize or disable automatic payroll bonus percentages without losing manual bonus', function (): void {
+    $this->seed(RoleMatrixSeeder::class);
+
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $coach = Employee::factory()->create([
+        'base_salary' => '5000.00',
+        'role' => 'coach',
+    ]);
+    $member = Member::factory()->active()->create();
+    $basePlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $servicePlan = Plan::factory()->active()->create(['category' => 'personal_training']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $basePlan->id,
+    ]);
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $servicePlan->id,
+        'coach_id' => $coach->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
+        'status' => 'active',
+        'price_paid' => '1000.00',
+    ]);
+    $addon->forceFill([
+        'created_at' => '2026-06-10 10:00:00',
+        'updated_at' => '2026-06-10 10:00:00',
+    ])->save();
+    Attendance::factory()->create([
+        'employee_id' => $coach->id,
+        'date' => '2026-06-10',
+        'status' => 'present',
+    ]);
+
+    $this->postJson('/api/v1/payroll/generate?month=2026-06')
+        ->assertCreated()
+        ->assertJsonPath('data.0.bonuses', '250.00');
+
+    $payroll = Payroll::query()->where('employee_id', $coach->id)->where('month', '2026-06')->firstOrFail();
+
+    $this->putJson('/api/v1/settings', [
+        'payroll' => [
+            'clean_attendance_bonus_enabled' => true,
+            'clean_attendance_bonus_percentage' => 4,
+            'coach_performance_bonus_enabled' => true,
+            'coach_performance_bonus_percentage' => 5,
+        ],
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.payroll.clean_attendance_bonus_percentage', 4)
+        ->assertJsonPath('data.payroll.coach_performance_bonus_percentage', 5);
+
+    expect($payroll->fresh())
+        ->bonuses->toBe('450.00')
+        ->net_salary->toBe('5450.00');
+
+    $this->putJson("/api/v1/payroll/{$payroll->id}", ['bonuses' => '550.00'])
+        ->assertOk()
+        ->assertJsonPath('data.bonuses', '550.00');
+
+    $this->putJson('/api/v1/settings', [
+        'payroll' => [
+            'clean_attendance_bonus_enabled' => false,
+            'clean_attendance_bonus_percentage' => 4,
+            'coach_performance_bonus_enabled' => false,
+            'coach_performance_bonus_percentage' => 5,
+        ],
+    ])->assertOk();
+
+    expect($payroll->fresh())
+        ->bonuses->toBe('100.00')
+        ->net_salary->toBe('5100.00')
+        ->and($payroll->fresh()->attendance_snapshot['bonuses']['automatic_total'])->toBe('0.00')
+        ->and($payroll->fresh()->attendance_snapshot['bonuses']['manual_total'])->toBe('100.00');
 });
 
 test('generating payroll refreshes off day bonuses on existing pending payroll', function (): void {

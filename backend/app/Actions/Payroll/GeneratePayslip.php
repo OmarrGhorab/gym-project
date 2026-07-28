@@ -59,8 +59,6 @@ class GeneratePayslip
             $breakdown = $this->buildBreakdown->execute(
                 $payroll,
                 $monthCommissions,
-                $attendanceRows,
-                $violations,
             );
             $payroll->setRelation('commissionBreakdown', $breakdown['commissions']);
             $payroll->setRelation('bonusBreakdown', $breakdown['bonuses']);

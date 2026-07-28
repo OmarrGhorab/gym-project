@@ -15,6 +15,7 @@ final class MarkPayrollPaid
 {
     public function __construct(
         private readonly ApplyAttendanceDeductions $attendanceDeductions,
+        private readonly ApplyAttendanceBonuses $attendanceBonuses,
         private readonly OperationalNotifier $notifier,
     ) {}
 
@@ -53,6 +54,7 @@ final class MarkPayrollPaid
             );
 
             $payroll = $this->attendanceDeductions->execute($payroll);
+            $payroll = $this->attendanceBonuses->execute($payroll);
 
             $netSalary = bcsub(
                 bcadd(
