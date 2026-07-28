@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Users\CreateUserAccount;
+use App\Http\Requests\Users\StoreUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -12,9 +14,20 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 final class UserController extends ApiController
 {
+    public function store(StoreUserRequest $request, CreateUserAccount $action): JsonResponse
+    {
+        $user = $action->handle($request->validated());
+
+        return (new UserResource($user))
+            ->withMessage('User account created successfully')
+            ->response()
+            ->setStatusCode(201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $request->user()->can('roles.manage') || abort(403);
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
 
         $users = QueryBuilder::for(User::class)
             ->with('roles')
@@ -35,7 +48,7 @@ final class UserController extends ApiController
                 AllowedSort::field('created_at'),
             )
             ->defaultSort('-created_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         return $this->success(

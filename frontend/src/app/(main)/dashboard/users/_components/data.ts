@@ -21,6 +21,11 @@ export type AccessRole = {
   permissions: string[];
 };
 
+export type EmployeeOption = {
+  id: number;
+  name: string;
+};
+
 export async function getUsersPageData() {
   const [users, roles, employees] = await Promise.all([
     safeFetch<AccessUser[] | PaginatedData<AccessUser>>("/users?sort=name&per_page=100", []),
@@ -31,13 +36,18 @@ export async function getUsersPageData() {
     >("/employees?per_page=100", []),
   ]);
 
+  const employeeList = unwrapList(employees);
   const employeeByUserId = new Map(
-    unwrapList(employees)
+    employeeList
       .filter((employee) => typeof employee.user_id === "number" && employee.user_id > 0)
       .map((employee) => [employee.user_id as number, { id: employee.id, name: employee.name }]),
   );
 
   return {
+    employeeOptions: employeeList
+      .filter((employee) => employee.user_id === null)
+      .map((employee) => ({ id: employee.id, name: employee.name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     roles,
     users: unwrapList(users).map((user) => ({
       ...user,

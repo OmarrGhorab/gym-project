@@ -32,3 +32,20 @@ test('users without role management cannot list users', function (): void {
     $this->getJson('/api/v1/users')
         ->assertForbidden();
 });
+
+test('user listing honors a bounded per page value', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    User::factory()->count(20)->create();
+    Sanctum::actingAs($admin);
+
+    $this->getJson('/api/v1/users?sort=name&per_page=100')
+        ->assertOk()
+        ->assertJsonCount(21, 'data')
+        ->assertJsonPath('meta.per_page', 100)
+        ->assertJsonPath('meta.total', 21);
+
+    $this->getJson('/api/v1/users?per_page=500')
+        ->assertOk()
+        ->assertJsonPath('meta.per_page', 100);
+});

@@ -13,6 +13,16 @@ type ApiEnvelope<T> = {
 
 type ApiErrorDetails = Record<string, string[] | string | undefined>;
 
+export class ServerApiError extends Error {
+  details?: ApiErrorDetails;
+
+  constructor(message: string, details?: ApiErrorDetails) {
+    super(message);
+    this.name = "ServerApiError";
+    this.details = details;
+  }
+}
+
 /**
  * Backend success: { data, message?, meta? }
  * Backend errors:  { error: { code, message, details } }  (no data key)
@@ -93,7 +103,10 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
 
   if (!response.ok) {
     const details = normalizeErrorDetails(payload.error?.details ?? payload.errors);
-    throw new Error(getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, details));
+    throw new ServerApiError(
+      getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, details),
+      details,
+    );
   }
 
   return {

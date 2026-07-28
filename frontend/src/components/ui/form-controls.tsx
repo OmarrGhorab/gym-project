@@ -100,6 +100,13 @@ export function FormSelect({
   const [internalValue, setInternalValue] = React.useState<string | null>(initialValue);
   const [query, setQuery] = React.useState("");
   const value = isControlled ? currentValue : internalValue;
+  const visibleOptions = React.useMemo(() => {
+    if (onSearchChange) {
+      return options;
+    }
+
+    return options.filter((option) => filterFormSelectOption(option, query));
+  }, [onSearchChange, options, query]);
 
   // Retain known options across async search / option updates so selected labels never fallback to raw IDs
   const knownOptionsMap = React.useRef<Map<string, FormSelectOption>>(new Map());
@@ -154,7 +161,8 @@ export function FormSelect({
     <Combobox
       autoHighlight
       disabled={disabled}
-      filter={onSearchChange ? null : undefined}
+      filter={null}
+      filteredItems={visibleOptions}
       id={id}
       isItemEqualToValue={(left, right) => left?.value === right?.value}
       itemToStringLabel={(option) => getOptionDisplayLabel(option?.label)}
@@ -162,6 +170,11 @@ export function FormSelect({
       items={options}
       name={name}
       onInputValueChange={(nextQuery) => setQuery(nextQuery)}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen && !onSearchChange) {
+          setQuery("");
+        }
+      }}
       onValueChange={(option) => {
         const nextValue = option?.value ?? "";
 
@@ -195,7 +208,7 @@ export function FormSelect({
         side={contentSide}
       >
         <ComboboxList>
-          {options.map((option) => (
+          {visibleOptions.map((option) => (
             <ComboboxItem key={option.key ?? option.value} value={option}>
               {option.label}
             </ComboboxItem>
@@ -224,6 +237,19 @@ function getOptionDisplayLabel(label: React.ReactNode): string {
 
 function getOptionSearchText(label: React.ReactNode): string {
   return getOptionDisplayLabel(label).toLowerCase();
+}
+
+function filterFormSelectOption(option: FormSelectOption, query: string): boolean {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return (
+    getOptionSearchText(option.label).includes(normalizedQuery) ||
+    option.value.toLocaleLowerCase().includes(normalizedQuery)
+  );
 }
 
 type FormDatePickerProps = {
