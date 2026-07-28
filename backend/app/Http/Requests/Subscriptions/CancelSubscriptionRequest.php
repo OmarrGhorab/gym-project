@@ -21,6 +21,7 @@ class CancelSubscriptionRequest extends FormRequest
     {
         return [
             'refund_amount' => ['nullable', 'numeric', 'min:0'],
+            'refund_scope' => ['nullable', 'string', 'in:full_package,main_plan'],
             'method' => ['nullable', 'string', 'in:cash,card,bank_transfer'],
             'reason' => ['nullable', 'string', 'max:1000'],
             'force' => ['nullable', 'boolean'],

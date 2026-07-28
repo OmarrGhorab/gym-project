@@ -296,6 +296,61 @@ test('cancel allows refunding full package price including add-ons', function ()
     ]);
 });
 
+test('main plan only refund keeps paid extras active for a replacement membership', function (): void {
+    Carbon::setTestNow('2026-06-10 12:00:00');
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $plan = Plan::factory()->active()->create(['cancellation_grace_days' => 5]);
+    $addonPlan = Plan::factory()->active()->create(['price' => '250.00']);
+    $member = Member::factory()->active()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => '2026-06-10',
+        'price_paid' => '800.00',
+        'cancellation_grace_days' => 5,
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '800.00',
+        'status' => 'paid',
+    ]);
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $addonPlan->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-07-10',
+        'price_paid' => '250.00',
+        'sessions_total' => 12,
+        'sessions_remaining' => 9,
+        'status' => 'active',
+        'sold_by_user_id' => $user->id,
+        'created_by' => $user->id,
+    ]);
+    Payment::factory()->create([
+        'payable_type' => SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '250.00',
+        'status' => 'paid',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/cancel", [
+        'refund_amount' => '800.00',
+        'refund_scope' => 'main_plan',
+    ])->assertOk();
+
+    $this->assertDatabaseHas('subscription_addons', [
+        'id' => $addon->id,
+        'status' => 'active',
+        'sessions_remaining' => 9,
+    ]);
+    expect(Payment::query()->where('payable_type', SubscriptionAddon::class)->where('payable_id', $addon->id)->count())->toBe(1);
+});
+
 test('cancel with full refund reduces financial report revenue', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

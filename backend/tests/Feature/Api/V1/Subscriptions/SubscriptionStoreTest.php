@@ -122,6 +122,91 @@ test('admin can create a base subscription with a coached service add-on', funct
         ->assertJsonPath('data.0.latest_subscription.package_price_paid', '1080.00');
 });
 
+test('buying a new main membership keeps an already-paid active extra service without charging it again', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $oldMainPlan = Plan::factory()->active()->create(['category' => 'gym_access']);
+    $newMainPlan = Plan::factory()->active()->create([
+        'category' => 'gym_access',
+        'price' => '700.00',
+        'duration_days' => 30,
+    ]);
+    $extraPlan = Plan::factory()->active()->create(['category' => 'nutrition']);
+    $oldSubscription = Subscription::factory()->stopped()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldMainPlan->id,
+    ]);
+    $extra = SubscriptionAddon::query()->create([
+        'subscription_id' => $oldSubscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $extraPlan->id,
+        'start_date' => now()->subDays(5)->toDateString(),
+        'end_date' => now()->addDays(20)->toDateString(),
+        'status' => 'active',
+        'price_paid' => '600.00',
+        'sessions_total' => 12,
+        'sessions_remaining' => 9,
+    ]);
+
+    $response = $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $newMainPlan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => [
+            'amount' => '700.00',
+            'method' => 'cash',
+        ],
+    ])->assertCreated();
+
+    $newSubscriptionId = $response->json('data.id');
+    $extra->refresh();
+
+    expect($extra->subscription_id)->toBe($newSubscriptionId)
+        ->and($extra->price_paid)->toBe('600.00')
+        ->and($extra->sessions_remaining)->toBe(9)
+        ->and($response->json('data.addons.0.id'))->toBe($extra->id)
+        ->and(Payment::query()->where('payable_type', SubscriptionAddon::class)->count())->toBe(0)
+        ->and(
+            bcadd(
+                (string) Payment::query()->where('payable_type', Subscription::class)->where('payable_id', $newSubscriptionId)->sum('amount'),
+                '0.00',
+                2,
+            ),
+        )->toBe('700.00');
+});
+
+test('a refunded or stopped extra service is not carried to a new main membership', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $oldSubscription = Subscription::factory()->stopped()->create(['member_id' => $member->id]);
+    $stoppedExtra = SubscriptionAddon::query()->create([
+        'subscription_id' => $oldSubscription->id,
+        'member_id' => $member->id,
+        'plan_id' => Plan::factory()->active()->create(['category' => 'nutrition'])->id,
+        'start_date' => now()->subDays(5)->toDateString(),
+        'end_date' => now()->addDays(20)->toDateString(),
+        'status' => 'stopped',
+        'price_paid' => '600.00',
+    ]);
+    $newPlan = Plan::factory()->active()->create(['category' => 'gym_access', 'price' => '700.00']);
+
+    $newSubscriptionId = $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $newPlan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => ['amount' => '700.00', 'method' => 'cash'],
+    ])->assertCreated()->json('data.id');
+
+    expect($stoppedExtra->fresh()->subscription_id)->toBe($oldSubscription->id)
+        ->and(Subscription::find($newSubscriptionId)?->addons()->count())->toBe(0);
+});
+
 test('calendar month plans charge one cycle from same day to next month', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

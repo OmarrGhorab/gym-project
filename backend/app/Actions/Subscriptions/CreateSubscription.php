@@ -140,6 +140,11 @@ class CreateSubscription
                 }
             }
 
+            // An extra service is paid for independently. When staff sell a new
+            // main gym plan, keep any still-valid active extras with the member's
+            // new current subscription instead of charging for or hiding them.
+            $this->carryForwardActiveAddons($subscription, $startDate);
+
             return $subscription->fresh(['member', 'plan', 'soldBy', 'payments', 'addons.plan', 'addons.coach', 'addons.payments']) ?? $subscription;
         });
     }
@@ -176,6 +181,23 @@ class CreateSubscription
             ->where('employee_id', $coachId)
             ->where('is_active', true)
             ->exists();
+    }
+
+    private function carryForwardActiveAddons(Subscription $subscription, Carbon $startDate): void
+    {
+        SubscriptionAddon::query()
+            ->where('member_id', $subscription->member_id)
+            ->where('status', 'active')
+            ->where(function ($query) use ($subscription): void {
+                $query->where('subscription_id', '!=', $subscription->id)
+                    ->orWhereNull('subscription_id');
+            })
+            ->where(function ($query) use ($startDate): void {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', $startDate->toDateString());
+            })
+            ->lockForUpdate()
+            ->update(['subscription_id' => $subscription->id]);
     }
 
     private function createIncludedPackageAddons(Subscription $subscription, Plan $package, Carbon $startDate, User $seller, array $overrides = []): void

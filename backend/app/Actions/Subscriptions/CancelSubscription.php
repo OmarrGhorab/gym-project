@@ -56,7 +56,10 @@ class CancelSubscription
                 ]);
             }
 
-            $paidTotal = $this->paidTotal($locked);
+            $refundScope = (string) ($data['refund_scope'] ?? 'full_package');
+            $paidTotal = $refundScope === 'main_plan'
+                ? $this->mainPaidTotal($locked)
+                : $this->paidTotal($locked);
             $defaultRefund = $paidTotal;
             $refundAmount = array_key_exists('refund_amount', $data) && $data['refund_amount'] !== null && $data['refund_amount'] !== ''
                 ? bcadd((string) $data['refund_amount'], '0.00', 2)
@@ -101,7 +104,9 @@ class CancelSubscription
                 ]);
 
                 $this->reverseCommissions->handle(
-                    collect([$locked])->concat($locked->addons),
+                    $refundScope === 'main_plan'
+                        ? collect([$locked])
+                        : collect([$locked])->concat($locked->addons),
                     $refundAmount,
                     $paidTotal,
                 );
@@ -114,12 +119,14 @@ class CancelSubscription
                 'sessions_remaining' => 0,
             ]);
 
-            foreach ($locked->addons as $addon) {
-                $addon->update([
-                    'status' => 'stopped',
-                    'end_date' => Carbon::today()->toDateString(),
-                    'sessions_remaining' => 0,
-                ]);
+            if ($refundScope === 'full_package') {
+                foreach ($locked->addons as $addon) {
+                    $addon->update([
+                        'status' => 'stopped',
+                        'end_date' => Carbon::today()->toDateString(),
+                        'sessions_remaining' => 0,
+                    ]);
+                }
             }
 
             $fresh = $locked->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes', 'refunds', 'addons']);
@@ -162,16 +169,7 @@ class CancelSubscription
     {
         $subscription->loadMissing(['payments', 'addons.payments']);
 
-        $mainPaid = $subscription->payments
-            ->filter(fn ($payment): bool => in_array($payment->status, Payment::COLLECTED_STATUSES, true))
-            ->reduce(
-                fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
-                '0.00',
-            );
-
-        if (bccomp($mainPaid, '0.00', 2) === 0 && $subscription->price_paid) {
-            $mainPaid = bcadd((string) $subscription->price_paid, '0.00', 2);
-        }
+        $mainPaid = $this->mainPaidTotal($subscription);
 
         $addonsPaid = '0.00';
         foreach ($subscription->addons as $addon) {
@@ -190,5 +188,21 @@ class CancelSubscription
         }
 
         return bcadd($mainPaid, $addonsPaid, 2);
+    }
+
+    private function mainPaidTotal(Subscription $subscription): string
+    {
+        $mainPaid = $subscription->payments
+            ->filter(fn ($payment): bool => in_array($payment->status, Payment::COLLECTED_STATUSES, true))
+            ->reduce(
+                fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
+                '0.00',
+            );
+
+        if (bccomp($mainPaid, '0.00', 2) === 0 && $subscription->price_paid) {
+            return bcadd((string) $subscription->price_paid, '0.00', 2);
+        }
+
+        return $mainPaid;
     }
 }

@@ -386,6 +386,7 @@ function SubscriptionActions({
   const [freezeEndDate, setFreezeEndDate] = React.useState(() => getTodayDateString());
   const [resumeOnDate, setResumeOnDate] = React.useState(() => getTodayDateString());
   const [cancelAddonId, setCancelAddonId] = React.useState<number | null>(null);
+  const [cancelRefundScope, setCancelRefundScope] = React.useState<"full_package" | "main_plan">("full_package");
 
   const dialogPlans: PlanRow[] = React.useMemo(
     () =>
@@ -659,6 +660,7 @@ function SubscriptionActions({
 
     if (action === "cancel") {
       setCancelRefundAmount(subscription.defaultRefundAmount.toFixed(2));
+      setCancelRefundScope("full_package");
       setDialogMode("cancel");
       setOpen(true);
       return;
@@ -689,6 +691,7 @@ function SubscriptionActions({
     const cancel = cancelAddonId
       ? cancelMembershipAddon(subscription.subscriptionId, cancelAddonId, {
           refund_amount: refundAmount,
+          refund_scope: cancelRefundScope,
           method: paymentMethod,
           ...(reason ? { reason } : {}),
         })
@@ -1045,6 +1048,7 @@ function SubscriptionActions({
                         className="h-7 text-xs"
                         onClick={() => {
                           setCancelAddonId(null);
+                          setCancelRefundScope("full_package");
                           setCancelRefundAmount(subscription.paidTotal.toFixed(2));
                         }}
                       >
@@ -1057,6 +1061,7 @@ function SubscriptionActions({
                         className="h-7 text-xs"
                         onClick={() => {
                           setCancelAddonId(null);
+                          setCancelRefundScope("main_plan");
                           setCancelRefundAmount(mainPlanPrice.toFixed(2));
                         }}
                       >
@@ -1071,6 +1076,7 @@ function SubscriptionActions({
                           className="h-7 text-xs"
                           onClick={() => {
                             setCancelAddonId(addon.id);
+                            setCancelRefundScope("full_package");
                             setCancelRefundAmount(addon.paidTotal.toFixed(2));
                           }}
                         >

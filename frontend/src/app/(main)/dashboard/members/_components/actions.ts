@@ -445,11 +445,13 @@ export async function cancelMemberSubscription(_state: MemberFormState, input: F
       method: z.enum(["cash", "card", "bank_transfer"]).default("cash"),
       reason: z.string().trim().max(1000).optional(),
       refund_amount: z.string().trim().min(1, "Refund amount is required."),
+      refund_scope: z.enum(["full_package", "main_plan"]).default("full_package"),
     })
     .safeParse({
       method: input.get("method") || "cash",
       reason: input.get("reason") || undefined,
       refund_amount: input.get("refund_amount"),
+      refund_scope: input.get("refund_scope") || "full_package",
     });
 
   if (!parsed.success) {
@@ -474,6 +476,7 @@ export async function cancelMemberSubscription(_state: MemberFormState, input: F
           method: parsed.data.method,
           reason: parsed.data.reason,
           refund_amount: parsed.data.refund_amount,
+          refund_scope: parsed.data.refund_scope,
           force,
         }),
         headers: {

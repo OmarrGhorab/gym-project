@@ -73,6 +73,7 @@ export async function stopMembershipSubscription(id: number): Promise<Membership
 
 export type CancelMembershipSubscriptionInput = {
   refund_amount?: string;
+  refund_scope?: "full_package" | "main_plan";
   method?: "cash" | "card" | "bank_transfer";
   reason?: string;
 };
@@ -90,6 +91,7 @@ export async function cancelMembershipSubscription(
   return mutateSubscription(`/subscriptions/${parsedId.data}/cancel`, "Subscription cancelled with refund.", {
     force: true,
     ...(input.refund_amount !== undefined ? { refund_amount: input.refund_amount } : {}),
+    ...(input.refund_scope ? { refund_scope: input.refund_scope } : {}),
     ...(input.method ? { method: input.method } : {}),
     ...(input.reason ? { reason: input.reason } : {}),
   });

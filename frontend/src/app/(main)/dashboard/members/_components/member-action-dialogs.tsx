@@ -472,10 +472,12 @@ function MemberCancelSubscriptionDialog({
   );
   const [refundAmount, setRefundAmount] = React.useState(defaultRefund);
   const [refundAddonId, setRefundAddonId] = React.useState<string>("");
+  const [refundScope, setRefundScope] = React.useState<"full_package" | "main_plan">("full_package");
 
   React.useEffect(() => {
     if (subscription) {
       setRefundAddonId("");
+      setRefundScope("full_package");
       setRefundAmount(
         String(
           subscription.default_refund_amount ??
@@ -522,6 +524,7 @@ function MemberCancelSubscriptionDialog({
         <form action={submit} className="grid gap-4">
           <input type="hidden" name="subscription_id" value={String(subscription.id)} />
           <input type="hidden" name="refund_addon_id" value={refundAddonId} />
+          <input type="hidden" name="refund_scope" value={refundScope} />
           {state.message && !state.ok ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm">
               {state.message}
@@ -603,6 +606,7 @@ function MemberCancelSubscriptionDialog({
                 className="h-7 text-xs"
                 onClick={() => {
                   setRefundAddonId("");
+                  setRefundScope("full_package");
                   setRefundAmount(packageTotal.toFixed(2));
                 }}
               >
@@ -615,6 +619,7 @@ function MemberCancelSubscriptionDialog({
                 className="h-7 text-xs"
                 onClick={() => {
                   setRefundAddonId("");
+                  setRefundScope("main_plan");
                   setRefundAmount(mainPlanPrice.toFixed(2));
                 }}
               >
@@ -629,6 +634,7 @@ function MemberCancelSubscriptionDialog({
                   className="h-7 text-xs"
                   onClick={() => {
                     setRefundAddonId(String(addon.id));
+                    setRefundScope("full_package");
                     setRefundAmount(String(addon.paid_total ?? addon.price_paid ?? "0"));
                   }}
                 >
