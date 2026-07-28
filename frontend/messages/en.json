@@ -857,6 +857,8 @@
       "title": "Gym Finance",
       "shiftDesk": "Shift desk",
       "shiftDeskDescription": "Tracks all money during the open shift: membership payments, add-ons, POS, refunds, and expenses.",
+      "automaticSystem": "System (automatic)",
+      "openedAutomatically": "Opened automatically at the scheduled start",
       "openSession": "Open session",
       "closeSession": "Close session",
       "noOpenSession": "No open shift session.",

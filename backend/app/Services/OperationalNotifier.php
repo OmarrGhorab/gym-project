@@ -267,7 +267,7 @@ class OperationalNotifier
         $session->loadMissing(['shift', 'openedBy', 'openedByEmployee']);
 
         $shiftName = $session->shift?->name ?? 'Shift';
-        $staffName = $session->openedByEmployee?->name ?? $session->openedBy?->name ?? 'Staff';
+        $staffName = $session->openedByEmployee?->name ?? $session->openedBy?->name ?? 'System (automatic)';
         $float = number_format((float) $session->opening_float, 2, '.', '');
 
         $this->notifyAdmins(

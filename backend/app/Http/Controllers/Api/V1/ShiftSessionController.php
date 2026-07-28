@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\ShiftSessions\AssignShiftStaff;
+use App\Actions\ShiftSessions\AutoOpenScheduledShiftSessions;
 use App\Actions\ShiftSessions\CloseShiftSession;
 use App\Actions\ShiftSessions\ComputeShiftSessionTotals;
 use App\Actions\ShiftSessions\OpenShiftSession;
@@ -118,11 +119,19 @@ class ShiftSessionController extends ApiController
         );
     }
 
-    public function current(Request $request, ComputeShiftSessionTotals $totals): JsonResponse
-    {
+    public function current(
+        Request $request,
+        ComputeShiftSessionTotals $totals,
+        AutoOpenScheduledShiftSessions $autoOpen,
+    ): JsonResponse {
         $this->authorizeFinanceView($request);
 
-        // A session is never created implicitly: an employee of the shift has to open it.
+        // The scheduler is the primary trigger. This idempotent catch-up keeps the desk
+        // correct when a local development server was started without schedule:work.
+        $autoOpen->handle();
+
+        // Scheduled sessions may have been opened by the scheduler; staff still close
+        // them manually and the closing employee is kept in the audit trail.
         $session = ShiftSession::query()
             ->with(['shift', 'openedBy', 'closedBy', 'openedByEmployee', 'closedByEmployee'])
             ->where('status', ShiftSession::STATUS_OPEN)

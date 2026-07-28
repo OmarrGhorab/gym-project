@@ -37,6 +37,7 @@ export type ShiftDeskSession = {
   id: number;
   business_date?: string | null;
   status: string;
+  opened_automatically?: boolean;
   opening_float: string;
   expected_cash: string | null;
   expected_card: string | null;
@@ -168,8 +169,9 @@ export function ShiftDesk({
     const expenseCount = live?.expense_count ?? 0;
     const shiftName = currentSession.shift?.name ?? t("unknownShift");
     // The accountable employee of this shift — the acting user account is only the audit trail.
-    const staffOnDuty = currentSession.staff_on_duty?.name ?? currentSession.opened_by?.name ?? "Staff";
-    const openedByStaff = currentSession.opened_by?.name ?? staffOnDuty;
+    const staffOnDuty = currentSession.staff_on_duty?.name ?? currentSession.opened_by?.name ?? t("automaticSystem");
+    const openedByStaff =
+      currentSession.opened_by?.name ?? (currentSession.opened_automatically ? t("automaticSystem") : staffOnDuty);
     const hasMoney = paymentCount > 0 || expenseCount > 0 || Number(live?.expenses ?? 0) > 0;
 
     const scheduledEnd = formatScheduledEnd(currentSession.shift?.ends_at);
@@ -186,6 +188,7 @@ export function ShiftDesk({
             </div>
             <p className="mt-1 text-muted-foreground text-xs">
               Staff on duty: <span className="font-medium text-foreground">{staffOnDuty}</span>
+              {currentSession.opened_automatically ? ` · ${t("openedAutomatically")}` : null}
               {currentSession.previous_session_id ? (
                 <>
                   {" "}
@@ -511,7 +514,11 @@ function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
               <tr key={session.id} className="border-t align-top">
                 <td className="px-3 py-2 tabular-nums">{session.business_date ?? "—"}</td>
                 <td className="px-3 py-2 font-medium">{session.shift?.name ?? t("unknownShift")}</td>
-                <td className="px-3 py-2">{session.staff_on_duty?.name ?? session.opened_by?.name ?? "—"}</td>
+                <td className="px-3 py-2">
+                  {session.staff_on_duty?.name ??
+                    session.opened_by?.name ??
+                    (session.opened_automatically ? t("automaticSystem") : "—")}
+                </td>
                 <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_net, "0.00")}</td>
                 <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_expenses, "0.00")}</td>
                 <td className="px-3 py-2">{session.status}</td>
@@ -631,7 +638,7 @@ function OpenSessionForm({
   const t = useTranslations("Dashboard.finance");
   const [shiftId, setShiftId] = useState<string>(shifts[0] ? String(shifts[0].id) : "");
   const [employeeId, setEmployeeId] = useState<string>("self");
-  const [openingFloat, setOpeningFloat] = useState("0.00");
+  const [openingFloat, setOpeningFloat] = useState("");
 
   const selectedShift = shifts.find((shift) => String(shift.id) === shiftId);
   const staff = selectedShift?.employees ?? [];
@@ -713,6 +720,7 @@ function OpenSessionForm({
             min="0"
             step="0.01"
             value={openingFloat}
+            placeholder="Automatic from previous handover"
             onChange={(event) => setOpeningFloat(event.target.value)}
           />
         </div>
@@ -726,7 +734,9 @@ function OpenSessionForm({
               openShiftSession({
                 employee_shift_id: Number(shiftId),
                 employee_id: employeeId === "self" ? undefined : Number(employeeId),
-                opening_float: openingFloat || "0",
+                // Leave blank to carry the previous shift's counted cash. The first
+                // session of a new business day starts at zero.
+                opening_float: openingFloat === "" ? undefined : openingFloat,
               }),
             )
           }

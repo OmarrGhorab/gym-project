@@ -19,6 +19,7 @@ class ShiftSessionResource extends JsonResource
             'opened_at' => $this->opened_at?->toIso8601String(),
             'closed_at' => $this->closed_at?->toIso8601String(),
             'status' => $this->status,
+            'opened_automatically' => $this->opened_by === null && $this->opened_by_employee_id === null,
             'opening_float' => number_format((float) $this->opening_float, 2, '.', ''),
             'expected_cash' => $this->expected_cash !== null ? number_format((float) $this->expected_cash, 2, '.', '') : null,
             'expected_card' => $this->expected_card !== null ? number_format((float) $this->expected_card, 2, '.', '') : null,

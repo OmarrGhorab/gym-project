@@ -107,3 +107,51 @@ test('shift totals include subscription revenue pos refunds and expenses for the
             ->value('shift_session_id'),
     )->toBe($session->id);
 });
+
+test('an open shift does not claim money recorded outside its own time window', function (): void {
+    Carbon::setTestNow('2026-06-10 12:00:00');
+
+    $user = User::factory()->create();
+    $shift = EmployeeShift::factory()->create();
+    $session = ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => '2026-06-10',
+        'opened_at' => '2026-06-10 11:00:00',
+        'opened_by' => $user->id,
+        'status' => ShiftSession::STATUS_OPEN,
+        'opening_float' => '0.00',
+    ]);
+    $subscription = Subscription::factory()->active()->create();
+    $earlyPayment = Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '100.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-06-10 09:00:00',
+        'shift_session_id' => null,
+    ]);
+    $latePayment = Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '50.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-06-10 11:30:00',
+        'shift_session_id' => null,
+    ]);
+    $earlyExpense = Expense::factory()->create([
+        'created_by' => $user->id,
+        'amount' => '20.00',
+        'created_at' => '2026-06-10 09:00:00',
+        'updated_at' => '2026-06-10 09:00:00',
+        'shift_session_id' => null,
+    ]);
+
+    $totals = app(ComputeShiftSessionTotals::class)->handle($session);
+
+    expect($totals['collections'])->toBe('50.00')
+        ->and(Payment::find($earlyPayment->id)->shift_session_id)->toBeNull()
+        ->and(Payment::find($latePayment->id)->shift_session_id)->toBe($session->id)
+        ->and(Expense::find($earlyExpense->id)->shift_session_id)->toBeNull();
+});

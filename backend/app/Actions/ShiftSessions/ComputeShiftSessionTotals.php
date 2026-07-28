@@ -165,39 +165,32 @@ class ComputeShiftSessionTotals
     public function claimOrphanMoney(ShiftSession $session): void
     {
         $window = $this->window($session);
-        $businessDate = $session->business_date?->toDateString()
-            ?? $window['from']->toDateString();
-
-        // Payments: explicit time window OR same business date while session is still open.
+        // An untagged payment must belong to this session's actual time window.  Using
+        // the whole business date here makes a later shift absorb the morning shift's
+        // money (and is especially dangerous while the drawer is still open).
         Payment::query()
             ->whereNull('shift_session_id')
-            ->where(function ($query) use ($window, $businessDate, $session): void {
+            ->where(function ($query) use ($window): void {
                 $query->where(function ($time) use ($window): void {
                     $time
                         ->whereNotNull('paid_at')
                         ->whereBetween('paid_at', [$window['from'], $window['to']]);
                 });
-
-                if ($session->status === ShiftSession::STATUS_OPEN) {
-                    $query->orWhereDate('paid_at', $businessDate)
-                        ->orWhereDate('created_at', $businessDate);
-                }
+                // Legacy/imported payments can have no paid_at.  Their creation time
+                // is the only safe timestamp available for assigning a shift.
+                $query->orWhere(function ($created) use ($window): void {
+                    $created
+                        ->whereNull('paid_at')
+                        ->whereBetween('created_at', [$window['from'], $window['to']]);
+                });
             })
             ->update(['shift_session_id' => $session->id]);
 
-        // Expenses: date is date-only (midnight), so never compare to opened_at datetime alone.
+        // Expense `date` is a business date, not a timestamp.  Use created_at to avoid
+        // pulling all same-day expenses into whichever shift happens to be open now.
         Expense::query()
             ->whereNull('shift_session_id')
-            ->where(function ($query) use ($window, $businessDate, $session): void {
-                $query
-                    ->whereBetween('created_at', [$window['from'], $window['to']])
-                    ->orWhereDate('date', $businessDate)
-                    ->orWhereDate('created_at', $businessDate);
-
-                if ($session->status === ShiftSession::STATUS_OPEN) {
-                    $query->orWhereDate('date', $window['from']->toDateString());
-                }
-            })
+            ->whereBetween('created_at', [$window['from'], $window['to']])
             ->update(['shift_session_id' => $session->id]);
     }
 

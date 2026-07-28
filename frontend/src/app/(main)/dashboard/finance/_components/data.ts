@@ -99,6 +99,7 @@ export type FinanceShiftSession = {
   id: number;
   business_date?: string | null;
   status: string;
+  opened_automatically?: boolean;
   opening_float: string;
   expected_cash: string | null;
   expected_card: string | null;
