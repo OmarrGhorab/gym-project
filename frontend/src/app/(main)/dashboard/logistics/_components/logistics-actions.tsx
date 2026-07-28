@@ -104,10 +104,10 @@ function parseDateString(value: string) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function DatePickerField({ error, name }: { error?: string; name: string }) {
+function DatePickerField({ error, name, initialValue = "" }: { error?: string; name: string; initialValue?: string }) {
   const t = useTranslations("Dashboard.logistics");
   const locale = useLocale();
-  const [value, setValue] = React.useState("");
+  const [value, setValue] = React.useState(initialValue);
   const selectedDate = parseDateString(value);
 
   return (
@@ -143,16 +143,46 @@ function DatePickerField({ error, name }: { error?: string; name: string }) {
   );
 }
 
-export function AddProductDialog() {
+export function AddProductDialog({ categories = [] }: { categories?: string[] }) {
   const t = useTranslations("Dashboard.logistics");
   const { onOpenChange: setOpen, open } = useQueryDialog("add-product");
   const submissionCount = React.useRef(0);
   const handledSubmissionCount = React.useRef(0);
+  const [categoryOptions, setCategoryOptions] = React.useState(() => [...new Set(categories.filter(Boolean))].sort());
+  const [newCategory, setNewCategory] = React.useState("");
+  const [isAddingCategory, setIsAddingCategory] = React.useState(false);
+  const [selectedCategory, setSelectedCategory] = React.useState("");
   const [state, submitAction, pending] = useActionState(async (_state: LogisticsActionResult, formData: FormData) => {
     submissionCount.current += 1;
 
     return createProduct(formData);
   }, initialLogisticsActionState);
+
+  React.useEffect(() => {
+    const savedCategories = window.localStorage.getItem("gym-product-categories");
+    if (!savedCategories) return;
+    try {
+      const saved = JSON.parse(savedCategories) as unknown;
+      if (Array.isArray(saved)) {
+        setCategoryOptions((current) =>
+          [...new Set([...current, ...saved.filter((item): item is string => typeof item === "string")])].sort(),
+        );
+      }
+    } catch {
+      // Ignore invalid local category preferences.
+    }
+  }, []);
+
+  function addCategory() {
+    const category = newCategory.trim();
+    if (!category || categoryOptions.some((item) => item.toLowerCase() === category.toLowerCase())) return;
+    const next = [...categoryOptions, category].sort();
+    setCategoryOptions(next);
+    window.localStorage.setItem("gym-product-categories", JSON.stringify(next));
+    setSelectedCategory(category);
+    setNewCategory("");
+    setIsAddingCategory(false);
+  }
 
   React.useEffect(() => {
     if (!state.message || handledSubmissionCount.current === submissionCount.current) return;
@@ -179,31 +209,71 @@ export function AddProductDialog() {
           <DialogTitle>{t("addProductTitle")}</DialogTitle>
           <DialogDescription>{t("addProductDescription")}</DialogDescription>
         </DialogHeader>
-        <form action={submitAction} className="grid gap-4">
+        <form key={`product-${submissionCount.current}-${state.ok}`} action={submitAction} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field error={state.errors?.name?.[0]} label={t("name")} name="product-name">
               <Input
                 id="product-name"
                 name="name"
                 required
+                defaultValue={state.values?.name ?? ""}
                 placeholder={t("namePlaceholder")}
                 aria-invalid={Boolean(state.errors?.name?.[0])}
               />
             </Field>
             <Field error={state.errors?.category?.[0]} label={t("category")} name="product-category">
-              <Input
-                id="product-category"
-                name="category"
-                required
-                placeholder={t("categoryPlaceholder")}
-                aria-invalid={Boolean(state.errors?.category?.[0])}
-              />
+              <div className="flex gap-2">
+                <Select
+                  name="category"
+                  value={selectedCategory}
+                  onValueChange={(value) => setSelectedCategory(value ?? "")}
+                >
+                  <SelectTrigger
+                    id="product-category"
+                    className="min-w-0 flex-1"
+                    aria-invalid={Boolean(state.errors?.category?.[0])}
+                  >
+                    <SelectValue placeholder={t("selectCategory")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {categoryOptions.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={t("addCategory")}
+                  onClick={() => setIsAddingCategory((current) => !current)}
+                >
+                  +
+                </Button>
+              </div>
+              {isAddingCategory ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newCategory}
+                    onChange={(event) => setNewCategory(event.target.value)}
+                    placeholder={t("newCategoryPlaceholder")}
+                  />
+                  <Button type="button" variant="secondary" onClick={addCategory}>
+                    {t("saveCategory")}
+                  </Button>
+                </div>
+              ) : null}
             </Field>
             <Field error={state.errors?.sku?.[0]} label={t("sku")} name="product-sku">
               <Input
                 id="product-sku"
                 name="sku"
                 required
+                defaultValue={state.values?.sku ?? ""}
                 placeholder={t("skuPlaceholder")}
                 aria-invalid={Boolean(state.errors?.sku?.[0])}
               />
@@ -226,6 +296,7 @@ export function AddProductDialog() {
                 name="price"
                 required
                 type="number"
+                defaultValue={state.values?.price ?? ""}
                 min="0.01"
                 step="0.01"
                 placeholder="150"
@@ -238,6 +309,7 @@ export function AddProductDialog() {
                 name="cost"
                 required
                 type="number"
+                defaultValue={state.values?.cost ?? ""}
                 min="0"
                 step="0.01"
                 placeholder="90"
@@ -250,7 +322,7 @@ export function AddProductDialog() {
                 name="stock_quantity"
                 type="number"
                 min="0"
-                defaultValue="0"
+                defaultValue={state.values?.stock_quantity ?? "0"}
                 aria-invalid={Boolean(state.errors?.stock_quantity?.[0])}
               />
             </Field>
@@ -264,7 +336,7 @@ export function AddProductDialog() {
                 name="low_stock_threshold"
                 type="number"
                 min="0"
-                defaultValue="5"
+                defaultValue={state.values?.low_stock_threshold ?? "5"}
                 aria-invalid={Boolean(state.errors?.low_stock_threshold?.[0])}
               />
             </Field>
@@ -316,17 +388,22 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
         <Truck />
         {t("createPo")}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t("createPurchaseOrder")}</DialogTitle>
           <DialogDescription>{t("createPurchaseOrderDescription")}</DialogDescription>
         </DialogHeader>
-        <form action={submitAction} className="grid gap-4">
+        <form
+          key={`purchase-order-${submissionCount.current}-${state.ok}`}
+          action={submitAction}
+          className="grid gap-4"
+        >
           <Field error={state.errors?.supplier_name?.[0]} label={t("supplier")} name="po-supplier-name">
             <Input
               id="po-supplier-name"
               name="supplier_name"
               required
+              defaultValue={state.values?.supplier_name ?? ""}
               placeholder={t("supplierPlaceholder")}
               aria-invalid={Boolean(state.errors?.supplier_name?.[0])}
             />
@@ -335,6 +412,7 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
             <Input
               id="po-supplier-phone"
               name="supplier_phone"
+              defaultValue={state.values?.supplier_phone ?? ""}
               placeholder="+20..."
               aria-invalid={Boolean(state.errors?.supplier_phone?.[0])}
             />
@@ -352,7 +430,10 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
             </div>
           </Field>
           <Field error={state.errors?.product_id?.[0]} label={t("product")} name="po-product-id">
-            <Select name="product_id" defaultValue={defaultProduct ? String(defaultProduct.id) : undefined}>
+            <Select
+              name="product_id"
+              defaultValue={state.values?.product_id ?? (defaultProduct ? String(defaultProduct.id) : undefined)}
+            >
               <SelectTrigger
                 id="po-product-id"
                 className="w-full"
@@ -379,7 +460,7 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
                 required
                 type="number"
                 min="1"
-                defaultValue="1"
+                defaultValue={state.values?.quantity_ordered ?? "1"}
                 aria-invalid={Boolean(state.errors?.quantity_ordered?.[0])}
               />
             </Field>
@@ -391,16 +472,21 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
                 type="number"
                 min="0"
                 step="0.01"
-                defaultValue={defaultProduct?.cost ?? "0"}
+                defaultValue={state.values?.unit_cost ?? defaultProduct?.cost ?? "0"}
                 aria-invalid={Boolean(state.errors?.unit_cost?.[0])}
               />
             </Field>
-            <DatePickerField error={state.errors?.expected_at?.[0]} name="expected_at" />
+            <DatePickerField
+              error={state.errors?.expected_at?.[0]}
+              initialValue={state.values?.expected_at ?? ""}
+              name="expected_at"
+            />
           </div>
           <Field error={state.errors?.notes?.[0]} label={t("notes")} name="po-notes">
             <Textarea
               id="po-notes"
               name="notes"
+              defaultValue={state.values?.notes ?? ""}
               placeholder={t("notesPlaceholder")}
               aria-invalid={Boolean(state.errors?.notes?.[0])}
             />

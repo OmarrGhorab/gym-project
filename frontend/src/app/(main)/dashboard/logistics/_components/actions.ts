@@ -114,6 +114,7 @@ export async function createProduct(input: FormData): Promise<LogisticsActionRes
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Could not create product.",
+      values,
     };
   }
 
@@ -167,6 +168,7 @@ export async function createPurchaseOrder(input: FormData): Promise<LogisticsAct
     return {
       ok: false,
       message: error instanceof Error ? error.message : "Could not create purchase order.",
+      values,
     };
   }
 

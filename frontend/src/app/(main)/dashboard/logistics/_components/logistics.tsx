@@ -87,7 +87,9 @@ function InventorySummarySheet({
 
           {productPermissions.canCreateProduct || productPermissions.canAdjustInventory || canRecordExpense ? (
             <div className="grid grid-cols-2 gap-2">
-              {productPermissions.canCreateProduct ? <AddProductDialog /> : null}
+              {productPermissions.canCreateProduct ? (
+                <AddProductDialog categories={data.products.map((product) => product.category)} />
+              ) : null}
               {productPermissions.canAdjustInventory ? <CreatePurchaseOrderDialog products={data.products} /> : null}
               {canRecordExpense ? <RecordExpenseDialog /> : null}
             </div>
@@ -200,7 +202,9 @@ export function Logistics({
           <div className="flex h-full min-h-0 flex-col">
             {canShowProductHeaderActions ? (
               <div className="flex items-center justify-end gap-2 border-b p-3">
-                {productPermissions.canCreateProduct ? <AddProductDialog /> : null}
+                {productPermissions.canCreateProduct ? (
+                  <AddProductDialog categories={data.products.map((product) => product.category)} />
+                ) : null}
                 {productPermissions.canAdjustInventory ? <CreatePurchaseOrderDialog products={data.products} /> : null}
                 {canRecordExpense ? <RecordExpenseDialog /> : null}
               </div>
