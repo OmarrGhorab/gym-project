@@ -13,11 +13,13 @@ use App\Http\Resources\EmployeeShiftResource;
 use App\Http\Resources\ShiftSessionResource;
 use App\Models\EmployeeShift;
 use App\Models\Expense;
+use App\Models\OvertimeShift;
 use App\Models\Payment;
 use App\Models\ShiftSession;
 use App\Support\FoundationPermissions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class ShiftSessionController extends ApiController
 {
@@ -90,6 +92,18 @@ class ShiftSessionController extends ApiController
     public function shiftOptions(Request $request): JsonResponse
     {
         $this->authorizeFinanceView($request);
+        $data = $request->validate(['date' => ['nullable', 'date']]);
+        $date = isset($data['date']) ? Carbon::parse($data['date'])->toDateString() : Carbon::today()->toDateString();
+        $currentEmployeeId = $request->user()?->employee?->id;
+
+        $coveringStaff = OvertimeShift::query()
+            ->activeClaim()
+            ->whereDate('date', $date)
+            ->whereNotNull('employee_shift_id')
+            ->with(['employee' => fn ($query) => $query->active()->select('id', 'name', 'role', 'shift_id')])
+            ->get()
+            ->filter(fn (OvertimeShift $overtime): bool => $overtime->employee !== null)
+            ->groupBy('employee_shift_id');
 
         $shifts = EmployeeShift::query()
             ->where('is_active', true)
@@ -99,9 +113,13 @@ class ShiftSessionController extends ApiController
             ->orderBy('name')
             ->get();
 
-        $payload = $shifts->map(function (EmployeeShift $shift) use ($request): array {
+        $payload = $shifts->map(function (EmployeeShift $shift) use ($coveringStaff, $currentEmployeeId, $request): array {
             $row = (new EmployeeShiftResource($shift))->toArray($request);
             $row['employees'] = $shift->employees
+                ->concat($coveringStaff->get($shift->id, collect())->pluck('employee'))
+                ->unique('id')
+                // "Me" already represents the signed-in employee in the picker.
+                ->reject(fn ($employee): bool => $currentEmployeeId !== null && (int) $employee->id === (int) $currentEmployeeId)
                 ->map(fn ($employee): array => [
                     'id' => $employee->id,
                     'name' => $employee->name,

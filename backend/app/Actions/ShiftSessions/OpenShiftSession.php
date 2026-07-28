@@ -26,8 +26,12 @@ class OpenShiftSession
         $session = DB::transaction(function () use ($data, $user): ShiftSession {
             $shift = EmployeeShift::query()->findOrFail($data['employee_shift_id']);
 
+            $businessDate = isset($data['business_date'])
+                ? Carbon::parse($data['business_date'])->toDateString()
+                : Carbon::today()->toDateString();
+
             // Only an employee of this shift may hold the drawer (admins act on their behalf).
-            $employee = $this->staff->handle($shift, $user, $data['employee_id'] ?? null);
+            $employee = $this->staff->handle($shift, $user, $data['employee_id'] ?? null, 'employee_id', $businessDate);
 
             $alreadyOpen = ShiftSession::query()
                 ->where('employee_shift_id', $shift->id)
@@ -61,10 +65,6 @@ class OpenShiftSession
                 ->orderByDesc('closed_at')
                 ->first();
 
-            $businessDate = isset($data['business_date'])
-                ? Carbon::parse($data['business_date'])->toDateString()
-                : Carbon::today()->toDateString();
-
             // Cash carries forward shift-to-shift within one business day. A new business
             // date starts the drawer at zero — the day's takings are banked, not inherited.
             $isNewDay = $lastResolved && $this->businessDate($lastResolved) !== $businessDate;
@@ -72,9 +72,14 @@ class OpenShiftSession
                 ? '0.00'
                 : (string) ($lastResolved->counted_cash ?? $lastResolved->expected_cash ?? '0.00');
 
-            $openingFloat = array_key_exists('opening_float', $data) && $data['opening_float'] !== null && $data['opening_float'] !== ''
-                ? bcadd((string) $data['opening_float'], '0.00', 2)
-                : bcadd($defaultFloat, '0.00', 2);
+            // A later shift never accepts a manually supplied float: its drawer must
+            // begin with the cash counted by the previous resolved same-day shift.
+            // The optional amount is only for the first shift of a new business day.
+            $openingFloat = ! $isNewDay && $lastResolved
+                ? bcadd($defaultFloat, '0.00', 2)
+                : (array_key_exists('opening_float', $data) && $data['opening_float'] !== null && $data['opening_float'] !== ''
+                    ? bcadd((string) $data['opening_float'], '0.00', 2)
+                    : bcadd($defaultFloat, '0.00', 2));
 
             return ShiftSession::query()->create([
                 'employee_shift_id' => $shift->id,

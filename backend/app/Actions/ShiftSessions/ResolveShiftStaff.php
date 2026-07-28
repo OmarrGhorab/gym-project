@@ -4,8 +4,10 @@ namespace App\Actions\ShiftSessions;
 
 use App\Models\Employee;
 use App\Models\EmployeeShift;
+use App\Models\OvertimeShift;
 use App\Models\User;
 use App\Support\FoundationPermissions;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -17,8 +19,13 @@ use Illuminate\Validation\ValidationException;
  */
 class ResolveShiftStaff
 {
-    public function handle(EmployeeShift $shift, User $user, ?int $employeeId = null, string $field = 'employee_id'): Employee
-    {
+    public function handle(
+        EmployeeShift $shift,
+        User $user,
+        ?int $employeeId = null,
+        string $field = 'employee_id',
+        Carbon|string|null $businessDate = null,
+    ): Employee {
         $actor = Employee::query()->where('user_id', $user->id)->first();
         $isAdmin = method_exists($user, 'hasRole') && $user->hasRole(FoundationPermissions::ROLE_ADMIN);
 
@@ -38,11 +45,11 @@ class ResolveShiftStaff
                 ]);
             }
 
-            return $this->assertEligible($employee, $shift, $field);
+            return $this->assertEligible($employee, $shift, $field, $businessDate);
         }
 
-        if ($actor && (int) $actor->shift_id === (int) $shift->id) {
-            return $this->assertEligible($actor, $shift, $field);
+        if ($actor) {
+            return $this->assertEligible($actor, $shift, $field, $businessDate);
         }
 
         throw ValidationException::withMessages([
@@ -52,11 +59,20 @@ class ResolveShiftStaff
         ]);
     }
 
-    private function assertEligible(Employee $employee, EmployeeShift $shift, string $field): Employee
+    private function assertEligible(Employee $employee, EmployeeShift $shift, string $field, Carbon|string|null $businessDate): Employee
     {
-        if ((int) $employee->shift_id !== (int) $shift->id) {
+        $date = $businessDate ? Carbon::parse($businessDate)->toDateString() : Carbon::today()->toDateString();
+        $isAssigned = (int) $employee->shift_id === (int) $shift->id;
+        $isCovering = OvertimeShift::query()
+            ->activeClaim()
+            ->where('employee_id', $employee->id)
+            ->where('employee_shift_id', $shift->id)
+            ->whereDate('date', $date)
+            ->exists();
+
+        if (! $isAssigned && ! $isCovering) {
             throw ValidationException::withMessages([
-                $field => $employee->name.' is not assigned to '.$shift->name.'.',
+                $field => $employee->name.' is not assigned to or scheduled to cover '.$shift->name.' on '.$date.'.',
             ]);
         }
 

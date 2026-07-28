@@ -720,7 +720,7 @@ function OpenSessionForm({
             min="0"
             step="0.01"
             value={openingFloat}
-            placeholder="Automatic from previous handover"
+            placeholder="First shift only; later shifts are automatic"
             onChange={(event) => setOpeningFloat(event.target.value)}
           />
         </div>
@@ -744,7 +744,7 @@ function OpenSessionForm({
           Open shift
         </Button>
         <span className="text-[11px] text-muted-foreground">
-          Cash carries over between shifts on the same day and starts at zero each new day.
+          Later shifts always receive the previous shift's counted cash. Use this only to set the first shift's float.
         </span>
       </div>
     </div>

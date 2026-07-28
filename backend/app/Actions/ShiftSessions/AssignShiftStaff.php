@@ -39,9 +39,9 @@ class AssignShiftStaff
 
             $previous = $locked->openedByEmployee?->name;
 
-            // Same rule as opening: the employee must belong to this shift, and only an
-            // admin may nominate somebody other than themselves.
-            $employee = $this->staff->handle($locked->shift, $user, $data['employee_id'] ?? null);
+            // Same rule as opening: the employee must belong to this shift or be its
+            // approved cover on this business date; only an admin may nominate another person.
+            $employee = $this->staff->handle($locked->shift, $user, $data['employee_id'] ?? null, 'employee_id', $locked->business_date);
 
             $locked->update(['opened_by_employee_id' => $employee->id]);
 

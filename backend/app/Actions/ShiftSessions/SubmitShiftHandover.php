@@ -2,6 +2,7 @@
 
 namespace App\Actions\ShiftSessions;
 
+use App\Models\EmployeeShift;
 use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\User;
@@ -43,7 +44,7 @@ class SubmitShiftHandover
             $matchOnly = (bool) $this->setting('shifts.handover_auto_accept_on_match_only', true);
 
             $status = ShiftSession::STATUS_PENDING_ADMIN;
-            if ($autoAccept && ($matches || ! $matchOnly)) {
+            if ($autoAccept && ! $this->isFinalShiftOfBusinessDay($locked) && ($matches || ! $matchOnly)) {
                 $status = ShiftSession::STATUS_AUTO_ACCEPTED;
             } elseif ($matches && ! $autoAccept) {
                 // Exact match still goes to admin unless auto-accept is on — product: admin notified to accept.
@@ -88,5 +89,36 @@ class SubmitShiftHandover
         }
 
         return $value ?? $default;
+    }
+
+    /** The final scheduled desk must always be accepted or rejected by an admin. */
+    private function isFinalShiftOfBusinessDay(ShiftSession $session): bool
+    {
+        $session->loadMissing('shift');
+        if ($session->shift === null) {
+            return true;
+        }
+
+        $endMinute = fn (EmployeeShift $shift): int => $this->endMinute($shift);
+        $lastEndMinute = EmployeeShift::query()
+            ->where('is_active', true)
+            ->get()
+            ->map($endMinute)
+            ->max();
+
+        return $this->endMinute($session->shift) >= ($lastEndMinute ?? 0);
+    }
+
+    private function endMinute(EmployeeShift $shift): int
+    {
+        $start = $shift->starts_at?->format('H:i') ?? '00:00';
+        $end = $shift->ends_at?->format('H:i') ?? '00:00';
+        [$startHour, $startMinute] = array_map('intval', explode(':', $start));
+        [$endHour, $endMinute] = array_map('intval', explode(':', $end));
+
+        $startTotal = ($startHour * 60) + $startMinute;
+        $endTotal = ($endHour * 60) + $endMinute;
+
+        return $endTotal <= $startTotal ? $endTotal + (24 * 60) : $endTotal;
     }
 }

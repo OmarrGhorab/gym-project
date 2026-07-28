@@ -40,7 +40,7 @@ class CloseShiftSession
             }
 
             // Only an employee of this shift may close its drawer.
-            $employee = $this->staff->handle($locked->shift, $user, $employeeId);
+            $employee = $this->staff->handle($locked->shift, $user, $employeeId, 'employee_id', $locked->business_date);
 
             // The scheduled end time is not a gate: staff close the session by hand when they
             // actually check out, which may be earlier or later than the schedule on an
