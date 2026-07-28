@@ -196,6 +196,7 @@ export async function StaffOperations({
                         bonusEnabled={shift.off_day_bonus_enabled}
                         bonusAmount={shift.off_day_bonus_amount}
                         offDays={shift.off_days}
+                        rotationActive={shift.off_rotation?.is_active === true}
                         shiftId={shift.id}
                         t={t}
                       />
@@ -242,12 +243,14 @@ function ShiftPolicyFields({
   bonusAmount,
   bonusEnabled,
   offDays,
+  rotationActive = false,
   shiftId = "new",
   t,
 }: {
   bonusAmount: string;
   bonusEnabled: boolean;
   offDays: number[];
+  rotationActive?: boolean;
   shiftId?: number | "new";
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
@@ -267,6 +270,9 @@ function ShiftPolicyFields({
           Select the weekly off-day(s) for this shift. Staff assigned to this shift automatically rotate taking this
           off-weekday week by week.
         </p>
+        {rotationActive ? (
+          <p className="text-amber-600 text-xs dark:text-amber-400">{t("fixedOffDaysDisabledHelp")}</p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {weekDays.map((day) => {
             const id = `shift-${shiftId}-off-day-${day.value}`;
@@ -278,14 +284,17 @@ function ShiftPolicyFields({
                 htmlFor={id}
                 className={cn(
                   "inline-flex cursor-pointer select-none items-center gap-2 rounded-full border px-3 py-1.5 font-medium text-sm transition-colors",
+                  rotationActive && "cursor-not-allowed opacity-50",
                   "hover:bg-muted has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary has-[[data-checked]]:text-primary-foreground",
                 )}
               >
+                {rotationActive && selected ? <input type="hidden" name="off_days" value={String(day.value)} /> : null}
                 <Checkbox
                   id={id}
                   name="off_days"
                   value={String(day.value)}
                   defaultChecked={selected}
+                  disabled={rotationActive}
                   className="size-3.5"
                 />
                 <span>{t(day.labelKey)}</span>

@@ -73,6 +73,7 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
   const [unreadCount, setUnreadCount] = useState(initialNotifications.length);
   const [isPending, startTransition] = useTransition();
   const knownIds = useRef(new Set(initialNotifications.map((notification) => notification.id)));
+  const notificationAudio = useRef<HTMLAudioElement | null>(null);
   const visibleNotifications = useMemo(() => notifications.slice(0, 5), [notifications]);
 
   function markRead(notification: NotificationRow) {
@@ -124,6 +125,13 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
 
       if (newNotifications.length > 0) {
         const latest = newNotifications[0];
+        if (!notificationAudio.current) {
+          notificationAudio.current = new Audio("/notifications.mp3");
+        }
+        notificationAudio.current.currentTime = 0;
+        void notificationAudio.current.play().catch(() => {
+          // Browsers can block audio until the user interacts with the page.
+        });
         toast(notificationTitle(latest.data), {
           description: notificationBody(latest.data),
         });
