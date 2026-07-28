@@ -291,7 +291,11 @@ export async function saveShiftOffRotation(
   revalidatePath("/dashboard/academy/staff");
   revalidatePath("/dashboard/attendance");
 
-  return { ok: true, message: "Off-day rotation saved.", errors: {} };
+  return {
+    ok: true,
+    message: parsed.data.is_active ? "Off-day rotation saved." : "Off-day rotation disabled. Fixed off days now apply.",
+    errors: {},
+  };
 }
 
 export async function deactivateShift(input: FormData): Promise<SettingsActionResult> {

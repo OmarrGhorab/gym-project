@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 
 import { ArrowDown, ArrowUp, RotateCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -49,8 +50,9 @@ export function ShiftRotationManager({
   shiftId: number;
   shiftName: string;
 }) {
+  const t = useTranslations("Dashboard.academy");
   let initialOffDay = "5";
-  if (offRotation?.off_weekday != null) {
+  if (offRotation) {
     initialOffDay = String(offRotation.off_weekday);
   } else if (offDays.length > 0) {
     initialOffDay = String(offDays[0]);
@@ -59,7 +61,7 @@ export function ShiftRotationManager({
   const initialStartDate = offRotation?.rotation_start_date ?? new Date().toISOString().slice(0, 10);
 
   const initialOrderedEmployees = useMemo(() => {
-    if (!offRotation?.employee_order || offRotation.employee_order.length === 0) {
+    if (!offRotation || offRotation.employee_order.length === 0) {
       return assignedEmployees;
     }
 
@@ -128,6 +130,14 @@ export function ShiftRotationManager({
   }
 
   const primaryWeekday = Number(offWeekday);
+  const isRotationActive = Boolean(offRotation?.is_active);
+  let rotationSaveLabel = t("enableRotation");
+  if (isRotationActive) {
+    rotationSaveLabel = t("saveRotation");
+  }
+  if (pending) {
+    rotationSaveLabel = t("rotationSaving");
+  }
   const baseDate = startDate && !Number.isNaN(new Date(startDate).getTime()) ? new Date(startDate) : new Date();
   const currentDay = baseDate.getDay();
   const sunday = new Date(baseDate);
@@ -157,7 +167,6 @@ export function ShiftRotationManager({
   return (
     <form action={formAction} className="grid gap-3 rounded-lg border bg-muted/20 p-3 text-xs">
       <input type="hidden" name="shift_id" value={shiftId} />
-      <input type="hidden" name="is_active" value="true" />
       {orderedEmployees.map((emp) => (
         <input key={emp.id} type="hidden" name="employee_order" value={emp.id} />
       ))}
@@ -265,9 +274,31 @@ export function ShiftRotationManager({
           </div>
 
           <div className="flex justify-end pt-1">
-            <Button type="submit" size="sm" disabled={pending} className="h-8 gap-1.5 text-xs">
-              {pending ? "Saving..." : "Save Custom Rotation Order"}
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              {isRotationActive ? (
+                <Button
+                  type="submit"
+                  name="is_active"
+                  value="false"
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  className="h-8 text-xs"
+                >
+                  {t("disableRotation")}
+                </Button>
+              ) : null}
+              <Button
+                type="submit"
+                name="is_active"
+                value="true"
+                size="sm"
+                disabled={pending}
+                className="h-8 gap-1.5 text-xs"
+              >
+                {rotationSaveLabel}
+              </Button>
+            </div>
           </div>
         </>
       )}
