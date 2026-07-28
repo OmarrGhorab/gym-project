@@ -15,6 +15,7 @@ import { getPreference } from "@/server/server-actions";
 
 import { AccountSwitcher } from "./_components/sidebar/account-switcher";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
+import { LocaleSwitchOverlay } from "./_components/sidebar/locale-switch-overlay";
 import { NotificationMenu } from "./_components/sidebar/notification-menu";
 import { SearchDialog } from "./_components/sidebar/search-dialog";
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
@@ -57,6 +58,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
       }
     >
       <AppSidebar user={user} side={sidebarSide} variant={variant} collapsible={collapsible} />
+      <LocaleSwitchOverlay />
       <SidebarInset
         className={cn(
           "[html[data-content-layout=centered]_&>*]:mx-auto",
