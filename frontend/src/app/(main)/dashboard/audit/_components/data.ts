@@ -68,14 +68,27 @@ export async function getAuditPageData(query: AuditQuery = {}): Promise<AuditPag
   }
 }
 
-function getMeta(result: Awaited<ReturnType<typeof serverApiFetch<AuditLogRow[] | PaginatedData<AuditLogRow>>>>) {
-  if (result.meta) {
-    return result.meta;
-  }
+function getMeta(
+  result: Awaited<ReturnType<typeof serverApiFetch<AuditLogRow[] | PaginatedData<AuditLogRow>>>>,
+): AuditPageData["meta"] {
+  const rawMeta = result.meta ?? (!Array.isArray(result.data) ? result.data.meta : undefined);
 
-  if (!Array.isArray(result.data) && result.data.meta) {
-    return result.data.meta;
-  }
+  return {
+    current_page: positiveInteger(rawMeta?.current_page, 1),
+    last_page: positiveInteger(rawMeta?.last_page, 1),
+    per_page: positiveInteger(rawMeta?.per_page, 20),
+    total: nonNegativeInteger(rawMeta?.total, 0),
+  };
+}
 
-  return {};
+function positiveInteger(value: unknown, fallback: number) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number > 0 ? Math.trunc(number) : fallback;
+}
+
+function nonNegativeInteger(value: unknown, fallback: number) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : fallback;
 }

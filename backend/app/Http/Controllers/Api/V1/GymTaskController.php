@@ -27,7 +27,7 @@ final class GymTaskController extends ApiController
             ->map(fn (GymTask $task): array => $this->formatTask($task));
 
         return $this->success(
-            data: $manual->merge($this->generatedTasks())->values()->all(),
+            data: collect($manual->all())->merge($this->generatedTasks())->values()->all(),
             message: 'Gym tasks retrieved',
         );
     }

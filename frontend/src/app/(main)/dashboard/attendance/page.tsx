@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { canAccess } from "@/lib/authorization";
+import { getCurrentUser } from "@/lib/session";
 
 import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { AttendanceDayPicker } from "./_components/attendance-day-picker";
@@ -29,6 +31,8 @@ type PageProps = {
 export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.attendance");
   const locale = await getLocale();
+  const currentUser = await getCurrentUser();
+  const canManageOvertime = currentUser ? canAccess(currentUser, "attendance.update") : false;
   const numberFormatter = new Intl.NumberFormat(locale);
   const resolvedSearchParams = await searchParams;
   const selectedDate = normalizeDate(resolvedSearchParams.date);
@@ -105,6 +109,7 @@ export default async function Page({ searchParams }: PageProps) {
       />
 
       <OvertimeShiftsPanel
+        canManageOvertime={canManageOvertime}
         candidates={data.overtimeCandidates}
         employees={data.employees}
         overtimeShifts={data.overtimeShifts}

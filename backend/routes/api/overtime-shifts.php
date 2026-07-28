@@ -24,7 +24,7 @@ Route::prefix('overtime-shifts')->group(function (): void {
         ->middleware('permission:attendance.view|payroll.view');
 
     Route::post('/', [OvertimeShiftController::class, 'store'])
-        ->middleware(['permission:attendance.create', 'throttle:api']);
+        ->middleware(['permission:attendance.update', 'throttle:api']);
 
     Route::put('/{overtimeShift}', [OvertimeShiftController::class, 'review'])
         ->middleware(['permission:attendance.update', 'throttle:api']);

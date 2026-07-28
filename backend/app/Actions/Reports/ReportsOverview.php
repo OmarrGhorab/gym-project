@@ -8,6 +8,7 @@ use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
 
@@ -24,7 +25,10 @@ final class ReportsOverview
 
         $expenses = $this->amountsByDate(Expense::query()->whereBetween('date', [$from, $to]), 'date');
         $posPayments = $this->paymentsByDate(Sale::class, $from, $to);
-        $membershipPayments = $this->paymentsByDate(Subscription::class, $from, $to);
+        // Membership revenue includes both the main subscription and any paid
+        // add-ons sold with it. This keeps the overview aligned with shift and
+        // income/cashflow reports.
+        $membershipPayments = $this->paymentsByDate([Subscription::class, SubscriptionAddon::class], $from, $to);
         $bookings = $this->countsByDate(MemberBooking::query()->whereBetween('starts_at', [$from, $to]), 'starts_at');
         $memberships = $this->countsByDate(Subscription::query()->whereBetween('created_at', [$from, $to]), 'created_at');
         $sessions = $this->countsByDate(MemberVisit::query()->whereBetween('check_in_at', [$from, $to]), 'check_in_at');
@@ -82,11 +86,12 @@ final class ReportsOverview
     }
 
     /** @return array<string, array{amount: float, count: int}> */
-    private function paymentsByDate(string $payableType, CarbonImmutable $from, CarbonImmutable $to): array
+    /** @param class-string|list<class-string> $payableTypes */
+    private function paymentsByDate(string|array $payableTypes, CarbonImmutable $from, CarbonImmutable $to): array
     {
         return Payment::query()
             ->revenue()
-            ->where('payable_type', $payableType)
+            ->whereIn('payable_type', (array) $payableTypes)
             ->whereBetween('paid_at', [$from, $to])
             ->selectRaw('DATE(paid_at) as report_date, SUM(amount) as total, COUNT(DISTINCT payable_id) as payment_count')
             ->groupBy('report_date')

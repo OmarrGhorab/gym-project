@@ -258,6 +258,26 @@ test('overtime endpoints reject users without attendance permissions', function 
     ])->assertStatus(403);
 });
 
+test('front-desk staff can view uncovered shifts but cannot assign coverage', function (): void {
+    $cashier = User::factory()->create();
+    $cashier->assignRole(FoundationPermissions::ROLE_CASHIER);
+    Sanctum::actingAs($cashier);
+
+    $shift = EmployeeShift::factory()->create(['off_days' => []]);
+    $absent = Employee::factory()->create(['shift_id' => $shift->id, 'status' => 'active']);
+    $cover = Employee::factory()->create(['status' => 'active']);
+
+    $this->getJson('/api/v1/overtime-shifts/candidates?date='.today()->toDateString())
+        ->assertOk()
+        ->assertJsonPath('data.0.employee.id', $absent->id);
+
+    $this->postJson('/api/v1/overtime-shifts', [
+        'employee_id' => $cover->id,
+        'covering_for_employee_id' => $absent->id,
+        'date' => today()->toDateString(),
+    ])->assertForbidden();
+});
+
 test('overtime endpoints require authentication', function (): void {
     $this->getJson('/api/v1/overtime-shifts')->assertStatus(401);
 });

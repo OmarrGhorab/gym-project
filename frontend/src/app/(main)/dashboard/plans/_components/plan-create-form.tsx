@@ -117,6 +117,10 @@ export function PlanCreateForm({
     () => new Map<string, PlanCategoryScope>(localCategories.map((category) => [category.slug, category.plan_scope])),
     [localCategories],
   );
+  const defaultMembershipCategory = React.useMemo(
+    () => localCategories.find((category) => category.is_active && category.plan_type === "membership")?.slug ?? "",
+    [localCategories],
+  );
 
   async function handleCreateCategory() {
     if (!newCatName.trim()) {
@@ -154,7 +158,7 @@ export function PlanCreateForm({
     ? state.values.freeze_requires_approval === "on"
     : Boolean(plan?.freeze_requires_approval);
   const initialPlanType = state.values.type || valueOrPlan(state, plan, "type") || "membership";
-  const initialCategory = state.values.category || valueOrPlan(state, plan, "category") || "gym_access";
+  const initialCategory = state.values.category || valueOrPlan(state, plan, "category") || defaultMembershipCategory;
   const initialDurationBasis = state.values.duration_basis || (plan?.duration_months ? "months" : "days");
   const initialDurationMonths = state.values.duration_months || valueOrPlan(state, plan, "duration_months") || "1";
   const initialValidFrom = state.values.valid_from || valueOrPlan(state, plan, "valid_from");
@@ -310,7 +314,7 @@ export function PlanCreateForm({
         onSuccess?.();
         formRef.current?.reset();
         setPlanType("membership");
-        setCategory("gym_access");
+        setCategory(defaultMembershipCategory);
         setUnlimitedSessions(false);
         setFreezeRequiresApproval(false);
         setDurationBasis("days");
@@ -331,7 +335,7 @@ export function PlanCreateForm({
     } else {
       toast.error(state.message);
     }
-  }, [mode, onSuccess, state, t]);
+  }, [defaultMembershipCategory, mode, onSuccess, state, t]);
 
   React.useEffect(() => {
     if (!state.ok) {
@@ -341,7 +345,7 @@ export function PlanCreateForm({
           : Boolean(plan?.freeze_requires_approval),
       );
       setPlanType(state.values.type || valueOrPlan(state, plan, "type") || "membership");
-      setCategory(state.values.category || valueOrPlan(state, plan, "category") || "gym_access");
+      setCategory(state.values.category || valueOrPlan(state, plan, "category") || defaultMembershipCategory);
       setDurationBasis(state.values.duration_basis || (plan?.duration_months ? "months" : "days"));
       setDurationMonths(state.values.duration_months || valueOrPlan(state, plan, "duration_months") || "1");
       setValidFrom(state.values.valid_from || valueOrPlan(state, plan, "valid_from"));
@@ -378,6 +382,7 @@ export function PlanCreateForm({
     state.ok,
     state.values.employee_commission_rules,
     state.values.category,
+    defaultMembershipCategory,
     state.values.duration_basis,
     state.values.duration_months,
     state.values.freeze_requires_approval,
@@ -506,7 +511,7 @@ export function PlanCreateForm({
         name="price"
         type="number"
         step="0.01"
-        defaultValue={planPrice}
+        value={planPrice}
         onChange={(event) => setPlanPrice(event.currentTarget.value)}
       />
       {isOfferLike ? (

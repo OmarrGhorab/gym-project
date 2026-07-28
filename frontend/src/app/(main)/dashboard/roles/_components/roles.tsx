@@ -258,6 +258,11 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+          {!role.is_preset ? (
+            <form action={submitDelete} id={`delete-role-${role.id}`}>
+              <input type="hidden" name="id" value={role.id} />
+            </form>
+          ) : null}
         </TableCell>
       </TableRow>
       {open ? (
@@ -285,11 +290,6 @@ function RoleTableRow({ permissionGroups, role }: { permissionGroups: Permission
               <FieldError errors={errors.permissions} />
               <PermissionPicker permissionGroups={permissionGroups} selected={role.permissions} compact />
             </form>
-            {!role.is_preset ? (
-              <form action={submitDelete} id={`delete-role-${role.id}`}>
-                <input type="hidden" name="id" value={role.id} />
-              </form>
-            ) : null}
           </TableCell>
         </TableRow>
       ) : null}

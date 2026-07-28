@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Member;
+use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -10,6 +11,7 @@ use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -123,4 +125,42 @@ test('admin can access income outcome report', function (): void {
                 'timeline',
             ],
         ]);
+});
+
+test('income outcome does not count paid payroll twice when its expense ledger row exists', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    Payroll::factory()->create([
+        'net_salary' => '500.00',
+        'paid_at' => '2026-07-28 10:00:00',
+        'status' => 'paid',
+    ]);
+    DB::table('expenses')->insert([
+        'amount' => '500.00',
+        'category' => 'payroll',
+        'created_at' => '2026-07-28 10:00:00',
+        'created_by' => $user->id,
+        'date' => '2026-07-28',
+        'description' => 'Payroll ledger row.',
+    ]);
+    DB::table('expenses')->insert([
+        'amount' => '125.00',
+        'category' => 'utilities',
+        'created_at' => '2026-07-28 10:00:00',
+        'created_by' => $user->id,
+        'date' => '2026-07-28',
+        'description' => 'Electricity bill.',
+    ]);
+
+    $response = $this->getJson('/api/v1/reports/income-outcome?from=2026-07-28&to=2026-07-28');
+    $response
+        ->assertOk()
+        ->assertJsonPath('data.totals.expenses_outcome', '125.00')
+        ->assertJsonPath('data.totals.payroll_outcome', '500.00')
+        ->assertJsonPath('data.totals.total_outcome', '625.00')
+        ->assertJsonPath('data.timeline.0.expenses_outcome', '125.00')
+        ->assertJsonPath('data.timeline.0.payroll_outcome', '500.00')
+        ->assertJsonPath('data.timeline.0.total_outcome', '625.00');
 });

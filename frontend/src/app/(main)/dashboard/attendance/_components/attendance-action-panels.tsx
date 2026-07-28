@@ -3,7 +3,7 @@
 import { type ReactNode, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { format, parseISO } from "date-fns";
-import { CalendarIcon, CheckCircle2, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
+import { CalendarIcon, LocateFixed, LogIn, Upload, UserCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -66,6 +66,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const t = useTranslations("Dashboard.attendance");
   const formRef = useRef<HTMLFormElement | null>(null);
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
+  useAttendanceActionToast(state);
   const location = useGpsLocation();
   const [qrToken, setQrToken] = useState("");
   const [scanMethod, setScanMethod] = useState<"qr" | "scanner" | "manual">("scanner");
@@ -281,7 +282,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
             <FieldLabel htmlFor="member-scan-notes" label={t("notesLabel")} meta={t("optionalField")} />
             <Textarea id="member-scan-notes" name="notes" placeholder={t("notesPlaceholder")} />
           </FieldGroup>
-          <PanelFooter state={state} pending={pending} label={t("submitMemberScan")} />
+          <PanelFooter pending={pending} label={t("submitMemberScan")} />
         </form>
       </CardContent>
     </Card>
@@ -298,6 +299,7 @@ function StaffScanCard({
   const t = useTranslations("Dashboard.attendance");
   const staffFormRef = useRef<HTMLFormElement | null>(null);
   const [state, action, pending] = useActionState(scanStaffAttendance, initialState);
+  useAttendanceActionToast(state);
   const location = useGpsLocation();
   const [scanValue, setScanValue] = useState("");
   const [scanMethod, setScanMethod] = useState<"qr" | "scanner" | "manual">("scanner");
@@ -440,7 +442,7 @@ function StaffScanCard({
             <FieldLabel htmlFor="staff-scan-notes" label={t("notesLabel")} meta={t("optionalField")} />
             <Textarea id="staff-scan-notes" name="notes" placeholder={t("notesPlaceholder")} />
           </FieldGroup>
-          <PanelFooter state={state} pending={pending} label={t("submitStaffScan")} />
+          <PanelFooter pending={pending} label={t("submitStaffScan")} />
         </form>
       </CardContent>
     </Card>
@@ -460,6 +462,7 @@ function ManualAttendanceCard({
 }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(createManualAttendance, initialState);
+  useAttendanceActionToast(state);
   const employeeOptions = useMemo(() => employeeSelectOptions(employees), [employees]);
   const isCorrection = Boolean(correctionRecord);
 
@@ -594,11 +597,7 @@ function ManualAttendanceCard({
               defaultValue={correctionRecord?.notes ?? ""}
             />
           </FieldGroup>
-          <PanelFooter
-            state={state}
-            pending={pending}
-            label={isCorrection ? t("saveAttendanceCorrection") : t("createAttendance")}
-          />
+          <PanelFooter pending={pending} label={isCorrection ? t("saveAttendanceCorrection") : t("createAttendance")} />
         </form>
       </CardContent>
     </Card>
@@ -1312,34 +1311,31 @@ function loadImage(src: string) {
   });
 }
 
-function PanelFooter({
-  disabled = false,
-  label,
-  pending,
-  state,
-}: {
-  disabled?: boolean;
-  label: string;
-  pending: boolean;
-  state: AttendanceActionResult;
-}) {
+function PanelFooter({ disabled = false, label, pending }: { disabled?: boolean; label: string; pending: boolean }) {
   const t = useTranslations("Dashboard.attendance");
 
   return (
-    <div className="flex items-center justify-between gap-3 md:col-span-full">
-      <div className={state.ok ? "text-muted-foreground text-xs" : "text-destructive text-xs"}>
-        {state.message ? (
-          <span className="inline-flex items-center gap-1">
-            {state.ok ? <CheckCircle2 className="size-3.5" /> : null}
-            {state.message}
-          </span>
-        ) : null}
-      </div>
+    <div className="flex items-center justify-end gap-3 md:col-span-full">
       <Button type="submit" disabled={pending || disabled}>
         {pending ? t("submitting") : label}
       </Button>
     </div>
   );
+}
+
+function useAttendanceActionToast(state: AttendanceActionResult) {
+  useEffect(() => {
+    if (!state.message) {
+      return;
+    }
+
+    if (state.ok) {
+      toast.success(state.message);
+      return;
+    }
+
+    toast.error(state.message);
+  }, [state]);
 }
 
 type GpsState = {

@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Sale;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -28,7 +29,9 @@ test('reports overview returns daily expenses, sales, bookings, memberships and 
 
     $member = Member::factory()->create();
     $sale = Sale::factory()->for($member)->create();
-    $subscription = Subscription::factory()->for($member)->for(Plan::factory())->create();
+    $subscription = Subscription::factory()->for($member)->for(Plan::factory())->create([
+        'created_at' => '2026-07-26 08:00:00',
+    ]);
 
     Expense::factory()->create(['amount' => '75.00', 'date' => '2026-07-26']);
     MemberBooking::query()->create([
@@ -41,6 +44,16 @@ test('reports overview returns daily expenses, sales, bookings, memberships and 
     MemberVisit::factory()->for($member)->create(['check_in_at' => '2026-07-26 12:00:00']);
     Payment::factory()->create(['payable_type' => Sale::class, 'payable_id' => $sale->id, 'amount' => '120.00', 'paid_at' => '2026-07-26 09:00:00']);
     Payment::factory()->create(['payable_type' => Subscription::class, 'payable_id' => $subscription->id, 'amount' => '300.00', 'paid_at' => '2026-07-26 09:30:00']);
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $subscription->plan_id,
+        'start_date' => '2026-07-26',
+        'end_date' => '2026-08-25',
+        'status' => 'active',
+        'price_paid' => '75.00',
+    ]);
+    Payment::factory()->create(['payable_type' => SubscriptionAddon::class, 'payable_id' => $addon->id, 'amount' => '75.00', 'paid_at' => '2026-07-26 09:35:00']);
 
     $this->getJson('/api/v1/reports/overview?from=2026-07-26&to=2026-07-26')
         ->assertOk()
@@ -48,6 +61,6 @@ test('reports overview returns daily expenses, sales, bookings, memberships and 
         ->assertJsonPath('data.totals.pos_sales', '120.00')
         ->assertJsonPath('data.totals.bookings', 1)
         ->assertJsonPath('data.totals.memberships', 1)
-        ->assertJsonPath('data.totals.membership_revenue', '300.00')
+        ->assertJsonPath('data.totals.membership_revenue', '375.00')
         ->assertJsonPath('data.totals.session_visits', 1);
 });

@@ -16,13 +16,11 @@ export function useQueryDialog(action: string, key = "action") {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requested = searchParams.get(key) === action;
-  const [open, setOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (requested) {
-      setOpen(true);
-    }
-  }, [requested]);
+  const [isOpen, setOpen] = React.useState(false);
+  // Derive the visible state from the URL as well as local interaction. This makes
+  // shortcut links deterministic on their first render instead of waiting for an
+  // effect after hydration to open the dialog.
+  const open = requested || isOpen;
 
   const clear = React.useCallback(() => {
     if (!requested) {

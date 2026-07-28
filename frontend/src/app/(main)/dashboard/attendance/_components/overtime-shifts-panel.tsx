@@ -20,6 +20,7 @@ import type { EmployeeOption, EmployeeShift, OvertimeCandidate, OvertimeShiftRec
 const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
 
 type Props = {
+  canManageOvertime: boolean;
   candidates: OvertimeCandidate[];
   employees: EmployeeOption[];
   overtimeShifts: OvertimeShiftRecord[];
@@ -27,7 +28,14 @@ type Props = {
   shifts: EmployeeShift[];
 };
 
-export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, selectedDate, shifts }: Props) {
+export function OvertimeShiftsPanel({
+  canManageOvertime,
+  candidates,
+  employees,
+  overtimeShifts,
+  selectedDate,
+  shifts,
+}: Props) {
   const t = useTranslations("Dashboard.attendance");
   const openSlots = candidates.filter((candidate) => !candidate.covered_by);
 
@@ -65,6 +73,7 @@ export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, sel
                   <ClaimRow
                     key={candidate.employee.id}
                     candidate={candidate}
+                    canManageOvertime={canManageOvertime}
                     employees={employees}
                     selectedDate={selectedDate}
                   />
@@ -81,10 +90,16 @@ export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, sel
           </div>
         </section>
 
-        <section className="grid gap-2">
-          <SectionHeading title={t("overtimeManualTitle")} help={t("overtimeManualHelp")} />
-          <ManualAssignmentForm employees={employees} selectedDate={selectedDate} shifts={shifts} />
-        </section>
+        {canManageOvertime ? (
+          <section className="grid gap-2">
+            <SectionHeading title={t("overtimeManualTitle")} help={t("overtimeManualHelp")} />
+            <ManualAssignmentForm employees={employees} selectedDate={selectedDate} shifts={shifts} />
+          </section>
+        ) : (
+          <p className="rounded-lg border border-dashed bg-muted/10 px-3 py-2 text-muted-foreground text-xs">
+            {t("overtimeManageRestricted")}
+          </p>
+        )}
 
         <section className="grid gap-2">
           <SectionHeading title={t("overtimeRecords")} help={t("overtimeRecordsHelp")} />
@@ -98,16 +113,19 @@ export function OvertimeShiftsPanel({ candidates, employees, overtimeShifts, sel
                   <TableHead>{t("overtimeHours")}</TableHead>
                   <TableHead>{t("overtimeBonus")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
-                  <TableHead className="min-w-72 text-right">{t("actions")}</TableHead>
+                  {canManageOvertime ? <TableHead className="min-w-72 text-right">{t("actions")}</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {overtimeShifts.map((record) => (
-                  <RecordRow key={record.id} record={record} />
+                  <RecordRow canManageOvertime={canManageOvertime} key={record.id} record={record} />
                 ))}
                 {overtimeShifts.length === 0 ? (
                   <TableRow>
-                    <TableCell className="h-24 text-center text-muted-foreground text-sm" colSpan={7}>
+                    <TableCell
+                      className="h-24 text-center text-muted-foreground text-sm"
+                      colSpan={canManageOvertime ? 7 : 6}
+                    >
                       {t("overtimeNoRecords")}
                     </TableCell>
                   </TableRow>
@@ -132,10 +150,12 @@ function SectionHeading({ help, title }: { help: string; title: string }) {
 
 function ClaimRow({
   candidate,
+  canManageOvertime,
   employees,
   selectedDate,
 }: {
   candidate: OvertimeCandidate;
+  canManageOvertime: boolean;
   employees: EmployeeOption[];
   selectedDate: string;
 }) {
@@ -180,7 +200,8 @@ function ClaimRow({
             <div className="font-medium">{covered.employee_name ?? `#${covered.employee_id}`}</div>
             <div className="text-muted-foreground text-xs">{t(`overtimeStatuses.${covered.status}`)}</div>
           </div>
-        ) : (
+        ) : null}
+        {!covered && canManageOvertime ? (
           <form action={action} className="grid gap-1.5" id={formId}>
             <input name="covering_for_employee_id" type="hidden" value={candidate.employee.id} />
             <input name="date" type="hidden" value={selectedDate} />
@@ -201,16 +222,16 @@ function ClaimRow({
               onValueChange={(value) => setCoveringEmployeeId(value ?? "")}
             />
           </form>
-        )}
+        ) : null}
       </TableCell>
       <TableCell className="text-right">
-        {covered ? (
-          <span className="text-muted-foreground text-xs">--</span>
-        ) : (
+        {!covered && canManageOvertime ? (
           <Button disabled={pending || !coveringEmployeeId} form={formId} size="sm" type="submit">
             <HandCoins className="size-3.5" />
             {t("overtimeAssign")}
           </Button>
+        ) : (
+          <span className="text-muted-foreground text-xs">--</span>
         )}
       </TableCell>
     </TableRow>
@@ -350,7 +371,7 @@ function ManualAssignmentForm({
   );
 }
 
-function RecordRow({ record }: { record: OvertimeShiftRecord }) {
+function RecordRow({ canManageOvertime, record }: { canManageOvertime: boolean; record: OvertimeShiftRecord }) {
   const t = useTranslations("Dashboard.attendance");
   const [state, action, pending] = useActionState(reviewOvertimeShift, initialState);
   const [bonusAmount, setBonusAmount] = useState(record.bonus_amount === "0.00" ? "" : record.bonus_amount);
@@ -375,57 +396,59 @@ function RecordRow({ record }: { record: OvertimeShiftRecord }) {
       <TableCell>
         <OvertimeStatusBadge status={record.status} />
       </TableCell>
-      <TableCell className="min-w-72">
-        <form action={action} className="flex flex-wrap items-end justify-end gap-2">
-          <input name="id" type="hidden" value={record.id} />
-          {record.status === "settled" ? (
-            <span className="text-muted-foreground text-xs">{t("overtimeSettledHelp")}</span>
-          ) : (
-            <>
-              <div className="grid gap-1">
-                <Label className="text-muted-foreground text-xs" htmlFor={`overtime-bonus-${record.id}`}>
-                  {t("overtimeBonusAmount")}
-                </Label>
-                <Input
-                  className="h-8 w-28"
-                  id={`overtime-bonus-${record.id}`}
-                  min="0"
-                  name="bonus_amount"
-                  placeholder="0.00"
-                  step="0.01"
-                  type="number"
-                  value={bonusAmount}
-                  onChange={(event) => setBonusAmount(event.target.value)}
-                />
-              </div>
-              {/* The decision travels as the submit button's own value, so one form serves every action. */}
-              <DecisionButton
-                decision="approved"
-                disabled={pending || bonusAmount.trim() === ""}
-                icon={<Check className="size-3.5" />}
-                label={record.status === "approved" ? t("overtimeUpdateBonus") : t("approve")}
-                variant="default"
-              />
-              {record.status === "approved" ? (
+      {canManageOvertime ? (
+        <TableCell className="min-w-72">
+          <form action={action} className="flex flex-wrap items-end justify-end gap-2">
+            <input name="id" type="hidden" value={record.id} />
+            {record.status === "settled" ? (
+              <span className="text-muted-foreground text-xs">{t("overtimeSettledHelp")}</span>
+            ) : (
+              <>
+                <div className="grid gap-1">
+                  <Label className="text-muted-foreground text-xs" htmlFor={`overtime-bonus-${record.id}`}>
+                    {t("overtimeBonusAmount")}
+                  </Label>
+                  <Input
+                    className="h-8 w-28"
+                    id={`overtime-bonus-${record.id}`}
+                    min="0"
+                    name="bonus_amount"
+                    placeholder="0.00"
+                    step="0.01"
+                    type="number"
+                    value={bonusAmount}
+                    onChange={(event) => setBonusAmount(event.target.value)}
+                  />
+                </div>
+                {/* The decision travels as the submit button's own value, so one form serves every action. */}
                 <DecisionButton
-                  decision="settled"
+                  decision="approved"
+                  disabled={pending || bonusAmount.trim() === ""}
+                  icon={<Check className="size-3.5" />}
+                  label={record.status === "approved" ? t("overtimeUpdateBonus") : t("approve")}
+                  variant="default"
+                />
+                {record.status === "approved" ? (
+                  <DecisionButton
+                    decision="settled"
+                    disabled={pending}
+                    icon={<HandCoins className="size-3.5" />}
+                    label={t("overtimeMarkSettled")}
+                    variant="outline"
+                  />
+                ) : null}
+                <DecisionButton
+                  decision="rejected"
                   disabled={pending}
-                  icon={<HandCoins className="size-3.5" />}
-                  label={t("overtimeMarkSettled")}
+                  icon={<X className="size-3.5" />}
+                  label={t("dismiss")}
                   variant="outline"
                 />
-              ) : null}
-              <DecisionButton
-                decision="rejected"
-                disabled={pending}
-                icon={<X className="size-3.5" />}
-                label={t("dismiss")}
-                variant="outline"
-              />
-            </>
-          )}
-        </form>
-      </TableCell>
+              </>
+            )}
+          </form>
+        </TableCell>
+      ) : null}
     </TableRow>
   );
 }

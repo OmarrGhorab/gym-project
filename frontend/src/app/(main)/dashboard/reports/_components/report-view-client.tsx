@@ -549,11 +549,20 @@ function EmployeeDetailsDialog({
   );
 }
 
+type EmployeeReportTotals = {
+  commissions: number;
+  earned: number;
+  memberships: number;
+  posOrders: number;
+  posRevenue: number;
+  reversed: number;
+};
+
 function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
   const t = useTranslations("Dashboard.reports.employeePerformance");
   const employees = asRows(data.employees);
   const employeePagination = useTablePagination(employees);
-  const totals = employees.reduce(
+  const totals = employees.reduce<EmployeeReportTotals>(
     (summary, employee) => ({
       commissions: summary.commissions + Number(employee.commissions_earned ?? 0),
       earned: summary.earned + Number(employee.commissions_positive ?? 0),
@@ -593,12 +602,9 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("employee")}</TableHead>
-                <TableHead>{t("membershipsSold")}</TableHead>
+                <TableHead>{t("activity")}</TableHead>
                 <TableHead>{t("posSales")}</TableHead>
-                <TableHead>{t("extraServicesSold")}</TableHead>
-                <TableHead>{t("earned")}</TableHead>
-                <TableHead>{t("reversed")}</TableHead>
-                <TableHead>{t("net")}</TableHead>
+                <TableHead>{t("commissionSummary")}</TableHead>
                 <TableHead className="text-end">{t("details")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -612,31 +618,48 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
                       <div className="font-medium">{String(employee.name ?? "-")}</div>
                       <div className="text-muted-foreground text-xs">{String(employee.role ?? "-")}</div>
                     </TableCell>
-                    <TableCell>{String(employee.subscriptions_count ?? 0)}</TableCell>
                     <TableCell>
-                      <div>{currency(employee.sales_volume)}</div>
+                      <div className="font-medium">
+                        {t("membershipsSold")}: {String(employee.subscriptions_count ?? 0)}
+                      </div>
+                      <div className="text-muted-foreground text-xs">
+                        {t("extraServicesSold")}: {currency(employee.coached_services_revenue)} ·{" "}
+                        {t("services", {
+                          count: Number(employee.coached_services_count ?? 0),
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{currency(employee.sales_volume)}</div>
                       <div className="text-muted-foreground text-xs">
                         {t("orders", { count: Number(employee.sales_count ?? 0) })}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div>{currency(employee.coached_services_revenue)}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {t("services", { count: Number(employee.coached_services_count ?? 0) })}
+                      <div className="grid gap-1 text-xs sm:grid-cols-3 sm:gap-3">
+                        <span className="text-emerald-600">
+                          {t("earned")}: {currency(employee.commissions_positive)}
+                        </span>
+                        <span
+                          className={
+                            Number(employee.commissions_reversed ?? 0) > 0
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {t("reversed")}:{" "}
+                          {Number(employee.commissions_reversed ?? 0) > 0
+                            ? currency(-Number(employee.commissions_reversed))
+                            : currency(0)}
+                        </span>
+                        <span
+                          className={
+                            netCommission < 0 ? "font-semibold text-destructive" : "font-semibold text-foreground"
+                          }
+                        >
+                          {t("net")}: {currency(netCommission)}
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell className="font-medium text-emerald-600">
-                      {currency(employee.commissions_positive)}
-                    </TableCell>
-                    <TableCell className="font-medium text-destructive">
-                      {Number(employee.commissions_reversed ?? 0) > 0
-                        ? currency(-Number(employee.commissions_reversed))
-                        : currency(0)}
-                    </TableCell>
-                    <TableCell
-                      className={netCommission < 0 ? "font-semibold text-destructive" : "font-semibold text-foreground"}
-                    >
-                      {currency(netCommission)}
                     </TableCell>
                     <TableCell className="text-end">
                       <EmployeeDetailsDialog employee={employee} from={from} to={to} />
@@ -644,8 +667,8 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
                   </TableRow>
                 );
               })}
-              {employees.length === 0 ? <EmptyTableRow columns={8} label={t("empty")} /> : null}
-              <TablePagination columns={8} pagination={employeePagination} />
+              {employees.length === 0 ? <EmptyTableRow columns={5} label={t("empty")} /> : null}
+              <TablePagination columns={5} pagination={employeePagination} />
             </TableBody>
           </Table>
         </CardContent>

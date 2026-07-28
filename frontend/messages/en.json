@@ -791,6 +791,7 @@
       "overtimeReplacing": "Taking the place of",
       "overtimeShiftAuto": "Use the replaced employee's shift",
       "overtimeManualBonusHint": "Recorded as pending — you set the bonus amount when you approve it.",
+      "overtimeManageRestricted": "Only administrators and users with attendance-management access can assign or approve overtime coverage.",
       "applyPenalty": "Apply lateness penalty",
       "applyPenaltyHelp": "Leave ticked for a genuine late arrival or early leave — it raises the same warning a badge scan would. Untick it when you are fixing a scanner fault or a typo, so the time is recorded without affecting payroll."
     },
@@ -1496,6 +1497,7 @@
         "description": "Seller activity and commission events are separated so refund reversals do not look like new sales.",
         "employeeFallback": "Employee",
         "employee": "Employee",
+        "activity": "Sales activity",
         "membershipsSold": "Memberships sold",
         "soldByEmployees": "Created by linked employee accounts",
         "sellerMetric": "Sales credited to this employee account",
@@ -1511,6 +1513,7 @@
         "reversed": "Reversed",
         "net": "Net",
         "netCommission": "Net commission",
+        "commissionSummary": "Commission summary",
         "reversedDetail": "{amount} reversed by refunds",
         "details": "Details",
         "detailsTitle": "{name} activity details",

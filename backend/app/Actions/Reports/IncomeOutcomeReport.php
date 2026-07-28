@@ -48,6 +48,10 @@ final class IncomeOutcomeReport
         $totalIncome = $totalSubIncome + $totalPosIncome + $totalOtherIncome;
 
         $totalExpenses = (float) Expense::query()
+            // Paid payroll already has its own outcome column below. Payroll payments
+            // also create an expense ledger row, so including that row here would
+            // double-count the same cash outflow.
+            ->where('category', '!=', 'payroll')
             ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
             ->sum('amount');
 
@@ -127,6 +131,7 @@ final class IncomeOutcomeReport
 
         $expensesByBucket = $bucketTotals(
             Expense::query()
+                ->where('category', '!=', 'payroll')
                 ->whereBetween('date', [$qFrom->toDateString(), $qTo->toDateString()]),
             $bucketExpr('date'),
             'SUM(amount)'

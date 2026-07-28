@@ -9,7 +9,9 @@ class StoreOvertimeShiftRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermissionTo(HrFinancePermissions::PERM_ATTENDANCE_CREATE) ?? false;
+        // Cover assignments change the day's staffing and can affect payroll. They are
+        // therefore an attendance-management action, not a front-desk check-in action.
+        return $this->user()?->hasPermissionTo(HrFinancePermissions::PERM_ATTENDANCE_UPDATE) ?? false;
     }
 
     public function rules(): array

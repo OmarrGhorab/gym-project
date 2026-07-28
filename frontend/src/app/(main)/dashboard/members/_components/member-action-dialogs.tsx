@@ -1442,6 +1442,7 @@ function SubscriptionFormContent({
                   <div className="grid gap-2 sm:grid-cols-2" key={included.plan_id}>
                     <Input readOnly value={includedPlan?.name ?? "Included extra service"} />
                     <FormSelect
+                      name={`included_addons[${index}][coach_id]`}
                       value={included.coach_id}
                       onValueChange={(value) =>
                         setIncludedAddons((items) =>
