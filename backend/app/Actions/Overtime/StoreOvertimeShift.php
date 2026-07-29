@@ -31,7 +31,9 @@ class StoreOvertimeShift
                 ]);
             }
 
-            if ($coveringFor && $this->hasCheckedIn($coveringFor, $date)) {
+            $isDeskReplacement = str_starts_with((string) ($data['notes'] ?? ''), 'Shift Desk replacement.');
+
+            if ($coveringFor && $this->hasCheckedIn($coveringFor, $date) && ! $isDeskReplacement) {
                 throw ValidationException::withMessages([
                     'covering_for_employee_id' => 'This employee already attended on '.$date->toDateString().', so their shift does not need cover.',
                 ]);
@@ -66,8 +68,13 @@ class StoreOvertimeShift
                 }
             }
 
-            $startsAt = $this->time($data['starts_at'] ?? null) ?? $shift?->starts_at?->format('H:i');
-            $endsAt = $this->time($data['ends_at'] ?? null) ?? $shift?->ends_at?->format('H:i');
+            $isDeskReplacement = str_starts_with((string) ($data['notes'] ?? ''), 'Shift Desk replacement.');
+            $startsAt = $isDeskReplacement
+                ? now()->format('H:i')
+                : ($this->time($data['starts_at'] ?? null) ?? $shift?->starts_at?->format('H:i'));
+            $endsAt = $isDeskReplacement
+                ? null
+                : ($this->time($data['ends_at'] ?? null) ?? $shift?->ends_at?->format('H:i'));
 
             $overtime = OvertimeShift::query()->create([
                 'employee_id' => $employee->id,
@@ -76,9 +83,9 @@ class StoreOvertimeShift
                 'date' => $date->toDateString(),
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,
-                'hours' => $this->hours($data, $startsAt, $endsAt),
-                // Amount stays at zero until an admin types it in at review time.
-                'bonus_amount' => '0.00',
+                'hours' => $isDeskReplacement ? null : $this->hours($data, $startsAt, $endsAt),
+                // A proposed amount is stored while pending; payroll only reads approved rows.
+                'bonus_amount' => $data['bonus_amount'] ?? '0.00',
                 'status' => OvertimeShift::STATUS_PENDING,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $user->id,

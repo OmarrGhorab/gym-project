@@ -36,9 +36,23 @@ final class UpdatePayroll
             ]);
         }
         $manualBonuses = bcsub($requestedBonuses, $automaticBonuses, 2);
+        $manualBonusReason = trim((string) ($data['manual_bonus_reason'] ?? ''));
+        if (bccomp($manualBonuses, '0.00', 2) === 1 && $manualBonusReason === '') {
+            throw ValidationException::withMessages([
+                'manual_bonus_reason' => 'Add a reason for the manual bonus.',
+            ]);
+        }
+
         $payroll = $this->attendanceBonuses->execute($payroll, $manualBonuses);
         $bonuses = (string) $payroll->bonuses;
         $deductions = isset($data['deductions']) ? number_format((float) $data['deductions'], 2, '.', '') : (string) $payroll->deductions;
+        $manualDeductionReason = trim((string) ($data['manual_deduction_reason'] ?? ''));
+        if (bccomp($deductions, '0.00', 2) === 1 && $manualDeductionReason === '') {
+            throw ValidationException::withMessages([
+                'manual_deduction_reason' => 'Add a reason for the manual deduction.',
+            ]);
+        }
+
         $attendanceDeductions = isset($data['attendance_deductions'])
             ? number_format((float) $data['attendance_deductions'], 2, '.', '')
             : (string) $this->attendanceDeductions->execute($payroll)->attendance_deductions;
@@ -54,11 +68,23 @@ final class UpdatePayroll
             ]);
         }
 
+        $snapshot = $payroll->attendance_snapshot ?? [];
+        if (bccomp($manualBonuses, '0.00', 2) === 1) {
+            $snapshot['manual_bonus_reason'] = $manualBonusReason;
+        } else {
+            unset($snapshot['manual_bonus_reason']);
+        }
+        if (bccomp($deductions, '0.00', 2) === 1) {
+            $snapshot['manual_deduction_reason'] = $manualDeductionReason;
+        } else {
+            unset($snapshot['manual_deduction_reason']);
+        }
+
         $payroll->update([
             'bonuses' => $bonuses,
             'deductions' => $deductions,
             'attendance_deductions' => $attendanceDeductions,
-            'attendance_snapshot' => $payroll->attendance_snapshot,
+            'attendance_snapshot' => $snapshot,
             'net_salary' => $net,
         ]);
 

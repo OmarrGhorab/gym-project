@@ -24,6 +24,7 @@ class StoreOvertimeShiftRequest extends FormRequest
             'starts_at' => ['nullable', 'date_format:H:i'],
             'ends_at' => ['nullable', 'date_format:H:i'],
             'hours' => ['nullable', 'numeric', 'min:0', 'max:24'],
+            'bonus_amount' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

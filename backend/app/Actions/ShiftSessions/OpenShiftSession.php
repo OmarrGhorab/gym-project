@@ -31,7 +31,14 @@ class OpenShiftSession
                 : Carbon::today()->toDateString();
 
             // Only an employee of this shift may hold the drawer (admins act on their behalf).
-            $employee = $this->staff->handle($shift, $user, $data['employee_id'] ?? null, 'employee_id', $businessDate);
+            $employee = $this->staff->handle(
+                $shift,
+                $user,
+                $data['employee_id'] ?? null,
+                'employee_id',
+                $businessDate,
+                true,
+            );
 
             $alreadyOpen = ShiftSession::query()
                 ->where('employee_shift_id', $shift->id)

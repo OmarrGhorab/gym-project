@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
 
+import { getOvertimeShiftDeskData } from "../attendance/_components/data";
+import { OvertimeShiftsPanel } from "../attendance/_components/overtime-shifts-panel";
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
 import { getFinanceDashboardData } from "./_components/data";
 import { FinanceFilters } from "./_components/finance-filters";
@@ -55,6 +57,11 @@ export default async function Page({
     canViewReports: user ? canAccess(user, "reports.view") : false,
   };
   const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy, quickActionPermissions);
+  const overtimeDate = formatDateFns(new Date(), "yyyy-MM-dd");
+  const canManageOvertime = user ? canAccess(user, "settings.manage") : false;
+  const overtimeData = canManageOvertime
+    ? await getOvertimeShiftDeskData(overtimeDate)
+    : { candidates: [], employees: [], overtimeShifts: [], shifts: [] };
   const canViewLedger =
     quickActionPermissions.canViewPayments ||
     quickActionPermissions.canCollectDue ||
@@ -73,15 +80,27 @@ export default async function Page({
       {quickActionPermissions.canViewExpenses ||
       quickActionPermissions.canViewPayments ||
       quickActionPermissions.canCollectDue ? (
-        <ShiftDesk
-          currentSession={data.shiftDesk.current}
-          historySessions={data.shiftDesk.history}
-          pendingSessions={data.shiftDesk.pending}
-          shifts={data.shiftDesk.shifts}
-          requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
-          canOperate={canOperateShiftDesk}
-          canReview={canReviewShiftDesk}
-        />
+        <>
+          <ShiftDesk
+            currentSession={data.shiftDesk.current}
+            historySessions={data.shiftDesk.history}
+            pendingSessions={data.shiftDesk.pending}
+            shifts={data.shiftDesk.shifts}
+            requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
+            canOperate={canOperateShiftDesk}
+            canReview={canReviewShiftDesk}
+          />
+          {canManageOvertime ? (
+            <OvertimeShiftsPanel
+              canManageOvertime
+              candidates={overtimeData.candidates}
+              employees={overtimeData.employees}
+              overtimeShifts={overtimeData.overtimeShifts}
+              selectedDate={overtimeDate}
+              shifts={overtimeData.shifts}
+            />
+          ) : null}
+        </>
       ) : null}
 
       <Tabs defaultValue={tab === "ledger" && canViewLedger ? "ledger" : "30-days"} className="flex flex-col gap-4">

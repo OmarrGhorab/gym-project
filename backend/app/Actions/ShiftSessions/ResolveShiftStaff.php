@@ -13,9 +13,9 @@ use Illuminate\Validation\ValidationException;
 /**
  * Decides which employee is accountable for a shift session.
  *
- * A session may only be opened or closed by an employee assigned to that shift.
- * An admin can act on their behalf, but must name the employee who is actually
- * on duty — the session always records a real shift member, never the admin.
+ * A session is normally held by an employee assigned to that shift. Admins may
+ * hand a live desk to any active employee (for example, when somebody leaves
+ * early); the session still records the real employee on duty, never the admin.
  */
 class ResolveShiftStaff
 {
@@ -25,6 +25,8 @@ class ResolveShiftStaff
         ?int $employeeId = null,
         string $field = 'employee_id',
         Carbon|string|null $businessDate = null,
+        bool $allowAnyActiveEmployee = false,
+        bool $allowNonAdminNomination = false,
     ): Employee {
         $actor = Employee::query()->where('user_id', $user->id)->first();
         $isAdmin = method_exists($user, 'hasRole') && $user->hasRole(FoundationPermissions::ROLE_ADMIN);
@@ -39,13 +41,19 @@ class ResolveShiftStaff
             }
 
             // Only an admin may nominate somebody other than themselves.
-            if (! $isAdmin && (! $actor || (int) $actor->id !== (int) $employee->id)) {
+            if (! $isAdmin && ! $allowNonAdminNomination && (! $actor || (int) $actor->id !== (int) $employee->id)) {
                 throw ValidationException::withMessages([
                     $field => 'You can only open or close a shift session as yourself.',
                 ]);
             }
 
-            return $this->assertEligible($employee, $shift, $field, $businessDate);
+            return $this->assertEligible(
+                $employee,
+                $shift,
+                $field,
+                $businessDate,
+                ($isAdmin && $allowAnyActiveEmployee) || $allowNonAdminNomination,
+            );
         }
 
         if ($actor) {
@@ -59,8 +67,13 @@ class ResolveShiftStaff
         ]);
     }
 
-    private function assertEligible(Employee $employee, EmployeeShift $shift, string $field, Carbon|string|null $businessDate): Employee
-    {
+    private function assertEligible(
+        Employee $employee,
+        EmployeeShift $shift,
+        string $field,
+        Carbon|string|null $businessDate,
+        bool $allowAnyActiveEmployee = false,
+    ): Employee {
         $date = $businessDate ? Carbon::parse($businessDate)->toDateString() : Carbon::today()->toDateString();
         $isAssigned = (int) $employee->shift_id === (int) $shift->id;
         $isCovering = OvertimeShift::query()
@@ -70,7 +83,7 @@ class ResolveShiftStaff
             ->whereDate('date', $date)
             ->exists();
 
-        if (! $isAssigned && ! $isCovering) {
+        if (! $allowAnyActiveEmployee && ! $isAssigned && ! $isCovering) {
             throw ValidationException::withMessages([
                 $field => $employee->name.' is not assigned to or scheduled to cover '.$shift->name.' on '.$date.'.',
             ]);

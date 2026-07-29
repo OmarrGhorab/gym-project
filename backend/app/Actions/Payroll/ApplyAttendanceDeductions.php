@@ -67,9 +67,15 @@ final class ApplyAttendanceDeductions
 
         $payroll->attendance_deductions = $total;
         $snapshot = $this->snapshot($applicable, $total);
-        $existingBonusSnapshot = $payroll->attendance_snapshot['bonuses'] ?? null;
+        $existingSnapshot = $payroll->attendance_snapshot ?? [];
+        $existingBonusSnapshot = $existingSnapshot['bonuses'] ?? null;
         if (is_array($existingBonusSnapshot)) {
             $snapshot['bonuses'] = $existingBonusSnapshot;
+        }
+        foreach (['manual_bonus_reason', 'manual_deduction_reason'] as $key) {
+            if (isset($existingSnapshot[$key])) {
+                $snapshot[$key] = $existingSnapshot[$key];
+            }
         }
         $payroll->attendance_snapshot = $snapshot;
 

@@ -11,6 +11,7 @@ use App\Actions\ShiftSessions\ReviewShiftHandover;
 use App\Actions\ShiftSessions\SubmitShiftHandover;
 use App\Http\Resources\EmployeeShiftResource;
 use App\Http\Resources\ShiftSessionResource;
+use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\Expense;
 use App\Models\OvertimeShift;
@@ -105,17 +106,28 @@ class ShiftSessionController extends ApiController
             ->filter(fn (OvertimeShift $overtime): bool => $overtime->employee !== null)
             ->groupBy('employee_shift_id');
 
+        $allEmployees = Employee::query()
+            ->active()
+            ->select('id', 'name', 'role', 'shift_id')
+            ->orderBy('name')
+            ->get();
+
         $shifts = EmployeeShift::query()
             ->where('is_active', true)
-            // Staff list drives the "who is on duty" picker when an admin opens on their behalf.
-            ->with(['employees' => fn ($q) => $q->active()->select('id', 'name', 'role', 'shift_id')->orderBy('name')])
+            // The picker includes every active employee. Assigned employees are
+            // sorted first, while the admin can still hand a live desk to anyone.
             ->orderBy('starts_at')
             ->orderBy('name')
             ->get();
 
-        $payload = $shifts->map(function (EmployeeShift $shift) use ($coveringStaff, $currentEmployeeId, $request): array {
+        $payload = $shifts->map(function (EmployeeShift $shift) use ($allEmployees, $coveringStaff, $currentEmployeeId, $request): array {
             $row = (new EmployeeShiftResource($shift))->toArray($request);
-            $row['employees'] = $shift->employees
+            $row['employees'] = $allEmployees
+                ->sortBy(fn ($employee): string => sprintf(
+                    '%d:%s',
+                    (int) $employee->shift_id === (int) $shift->id ? 0 : 1,
+                    mb_strtolower((string) $employee->name),
+                ))
                 ->concat($coveringStaff->get($shift->id, collect())->pluck('employee'))
                 ->unique('id')
                 // "Me" already represents the signed-in employee in the picker.

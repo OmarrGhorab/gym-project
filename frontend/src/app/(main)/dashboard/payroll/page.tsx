@@ -69,7 +69,7 @@ export default async function Page({ searchParams }: PageProps) {
           <CardDescription>{t("salaryReceiptsDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table className="min-w-[1180px] table-fixed">
+          <Table className="min-w-[1320px] table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[16rem]">{t("employee")}</TableHead>
@@ -78,7 +78,7 @@ export default async function Page({ searchParams }: PageProps) {
                 <TableHead className="w-[7rem] text-end">{t("base")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("commissions")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("attendance")}</TableHead>
-                <TableHead className="w-[22rem]">{t("adjustments")}</TableHead>
+                <TableHead className="w-[30rem]">{t("adjustments")}</TableHead>
                 <TableHead className="w-[8rem] text-end">{t("net")}</TableHead>
                 <TableHead className="w-[7rem]">{t("status")}</TableHead>
                 <TableHead className="w-[10rem] text-end">{t("actions")}</TableHead>
@@ -115,6 +115,8 @@ export default async function Page({ searchParams }: PageProps) {
                       bonuses={row.bonuses}
                       deductions={row.deductions}
                       id={row.id}
+                      manualBonusReason={row.attendance_snapshot?.manual_bonus_reason}
+                      manualDeductionReason={row.attendance_snapshot?.manual_deduction_reason}
                     />
                   </TableCell>
                   <TableCell className="text-end align-middle font-medium">
@@ -124,7 +126,7 @@ export default async function Page({ searchParams }: PageProps) {
                     <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{row.status}</Badge>
                   </TableCell>
                   <TableCell className="text-end align-middle">
-                    <div className="flex justify-end gap-2 whitespace-nowrap">
+                    <div className="grid grid-cols-2 items-center justify-end gap-2 whitespace-nowrap">
                       <Button
                         render={<a href={`/api/payroll/${row.id}/payslip`} />}
                         nativeButton={false}
@@ -134,7 +136,7 @@ export default async function Page({ searchParams }: PageProps) {
                         <ReceiptText />
                         {t("payslip")}
                       </Button>
-                      {row.status !== "paid" ? <PayrollPayForm id={row.id} /> : null}
+                      {row.status !== "paid" ? <PayrollPayForm id={row.id} /> : <span aria-hidden="true" />}
                     </div>
                   </TableCell>
                 </TableRow>

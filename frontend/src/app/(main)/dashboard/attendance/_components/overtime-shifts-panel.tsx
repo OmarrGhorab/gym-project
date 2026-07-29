@@ -28,17 +28,8 @@ type Props = {
   shifts: EmployeeShift[];
 };
 
-export function OvertimeShiftsPanel({
-  canManageOvertime,
-  candidates,
-  employees,
-  overtimeShifts,
-  selectedDate,
-  shifts,
-}: Props) {
+export function OvertimeShiftsPanel({ canManageOvertime, overtimeShifts }: Props) {
   const t = useTranslations("Dashboard.attendance");
-  const openSlots = candidates.filter((candidate) => !candidate.covered_by);
-
   return (
     <Card>
       <CardHeader>
@@ -50,57 +41,9 @@ export function OvertimeShiftsPanel({
             </CardTitle>
             <CardDescription>{t("overtimeDescription")}</CardDescription>
           </div>
-          <Badge variant="outline" className="w-fit">
-            {t("overtimeOpenSlots", { count: openSlots.length })}
-          </Badge>
         </div>
       </CardHeader>
       <CardContent className="grid gap-5">
-        <section className="grid gap-2">
-          <SectionHeading title={t("overtimeUncovered")} help={t("overtimeUncoveredHelp")} />
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("overtimeAbsentEmployee")}</TableHead>
-                  <TableHead>{t("shiftLabel")}</TableHead>
-                  <TableHead className="min-w-64">{t("overtimeCoveredBy")}</TableHead>
-                  <TableHead className="text-right">{t("actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {candidates.map((candidate) => (
-                  <ClaimRow
-                    key={candidate.employee.id}
-                    candidate={candidate}
-                    canManageOvertime={canManageOvertime}
-                    employees={employees}
-                    selectedDate={selectedDate}
-                  />
-                ))}
-                {candidates.length === 0 ? (
-                  <TableRow>
-                    <TableCell className="h-24 text-center text-muted-foreground text-sm" colSpan={4}>
-                      {t("overtimeNoUncovered")}
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
-
-        {canManageOvertime ? (
-          <section className="grid gap-2">
-            <SectionHeading title={t("overtimeManualTitle")} help={t("overtimeManualHelp")} />
-            <ManualAssignmentForm employees={employees} selectedDate={selectedDate} shifts={shifts} />
-          </section>
-        ) : (
-          <p className="rounded-lg border border-dashed bg-muted/10 px-3 py-2 text-muted-foreground text-xs">
-            {t("overtimeManageRestricted")}
-          </p>
-        )}
-
         <section className="grid gap-2">
           <SectionHeading title={t("overtimeRecords")} help={t("overtimeRecordsHelp")} />
           <div className="overflow-x-auto rounded-lg border">
@@ -148,7 +91,7 @@ function SectionHeading({ help, title }: { help: string; title: string }) {
   );
 }
 
-function ClaimRow({
+export function ClaimRow({
   candidate,
   canManageOvertime,
   employees,
@@ -243,7 +186,7 @@ function ClaimRow({
  * Covers planned swaps and employees whose absence the schedule cannot infer. The API
  * still refuses to record a cover for someone who has already checked in.
  */
-function ManualAssignmentForm({
+export function ManualAssignmentForm({
   employees,
   selectedDate,
   shifts,

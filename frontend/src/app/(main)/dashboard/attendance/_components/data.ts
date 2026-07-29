@@ -248,6 +248,25 @@ export async function getAttendancePageData({
   };
 }
 
+export async function getOvertimeShiftDeskData(date: string) {
+  const [employees, candidates, overtimeShifts, shifts] = await Promise.all([
+    safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
+    safeFetch<OvertimeCandidate[]>(`/overtime-shifts/candidates?date=${encodeURIComponent(date)}`, []),
+    safeFetch<OvertimeShiftRecord[] | PaginatedData<OvertimeShiftRecord>>(
+      `/overtime-shifts?date=${encodeURIComponent(date)}&per_page=50`,
+      [],
+    ),
+    safeFetch<EmployeeShift[]>("/attendance/shifts", []),
+  ]);
+
+  return {
+    candidates,
+    employees: unwrapList(employees),
+    overtimeShifts: unwrapList(overtimeShifts),
+    shifts,
+  };
+}
+
 function paginationMeta<T>(payload: T[] | PaginatedData<T>, fallbackTotal: number): PaginationMeta {
   if (Array.isArray(payload)) {
     return {

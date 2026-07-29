@@ -129,11 +129,17 @@ final class BuildPayslipBreakdown
             : bcsub((string) $payroll->bonuses, $components['total'], 2);
 
         if (bccomp($manual, '0.00', 2) === 1) {
+            $reason = trim((string) ($payroll->attendance_snapshot['manual_bonus_reason'] ?? ''));
+            $isArabicReason = $this->containsArabic($reason);
             $rows->push([
                 'type' => 'Manual management bonus',
                 'type_ar' => 'مكافأة إدارية يدوية',
-                'details' => 'Entered manually in payroll; no separate reason was recorded',
-                'details_ar' => 'تم إدخالها يدويا في المرتب ولم يسجل سبب منفصل',
+                'details' => $reason === '' || ! $isArabicReason
+                    ? ($reason !== '' ? $reason : 'Entered manually in payroll; no separate reason was recorded')
+                    : '',
+                'details_ar' => $reason === '' || $isArabicReason
+                    ? ($reason !== '' ? $reason : 'تم إدخالها يدويا في المرتب ولم يسجل سبب منفصل')
+                    : '',
                 'amount' => $manual,
             ]);
         }
@@ -144,6 +150,11 @@ final class BuildPayslipBreakdown
     private function percentageLabel(string $percentage): string
     {
         return rtrim(rtrim(number_format((float) $percentage, 2, '.', ''), '0'), '.').'%';
+    }
+
+    private function containsArabic(string $text): bool
+    {
+        return preg_match('/[\p{Arabic}]/u', $text) === 1;
     }
 
     /** @return array{string, string} */

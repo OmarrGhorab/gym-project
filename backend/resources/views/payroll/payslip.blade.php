@@ -257,13 +257,13 @@
                         <td>{{ $ar('بونص / مكافآت') }}</td>
                         <td class="amount earning">{{ number_format((float) $payroll->bonuses, 2) }}</td>
                         <td>-</td>
-                        <td>{{ $ar('مكافآت أو حضور يوم إجازة') }}</td>
+                        <td>{{ $ar($snapshot['manual_bonus_reason'] ?? 'مكافآت أو حضور يوم إجازة') }}</td>
                     </tr>
                     <tr>
                         <td>{{ $ar('السلف / الخصم اليدوي') }}</td>
                         <td>-</td>
                         <td class="amount deduction">{{ number_format((float) $payroll->deductions, 2) }}</td>
-                        <td>{{ $ar('خصم يدوي') }}</td>
+                        <td>{{ $ar($snapshot['manual_deduction_reason'] ?? 'خصم يدوي') }}</td>
                     </tr>
                     <tr>
                         <td>{{ $ar('الخصم طبقا للائحة') }}</td>
@@ -313,7 +313,7 @@
                             <td>{{ $violations->count() + 1 }}</td>
                             <td>{{ $ar('السلف / الخصم اليدوي') }}</td>
                             <td><span class="ltr">{{ number_format((float) $payroll->deductions, 2) }}</span></td>
-                            <td>{{ $ar('مسجل من الإدارة') }}</td>
+                            <td>{{ $ar($snapshot['manual_deduction_reason'] ?? 'مسجل من الإدارة') }}</td>
                         </tr>
                     @endif
                     @if((float) $payroll->bonuses > 0)
@@ -321,7 +321,7 @@
                             <td>{{ $violations->count() + ((float) $payroll->deductions > 0 ? 2 : 1) }}</td>
                             <td>{{ $ar('بونص / مكافآت') }}</td>
                             <td><span class="ltr">{{ number_format((float) $payroll->bonuses, 2) }}</span></td>
-                            <td>{{ $ar('إضافة للراتب') }}</td>
+                            <td>{{ $ar($snapshot['manual_bonus_reason'] ?? 'إضافة للراتب') }}</td>
                         </tr>
                     @endif
                     @if($violations->isEmpty() && (float) $payroll->deductions <= 0 && (float) $payroll->bonuses <= 0)
@@ -440,7 +440,17 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $ar($row['type_ar']) }} / <span class="ltr">{{ $row['type'] }}</span></td>
-                    <td class="description">{{ $ar($row['details_ar']) }}<br><span class="ltr">{{ $row['details'] }}</span></td>
+                    <td class="description">
+                        @if($row['details_ar'] !== '')
+                            {{ $ar($row['details_ar']) }}
+                        @endif
+                        @if($row['details_ar'] !== '' && $row['details'] !== '')
+                            <br>
+                        @endif
+                        @if($row['details'] !== '')
+                            <span class="ltr">{{ $row['details'] }}</span>
+                        @endif
+                    </td>
                     <td class="amount {{ (float) $row['amount'] < 0 ? 'deduction' : 'earning' }}">
                         <span class="ltr">{{ number_format((float) $row['amount'], 2) }}</span>
                     </td>

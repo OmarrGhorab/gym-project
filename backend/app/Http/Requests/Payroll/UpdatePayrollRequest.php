@@ -23,6 +23,8 @@ class UpdatePayrollRequest extends FormRequest
             'bonuses' => ['nullable', 'numeric', 'min:0'],
             'deductions' => ['nullable', 'numeric', 'min:0'],
             'attendance_deductions' => ['nullable', 'numeric', 'min:0'],
+            'manual_bonus_reason' => ['nullable', 'string', 'max:500'],
+            'manual_deduction_reason' => ['nullable', 'string', 'max:500'],
         ];
     }
 }

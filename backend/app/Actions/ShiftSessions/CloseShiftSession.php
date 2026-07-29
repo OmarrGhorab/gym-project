@@ -15,6 +15,7 @@ class CloseShiftSession
         private readonly ComputeShiftSessionTotals $totals,
         private readonly ResolveShiftStaff $staff,
         private readonly OperationalNotifier $notifier,
+        private readonly TrackShiftOvertime $overtime,
     ) {}
 
     /**
@@ -40,7 +41,13 @@ class CloseShiftSession
             }
 
             // Only an employee of this shift may close its drawer.
-            $employee = $this->staff->handle($locked->shift, $user, $employeeId, 'employee_id', $locked->business_date);
+            $employee = $this->staff->handle(
+                $locked->shift,
+                $user,
+                $employeeId,
+                'employee_id',
+                $locked->business_date,
+            );
 
             // The scheduled end time is not a gate: staff close the session by hand when they
             // actually check out, which may be earlier or later than the schedule on an
@@ -48,6 +55,8 @@ class CloseShiftSession
 
             // Recompute + claim orphans so expected totals match every payment/expense in the window.
             $totals = $this->totals->handle($locked);
+
+            $this->overtime->finish($locked, $employee->id, now());
 
             $locked->update([
                 'closed_at' => now(),

@@ -183,10 +183,16 @@ test('an admin can hand an open session to another employee of the same shift', 
     expect($session->opened_by_employee_id)->toBe($successor->id)
         // Reassigning changes accountability only — the money is untouched.
         ->and($session->opening_float)->toBe($open->json('data.opening_float'))
-        ->and($opener->id)->not->toBe($successor->id);
+        ->and($opener->id)->not->toBe($successor->id)
+        ->and(OvertimeShift::query()
+            ->where('employee_id', $successor->id)
+            ->where('covering_for_employee_id', $opener->id)
+            ->where('employee_shift_id', $shift->id)
+            ->where('status', OvertimeShift::STATUS_PENDING)
+            ->exists())->toBeTrue();
 });
 
-test('staff on duty cannot be handed to an employee from another shift', function (): void {
+test('staff on duty can be handed to an active employee from another shift', function (): void {
     $admin = User::factory()->create();
     $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($admin);
@@ -204,7 +210,8 @@ test('staff on duty cannot be handed to an employee from another shift', functio
     ])->assertStatus(201)->json('data.id');
 
     $this->putJson("/api/v1/shift-sessions/{$sessionId}/staff", ['employee_id' => $outsider->id])
-        ->assertStatus(422);
+        ->assertStatus(200)
+        ->assertJsonPath('data.staff_on_duty.id', $outsider->id);
 });
 
 test('staff on duty cannot be changed once the session is closed', function (): void {
@@ -269,7 +276,7 @@ test('an admin opening on behalf of staff records the employee not the admin', f
     expect(ShiftSession::find($response->json('data.id'))->opened_by_employee_id)->toBe($onDuty->id);
 });
 
-test('an admin cannot name an employee from a different shift', function (): void {
+test('an admin can hand a shift to an active employee from a different shift', function (): void {
     $admin = User::factory()->create();
     $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($admin);
@@ -282,7 +289,8 @@ test('an admin cannot name an employee from a different shift', function (): voi
         'employee_shift_id' => $shift->id,
         'employee_id' => $outsider->id,
         'force_open' => true,
-    ])->assertStatus(422);
+    ])->assertStatus(201)
+        ->assertJsonPath('data.staff_on_duty.id', $outsider->id);
 });
 
 test('an admin with no employee on the shift must name who is on duty', function (): void {

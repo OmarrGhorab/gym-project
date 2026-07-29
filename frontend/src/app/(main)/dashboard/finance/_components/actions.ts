@@ -155,7 +155,11 @@ export async function openShiftSession(input: {
       employee_shift_id: input.employee_shift_id,
       // Omitted entirely when opening as yourself — the API resolves you from your own employee record.
       ...(input.employee_id ? { employee_id: input.employee_id } : {}),
-      opening_float: input.opening_float ?? "0",
+      // An omitted float means “carry the previous resolved shift”. Sending 0
+      // here would incorrectly reset every later shift's drawer.
+      ...(input.opening_float !== undefined && input.opening_float !== ""
+        ? { opening_float: input.opening_float }
+        : {}),
       force_open: input.force_open ?? false,
     },
     "Shift session opened.",
@@ -173,6 +177,43 @@ export async function closeShiftSession(id: number, employeeId?: number): Promis
 
 export async function assignShiftStaff(id: number, employeeId: number): Promise<FinanceActionResult> {
   return mutateFinance(`/shift-sessions/${id}/staff`, "PUT", { employee_id: employeeId }, "Staff on duty updated.");
+}
+
+export async function replaceShiftStaffWithPendingBonus(input: {
+  bonus_amount?: string;
+  covering_for_employee_id: number;
+  date: string;
+  employee_id: number;
+  employee_shift_id: number;
+  session_id: number;
+}): Promise<FinanceActionResult> {
+  try {
+    await serverApiFetch("/overtime-shifts", {
+      body: JSON.stringify({
+        bonus_amount: input.bonus_amount ?? "0",
+        covering_for_employee_id: input.covering_for_employee_id,
+        date: input.date,
+        employee_id: input.employee_id,
+        employee_shift_id: input.employee_shift_id,
+        notes: "Shift Desk replacement. Bonus pending approval.",
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    await serverApiFetch(`/shift-sessions/${input.session_id}/staff`, {
+      body: JSON.stringify({ employee_id: input.employee_id }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+    });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Could not replace staff.", errors: {} };
+  }
+
+  revalidatePath("/dashboard/finance");
+  revalidatePath("/dashboard/attendance");
+  revalidatePath("/dashboard/payroll");
+
+  return { ok: true, message: "Staff replaced. The bonus is pending approval." };
 }
 
 export async function submitShiftHandover(

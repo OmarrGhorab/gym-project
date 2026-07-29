@@ -29,17 +29,23 @@ export function PayrollAdjustmentForm({
   bonuses,
   deductions,
   id,
+  manualBonusReason,
+  manualDeductionReason,
 }: {
   attendanceDeductions: string;
   bonuses: string;
   deductions: string;
   id: number;
+  manualBonusReason?: string;
+  manualDeductionReason?: string;
 }) {
   const t = useTranslations("Dashboard.payroll");
   const [state, formAction, pending] = React.useActionState(updatePayroll, initialPayrollState);
   const [bonusValue, setBonusValue] = React.useState(bonuses);
   const [deductionValue, setDeductionValue] = React.useState(deductions);
   const [attendanceDeductionValue, setAttendanceDeductionValue] = React.useState(attendanceDeductions);
+  const [manualBonusReasonValue, setManualBonusReasonValue] = React.useState(manualBonusReason ?? "");
+  const [manualDeductionReasonValue, setManualDeductionReasonValue] = React.useState(manualDeductionReason ?? "");
   const attendanceDeductionInputId = `payroll-${id}-attendance-deduction`;
   const bonusInputId = `payroll-${id}-bonus`;
   const deductionInputId = `payroll-${id}-deduction`;
@@ -57,6 +63,14 @@ export function PayrollAdjustmentForm({
   }, [attendanceDeductions]);
 
   React.useEffect(() => {
+    setManualBonusReasonValue(manualBonusReason ?? "");
+  }, [manualBonusReason]);
+
+  React.useEffect(() => {
+    setManualDeductionReasonValue(manualDeductionReason ?? "");
+  }, [manualDeductionReason]);
+
+  React.useEffect(() => {
     if (!state.message) {
       return;
     }
@@ -70,10 +84,7 @@ export function PayrollAdjustmentForm({
   }, [state, t]);
 
   return (
-    <form
-      action={formAction}
-      className="grid w-full grid-cols-[minmax(6.5rem,1fr)_minmax(6.5rem,1fr)_minmax(6.5rem,1fr)_auto] items-end gap-2"
-    >
+    <form action={formAction} className="grid w-full grid-cols-2 gap-2">
       <input type="hidden" name="id" value={id} />
       <label className="grid gap-1" htmlFor={bonusInputId}>
         <span className="text-muted-foreground text-xs">{t("bonusAdds")}</span>
@@ -107,6 +118,34 @@ export function PayrollAdjustmentForm({
         />
         <FieldError errors={state.errors.deductions} />
       </label>
+      <label className="grid gap-1" htmlFor={`payroll-${id}-bonus-reason`}>
+        <span className="text-muted-foreground text-xs">{t("manualBonusReason")}</span>
+        <Input
+          id={`payroll-${id}-bonus-reason`}
+          name="manual_bonus_reason"
+          maxLength={500}
+          placeholder={t("manualReasonPlaceholder")}
+          value={manualBonusReasonValue}
+          aria-invalid={Boolean(state.errors.manual_bonus_reason?.[0])}
+          disabled={pending}
+          onChange={(event) => setManualBonusReasonValue(event.target.value)}
+        />
+        <FieldError errors={state.errors.manual_bonus_reason} />
+      </label>
+      <label className="grid gap-1" htmlFor={`payroll-${id}-deduction-reason`}>
+        <span className="text-muted-foreground text-xs">{t("manualDeductionReason")}</span>
+        <Input
+          id={`payroll-${id}-deduction-reason`}
+          name="manual_deduction_reason"
+          maxLength={500}
+          placeholder={t("manualReasonPlaceholder")}
+          value={manualDeductionReasonValue}
+          aria-invalid={Boolean(state.errors.manual_deduction_reason?.[0])}
+          disabled={pending}
+          onChange={(event) => setManualDeductionReasonValue(event.target.value)}
+        />
+        <FieldError errors={state.errors.manual_deduction_reason} />
+      </label>
       <label className="grid gap-1" htmlFor={attendanceDeductionInputId}>
         <span className="text-muted-foreground text-xs">{t("attendanceDeductionApplied")}</span>
         <Input
@@ -123,9 +162,11 @@ export function PayrollAdjustmentForm({
         />
         <FieldError errors={state.errors.attendance_deductions} />
       </label>
-      <Button type="submit" size="sm" variant="outline" disabled={pending}>
-        {pending ? t("saving") : t("save")}
-      </Button>
+      <div className="flex items-end">
+        <Button className="w-full" type="submit" size="sm" variant="outline" disabled={pending}>
+          {pending ? t("saving") : t("save")}
+        </Button>
+      </div>
     </form>
   );
 }

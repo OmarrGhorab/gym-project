@@ -560,10 +560,7 @@ function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
   );
 }
 
-/**
- * Hand the open drawer to another employee of the same shift, or name one on a
- * session that was opened before the responsible employee was recorded.
- */
+/** Hand the open drawer to any active employee; handoffs create pending OT for admin review. */
 function AssignStaffControl({
   currentStaffId,
   pending,
@@ -577,6 +574,7 @@ function AssignStaffControl({
   staff: ShiftDeskStaff[];
   onAssign: (action: () => Promise<{ ok: boolean; message: string }>) => void;
 }) {
+  const t = useTranslations("Dashboard.finance");
   const [employeeId, setEmployeeId] = useState(currentStaffId ? String(currentStaffId) : "");
 
   const selectedStaff = staff.find((employee) => String(employee.id) === employeeId);
@@ -617,15 +615,12 @@ function AssignStaffControl({
       >
         Assign
       </Button>
+      <span className="text-muted-foreground text-[11px]">{t("staffHandoffHelp")}</span>
     </div>
   );
 }
 
-/**
- * Sessions are never created implicitly — an employee of the shift starts the desk.
- * The staff picker is only needed when an admin opens on someone else's behalf; a
- * shift employee opening their own desk can leave it on "Me".
- */
+/** Sessions are never created implicitly; assigned staff are listed first, with all active staff available. */
 function OpenSessionForm({
   shifts,
   pending,
@@ -665,14 +660,12 @@ function OpenSessionForm({
   return (
     <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4">
       <div>
-        <p className="font-medium text-foreground text-sm">No shift session is open</p>
-        <p className="text-muted-foreground text-xs">
-          Open the desk to start tracking money. Only an employee assigned to the shift can hold it.
-        </p>
+        <p className="font-medium text-foreground text-sm">{t("noOpenSession")}</p>
+        <p className="text-muted-foreground text-xs">{t("openSessionDescription")}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="grid gap-1.5">
-          <Label htmlFor="open-shift-id">Shift</Label>
+          <Label htmlFor="open-shift-id">{t("shift")}</Label>
           <Select
             value={shiftId}
             onValueChange={(next) => {
@@ -695,7 +688,7 @@ function OpenSessionForm({
           </Select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="open-shift-staff">Staff on duty</Label>
+          <Label htmlFor="open-shift-staff">{t("staffOnDuty")}</Label>
           <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "self")}>
             <SelectTrigger id="open-shift-staff" className="w-full">
               <SelectValue>{selectedStaffLabel}</SelectValue>
@@ -720,9 +713,10 @@ function OpenSessionForm({
             min="0"
             step="0.01"
             value={openingFloat}
-            placeholder="First shift only; later shifts are automatic"
+            placeholder={t("openingFloatPlaceholder")}
             onChange={(event) => setOpeningFloat(event.target.value)}
           />
+          <p className="text-muted-foreground text-[11px]">{t("openingFloatHelp")}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -741,11 +735,9 @@ function OpenSessionForm({
             )
           }
         >
-          Open shift
+          {t("openSession")}
         </Button>
-        <span className="text-[11px] text-muted-foreground">
-          Later shifts always receive the previous shift's counted cash. Use this only to set the first shift's float.
-        </span>
+        <span className="text-[11px] text-muted-foreground">{t("laterShiftCarryHint")}</span>
       </div>
     </div>
   );

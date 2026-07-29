@@ -16,6 +16,10 @@ export type PayrollRow = {
   bonuses: string;
   deductions: string;
   attendance_deductions: string;
+  attendance_snapshot: {
+    manual_bonus_reason?: string;
+    manual_deduction_reason?: string;
+  } | null;
   net_salary: string;
   status: string;
   paid_at: string | null;
