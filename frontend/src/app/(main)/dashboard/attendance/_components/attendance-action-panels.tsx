@@ -66,7 +66,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const t = useTranslations("Dashboard.attendance");
   const formRef = useRef<HTMLFormElement | null>(null);
   const [state, action, pending] = useActionState(scanMemberVisit, initialState);
-  useAttendanceActionToast(state);
+  useAttendanceActionToast(state, { playSuccessSound: true });
   const location = useGpsLocation();
   const [qrToken, setQrToken] = useState("");
   const [scanMethod, setScanMethod] = useState<"qr" | "scanner" | "manual">("scanner");
@@ -1323,19 +1323,35 @@ function PanelFooter({ disabled = false, label, pending }: { disabled?: boolean;
   );
 }
 
-function useAttendanceActionToast(state: AttendanceActionResult) {
+function useAttendanceActionToast(
+  state: AttendanceActionResult,
+  { playSuccessSound = false }: { playSuccessSound?: boolean } = {},
+) {
+  const notificationAudio = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     if (!state.message) {
       return;
     }
 
     if (state.ok) {
+      if (playSuccessSound) {
+        if (!notificationAudio.current) {
+          notificationAudio.current = new Audio("/notifications.mp3");
+        }
+
+        notificationAudio.current.currentTime = 0;
+        void notificationAudio.current.play().catch(() => {
+          // Browsers can block sound until the operator has interacted with the page.
+        });
+      }
+
       toast.success(state.message);
       return;
     }
 
     toast.error(state.message);
-  }, [state]);
+  }, [playSuccessSound, state]);
 }
 
 type GpsState = {
