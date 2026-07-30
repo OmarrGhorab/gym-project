@@ -9,6 +9,7 @@ use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\Payroll;
 use App\Models\Setting;
+use App\Models\ShiftSession;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use App\Models\User;
@@ -387,6 +388,46 @@ test('employee off shift check in requires approval violation', function (): voi
             ->where('subject_type', Attendance::class)
             ->exists()
     )->toBeTrue();
+});
+
+test('employee covering the live desk checks in against the covered shift without lateness penalties', function (): void {
+    $manager = actingManager();
+    $homeShift = EmployeeShift::factory()->create([
+        'name' => 'Morning',
+        'starts_at' => '09:00',
+        'ends_at' => '17:00',
+    ]);
+    $coveredShift = EmployeeShift::factory()->create([
+        'name' => 'Closing',
+        'starts_at' => '21:00',
+        'ends_at' => '23:59',
+    ]);
+    $employee = Employee::factory()->create([
+        'attendance_code' => 'E-COVERING',
+        'shift_id' => $homeShift->id,
+    ]);
+
+    ShiftSession::query()->create([
+        'employee_shift_id' => $coveredShift->id,
+        'business_date' => '2026-06-26',
+        'opened_at' => '2026-06-26 21:00:00',
+        'opened_by' => $manager->id,
+        'opened_by_employee_id' => $employee->id,
+        'status' => ShiftSession::STATUS_OPEN,
+        'opening_float' => '0.00',
+    ]);
+
+    $this->postJson('/api/v1/attendance/check-in', [
+        'qr_token' => 'employee:E-COVERING',
+        'check_in_at' => '2026-06-26 23:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.shift.id', $coveredShift->id)
+        ->assertJsonPath('data.schedule_status', 'on_shift')
+        ->assertJsonPath('data.approval_status', 'approved')
+        ->assertJsonPath('data.late_minutes', 0);
+
+    expect(AttendanceViolation::query()->where('employee_id', $employee->id)->exists())->toBeFalse();
 });
 
 test('manager can edit attendance violation rule penalties', function (): void {

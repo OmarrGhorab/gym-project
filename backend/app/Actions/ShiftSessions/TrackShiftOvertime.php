@@ -11,15 +11,16 @@ use Illuminate\Support\Carbon;
 /** Keeps handover overtime open until the employee actually leaves the desk. */
 class TrackShiftOvertime
 {
-    public function begin(ShiftSession $session, int $replacementId, int $coveringForId, User $user, Carbon $at): void
+    public function begin(ShiftSession $session, int $replacementId, ?int $coveringForId, User $user, Carbon $at): void
     {
-        $this->finish($session, $coveringForId, $at);
+        if ($coveringForId !== null) {
+            $this->finish($session, $coveringForId, $at);
+        }
 
         $date = Carbon::parse($session->business_date)->toDateString();
         $exists = OvertimeShift::query()
             ->activeClaim()
             ->where('employee_id', $replacementId)
-            ->where('covering_for_employee_id', $coveringForId)
             ->where('employee_shift_id', $session->employee_shift_id)
             ->whereDate('date', $date)
             ->exists();
@@ -51,7 +52,6 @@ class TrackShiftOvertime
             ->where('employee_id', $employeeId)
             ->where('employee_shift_id', $session->employee_shift_id)
             ->whereDate('date', $date)
-            ->whereNotNull('covering_for_employee_id')
             ->latest('id')
             ->first();
 

@@ -751,6 +751,7 @@
       },
       "approvalStatuses": {
         "approved": "Approved",
+        "warning": "Warning",
         "pending": "Pending",
         "auto_applied": "Auto applied",
         "dismissed": "Dismissed"

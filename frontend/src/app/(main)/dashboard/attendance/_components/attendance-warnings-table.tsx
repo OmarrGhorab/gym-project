@@ -66,6 +66,7 @@ export function AttendanceWarningsTable({ employees, filters, meta, violations }
             name="warning_status"
             options={[
               { label: t("allStatuses"), value: "all" },
+              { label: t("approvalStatuses.warning"), value: "warning" },
               { label: t("approvalStatuses.pending"), value: "pending" },
               { label: t("approvalStatuses.approved"), value: "approved" },
               { label: t("approvalStatuses.dismissed"), value: "dismissed" },

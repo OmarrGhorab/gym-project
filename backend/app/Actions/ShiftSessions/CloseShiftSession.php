@@ -2,6 +2,7 @@
 
 namespace App\Actions\ShiftSessions;
 
+use App\Models\Employee;
 use App\Models\ShiftSession;
 use App\Models\User;
 use App\Services\OperationalNotifier;
@@ -40,6 +41,16 @@ class CloseShiftSession
                 $employeeId = $locked->opened_by_employee_id;
             }
 
+            if ($employeeId === null && $locked->opened_by_employee_id) {
+                $actorEmployeeId = Employee::query()->where('user_id', $user->id)->value('id');
+                if ((int) $actorEmployeeId === (int) $locked->opened_by_employee_id) {
+                    $employeeId = (int) $actorEmployeeId;
+                }
+            }
+
+            $isAssignedStaffOnDuty = $employeeId !== null
+                && (int) $employeeId === (int) $locked->opened_by_employee_id;
+
             // Only an employee of this shift may close its drawer.
             $employee = $this->staff->handle(
                 $locked->shift,
@@ -47,6 +58,7 @@ class CloseShiftSession
                 $employeeId,
                 'employee_id',
                 $locked->business_date,
+                $isAssignedStaffOnDuty,
             );
 
             // The scheduled end time is not a gate: staff close the session by hand when they

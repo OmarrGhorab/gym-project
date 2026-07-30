@@ -751,6 +751,7 @@
       },
       "approvalStatuses": {
         "approved": "معتمد",
+        "warning": "تحذير",
         "pending": "معلق",
         "auto_applied": "مطبق تلقائيًا",
         "dismissed": "مرفوض"

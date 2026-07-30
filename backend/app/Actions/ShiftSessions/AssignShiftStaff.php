@@ -52,7 +52,7 @@ class AssignShiftStaff
                 true,
             );
 
-            if ($locked->opened_by_employee_id && (int) $locked->opened_by_employee_id !== (int) $employee->id) {
+            if ((int) ($locked->opened_by_employee_id ?? 0) !== (int) $employee->id) {
                 $this->overtime->begin($locked, $employee->id, $locked->opened_by_employee_id, $user, now());
             }
 

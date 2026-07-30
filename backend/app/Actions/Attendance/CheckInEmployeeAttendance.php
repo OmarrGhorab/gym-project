@@ -5,7 +5,9 @@ namespace App\Actions\Attendance;
 use App\Actions\Payroll\ApplyAttendanceBonuses;
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
+use App\Models\OvertimeShift;
 use App\Models\Payroll;
+use App\Models\ShiftSession;
 use App\Models\User;
 use App\Services\OperationalNotifier;
 use App\Support\Geofence;
@@ -28,11 +30,13 @@ final class CheckInEmployeeAttendance
         $employee = $this->identity->employee($data);
         $checkIn = $this->scanTimestamp($data, 'check_in_at');
         $date = $checkIn->toDateString();
-        $shift = $employee->shift;
+        [$shift, $isCoverage] = $this->attendanceShift($employee->id, $employee->shift, $checkIn);
         $location = $this->geofence->evaluate($data);
-        $isOffDay = $this->resolveOffDay->handle($employee, $checkIn, $shift);
-        $lateMinutes = $isOffDay ? 0 : $this->lateMinutes($shift, $checkIn);
-        $scheduleStatus = $this->scheduleStatus($shift, $checkIn, $lateMinutes, $isOffDay);
+        $isOffDay = $isCoverage ? false : $this->resolveOffDay->handle($employee, $checkIn, $shift);
+        $lateMinutes = ($isOffDay || $isCoverage) ? 0 : $this->lateMinutes($shift, $checkIn);
+        $scheduleStatus = $isCoverage
+            ? 'on_shift'
+            : $this->scheduleStatus($shift, $checkIn, $lateMinutes, $isOffDay);
         $approvalStatus = $scheduleStatus === 'off_shift' ? 'pending' : 'approved';
         $status = $lateMinutes > 0 ? 'late' : 'present';
         $offDayBonusAmount = $isOffDay && $shift?->off_day_bonus_enabled ? (string) $shift->off_day_bonus_amount : '0.00';
@@ -179,6 +183,44 @@ final class CheckInEmployeeAttendance
         }
 
         return $lateMinutes > 0 ? 'late' : 'on_shift';
+    }
+
+    /**
+     * A live desk assignment is the authoritative schedule while an employee is
+     * covering another shift. Fall back to a dated overtime assignment so staff
+     * can also scan before the finance desk has been opened.
+     *
+     * @return array{0: ?EmployeeShift, 1: bool}
+     */
+    private function attendanceShift(int $employeeId, ?EmployeeShift $homeShift, Carbon $checkIn): array
+    {
+        $date = $checkIn->toDateString();
+        $session = ShiftSession::query()
+            ->with('shift')
+            ->where('status', ShiftSession::STATUS_OPEN)
+            ->where('opened_by_employee_id', $employeeId)
+            ->whereDate('business_date', $date)
+            ->latest('opened_at')
+            ->first();
+
+        if ($session?->shift && (int) $session->shift->id !== (int) ($homeShift?->id ?? 0)) {
+            return [$session->shift, true];
+        }
+
+        $coverage = OvertimeShift::query()
+            ->activeClaim()
+            ->with('shift')
+            ->where('employee_id', $employeeId)
+            ->whereDate('date', $date)
+            ->whereNotNull('employee_shift_id')
+            ->latest('id')
+            ->first();
+
+        if ($coverage?->shift && (int) $coverage->shift->id !== (int) ($homeShift?->id ?? 0)) {
+            return [$coverage->shift, true];
+        }
+
+        return [$homeShift, false];
     }
 
     /**

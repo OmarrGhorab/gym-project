@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\User;
 use App\Services\OperationalNotifier;
+use App\Support\FoundationPermissions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +30,21 @@ class OpenShiftSession
             $businessDate = isset($data['business_date'])
                 ? Carbon::parse($data['business_date'])->toDateString()
                 : Carbon::today()->toDateString();
+
+            $forceOpen = (bool) ($data['force_open'] ?? false);
+            $isAdmin = method_exists($user, 'hasRole') && $user->hasRole(FoundationPermissions::ROLE_ADMIN);
+
+            if ($forceOpen && ! $isAdmin) {
+                throw ValidationException::withMessages([
+                    'force_open' => 'Only an administrator can force a shift open outside its schedule.',
+                ]);
+            }
+
+            if (! $forceOpen && ! $this->isWithinOpeningWindow($shift, $businessDate, now())) {
+                throw ValidationException::withMessages([
+                    'employee_shift_id' => $shift->name.' cannot be opened outside its scheduled time. Use an authorized force-open only for an exceptional situation.',
+                ]);
+            }
 
             // Only an employee of this shift may hold the drawer (admins act on their behalf).
             $employee = $this->staff->handle(
@@ -117,6 +133,23 @@ class OpenShiftSession
         return $value instanceof \DateTimeInterface
             ? $value->format('Y-m-d')
             : Carbon::parse((string) $value)->toDateString();
+    }
+
+    private function isWithinOpeningWindow(EmployeeShift $shift, string $businessDate, Carbon $at): bool
+    {
+        $start = Carbon::parse($businessDate.' '.$shift->starts_at->format('H:i'));
+        $end = Carbon::parse($businessDate.' '.$shift->ends_at->format('H:i'));
+
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        $graceMinutes = max(0, (int) $shift->grace_minutes);
+
+        return $at->betweenIncluded(
+            $start->copy()->subMinutes($graceMinutes),
+            $end->copy()->addMinutes($graceMinutes),
+        );
     }
 
     private function setting(string $key, mixed $default = null): mixed

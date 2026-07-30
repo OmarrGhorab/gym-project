@@ -38,7 +38,7 @@ export default async function Page({ searchParams }: PageProps) {
     employeeId: readParam(resolvedSearchParams.warning_employee_id),
     page: readParam(resolvedSearchParams.warning_page) ?? "1",
     perPage: readParam(resolvedSearchParams.warning_per_page) ?? "10",
-    status: warningStatusParam === "all" ? undefined : (warningStatusParam ?? "pending"),
+    status: warningStatusParam && warningStatusParam !== "all" ? warningStatusParam : undefined,
     type: readParam(resolvedSearchParams.warning_type),
   };
   const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth, warnings: warningFilters });
@@ -111,7 +111,7 @@ export default async function Page({ searchParams }: PageProps) {
           employeeId: warningFilters.employeeId ?? "",
           page: Number(warningFilters.page),
           perPage: warningFilters.perPage,
-          status: warningStatusParam === "all" ? "all" : (warningFilters.status ?? "pending"),
+          status: warningFilters.status ?? "all",
           type: warningFilters.type ?? "",
         }}
         meta={data.violationsMeta}

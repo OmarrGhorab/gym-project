@@ -14,14 +14,20 @@ use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    Carbon::setTestNow();
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
+});
+
+afterEach(function (): void {
+    Carbon::setTestNow();
 });
 
 /** Sessions may only be held by an employee of the shift, so link the acting user to one. */
@@ -212,6 +218,55 @@ test('staff on duty can be handed to an active employee from another shift', fun
     $this->putJson("/api/v1/shift-sessions/{$sessionId}/staff", ['employee_id' => $outsider->id])
         ->assertStatus(200)
         ->assertJsonPath('data.staff_on_duty.id', $outsider->id);
+
+    expect(OvertimeShift::query()
+        ->where('employee_id', $outsider->id)
+        ->where('employee_shift_id', $shift->id)
+        ->whereDate('date', now()->toDateString())
+        ->where('status', OvertimeShift::STATUS_PENDING)
+        ->exists())->toBeTrue();
+
+    $this->postJson("/api/v1/shift-sessions/{$sessionId}/close")
+        ->assertOk()
+        ->assertJsonPath('data.status', ShiftSession::STATUS_PENDING_HANDOVER)
+        ->assertJsonPath('data.closed_by_employee.id', $outsider->id);
+});
+
+test('assigning an employee to an unstaffed session creates overtime coverage and permits closing', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create();
+    $outsider = Employee::factory()->create([
+        'shift_id' => EmployeeShift::factory()->create()->id,
+        'status' => 'active',
+    ]);
+    $session = ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => now()->toDateString(),
+        'status' => ShiftSession::STATUS_OPEN,
+        'opened_at' => now()->subHour(),
+        'opened_by' => $admin->id,
+        'opened_by_employee_id' => null,
+        'opening_float' => '0.00',
+    ]);
+
+    $this->putJson("/api/v1/shift-sessions/{$session->id}/staff", ['employee_id' => $outsider->id])
+        ->assertOk()
+        ->assertJsonPath('data.staff_on_duty.id', $outsider->id);
+
+    expect(OvertimeShift::query()
+        ->where('employee_id', $outsider->id)
+        ->where('employee_shift_id', $shift->id)
+        ->whereNull('covering_for_employee_id')
+        ->where('status', OvertimeShift::STATUS_PENDING)
+        ->exists())->toBeTrue();
+
+    $this->postJson("/api/v1/shift-sessions/{$session->id}/close")
+        ->assertOk()
+        ->assertJsonPath('data.status', ShiftSession::STATUS_PENDING_HANDOVER)
+        ->assertJsonPath('data.closed_by_employee.id', $outsider->id);
 });
 
 test('staff on duty cannot be changed once the session is closed', function (): void {
@@ -632,4 +687,50 @@ test('require handover blocks opening a new session', function (): void {
         'employee_shift_id' => $shiftB->id,
         'opening_float' => '0.00',
     ])->assertStatus(422);
+});
+
+test('manual opening outside the scheduled window requires an explicit force open', function (): void {
+    Carbon::setTestNow('2026-07-30 23:00:00');
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $shift = EmployeeShift::factory()->create([
+        'name' => 'Morning Desk',
+        'starts_at' => '06:00:00',
+        'ends_at' => '11:00:00',
+        'grace_minutes' => 15,
+    ]);
+    shiftStaff($admin, $shift);
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.details.employee_shift_id.0', 'Morning Desk cannot be opened outside its scheduled time. Use an authorized force-open only for an exceptional situation.');
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'force_open' => true,
+    ])->assertCreated();
+});
+
+test('non admins cannot force a shift open outside its schedule', function (): void {
+    Carbon::setTestNow('2026-07-30 23:00:00');
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $shift = EmployeeShift::factory()->create([
+        'starts_at' => '06:00:00',
+        'ends_at' => '11:00:00',
+    ]);
+    shiftStaff($manager, $shift);
+
+    $this->postJson('/api/v1/shift-sessions', [
+        'employee_shift_id' => $shift->id,
+        'force_open' => true,
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.details.force_open.0', 'Only an administrator can force a shift open outside its schedule.');
 });
