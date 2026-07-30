@@ -758,8 +758,11 @@
       "visitStatuses": {
         "allowed": "Allowed",
         "blocked": "Blocked",
-        "flagged": "Flagged"
+        "flagged": "Flagged",
+        "pending_review": "Pending review"
       },
+      "approveMemberVisit": "Approve check-in",
+      "dismissMemberVisit": "Dismiss",
       "overtimeTitle": "Overtime shifts",
       "overtimeDescription": "Shift handoffs are recorded automatically. Admin reviews the overtime and adds the approved bonus in Payroll.",
       "overtimeOpenSlots": "{count} open slot(s)",

@@ -156,8 +156,7 @@ final class ResolveMemberVisitSubscription
         }
 
         if ($addon->sessions_remaining !== null) {
-            $addon->decrement('sessions_remaining');
-            $addon->refresh();
+            $this->consumeAddonSession($addon);
         }
 
         return $addon;
@@ -192,19 +191,27 @@ final class ResolveMemberVisitSubscription
             }
 
             if ($candidate->sessions_remaining !== null) {
-                $candidate->decrement('sessions_remaining');
-                $candidate->refresh();
-
-                if ((int) $candidate->sessions_remaining === 0) {
-                    $candidate->update(['status' => 'expired']);
-                    app(OperationalNotifier::class)->addonSessionsFinished($candidate);
-                }
+                $this->consumeAddonSession($candidate);
             }
 
             return $candidate;
         }
 
         return null;
+    }
+
+    private function consumeAddonSession(SubscriptionAddon $addon): void
+    {
+        $addon->decrement('sessions_remaining');
+        $addon->refresh();
+
+        $remaining = (int) $addon->sessions_remaining;
+        if ($remaining === 0) {
+            $addon->update(['status' => 'expired']);
+            app(OperationalNotifier::class)->addonSessionsFinished($addon);
+        } elseif ($remaining <= 2) {
+            app(OperationalNotifier::class)->addonSessionsLow($addon);
+        }
     }
 
     public function alertReason(Member $member, Carbon $checkIn): string

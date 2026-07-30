@@ -49,6 +49,27 @@ export async function scanMemberVisit(
   return mutateScan("/member-visits/check-in", payload, "Member check-in recorded.", "POST", values);
 }
 
+export async function reviewMemberVisit(
+  _previousState: AttendanceActionResult,
+  input: FormData,
+): Promise<AttendanceActionResult> {
+  const values = getFormValues(input);
+  const visitId = Number(input.get("member_visit_id"));
+  const decision = String(input.get("decision"));
+
+  if (!Number.isInteger(visitId) || visitId <= 0 || !["approved", "dismissed"].includes(decision)) {
+    return { ok: false, message: "Invalid member visit review.", errors: {}, values };
+  }
+
+  return mutateScan(
+    `/member-visits/${visitId}/review`,
+    { decision },
+    decision === "approved" ? "Member check-in approved." : "Member check-in dismissed.",
+    "POST",
+    values,
+  );
+}
+
 export async function scanStaffAttendance(
   _previousState: AttendanceActionResult,
   input: FormData,

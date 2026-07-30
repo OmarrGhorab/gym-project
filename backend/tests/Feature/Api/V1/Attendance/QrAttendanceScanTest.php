@@ -79,14 +79,16 @@ test('member check in accepts raw printed attendance code', function (): void {
         ->assertJsonPath('data.scan_method', 'qr');
 });
 
-test('member qr check in is rejected when member already has an open visit', function (): void {
+test('member qr duplicate check in is sent for review without consuming a second session', function (): void {
     actingManager();
     $member = Member::factory()->create(['attendance_code' => 'M-OPEN123']);
-    Subscription::factory()->for($member)->active()->create([
+    $subscription = Subscription::factory()->for($member)->active()->create([
         'start_date' => '2026-06-01',
         'end_date' => '2026-06-30',
+        'sessions_remaining' => 4,
     ]);
     MemberVisit::factory()->for($member)->create([
+        'subscription_id' => $subscription->id,
         'check_in_at' => '2026-06-26 09:53:00',
         'check_out_at' => null,
     ]);
@@ -95,12 +97,11 @@ test('member qr check in is rejected when member already has an open visit', fun
         'qr_token' => 'member:M-OPEN123',
         'check_in_at' => '2026-06-26 10:07:00',
     ])
-        ->assertUnprocessable()
-        ->assertJsonFragment([
-            'member_id' => ['This member already has an open visit. Check them out before checking in again.'],
-        ]);
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending_review');
 
-    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1);
+    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(2)
+        ->and($subscription->fresh()->sessions_remaining)->toBe(5);
 });
 
 test('member phone lookup rejects check-in for invalid subscription', function (): void {
@@ -476,4 +477,39 @@ test('member check in automatically decrements sessions from active extra-on pla
         ->assertJsonPath('data.subscription_addon_id', $addon->id);
 
     expect($addon->fresh()->sessions_remaining)->toBe(11);
+});
+
+test('member check in notifies admins when an extra-on plan has two sessions remaining', function (): void {
+    $manager = actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-ADDON-LOW']);
+    $subscription = Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => null,
+    ]);
+
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $subscription->plan_id,
+        'status' => 'active',
+        'price_paid' => '100.00',
+        'sessions_total' => 3,
+        'sessions_remaining' => 3,
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-ADDON-LOW',
+        'check_in_at' => '2026-06-26 10:00:00',
+    ])->assertCreated();
+
+    expect($addon->fresh()->sessions_remaining)->toBe(2)
+        ->and(
+            $manager->notifications()
+                ->get()
+                ->contains(fn ($notification): bool => ($notification->data['category'] ?? null) === 'membership.addon_sessions_low'
+                    && ($notification->data['sessions_remaining'] ?? null) === 2)
+        )->toBeTrue();
 });

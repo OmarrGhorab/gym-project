@@ -7,6 +7,7 @@ use App\Actions\MemberVisits\CheckInMemberVisit;
 use App\Actions\MemberVisits\CheckOutMemberVisit;
 use App\Actions\MemberVisits\StoreMemberVisit;
 use App\Actions\MemberVisits\UpdateMemberVisit;
+use App\Actions\MemberVisits\ResolveMemberVisitSubscription;
 use App\Http\Requests\MemberVisits\ScanMemberVisitRequest;
 use App\Http\Requests\MemberVisits\StoreMemberVisitRequest;
 use App\Http\Requests\MemberVisits\UpdateMemberVisitRequest;
@@ -107,6 +108,25 @@ final class MemberVisitController extends ApiController
             ->withMessage('Member checkout recorded')
             ->response()
             ->setStatusCode(200);
+    }
+
+    public function review(Request $request, MemberVisit $memberVisit, ResolveMemberVisitSubscription $subscriptions): JsonResponse
+    {
+        $this->authorize('update', $memberVisit);
+        $decision = $request->validate(['decision' => ['required', 'in:approved,dismissed']])['decision'];
+        abort_unless($memberVisit->status === 'pending_review', 422, 'This visit is not pending review.');
+
+        if ($decision === 'approved') {
+            $subscription = $subscriptions->consume($memberVisit->member, $memberVisit->check_in_at);
+            $addon = $memberVisit->subscription_addon_id
+                ? $subscriptions->consumeAddon($memberVisit->member, $memberVisit->check_in_at, $memberVisit->subscription_addon_id)
+                : $subscriptions->autoConsumeActiveAddon($memberVisit->member, $memberVisit->check_in_at, $subscription);
+            $memberVisit->update(['subscription_id' => $subscription->id, 'subscription_addon_id' => $addon?->id, 'status' => 'allowed', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'alert_reason' => null]);
+        } else {
+            $memberVisit->update(['status' => 'blocked', 'check_out_at' => $memberVisit->check_in_at, 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
+        }
+
+        return (new MemberVisitResource($memberVisit->fresh(['member.latestSubscription.plan', 'subscription.plan', 'creator'])))->withMessage('Member visit reviewed')->response();
     }
 
     public function show(Request $request, MemberVisit $memberVisit): JsonResponse

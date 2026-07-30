@@ -12,6 +12,7 @@ import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { AttendanceDayPicker } from "./_components/attendance-day-picker";
 import { AttendanceWarningsTable } from "./_components/attendance-warnings-table";
 import { getAttendancePageData } from "./_components/data";
+import { MemberVisitReviewActions } from "./_components/member-visit-review-actions";
 
 type PageProps = {
   searchParams: Promise<{
@@ -213,6 +214,7 @@ export default async function Page({ searchParams }: PageProps) {
                   </TableCell>
                   <TableCell>
                     <StatusBadge label={t(`visitStatuses.${visit.status}`)} value={visit.status} />
+                    {visit.status === "pending_review" ? <MemberVisitReviewActions visitId={visit.id} /> : null}
                   </TableCell>
                   <TableCell>{visit.scan_method}</TableCell>
                   <TableCell>{visit.alert_reason ?? "--"}</TableCell>

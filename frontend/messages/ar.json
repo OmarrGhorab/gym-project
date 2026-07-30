@@ -758,8 +758,11 @@
       "visitStatuses": {
         "allowed": "مسموح",
         "blocked": "محظور",
-        "flagged": "محتاج مراجعة"
+        "flagged": "محتاج مراجعة",
+        "pending_review": "قيد المراجعة"
       },
+      "approveMemberVisit": "اعتماد تسجيل الدخول",
+      "dismissMemberVisit": "رفض",
       "overtimeTitle": "الورديات الإضافية",
       "overtimeDescription": "يتم تسجيل تسليمات الشيفت تلقائيًا. تراجع الإدارة الوقت الإضافي وتضيف المكافأة المعتمدة إلى المرتبات.",
       "overtimeOpenSlots": "{count} وردية متاحة",

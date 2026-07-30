@@ -13,6 +13,9 @@ Route::prefix('member-visits')->group(function (): void {
     Route::post('/check-out', [MemberVisitController::class, 'checkOut'])
         ->middleware(['permission:members.update', 'throttle:api']);
 
+    Route::post('/{memberVisit}/review', [MemberVisitController::class, 'review'])
+        ->middleware(['permission:members.update', 'throttle:api']);
+
     Route::post('/', [MemberVisitController::class, 'store'])
         ->middleware(['permission:members.update', 'throttle:api']);
 

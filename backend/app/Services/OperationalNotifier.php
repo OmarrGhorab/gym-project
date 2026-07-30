@@ -181,6 +181,31 @@ class OperationalNotifier
         );
     }
 
+    public function addonSessionsLow(SubscriptionAddon $addon): void
+    {
+        $addon->loadMissing(['member:id,name,phone', 'plan:id,name']);
+
+        $this->notifyAdmins(
+            title: 'Extra plan sessions running low',
+            body: ($addon->member?->name ?? 'Member').' has only '.$addon->sessions_remaining.' session(s) remaining for '.($addon->plan?->name ?? 'the extra plan').'.',
+            category: 'membership.addon_sessions_low',
+            link: NotificationLink::member(
+                $addon->member_id,
+                $addon->member?->phone,
+                ['addon' => $addon->id],
+            ),
+            severity: 'info',
+            extra: [
+                'addon_id' => $addon->id,
+                'member_id' => $addon->member_id,
+                'member_name' => $addon->member?->name,
+                'member_phone' => $addon->member?->phone,
+                'plan_name' => $addon->plan?->name,
+                'sessions_remaining' => $addon->sessions_remaining,
+            ],
+        );
+    }
+
     public function payrollReady(Payroll $payroll): void
     {
         $payroll->loadMissing('employee.user');

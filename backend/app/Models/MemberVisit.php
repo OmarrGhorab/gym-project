@@ -34,11 +34,14 @@ class MemberVisit extends Model
         'alert_reason',
         'notes',
         'created_by',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     protected $casts = [
         'check_in_at' => 'datetime',
         'check_out_at' => 'datetime',
+        'reviewed_at' => 'datetime',
         'check_in_latitude' => 'decimal:7',
         'check_in_longitude' => 'decimal:7',
         'check_out_latitude' => 'decimal:7',

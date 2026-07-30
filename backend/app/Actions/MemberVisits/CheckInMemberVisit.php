@@ -27,6 +27,38 @@ final class CheckInMemberVisit
 
         $visit = DB::transaction(function () use ($data, $user, $checkIn, $member, $location): MemberVisit {
             $this->autoCloseStaleVisits->handle($checkIn);
+            $openVisit = MemberVisit::query()->where('member_id', $member->id)->whereNull('check_out_at')->latest('check_in_at')->lockForUpdate()->first();
+            if ($openVisit) {
+                if ($openVisit->subscription?->sessions_remaining !== null) {
+                    $openVisit->subscription()->increment('sessions_remaining');
+                }
+                if ($openVisit->subscriptionAddon?->sessions_remaining !== null) {
+                    $openVisit->subscriptionAddon()->increment('sessions_remaining');
+                }
+                $openVisit->update([
+                    'check_out_at' => $checkIn,
+                    'status' => 'flagged',
+                    'alert_reason' => 'First check-in reversed after a duplicate scan was submitted for review.',
+                ]);
+
+                return MemberVisit::create([
+                    'member_id' => $member->id,
+                    'subscription_id' => $openVisit->subscription_id,
+                    'subscription_addon_id' => $openVisit->subscription_addon_id,
+                    'check_in_at' => $checkIn,
+                    'check_in_latitude' => $location['latitude'],
+                    'check_in_longitude' => $location['longitude'],
+                    'check_in_accuracy_meters' => $location['accuracy_meters'],
+                    'check_in_distance_meters' => $location['distance_meters'],
+                    'check_in_location_status' => $location['location_status'],
+                    'status' => 'pending_review',
+                    'scan_method' => $this->scanMethod($data),
+                    'alert_reason' => 'Duplicate check-in: approve to count this visit and consume one session.',
+                    'notes' => $data['notes'] ?? null,
+                    'created_by' => $user->id,
+                ]);
+            }
+
             $this->ensureMemberCanCheckIn->handle($member);
 
             // Hard-deny outside membership access window / no sessions / expired / inactive.

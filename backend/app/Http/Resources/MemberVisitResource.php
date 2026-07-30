@@ -58,6 +58,8 @@ class MemberVisitResource extends JsonResource
             'scan_method' => $this->scan_method,
             'alert_reason' => $this->alert_reason,
             'notes' => $this->notes,
+            'reviewed_at' => $this->reviewed_at?->toIso8601String(),
+            'reviewed_by' => $this->reviewed_by,
             'creator' => new UserSummaryResource($this->whenLoaded('creator')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

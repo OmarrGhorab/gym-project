@@ -15,8 +15,26 @@ export default async function LoginV2() {
     <>
       <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[350px]">
         <div className="space-y-2 text-center">
-          <div className="flex items-center justify-center gap-3">
-            <Image src="/logo-noBG.png" alt="ATP Gym logo" width={42} height={42} className="object-contain" priority />
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative h-20 w-40">
+              <Image
+                src="/logo-noBG.png"
+                alt="ATP Gym logo"
+                fill
+                priority
+                sizes="160px"
+                className="object-contain brightness-0 dark:hidden"
+              />
+              <Image
+                src="/logo-noBG.png"
+                alt=""
+                fill
+                priority
+                sizes="160px"
+                className="hidden object-contain dark:block"
+                aria-hidden="true"
+              />
+            </div>
             <h1 className="font-medium text-3xl">{tLogin("title")}</h1>
           </div>
           <p className="text-muted-foreground text-sm">{tLogin("description")}</p>
