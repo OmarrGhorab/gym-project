@@ -146,6 +146,7 @@ export async function createMember(_state: MemberFormState, input: FormData): Pr
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/finance");
 
   return {
     ok: true,
@@ -291,6 +292,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/finance");
 
   return {
     ok: true,
@@ -382,6 +384,7 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/finance");
   revalidatePath("/dashboard/default");
   revalidatePath("/dashboard");
 
@@ -401,6 +404,7 @@ export async function deactivateMember(input: FormData): Promise<void> {
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/finance");
   revalidatePath("/dashboard/default");
   revalidatePath("/dashboard");
 }
@@ -496,6 +500,7 @@ export async function cancelMemberSubscription(_state: MemberFormState, input: F
 
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/crm");
+  revalidatePath("/dashboard/finance");
   revalidatePath("/dashboard/default");
 
   return {

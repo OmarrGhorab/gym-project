@@ -210,12 +210,10 @@ export function ShiftDesk({
           {canOperate && currentSession.status === "open" ? (
             <div className="flex flex-col items-end gap-1">
               <Button size="sm" disabled={pending} onClick={() => run(() => closeShiftSession(currentSession.id))}>
-                {t("closeSession")} & Prepare Handover
+                {t("endShiftAndCountCash")}
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                {scheduledEnd
-                  ? t("closeSessionManualHintScheduled", { time: scheduledEnd })
-                  : t("closeSessionManualHint")}
+                {scheduledEnd ? t("endShiftHintScheduled", { time: scheduledEnd }) : t("endShiftHint")}
               </span>
             </div>
           ) : null}
@@ -313,7 +311,7 @@ export function ShiftDesk({
         {pendingSessions.length > 0 ? (
           <div className="grid gap-3">
             <div>
-              <p className="font-medium text-sm">{t("pendingHandovers")}</p>
+              <p className="font-medium text-sm">{t("finishHandover")}</p>
               <p className="text-muted-foreground text-xs">{t("handoverWorkflowHelp")}</p>
             </div>
             {pendingSessions.map((session) => {
@@ -397,6 +395,7 @@ export function ShiftDesk({
 
                   {canOperate && (session.status === "pending_handover" || session.status === "disputed") ? (
                     <div className="grid gap-3">
+                      <p className="font-medium text-sm">{t("handoverStepCount")}</p>
                       <p className="text-muted-foreground text-xs">{t("handoverCountHelp")}</p>
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         {(["cash", "card", "bank", "expenses"] as const).map((field) => (
@@ -440,7 +439,7 @@ export function ShiftDesk({
                             )
                           }
                         >
-                          {t("submitHandoverOk")}
+                          {t("handoverStepSend")}
                         </Button>
                         <p className="self-center text-muted-foreground text-xs">{t("submitHandoverOkHelp")}</p>
                       </div>
@@ -449,6 +448,7 @@ export function ShiftDesk({
 
                   {canReview && session.status === "pending_admin" ? (
                     <div className="grid gap-2">
+                      <p className="font-medium text-sm">{t("handoverStepReview")}</p>
                       <p className="text-muted-foreground text-xs">{t("adminReviewHelp")}</p>
                       {session.variance_notes ? (
                         <p className="rounded-md bg-muted/40 px-3 py-2 text-xs">
@@ -560,7 +560,7 @@ function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
   );
 }
 
-/** Hand the open drawer to any active employee; handoffs create pending OT for admin review. */
+/** Hand the live drawer to a replacement without closing the shift. */
 function AssignStaffControl({
   currentStaffId,
   pending,
@@ -589,33 +589,39 @@ function AssignStaffControl({
   }
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <Label className="text-muted-foreground text-xs" htmlFor={`assign-staff-${sessionId}`}>
-        Change staff on duty
-      </Label>
-      <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "")}>
-        <SelectTrigger id={`assign-staff-${sessionId}`} className="h-8 w-56">
-          <SelectValue placeholder="Select employee">{selectedStaffLabel}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {staff.map((employee) => (
-              <SelectItem key={employee.id} value={String(employee.id)}>
-                {employee.role ? `${employee.name} — ${employee.role}` : employee.name}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={pending || !employeeId || employeeId === String(currentStaffId ?? "")}
-        onClick={() => onAssign(() => assignShiftStaff(sessionId, Number(employeeId)))}
-      >
-        Assign
-      </Button>
-      <span className="text-muted-foreground text-[11px]">{t("staffHandoffHelp")}</span>
+    <div className="mt-3 grid gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+      <div>
+        <p className="font-medium text-sm">{t("replaceEarlyLeaveTitle")}</p>
+        <p className="text-muted-foreground text-xs">{t("replaceEarlyLeaveHelp")}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="text-muted-foreground text-xs" htmlFor={`assign-staff-${sessionId}`}>
+          {t("replacementEmployee")}
+        </Label>
+        <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "")}>
+          <SelectTrigger id={`assign-staff-${sessionId}`} className="h-8 w-56">
+            <SelectValue placeholder={t("selectReplacement")}>{selectedStaffLabel}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {staff.map((employee) => (
+                <SelectItem key={employee.id} value={String(employee.id)}>
+                  {employee.role ? `${employee.name} — ${employee.role}` : employee.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending || !employeeId || employeeId === String(currentStaffId ?? "")}
+          onClick={() => onAssign(() => assignShiftStaff(sessionId, Number(employeeId)))}
+        >
+          {t("startCoverage")}
+        </Button>
+      </div>
+      <span className="text-[11px] text-muted-foreground">{t("staffHandoffHelp")}</span>
     </div>
   );
 }
@@ -660,8 +666,8 @@ function OpenSessionForm({
   return (
     <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4">
       <div>
-        <p className="font-medium text-foreground text-sm">{t("noOpenSession")}</p>
-        <p className="text-muted-foreground text-xs">{t("openSessionDescription")}</p>
+        <p className="font-medium text-foreground text-sm">{t("openDeskTitle")}</p>
+        <p className="text-muted-foreground text-xs">{t("openDeskHelp")}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="grid gap-1.5">
@@ -716,7 +722,7 @@ function OpenSessionForm({
             placeholder={t("openingFloatPlaceholder")}
             onChange={(event) => setOpeningFloat(event.target.value)}
           />
-          <p className="text-muted-foreground text-[11px]">{t("openingFloatHelp")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("openingFloatHelp")}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -735,7 +741,7 @@ function OpenSessionForm({
             )
           }
         >
-          {t("openSession")}
+          {t("openDeskAction")}
         </Button>
         <span className="text-[11px] text-muted-foreground">{t("laterShiftCarryHint")}</span>
       </div>

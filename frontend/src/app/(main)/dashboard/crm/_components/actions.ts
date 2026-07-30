@@ -216,6 +216,7 @@ async function mutateSubscription(
 
   revalidatePath("/dashboard/crm");
   revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/finance");
   revalidatePath("/dashboard/default");
 
   return {
