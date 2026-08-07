@@ -211,9 +211,15 @@ export function PerformanceOverview({ data }: { data: SalesChartPoint[] }) {
                 <ChartTooltipContent
                   className="w-50"
                   indicator="line"
-                  labelFormatter={(value) =>
-                    new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(parseISO(value))
-                  }
+                  labelFormatter={(value) => {
+                    // The tooltip label is typed as ReactNode because a chart
+                    // config may map it to one; this axis plots raw ISO dates.
+                    const parsed = parseISO(String(value));
+
+                    return Number.isNaN(parsed.getTime())
+                      ? String(value)
+                      : new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(parsed);
+                  }}
                 />
               }
             />

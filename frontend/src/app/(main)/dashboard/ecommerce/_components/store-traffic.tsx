@@ -69,7 +69,7 @@ export function StoreTraffic({ data }: { data: PosHourlyPoint[] }) {
               }
               cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
             />
-            <ChartLegend align="right" verticalAlign="top" className="justify-end" content={<ChartLegendContent />} />
+            <ChartLegend align="right" verticalAlign="top" content={<ChartLegendContent className="justify-end" />} />
             <Area
               dataKey="revenue"
               dot={false}
