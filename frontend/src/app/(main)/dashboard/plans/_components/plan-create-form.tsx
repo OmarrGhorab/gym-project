@@ -173,10 +173,17 @@ export function PlanCreateForm({
   const initialMinFreezeDays = state.values.min_freeze_days || valueOrPlan(state, plan, "min_freeze_days") || "0";
   const initialAccessStartsAt = accessWindowDefault(state, plan, mode, "access_starts_at");
   const initialAccessEndsAt = accessWindowDefault(state, plan, mode, "access_ends_at");
+  // An access window is opt-in: a plan with no hours saved lets members in whenever
+  // the gym is open, so the pickers stay hidden until the admin asks for a window.
+  const initialRestrictAccessHours =
+    state.values.restrict_access_hours !== undefined
+      ? state.values.restrict_access_hours === "on"
+      : mode === "edit" && Boolean(plan?.access_starts_at ?? plan?.access_ends_at);
   const [planType, setPlanType] = React.useState(initialPlanType);
   const [category, setCategory] = React.useState(initialCategory);
   const [unlimitedSessions, setUnlimitedSessions] = React.useState(initialUnlimitedSessions);
   const [freezeRequiresApproval, setFreezeRequiresApproval] = React.useState(initialFreezeRequiresApproval);
+  const [restrictAccessHours, setRestrictAccessHours] = React.useState(initialRestrictAccessHours);
   const [durationBasis, setDurationBasis] = React.useState(initialDurationBasis);
   const [durationMonths, setDurationMonths] = React.useState(initialDurationMonths);
   const [validFrom, setValidFrom] = React.useState(initialValidFrom);
@@ -760,19 +767,36 @@ export function PlanCreateForm({
         <p className="text-muted-foreground text-xs">{t("freezeRequiresApprovalHelp")}</p>
       </div>
 
-      <TimeField
-        error={fieldError(state, "access_starts_at")}
-        label={t("accessStartsAt")}
-        name="access_starts_at"
-        defaultValue={initialAccessStartsAt}
-      />
-      <TimeField
-        error={fieldError(state, "access_ends_at")}
-        label={t("accessEndsAt")}
-        name="access_ends_at"
-        defaultValue={initialAccessEndsAt}
-      />
-      <p className="text-muted-foreground text-xs">{t("accessHoursHelp")}</p>
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <input type="hidden" name="restrict_access_hours" value={restrictAccessHours ? "on" : ""} />
+          <Checkbox
+            id="restrict_access_hours"
+            checked={restrictAccessHours}
+            onCheckedChange={(checked) => setRestrictAccessHours(checked === true)}
+          />
+          <Label htmlFor="restrict_access_hours">{t("restrictAccessHours")}</Label>
+        </div>
+        <p className="text-muted-foreground text-xs">{t("restrictAccessHoursHelp")}</p>
+      </div>
+
+      {restrictAccessHours ? (
+        <>
+          <TimeField
+            error={fieldError(state, "access_starts_at")}
+            label={t("accessStartsAt")}
+            name="access_starts_at"
+            defaultValue={initialAccessStartsAt}
+          />
+          <TimeField
+            error={fieldError(state, "access_ends_at")}
+            label={t("accessEndsAt")}
+            name="access_ends_at"
+            defaultValue={initialAccessEndsAt}
+          />
+          <p className="text-muted-foreground text-xs">{t("accessHoursHelp")}</p>
+        </>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="description">{t("descriptionField")}</Label>
@@ -962,9 +986,10 @@ function clampDays(value: string, limit: number): number {
 }
 
 /**
- * New plans open with a 09:00–23:59 access window so the common case needs no
- * typing. Existing plans keep whatever they have — including a deliberately empty
- * window, which means all-day access and must not be narrowed by opening the form.
+ * What the hour pickers show once the admin asks for an access window. A plan that
+ * already has one keeps it; anything else starts at 09:00–23:59 so the usual case
+ * needs no typing. An empty window is never submitted from here — the checkbox
+ * decides whether these values reach the server at all.
  */
 function accessWindowDefault(
   state: PlanFormState,
@@ -974,12 +999,14 @@ function accessWindowDefault(
 ): string {
   const submitted = state.values[key];
 
-  if (submitted !== undefined) {
+  if (submitted) {
     return submitted;
   }
 
-  if (mode === "edit") {
-    return valueOrPlan(state, plan, key);
+  const saved = mode === "edit" ? valueOrPlan(state, plan, key) : "";
+
+  if (saved) {
+    return saved;
   }
 
   return key === "access_starts_at" ? DEFAULT_ACCESS_STARTS_AT : DEFAULT_ACCESS_ENDS_AT;

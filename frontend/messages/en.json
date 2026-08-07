@@ -1371,6 +1371,8 @@
       "validTo": "Valid to",
       "accessStartsAt": "Access starts at",
       "accessEndsAt": "Access ends at",
+      "restrictAccessHours": "Limit access to specific hours",
+      "restrictAccessHoursHelp": "Leave this off to let members of this plan check in any time the gym is open.",
       "accessHoursHelp": "Optional daily access window (e.g. 19:00–23:00). Members who check in before or after this window are blocked. Same rules apply to service add-on plans.",
       "descriptionField": "Description",
       "planEmployees": "Plan employees",

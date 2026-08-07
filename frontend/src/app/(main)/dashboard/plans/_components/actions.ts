@@ -43,6 +43,7 @@ const planInputSchema = z
       z.object({ coach_id: z.coerce.number().int().positive(), plan_id: z.coerce.number().int().positive() }),
     ),
     price: z.coerce.number().min(0, "Price cannot be negative."),
+    restrict_access_hours: z.preprocess((value) => value === "on" || value === true, z.boolean().default(false)),
     sessions_count: z.preprocess(
       (value) => (String(value ?? "").trim() === "" ? null : value),
       z.coerce.number().int().min(1, "Sessions count must be at least 1.").nullable(),
@@ -96,7 +97,16 @@ const planInputSchema = z
       message: "Access end must be after access start.",
       path: ["access_ends_at"],
     },
-  );
+  )
+  // Hours only matter when the admin asked for a window; then both ends are needed.
+  .refine((value) => !value.restrict_access_hours || Boolean(value.access_starts_at), {
+    message: "Access start is required when access hours are limited.",
+    path: ["access_starts_at"],
+  })
+  .refine((value) => !value.restrict_access_hours || Boolean(value.access_ends_at), {
+    message: "Access end is required when access hours are limited.",
+    path: ["access_ends_at"],
+  });
 
 export type PlanFormState = {
   ok: boolean;
@@ -123,6 +133,7 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
     name: input.get("name"),
     price: input.get("price"),
     package_addons: parsePackageAddons(input),
+    restrict_access_hours: input.get("restrict_access_hours"),
     sessions_count: input.get("sessions_count"),
     type: input.get("type"),
     valid_from: input.get("valid_from"),
@@ -144,12 +155,7 @@ export async function createPlan(_state: PlanFormState, input: FormData): Promis
   try {
     const planResult = await mutate<{
       id: number;
-    }>("/plans", "POST", {
-      ...parsed.data,
-      description: parsed.data.description ?? "",
-      duration_months: parsed.data.duration_basis === "months" ? parsed.data.duration_months : null,
-      price: String(parsed.data.price),
-    });
+    }>("/plans", "POST", planPayload(parsed.data));
     await syncPlanEmployeeRules(planResult.data.id, [], commissionRules);
   } catch (error) {
     return {
@@ -187,6 +193,7 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
     name: input.get("name"),
     price: input.get("price"),
     package_addons: parsePackageAddons(input),
+    restrict_access_hours: input.get("restrict_access_hours"),
     sessions_count: input.get("sessions_count"),
     type: input.get("type"),
     valid_from: input.get("valid_from"),
@@ -216,12 +223,7 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
   }
 
   try {
-    await mutate(`/plans/${id}`, "PUT", {
-      ...parsed.data,
-      description: parsed.data.description ?? "",
-      duration_months: parsed.data.duration_basis === "months" ? parsed.data.duration_months : null,
-      price: String(parsed.data.price),
-    });
+    await mutate(`/plans/${id}`, "PUT", planPayload(parsed.data));
     await syncPlanEmployeeRules(id, initialRuleIds, commissionRules);
   } catch (error) {
     return {
@@ -237,6 +239,24 @@ export async function updatePlan(_state: PlanFormState, input: FormData): Promis
     message: "Plan updated.",
     errors: {},
     values: {},
+  };
+}
+
+/**
+ * The body the API expects. `restrict_access_hours` is a form-only switch: when it
+ * is off the plan is saved without an access window, which the backend reads as
+ * "any time the gym is open".
+ */
+function planPayload(data: z.infer<typeof planInputSchema>): Record<string, unknown> {
+  const { restrict_access_hours: restrictAccessHours, ...plan } = data;
+
+  return {
+    ...plan,
+    access_ends_at: restrictAccessHours ? plan.access_ends_at : null,
+    access_starts_at: restrictAccessHours ? plan.access_starts_at : null,
+    description: plan.description ?? "",
+    duration_months: plan.duration_basis === "months" ? plan.duration_months : null,
+    price: String(plan.price),
   };
 }
 
