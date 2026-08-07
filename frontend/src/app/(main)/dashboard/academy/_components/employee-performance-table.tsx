@@ -1,11 +1,10 @@
 "use client";
 
-import Image from "next/image";
-
-import { Copy, QrCode } from "lucide-react";
+import { Copy, ScanBarcode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { Barcode } from "@/components/ui/barcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -113,9 +112,6 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
 
 export function StaffQrDialog({ employeeName, payload }: { employeeName: string; payload: string | null }) {
   const t = useTranslations("Dashboard.academy");
-  const qrUrl = payload
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payload)}`
-    : null;
 
   async function copyPayload() {
     if (!payload) {
@@ -135,7 +131,7 @@ export function StaffQrDialog({ employeeName, payload }: { employeeName: string;
       <DialogTrigger
         render={
           <Button type="button" size="sm" variant={payload ? "secondary" : "outline"} disabled={!payload}>
-            <QrCode data-icon="inline-start" />
+            <ScanBarcode data-icon="inline-start" />
             {payload ? t("viewQr") : t("missing")}
           </Button>
         }
@@ -145,20 +141,14 @@ export function StaffQrDialog({ employeeName, payload }: { employeeName: string;
           <DialogTitle>{t("staffQrTitle", { name: employeeName })}</DialogTitle>
           <DialogDescription>{t("staffQrDescription")}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-center">
-          <div className="flex aspect-square w-full max-w-56 items-center justify-center rounded-lg border bg-background">
-            {qrUrl ? (
-              <Image
-                src={qrUrl}
-                alt={t("staffQrTitle", { name: employeeName })}
-                width={220}
-                height={220}
-                unoptimized
-                className="size-full rounded-lg object-contain p-2"
-              />
+        <div className="grid gap-4">
+          {/* Code128, not QR: the desk scanners are 1D lasers, which cannot read a 2D symbol. */}
+          <div className="flex items-center justify-center rounded-lg border bg-white p-3">
+            {payload ? (
+              <Barcode value={payload} height={64} />
             ) : (
-              <div className="grid place-items-center gap-2 text-center text-muted-foreground">
-                <QrCode className="size-9" />
+              <div className="grid place-items-center gap-2 py-6 text-center text-muted-foreground">
+                <ScanBarcode className="size-9" />
                 <span className="text-xs">{t("missing")}</span>
               </div>
             )}

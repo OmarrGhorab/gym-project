@@ -2,13 +2,12 @@
 
 import type * as React from "react";
 
-import Image from "next/image";
-
-import { Copy, Download, FileText, MessageCircle, QrCode } from "lucide-react";
+import { Copy, Download, FileText, MessageCircle, ScanBarcode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Barcode } from "@/components/ui/barcode";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
@@ -386,7 +385,6 @@ function buildMemberReportWhatsAppMessage(
 
 function QrPanel({ payload }: { payload: string | null }) {
   const t = useTranslations("Dashboard.membersPage");
-  const qrUrl = buildQrImageUrl(payload, 220);
 
   async function handleCopy() {
     if (!payload) {
@@ -413,20 +411,14 @@ function QrPanel({ payload }: { payload: string | null }) {
           {t("copyQr")}
         </Button>
       </div>
-      <div className="grid gap-4 p-3 lg:grid-cols-[240px_1fr] lg:items-center">
-        <div className="flex aspect-square w-full max-w-60 items-center justify-center rounded-lg border bg-background">
-          {qrUrl ? (
-            <Image
-              src={qrUrl}
-              alt={t("memberQr")}
-              width={220}
-              height={220}
-              unoptimized
-              className="size-full rounded-lg object-contain p-2"
-            />
+      <div className="grid gap-4 p-3">
+        {/* Code128, not QR: the desk scanners are 1D lasers, which cannot read a 2D symbol. */}
+        <div className="flex items-center justify-center rounded-lg border bg-white p-3">
+          {payload ? (
+            <Barcode value={payload} height={64} />
           ) : (
-            <div className="grid place-items-center gap-2 text-center text-muted-foreground">
-              <QrCode className="size-9" />
+            <div className="grid place-items-center gap-2 py-6 text-center text-muted-foreground">
+              <ScanBarcode className="size-9" />
               <span className="text-xs">{t("missing")}</span>
             </div>
           )}

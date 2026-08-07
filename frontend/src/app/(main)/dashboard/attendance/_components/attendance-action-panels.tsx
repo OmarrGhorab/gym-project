@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useKeyboardWedgeScanner } from "@/hooks/use-keyboard-wedge-scanner";
 
 import { type AttendanceActionResult, createManualAttendance, scanMemberVisit, scanStaffAttendance } from "./actions";
 import type { AttendanceRecord, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
@@ -1043,51 +1044,50 @@ function HardwareScannerInput({
   onScan: (value: string) => void;
 }) {
   const t = useTranslations("Dashboard.attendance");
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
   const [buffer, setBuffer] = useState("");
-  const [armed, setArmed] = useState(true);
+  const [typed, setTyped] = useState("");
 
-  useEffect(() => {
-    if (!armed) {
-      return;
-    }
+  const handleScan = useCallback(
+    (value: string) => {
+      const trimmed = value.trim();
 
-    inputRef.current?.focus();
-  }, [armed]);
+      if (!trimmed) {
+        return;
+      }
+
+      onScan(trimmed);
+      setBuffer("");
+      setTyped("");
+    },
+    [onScan],
+  );
+
+  // Captures the scanner no matter what the operator last clicked; keystrokes
+  // aimed at this field are left to the input below so manual entry still works.
+  useKeyboardWedgeScanner({ onScan: handleScan, onBufferChange: setBuffer, ignoreRef: fieldRef });
 
   return (
     <FieldGroup className="md:col-span-2">
       <FieldLabel htmlFor={id} label={label} meta={t("scannerReady")} />
-      <div className="rounded-lg border border-emerald-500/40 border-dashed bg-emerald-500/5 p-3">
+      <div ref={fieldRef} className="rounded-lg border border-emerald-500/40 border-dashed bg-emerald-500/5 p-3">
         <p className="mb-2 text-muted-foreground text-xs">{help}</p>
         <Input
-          ref={inputRef}
           id={id}
           autoComplete="off"
-          autoFocus
-          value={buffer}
+          value={buffer || typed}
           placeholder={t("scannerPlaceholder")}
-          onFocus={() => setArmed(true)}
-          onBlur={() => setArmed(false)}
-          onChange={(event) => setBuffer(event.target.value)}
+          onChange={(event) => setTyped(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== "Enter") {
               return;
             }
 
             event.preventDefault();
-            const rawValue = buffer.trim();
-            const value = normalizeArabicKeyboardLayout(rawValue);
-
-            if (!value) {
-              return;
-            }
-
-            onScan(value);
-            setBuffer("");
+            handleScan(typed);
           }}
         />
-        <p className="mt-2 text-muted-foreground text-xs">{armed ? t("scannerListening") : t("scannerClickToArm")}</p>
+        <p className="mt-2 text-muted-foreground text-xs">{t("scannerListening")}</p>
       </div>
     </FieldGroup>
   );
@@ -1336,9 +1336,7 @@ function useAttendanceActionToast(
 
     if (state.ok) {
       if (playSuccessSound) {
-        if (!notificationAudio.current) {
-          notificationAudio.current = new Audio("/notifications.mp3");
-        }
+        notificationAudio.current ??= new Audio("/notifications.mp3");
 
         notificationAudio.current.currentTime = 0;
         void notificationAudio.current.play().catch(() => {
