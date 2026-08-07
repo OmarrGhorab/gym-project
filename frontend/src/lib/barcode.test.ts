@@ -72,3 +72,25 @@ describe("barcodeRects", () => {
     expect(barcodeRects("0000")).toEqual([]);
   });
 });
+
+/**
+ * Symbol width is what decides whether a badge is printable: Code128 spends
+ * ~11 modules per character, so payload length translates directly into how
+ * wide the printed barcode is, and how fine its bars get at a fixed card size.
+ */
+describe("symbol width", () => {
+  it("keeps a short attendance code near retail-barcode proportions", () => {
+    const bars = encodeCode128("M-K7QX9F")?.bars ?? "";
+
+    // Comparable to the 8-character codes printed on ordinary retail labels.
+    expect(bars.length).toBeLessThan(150);
+  });
+
+  it("is far narrower than the prefixed 16-character payload it replaced", () => {
+    const short = encodeCode128("M-K7QX9F")?.bars.length ?? 0;
+    const old = encodeCode128("member:M-QX8KURK9EFTERHEU")?.bars.length ?? 0;
+
+    expect(old).toBeGreaterThan(300);
+    expect(short).toBeLessThan(old / 2);
+  });
+});

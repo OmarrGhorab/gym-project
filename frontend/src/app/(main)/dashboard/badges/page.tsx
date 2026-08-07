@@ -69,9 +69,12 @@ function BadgeCard({ subject }: { subject: BadgeSubject }) {
         <p className="truncate font-semibold text-sm">{subject.name}</p>
         {subject.subtitle ? <p className="truncate text-neutral-600 text-xs">{subject.subtitle}</p> : null}
       </div>
-      {/* biome-ignore lint/style/noNonNullAssertion: the list is filtered to subjects that have a payload */}
-      <Barcode value={subject.attendance_qr!} height={52} />
-      <p className="text-center font-mono text-[11px] text-neutral-700 tracking-wider">{subject.attendance_code}</p>
+      {/* The bare code, not the "member:" payload: the M-/E- prefix already
+          identifies the type, and every extra character widens the symbol. */}
+      <div className="flex justify-center">
+        {/* biome-ignore lint/style/noNonNullAssertion: the list is filtered to subjects that have a code */}
+        <Barcode value={subject.attendance_code!} height={52} />
+      </div>
     </div>
   );
 }

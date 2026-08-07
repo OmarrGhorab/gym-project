@@ -29,8 +29,10 @@ type MemberRow = {
 export type BadgeType = "employee" | "member";
 
 /**
- * The scanner reads the same payload the stations already accept
- * ("employee:E-…" / "member:M-…"), so a badge needs no new API contract.
+ * Badges encode the bare attendance code ("M-…" / "E-…") rather than the
+ * prefixed payload. The prefix already identifies the type, and Code128 spends
+ * ~11 modules per character, so dropping it meaningfully narrows the symbol.
+ * The scan stations accept either form, so no API contract changes.
  */
 export async function getBadgeSubjects(type: BadgeType): Promise<BadgeSubject[]> {
   if (type === "member") {
@@ -44,7 +46,7 @@ export async function getBadgeSubjects(type: BadgeType): Promise<BadgeSubject[]>
         attendance_code: member.attendance_code ?? null,
         attendance_qr: member.attendance_qr ?? fallbackPayload("member", member.attendance_code),
       }))
-      .filter((subject) => Boolean(subject.attendance_qr));
+      .filter((subject) => Boolean(subject.attendance_code));
   }
 
   const employees = await safeFetch<EmployeeRow[] | PaginatedData<EmployeeRow>>(
@@ -60,7 +62,7 @@ export async function getBadgeSubjects(type: BadgeType): Promise<BadgeSubject[]>
       attendance_code: employee.attendance_code ?? null,
       attendance_qr: employee.attendance_qr ?? fallbackPayload("employee", employee.attendance_code),
     }))
-    .filter((subject) => Boolean(subject.attendance_qr));
+    .filter((subject) => Boolean(subject.attendance_code));
 }
 
 function fallbackPayload(type: BadgeType, code: string | null | undefined): string | null {

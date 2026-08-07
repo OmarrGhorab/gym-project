@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AttendanceCode;
 use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -76,7 +76,7 @@ class Member extends Model
     public static function newAttendanceCode(): string
     {
         do {
-            $code = 'M-'.Str::upper(Str::random(16));
+            $code = AttendanceCode::prefixFor('member').AttendanceCode::randomSuffix();
         } while (self::query()->where('attendance_code', $code)->exists());
 
         return $code;

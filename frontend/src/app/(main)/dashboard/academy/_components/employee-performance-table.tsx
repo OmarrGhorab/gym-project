@@ -88,10 +88,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                       </div>
                     </TableCell>
                     <TableCell>
-                      <StaffQrDialog
-                        employeeName={row.employee.name}
-                        payload={row.employee.attendance_qr ?? row.employee.attendance_code ?? null}
-                      />
+                      <StaffQrDialog employeeName={row.employee.name} payload={row.employee.attendance_code ?? null} />
                     </TableCell>
                   </TableRow>
                 );

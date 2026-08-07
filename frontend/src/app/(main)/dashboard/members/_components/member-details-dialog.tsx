@@ -46,7 +46,9 @@ export function MemberDetailsDialog({
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const locale = useLocale();
-  const qrPayload = member.attendance_qr ?? member.attendance_code ?? null;
+  // The bare code: the M- prefix identifies the type, and every extra character
+  // widens the printed symbol.
+  const badgeCode = member.attendance_code ?? null;
 
   function handleOpenWhatsApp() {
     const url = buildWhatsAppUrl(member.phone, buildMemberWhatsAppMessage(member, t, locale));
@@ -162,7 +164,7 @@ export function MemberDetailsDialog({
           <MemberReportControls memberId={member.id} staff={staff} />
         </div>
 
-        <QrPanel payload={qrPayload} />
+        <QrPanel payload={badgeCode} />
 
         <div className="grid min-w-0 gap-4 xl:grid-cols-3">
           <Section
