@@ -15,6 +15,7 @@ use App\Http\Resources\MemberVisitResource;
 use App\Models\MemberVisit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -25,8 +26,27 @@ final class MemberVisitController extends ApiController
         $this->authorize('viewAny', MemberVisit::class);
         $autoCloseStaleVisits->handle();
 
+        $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
+
+        // "Visits this month" is counted over the month being viewed, not always the
+        // current one, so browsing an earlier day shows the tally as it stood then.
+        $month = Carbon::parse($request->input('filter.from') ?: Carbon::now());
+        $monthStart = $month->copy()->startOfMonth()->toDateTimeString();
+        $monthEnd = $month->copy()->endOfMonth()->toDateTimeString();
+
         $visits = QueryBuilder::for(MemberVisit::class)
-            ->with(['member.latestSubscription.plan', 'subscription.plan', 'creator'])
+            ->with([
+                // Aggregated in one query alongside the page: counting per row would be an
+                // N+1 across every visit in the day sheet.
+                'member' => fn ($query) => $query->withCount([
+                    'visits as visits_this_month' => fn ($visitQuery) => $visitQuery
+                        ->whereBetween('check_in_at', [$monthStart, $monthEnd])
+                        ->whereIn('status', ['allowed', 'flagged']),
+                ]),
+                'member.latestSubscription.plan',
+                'subscription.plan',
+                'creator',
+            ])
             ->allowedFilters(
                 AllowedFilter::exact('member_id'),
                 AllowedFilter::exact('status'),
@@ -39,7 +59,7 @@ final class MemberVisitController extends ApiController
             )
             ->allowedSorts('check_in_at', 'created_at')
             ->defaultSort('-check_in_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         return $this->success(

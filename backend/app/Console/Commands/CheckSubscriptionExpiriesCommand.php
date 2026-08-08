@@ -20,7 +20,9 @@ final class CheckSubscriptionExpiriesCommand extends Command
 
         // 1. Subscriptions expiring in the next 3 days
         $expiringSubscriptions = Subscription::query()
-            ->with(['member', 'plan'])
+            // payments feeds {{amount_paid}} in the notification payload; eager-load it so the
+            // per-subscription loop below does not fire one query per row.
+            ->with(['member', 'plan', 'payments'])
             ->where('status', 'active')
             ->whereBetween('end_date', [$today->toDateString(), $threeDaysLater->toDateString()])
             ->get();
@@ -31,7 +33,9 @@ final class CheckSubscriptionExpiriesCommand extends Command
 
         // 2. Subscriptions with 0 sessions remaining
         $exhaustedSubscriptions = Subscription::query()
-            ->with(['member', 'plan'])
+            // payments feeds {{amount_paid}} in the notification payload; eager-load it so the
+            // per-subscription loop below does not fire one query per row.
+            ->with(['member', 'plan', 'payments'])
             ->where('status', 'active')
             ->whereNotNull('sessions_total')
             ->where('sessions_total', '>', 0)

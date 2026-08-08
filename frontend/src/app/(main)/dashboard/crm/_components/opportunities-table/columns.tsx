@@ -256,7 +256,11 @@ export function getOpportunitiesColumns(
                 data={{
                   member_name: row.original.member,
                   plan_name: row.original.plan,
+                  start_date: row.original.startDate,
                   end_date: row.original.endDate,
+                  amount_paid: row.original.paidTotal,
+                  attendance_qr: row.original.memberQr,
+                  sessions_remaining: row.original.sessionsRemaining,
                 }}
                 size="sm"
                 className="h-6 px-1.5 text-[11px]"

@@ -7,6 +7,7 @@ use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\GymTask;
+use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\ShiftSession;
@@ -55,7 +56,7 @@ class OperationalNotifier
 
     public function newSubscription(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name']);
+        $subscription->loadMissing(['member:id,name,phone,attendance_code', 'plan:id,name', 'soldBy:id,name', 'payments']);
 
         $this->notifyAdmins(
             title: 'New subscription member',
@@ -68,20 +69,56 @@ class OperationalNotifier
             ),
             severity: 'success',
             extra: [
-                'subscription_id' => $subscription->id,
-                'member_id' => $subscription->member_id,
-                'member_name' => $subscription->member?->name,
-                'member_phone' => $subscription->member?->phone,
-                'plan_name' => $subscription->plan?->name,
+                ...$this->subscriptionMessagePayload($subscription),
                 'sold_by' => $subscription->soldBy?->name,
-                'end_date' => $subscription->end_date?->toDateString(),
             ],
         );
     }
 
+    /**
+     * Fields the client renders into the WhatsApp message templates
+     * ({{start_date}}, {{amount_paid}}, {{barcode_url}}, ...). Keep every
+     * subscription notification carrying the same keys — a missing key is
+     * silently rendered as an empty string in the message.
+     *
+     * @return array<string, mixed>
+     */
+    private function subscriptionMessagePayload(Subscription $subscription): array
+    {
+        return [
+            'subscription_id' => $subscription->id,
+            'member_id' => $subscription->member_id,
+            'member_name' => $subscription->member?->name,
+            'member_phone' => $subscription->member?->phone,
+            'attendance_code' => $subscription->member?->attendance_code,
+            'attendance_qr' => $subscription->member?->attendance_code
+                ? "member:{$subscription->member->attendance_code}"
+                : null,
+            'plan_name' => $subscription->plan?->name,
+            'start_date' => $subscription->start_date?->toDateString(),
+            'end_date' => $subscription->end_date?->toDateString(),
+            'amount_paid' => $this->subscriptionPaidTotal($subscription),
+            'sessions_remaining' => $subscription->sessions_remaining,
+        ];
+    }
+
+    /**
+     * Net collected amount for the subscription (refund rows store negative
+     * amounts), mirroring SubscriptionResource::paidTotal().
+     */
+    private function subscriptionPaidTotal(Subscription $subscription): string
+    {
+        return $subscription->payments
+            ->filter(fn ($payment): bool => in_array($payment->status, Payment::SETTLEMENT_STATUSES, true))
+            ->reduce(
+                fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
+                '0.00',
+            );
+    }
+
     public function subscriptionEndingSoon(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
+        $subscription->loadMissing(['member:id,name,phone,attendance_code', 'plan:id,name', 'payments']);
 
         $this->notifyAdmins(
             title: 'Membership almost finished',
@@ -93,20 +130,13 @@ class OperationalNotifier
                 ['subscription' => $subscription->id],
             ),
             severity: 'warning',
-            extra: [
-                'subscription_id' => $subscription->id,
-                'member_id' => $subscription->member_id,
-                'member_name' => $subscription->member?->name,
-                'member_phone' => $subscription->member?->phone,
-                'plan_name' => $subscription->plan?->name,
-                'end_date' => $subscription->end_date?->toDateString(),
-            ],
+            extra: $this->subscriptionMessagePayload($subscription),
         );
     }
 
     public function subscriptionSessionsFinished(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
+        $subscription->loadMissing(['member:id,name,phone,attendance_code', 'plan:id,name', 'payments']);
 
         $this->notifyAdmins(
             title: 'Membership total sessions finished',
@@ -119,11 +149,7 @@ class OperationalNotifier
             ),
             severity: 'warning',
             extra: [
-                'subscription_id' => $subscription->id,
-                'member_id' => $subscription->member_id,
-                'member_name' => $subscription->member?->name,
-                'member_phone' => $subscription->member?->phone,
-                'plan_name' => $subscription->plan?->name,
+                ...$this->subscriptionMessagePayload($subscription),
                 'sessions_total' => $subscription->sessions_total,
                 'sessions_remaining' => 0,
             ],
@@ -132,7 +158,7 @@ class OperationalNotifier
 
     public function subscriptionSessionsLow(Subscription $subscription): void
     {
-        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
+        $subscription->loadMissing(['member:id,name,phone,attendance_code', 'plan:id,name', 'payments']);
 
         $this->notifyAdmins(
             title: 'Membership sessions running low',
@@ -144,14 +170,7 @@ class OperationalNotifier
                 ['subscription' => $subscription->id],
             ),
             severity: 'info',
-            extra: [
-                'subscription_id' => $subscription->id,
-                'member_id' => $subscription->member_id,
-                'member_name' => $subscription->member?->name,
-                'member_phone' => $subscription->member?->phone,
-                'plan_name' => $subscription->plan?->name,
-                'sessions_remaining' => $subscription->sessions_remaining,
-            ],
+            extra: $this->subscriptionMessagePayload($subscription),
         );
     }
 

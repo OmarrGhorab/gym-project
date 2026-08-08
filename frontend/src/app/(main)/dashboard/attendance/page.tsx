@@ -196,6 +196,9 @@ export default async function Page({ searchParams }: PageProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("member")}</TableHead>
+                <TableHead>{t("memberPlan")}</TableHead>
+                <TableHead>{t("visitsThisMonth")}</TableHead>
+                <TableHead>{t("planEndDate")}</TableHead>
                 <TableHead>{t("inOut")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("scanMethod")}</TableHead>
@@ -209,6 +212,9 @@ export default async function Page({ searchParams }: PageProps) {
                     <div className="font-medium">{visit.member?.name ?? t("member")}</div>
                     <div className="text-muted-foreground text-xs">{visit.member?.phone ?? "--"}</div>
                   </TableCell>
+                  <TableCell>{visit.plan_name ?? "--"}</TableCell>
+                  <TableCell>{visit.member?.visits_this_month ?? "--"}</TableCell>
+                  <TableCell>{visit.plan_end_date ? formatDate(visit.plan_end_date, locale) : "--"}</TableCell>
                   <TableCell>
                     {formatDateTime(visit.check_in_at, locale)} / {formatDateTime(visit.check_out_at, locale)}
                   </TableCell>
@@ -220,7 +226,7 @@ export default async function Page({ searchParams }: PageProps) {
                   <TableCell>{visit.alert_reason ?? "--"}</TableCell>
                 </TableRow>
               ))}
-              {data.memberVisits.length === 0 ? <EmptyRow cols={5} label={t("noMemberVisits")} /> : null}
+              {data.memberVisits.length === 0 ? <EmptyRow cols={8} label={t("noMemberVisits")} /> : null}
             </TableBody>
           </Table>
         </CardContent>
@@ -396,6 +402,21 @@ function formatDateTime(value: string | null, locale: string) {
     minute: "2-digit",
     month: "short",
   }).format(new Date(value));
+}
+
+/** A plain calendar date (no time component) — plan end dates arrive as "YYYY-MM-DD". */
+function formatDate(value: string | null, locale: string) {
+  if (!value) {
+    return "--";
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    // Without this the date is parsed as UTC midnight and can render as the day before.
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
 }
 
 function formatClockTime(value: string | null, locale: string) {

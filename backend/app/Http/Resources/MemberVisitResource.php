@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\WrapsApiResponse;
+use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,7 +21,17 @@ class MemberVisitResource extends JsonResource
                 'name' => $this->member->name,
                 'phone' => $this->member->phone,
                 'attendance_code' => $this->member->attendance_code,
+                // Only counted when the index query asks for it (withCount); other
+                // endpoints return the visit without the aggregate.
+                'visits_this_month' => $this->member->visits_this_month === null
+                    ? null
+                    : (int) $this->member->visits_this_month,
             ]),
+            // The plan the visit is read against. A blocked or pending-review visit has no
+            // subscription of its own, so fall back to the member's latest one — the day
+            // sheet still needs to show which membership the person is on.
+            'plan_name' => $this->planSummary()?->plan?->name,
+            'plan_end_date' => $this->planSummary()?->end_date?->toDateString(),
             'subscription_id' => $this->subscription_id,
             'subscription' => $this->whenLoaded('subscription', fn () => [
                 'id' => $this->subscription?->id,
@@ -63,5 +74,23 @@ class MemberVisitResource extends JsonResource
             'creator' => new UserSummaryResource($this->whenLoaded('creator')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * The subscription whose plan describes this visit: the one it consumed, or the
+     * member's latest when the visit never resolved to one. Returns null rather than
+     * lazy-loading, so a caller that did not eager-load cannot trigger N+1.
+     */
+    private function planSummary(): ?Subscription
+    {
+        if ($this->relationLoaded('subscription') && $this->subscription !== null) {
+            return $this->subscription;
+        }
+
+        if ($this->relationLoaded('member') && $this->member?->relationLoaded('latestSubscription')) {
+            return $this->member->latestSubscription;
+        }
+
+        return null;
     }
 }

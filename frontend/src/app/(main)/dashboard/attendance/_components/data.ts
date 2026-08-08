@@ -166,7 +166,12 @@ export type MemberVisitStationRow = {
     name: string;
     phone: string;
     attendance_code: string | null;
+    /** Allowed + flagged check-ins in the month of the day being viewed. */
+    visits_this_month: number | null;
   };
+  /** The plan the visit was read against, falling back to the member's latest. */
+  plan_name: string | null;
+  plan_end_date: string | null;
   check_in_at: string | null;
   check_out_at: string | null;
   status: string;
@@ -213,7 +218,9 @@ export async function getAttendancePageData({
       safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
       safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
       safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
-        `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=8`,
+        // Every visit of the day, not a preview: 100 is the API's per_page ceiling and
+        // comfortably above a full day's check-ins.
+        `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=100`,
         [],
       ),
       safeFetch<OvertimeCandidate[]>(`/overtime-shifts/candidates?date=${encodeURIComponent(date)}`, []),
@@ -237,7 +244,7 @@ export async function getAttendancePageData({
   return {
     employees: unwrapList(employees),
     members: unwrapList(members),
-    memberVisits: unwrapList(memberVisits).slice(0, 8),
+    memberVisits: unwrapList(memberVisits),
     overtimeCandidates,
     overtimeShifts: unwrapList(overtimeShifts),
     records: unwrapList(records).slice(0, 12),

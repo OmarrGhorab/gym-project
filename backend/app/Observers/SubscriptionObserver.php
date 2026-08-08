@@ -19,9 +19,10 @@ class SubscriptionObserver
             );
             CalculateCommissionJob::dispatch(Subscription::class, $subscription->id);
             app(OperationalNotifier::class)->newSubscription(
-                // phone is part of the payload (deep link + WhatsApp action), so it must be selected here:
-                // loadMissing() inside the notifier will not add columns to an already loaded relation.
-                $subscription->fresh(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name']) ?? $subscription,
+                // phone and attendance_code are part of the payload (deep link + WhatsApp message), so they
+                // must be selected here: loadMissing() inside the notifier will not add columns to an
+                // already loaded relation.
+                $subscription->fresh(['member:id,name,phone,attendance_code', 'plan:id,name', 'soldBy:id,name', 'payments']) ?? $subscription,
             );
             Cache::forget('dashboard:summary:v1');
             Cache::forget('dashboard:summary:v2');

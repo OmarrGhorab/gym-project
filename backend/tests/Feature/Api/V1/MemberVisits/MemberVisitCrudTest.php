@@ -243,6 +243,58 @@ test('member visits can be listed by member', function (): void {
         ->assertJsonCount(2, 'data');
 });
 
+test('day sheet lists every visit of the day with plan, monthly tally and plan end date', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->active()->create(['name' => 'Gold']);
+    Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+    ]);
+
+    // Two earlier visits this month plus today's, so the tally is 3 and not just today's.
+    MemberVisit::factory()->for($member)->count(2)->create([
+        'check_in_at' => Carbon::parse('2026-06-10 09:00:00'),
+        'status' => 'allowed',
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => Carbon::parse('2026-06-26 10:00:00'),
+        'status' => 'allowed',
+    ]);
+    // A different month must not leak into the count.
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => Carbon::parse('2026-05-20 09:00:00'),
+        'status' => 'allowed',
+    ]);
+
+    $this->getJson('/api/v1/member-visits?filter[from]=2026-06-26&filter[to]=2026-06-26')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.plan_name', 'Gold')
+        ->assertJsonPath('data.0.plan_end_date', '2026-06-30')
+        ->assertJsonPath('data.0.member.visits_this_month', 3);
+});
+
+test('day sheet returns more than the default page when per_page is raised', function (): void {
+    $manager = User::factory()->create();
+    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
+    Sanctum::actingAs($manager);
+
+    // Regression: the index hard-coded paginate(15), so a busy day was silently truncated.
+    $member = Member::factory()->create();
+    MemberVisit::factory()->for($member)->count(20)->create([
+        'check_in_at' => Carbon::parse('2026-06-26 10:00:00'),
+    ]);
+
+    $this->getJson('/api/v1/member-visits?filter[from]=2026-06-26&filter[to]=2026-06-26&per_page=100')
+        ->assertOk()
+        ->assertJsonCount(20, 'data')
+        ->assertJsonPath('meta.per_page', 100);
+});
+
 test('member cannot check in again while an earlier visit is still open', function (): void {
     $manager = User::factory()->create();
     $manager->assignRole(FoundationPermissions::ROLE_MANAGER);

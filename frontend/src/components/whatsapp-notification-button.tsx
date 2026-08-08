@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { buildBarcodeImageUrl } from "@/lib/whatsapp";
 import {
   defaultWhatsAppTemplates,
   renderWhatsAppTemplate,
@@ -37,9 +38,13 @@ export function buildWhatsAppLink(
 
   const templateKey = messageType ?? resolveTemplateKey(sessionsRemaining, endDate);
 
+  // Prefer the bare code: it is what the printed badge encodes, and it keeps the
+  // symbol narrow. buildBarcodeImageUrl strips the prefix if only the payload is here.
+  const attendanceCode = String(data.attendance_code ?? data.attendance_qr ?? "");
+
   let message = renderWhatsAppTemplate(templates[templateKey] || defaultWhatsAppTemplates[templateKey], {
     amount_paid: String(data.amount_paid ?? data.price_paid ?? data.paid_amount ?? ""),
-    barcode_url: String(data.barcode_url ?? data.attendance_qr ?? ""),
+    barcode_url: String(data.barcode_url ?? buildBarcodeImageUrl(attendanceCode) ?? ""),
     end_date: endDate,
     member_name: memberName,
     plan_name: planName,

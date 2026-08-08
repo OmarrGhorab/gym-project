@@ -4,6 +4,7 @@ use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\GymTask;
 use App\Models\Member;
+use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -73,6 +74,67 @@ test('subscription created notification keeps the member phone in the deep link'
         ->and($data['url'])->toBe(
             "/dashboard/members?member={$member->id}&q=01001234567&subscription={$subscription->id}"
         );
+});
+
+test('subscription notifications carry every field the whatsapp templates render', function (): void {
+    $admin = deepLinkAdmin();
+
+    $member = Member::factory()->active()->create([
+        'phone' => '01001234567',
+        'attendance_code' => 'ABC234',
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => Plan::factory()->active()->create(['name' => 'Gold'])->id,
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-09-10',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '450.00',
+        'status' => 'paid',
+    ]);
+
+    // In the real flow CreateSubscription writes the subscription and its payments in
+    // one transaction and the observer notifies afterCommit, so the payment is visible.
+    // Factories commit per-row, so drop the observer's notification and re-run it once
+    // the payment exists.
+    $admin->notifications()->delete();
+    app(OperationalNotifier::class)->newSubscription($subscription->fresh());
+
+    $data = $admin->notifications()
+        ->where('data->category', 'membership.subscription_created')
+        ->first()?->data;
+
+    // An absent key renders as an empty string in the WhatsApp template, so every
+    // placeholder the default templates use must be present here.
+    expect($data)->toMatchArray([
+        'member_name' => $member->name,
+        'plan_name' => 'Gold',
+        'start_date' => '2026-06-10',
+        'end_date' => '2026-09-10',
+        'amount_paid' => '450.00',
+        'attendance_code' => 'ABC234',
+        'attendance_qr' => 'member:ABC234',
+    ]);
+});
+
+test('expiry reminder notification carries the barcode payload', function (): void {
+    $admin = deepLinkAdmin();
+
+    $member = Member::factory()->active()->create(['attendance_code' => 'XYZ789']);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => Plan::factory()->active()->create()->id,
+    ]);
+
+    app(OperationalNotifier::class)->subscriptionEndingSoon($subscription);
+
+    $data = $admin->notifications()->where('data->category', 'membership.expiring_soon')->first()?->data;
+
+    expect($data['attendance_qr'])->toBe('member:XYZ789')
+        ->and($data)->toHaveKeys(['start_date', 'amount_paid']);
 });
 
 test('payroll notification links to the payroll month of the employee', function (): void {
