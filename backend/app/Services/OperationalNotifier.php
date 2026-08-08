@@ -7,7 +7,6 @@ use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\GymTask;
-use App\Models\Payment;
 use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\ShiftSession;
@@ -17,6 +16,7 @@ use App\Models\User;
 use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
 use App\Support\NotificationLink;
+use App\Support\SubscriptionMessagePayload;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -76,44 +76,11 @@ class OperationalNotifier
     }
 
     /**
-     * Fields the client renders into the WhatsApp message templates
-     * ({{start_date}}, {{amount_paid}}, {{barcode_url}}, ...). Keep every
-     * subscription notification carrying the same keys — a missing key is
-     * silently rendered as an empty string in the message.
-     *
      * @return array<string, mixed>
      */
     private function subscriptionMessagePayload(Subscription $subscription): array
     {
-        return [
-            'subscription_id' => $subscription->id,
-            'member_id' => $subscription->member_id,
-            'member_name' => $subscription->member?->name,
-            'member_phone' => $subscription->member?->phone,
-            'attendance_code' => $subscription->member?->attendance_code,
-            'attendance_qr' => $subscription->member?->attendance_code
-                ? "member:{$subscription->member->attendance_code}"
-                : null,
-            'plan_name' => $subscription->plan?->name,
-            'start_date' => $subscription->start_date?->toDateString(),
-            'end_date' => $subscription->end_date?->toDateString(),
-            'amount_paid' => $this->subscriptionPaidTotal($subscription),
-            'sessions_remaining' => $subscription->sessions_remaining,
-        ];
-    }
-
-    /**
-     * Net collected amount for the subscription (refund rows store negative
-     * amounts), mirroring SubscriptionResource::paidTotal().
-     */
-    private function subscriptionPaidTotal(Subscription $subscription): string
-    {
-        return $subscription->payments
-            ->filter(fn ($payment): bool => in_array($payment->status, Payment::SETTLEMENT_STATUSES, true))
-            ->reduce(
-                fn (string $carry, $payment): string => bcadd($carry, (string) $payment->amount, 2),
-                '0.00',
-            );
+        return SubscriptionMessagePayload::for($subscription);
     }
 
     public function subscriptionEndingSoon(Subscription $subscription): void
