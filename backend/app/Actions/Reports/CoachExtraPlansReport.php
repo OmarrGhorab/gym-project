@@ -87,13 +87,6 @@ final class CoachExtraPlansReport
             })
             ->get(['id', 'member_id', 'subscription_id', 'subscription_addon_id', 'check_in_at']);
 
-        $allVisits = MemberVisit::query()
-            ->where(function ($q) use ($addonIds, $subscriptionIds): void {
-                $q->whereIn('subscription_addon_id', $addonIds)
-                    ->orWhereIn('subscription_id', $subscriptionIds);
-            })
-            ->get(['id', 'subscription_id', 'subscription_addon_id']);
-
         $addonsGroupedByCoach = $addons->groupBy('coach_id');
         $studioGroupedByCoach = $studioSubscriptions->groupBy('coach_id');
 
@@ -252,15 +245,8 @@ final class CoachExtraPlansReport
                     ])
                     ->values()
                     ->all();
-                $allTimeVisitCount = $allVisits->filter(function (MemberVisit $visit) use ($item, $wrapped): bool {
-                    if ($wrapped['type'] === 'addon') {
-                        return (int) $visit->subscription_addon_id === (int) $item->id;
-                    }
-
-                    return (int) $visit->subscription_id === (int) $item->id
-                        && $visit->subscription_addon_id === null;
-                })->count();
                 $sessionsTotal = (int) ($item->sessions_total ?? 0);
+                $sessionsRemaining = (int) ($item->sessions_remaining ?? 0);
 
                 $membersList[] = [
                     'addon_id' => $item->id,
@@ -282,8 +268,18 @@ final class CoachExtraPlansReport
                     'payment_dates' => $paymentDates,
                     'payment_breakdown' => $paymentBreakdown,
                     'sessions_total' => $sessionsTotal,
-                    'sessions_remaining' => (int) ($item->sessions_remaining ?? 0),
-                    'sessions_used' => min($sessionsTotal, $allTimeVisitCount),
+                    'sessions_remaining' => $sessionsRemaining,
+                    // Counting visits overstates this: a blocked visit never consumed a
+                    // session, a duplicate scan refunds the visit it reverses, and a
+                    // pending review consumes nothing until approved. The ledger is the
+                    // only figure that stays consistent with "left".
+                    //
+                    // Only while the row is active, though: cancelling or stopping sets
+                    // sessions_remaining to 0 administratively (see StopSubscription), so
+                    // total - remaining would report a refunded plan as fully consumed.
+                    'sessions_used' => $item->status === 'active' && $sessionsTotal > 0
+                        ? max(0, $sessionsTotal - $sessionsRemaining)
+                        : 0,
                     'attended_days_this_month' => $mAttendedDays,
                     'total_visits_this_month' => $mVisits->count(),
                     'attendance_dates' => $attendanceDates,

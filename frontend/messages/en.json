@@ -771,6 +771,8 @@
       "duplicateScanMember": "Member",
       "duplicateScanPlan": "Plan",
       "duplicateScanSessionsRemaining": "Sessions remaining",
+      "duplicateScanVisitsThisMonth": "Visits this month",
+      "duplicateScanPlanEnds": "Plan ends",
       "duplicateScanUnknownMember": "Unknown member",
       "overtimeTitle": "Overtime shifts",
       "overtimeDescription": "Shift handoffs are recorded automatically. Admin reviews the overtime and adds the approved bonus in Payroll.",

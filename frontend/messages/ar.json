@@ -771,6 +771,8 @@
       "duplicateScanMember": "العضو",
       "duplicateScanPlan": "الاشتراك",
       "duplicateScanSessionsRemaining": "الحصص المتبقية",
+      "duplicateScanVisitsThisMonth": "عدد الزيارات هذا الشهر",
+      "duplicateScanPlanEnds": "ينتهي الاشتراك في",
       "duplicateScanUnknownMember": "عضو غير معروف",
       "overtimeTitle": "الورديات الإضافية",
       "overtimeDescription": "يتم تسجيل تسليمات الشيفت تلقائيًا. تراجع الإدارة الوقت الإضافي وتضيف المكافأة المعتمدة إلى المرتبات.",

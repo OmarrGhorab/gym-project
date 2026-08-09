@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 
+import { format, parseISO } from "date-fns";
 import { TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -78,8 +79,22 @@ export function DuplicateVisitDialog({
         <dl className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
           <Row label={t("duplicateScanMember")} value={review?.memberName ?? t("duplicateScanUnknownMember")} />
           {review?.planName ? <Row label={t("duplicateScanPlan")} value={review.planName} /> : null}
-          {review?.sessionsRemaining !== null && review?.sessionsRemaining !== undefined ? (
-            <Row label={t("duplicateScanSessionsRemaining")} value={String(review.sessionsRemaining)} />
+          {typeof review?.sessionsRemaining === "number" ? (
+            <Row
+              label={t("duplicateScanSessionsRemaining")}
+              // Paired with the total so "9" reads as 9 of 10 rather than 9 used.
+              value={
+                typeof review.sessionsTotal === "number"
+                  ? `${review.sessionsRemaining} / ${review.sessionsTotal}`
+                  : String(review.sessionsRemaining)
+              }
+            />
+          ) : null}
+          {typeof review?.visitsThisMonth === "number" ? (
+            <Row label={t("duplicateScanVisitsThisMonth")} value={String(review.visitsThisMonth)} />
+          ) : null}
+          {review?.planEndDate ? (
+            <Row label={t("duplicateScanPlanEnds")} value={formatDate(review.planEndDate)} />
           ) : null}
         </dl>
 
@@ -100,6 +115,13 @@ export function DuplicateVisitDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
+}
+
+function formatDate(value: string) {
+  const parsed = parseISO(value);
+
+  // A malformed date must not blank the row the operator is deciding from.
+  return Number.isNaN(parsed.getTime()) ? value : format(parsed, "d MMM yyyy");
 }
 
 function Row({ label, value }: { label: string; value: string }) {

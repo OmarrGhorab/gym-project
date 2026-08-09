@@ -16,8 +16,11 @@ export type PendingVisitReview = {
   id: number;
   memberName: string | null;
   planName: string | null;
+  planEndDate: string | null;
   reason: string;
   sessionsRemaining: number | null;
+  sessionsTotal: number | null;
+  visitsThisMonth: number | null;
 };
 
 export type AttendanceActionResult =
@@ -256,11 +259,14 @@ async function mutateScan(
         status?: string | null;
         alert_reason?: string | null;
         plan_name?: string | null;
+        plan_end_date?: string | null;
         member?: {
           name?: string | null;
+          visits_this_month?: number | null;
         } | null;
         subscription?: {
           sessions_remaining?: number | null;
+          sessions_total?: number | null;
         } | null;
         subscription_addon?: {
           sessions_remaining?: number | null;
@@ -304,8 +310,11 @@ async function mutateScan(
           id: visit.id,
           memberName: visit.member?.name ?? null,
           planName: visit.plan_name ?? null,
+          planEndDate: visit.plan_end_date ?? null,
           reason: visit.alert_reason ?? message,
           sessionsRemaining: visit.subscription?.sessions_remaining ?? null,
+          sessionsTotal: visit.subscription?.sessions_total ?? null,
+          visitsThisMonth: visit.member?.visits_this_month ?? null,
         }
       : null;
 

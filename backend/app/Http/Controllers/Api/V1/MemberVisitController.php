@@ -101,7 +101,22 @@ final class MemberVisitController extends ApiController
      */
     private function loadForScanResponse(MemberVisit $visit): MemberVisit
     {
-        return $visit->loadMissing(['member', 'subscription.plan', 'subscriptionAddon.plan']);
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+
+        // load(), not loadMissing(): the check-in action has usually attached the
+        // member already, and loadMissing would skip it — leaving the count null.
+        // Counted the same way the day sheet counts it, so the desk is never shown
+        // two different "visits this month" for the same member.
+        $visit->load([
+            'member' => fn ($query) => $query->withCount([
+                'visits as visits_this_month' => fn ($visitQuery) => $visitQuery
+                    ->whereBetween('check_in_at', [$monthStart, $monthEnd])
+                    ->whereIn('status', ['allowed', 'flagged']),
+            ]),
+        ]);
+
+        return $visit->loadMissing(['subscription.plan', 'subscriptionAddon.plan']);
     }
 
     private function scanMessage(MemberVisit $visit): string

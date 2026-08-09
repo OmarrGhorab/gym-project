@@ -86,7 +86,10 @@ test('accountant can view coach extra plans report with member attendance', func
         ->assertJsonPath('data.coaches.0.members.0.member_name', 'Member Sherif')
         ->assertJsonPath('data.coaches.0.members.0.attended_days_this_month', 2)
         ->assertJsonPath('data.coaches.0.members.0.total_visits_this_month', 2)
-        ->assertJsonPath('data.coaches.0.members.0.sessions_used', 2)
+        // 10 total - 7 remaining. Deliberately different from the 2 visits above:
+        // used comes from the subscription ledger, not from counting visit rows,
+        // so that "used" and "left" always add up to the total.
+        ->assertJsonPath('data.coaches.0.members.0.sessions_used', 3)
         ->assertJsonPath('data.coaches.0.members.0.paid_amount', '800.00')
         ->assertJsonPath('data.coaches.0.members.0.payment_dates.0', '2026-07-02')
         ->assertJsonPath('data.coaches.0.members.0.attendance_dates.0.date', '2026-07-05')
@@ -224,4 +227,50 @@ test('included coached services use net parent package payments and distinguish 
         ->assertJsonPath('data.coaches.0.members.1.payment_breakdown.1.status', 'refunded')
         ->assertJsonPath('data.coaches.0.members.1.sessions_used', 0)
         ->assertJsonPath('data.coaches.0.members.1.sessions_remaining', 0);
+});
+
+test('sessions used ignores visits that never consumed a session', function (): void {
+    Carbon::setTestNow('2026-07-20 12:00:00');
+
+    $accountant = User::factory()->create();
+    $accountant->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($accountant);
+
+    $coach = Employee::factory()->create(['name' => 'Coach Nayer', 'role' => 'Coach', 'status' => 'active']);
+    $plan = Plan::factory()->create(['name' => 'Calisthenics 10 sessions']);
+    $member = Member::factory()->create(['name' => 'Member Osama']);
+    $subscription = Subscription::factory()->active()->create(['member_id' => $member->id]);
+
+    // One session actually consumed: 10 issued, 9 left on the ledger.
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'coach_id' => $coach->id,
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+        'status' => 'active',
+        'price_paid' => '350.00',
+        'sessions_total' => 10,
+        'sessions_remaining' => 9,
+    ]);
+
+    // Three visit rows, but only one of them cost a session. A duplicate scan
+    // reverses and refunds the first visit, and a blocked visit never got in.
+    foreach (['flagged', 'blocked', 'allowed'] as $index => $status) {
+        MemberVisit::query()->create([
+            'member_id' => $member->id,
+            'subscription_id' => $subscription->id,
+            'subscription_addon_id' => $addon->id,
+            'check_in_at' => '2026-07-0'.($index + 5).' 14:00:00',
+            'status' => $status,
+        ]);
+    }
+
+    $this->getJson('/api/v1/reports/coach-extra-plans?from=2026-07-01&to=2026-07-31')
+        ->assertOk()
+        // Counting the 3 visit rows would report "3 used" next to "9 left" out of 10.
+        ->assertJsonPath('data.coaches.0.members.0.sessions_used', 1)
+        ->assertJsonPath('data.coaches.0.members.0.sessions_remaining', 9)
+        ->assertJsonPath('data.coaches.0.members.0.sessions_total', 10);
 });

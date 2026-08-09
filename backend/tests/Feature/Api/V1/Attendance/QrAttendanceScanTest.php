@@ -106,6 +106,9 @@ test('member qr duplicate check in is sent for review without consuming a second
 });
 
 test('duplicate check in response names the member and does not report the visit as allowed', function (): void {
+    // The visit count is a this-month window, so the clock has to sit in the same
+    // month as the fixtures or it reports zero for reasons unrelated to the code.
+    Carbon::setTestNow('2026-06-26 10:07:00');
     actingManager();
     $member = Member::factory()->create(['attendance_code' => 'M-DUP123', 'name' => 'Ali Abdelrahman']);
     $subscription = Subscription::factory()->for($member)->active()->create([
@@ -128,7 +131,13 @@ test('duplicate check in response names the member and does not report the visit
     // and must not claim the visit went through — nothing was consumed yet.
     $response->assertJsonPath('data.member.name', 'Ali Abdelrahman')
         ->assertJsonPath('data.plan_name', $subscription->plan->name)
-        ->assertJsonPath('data.alert_reason', 'Duplicate check-in: approve to count this visit and consume one session.');
+        ->assertJsonPath('data.alert_reason', 'Duplicate check-in: approve to count this visit and consume one session.')
+        // What the desk needs to judge the scan: when the plan runs out, how much
+        // is left on it, and how often this member has already been in this month.
+        ->assertJsonPath('data.plan_end_date', '2026-06-30')
+        ->assertJsonPath('data.subscription.sessions_remaining', 5)
+        // The reversed first visit counts; the pending duplicate does not.
+        ->assertJsonPath('data.member.visits_this_month', 1);
 
     expect($response->json('message'))->not->toContain('allowed');
 });
