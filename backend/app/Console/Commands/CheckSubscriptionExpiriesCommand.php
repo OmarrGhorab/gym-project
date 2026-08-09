@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\WhatsApp\SendMemberMessage;
 use App\Models\Subscription;
 use App\Services\OperationalNotifier;
+use App\Support\WhatsAppTemplates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -13,7 +15,7 @@ final class CheckSubscriptionExpiriesCommand extends Command
 
     protected $description = 'Scan active subscriptions and dispatch operational notifications for memberships about to finish date or zero remaining sessions.';
 
-    public function handle(OperationalNotifier $notifier): int
+    public function handle(OperationalNotifier $notifier, SendMemberMessage $whatsapp): int
     {
         $today = Carbon::today();
         $threeDaysLater = $today->copy()->addDays(3);
@@ -29,6 +31,7 @@ final class CheckSubscriptionExpiriesCommand extends Command
 
         foreach ($expiringSubscriptions as $subscription) {
             $notifier->subscriptionEndingSoon($subscription);
+            $whatsapp->handle($subscription, WhatsAppTemplates::EXPIRY_REMINDER);
         }
 
         // 2. Subscriptions with 0 sessions remaining
@@ -44,6 +47,7 @@ final class CheckSubscriptionExpiriesCommand extends Command
 
         foreach ($exhaustedSubscriptions as $subscription) {
             $notifier->subscriptionSessionsFinished($subscription);
+            $whatsapp->handle($subscription, WhatsAppTemplates::SESSIONS_FINISHED_REMINDER);
         }
 
         $this->info("Checked exipires: {$expiringSubscriptions->count()} ending soon, {$exhaustedSubscriptions->count()} sessions finished.");

@@ -2,11 +2,13 @@
 
 namespace App\Actions\MemberVisits;
 
+use App\Actions\WhatsApp\SendMemberMessage;
 use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use App\Services\OperationalNotifier;
+use App\Support\WhatsAppTemplates;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -64,8 +66,12 @@ final class ResolveMemberVisitSubscription
                 $remaining = (int) $subscription->sessions_remaining;
                 if ($remaining === 0) {
                     app(OperationalNotifier::class)->subscriptionSessionsFinished($subscription);
+                    app(SendMemberMessage::class)->handle($subscription, WhatsAppTemplates::SESSIONS_FINISHED_REMINDER);
                 } elseif ($remaining <= 2) {
                     app(OperationalNotifier::class)->subscriptionSessionsLow($subscription);
+                    // Fires again at 1 session left, but SendMemberMessage dedupes
+                    // per subscription so the member is only messaged once.
+                    app(SendMemberMessage::class)->handle($subscription, WhatsAppTemplates::LOW_SESSIONS_REMINDER);
                 }
             }
 

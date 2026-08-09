@@ -2,10 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Actions\WhatsApp\SendMemberMessage;
 use App\Events\SubscriptionExpiringSoonEvent;
 use App\Models\Subscription;
 use App\Notifications\SubscriptionRenewalReminder;
 use App\Services\OperationalNotifier;
+use App\Support\WhatsAppTemplates;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -46,6 +48,11 @@ class SendRenewalReminderJob implements ShouldQueue
         }
 
         app(OperationalNotifier::class)->subscriptionEndingSoon($subscription);
+
+        // Remind the member directly. SendMemberMessage dedupes per subscription,
+        // so a multi-step reminder ladder (reminder_days of [7, 3, 1]) still
+        // produces exactly one WhatsApp message.
+        app(SendMemberMessage::class)->handle($subscription, WhatsAppTemplates::EXPIRY_REMINDER);
 
         SubscriptionExpiringSoonEvent::dispatch(
             $subscription->id,

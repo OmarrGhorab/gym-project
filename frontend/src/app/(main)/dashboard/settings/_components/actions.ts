@@ -183,6 +183,43 @@ export async function saveWhatsAppTemplates(input: FormData): Promise<SettingsAc
   return { ok: true, message: "WhatsApp templates saved.", errors: {} };
 }
 
+/**
+ * Which member messages go out on their own, with no staff clicking send.
+ *
+ * Kept separate from saveWhatsAppTemplates so editing wording can never switch
+ * automatic sending on as a side effect.
+ */
+export async function saveWhatsAppAutomation(input: FormData): Promise<SettingsActionResult> {
+  const isChecked = (field: string) => {
+    const value = input.get(field);
+
+    return value === "on" || value === "true";
+  };
+
+  try {
+    await serverApiFetch("/settings", {
+      body: JSON.stringify({
+        whatsapp: {
+          auto_send: isChecked("whatsapp.auto_send"),
+          // Every key is sent, not just the ticked ones: an unchecked box submits
+          // nothing, so omitting them would leave a previously enabled event on.
+          auto_events: Object.fromEntries(
+            whatsappTemplateKeys.map((key) => [key, isChecked(`whatsapp.auto_events.${key}`)]),
+          ),
+        },
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT",
+    });
+  } catch (error) {
+    return errorResult(error, "Could not save WhatsApp automation settings.");
+  }
+
+  revalidatePath("/dashboard/settings");
+
+  return { ok: true, message: "WhatsApp automation saved.", errors: {} };
+}
+
 export async function saveShift(input: FormData): Promise<SettingsActionResult> {
   const parsed = shiftSchema.safeParse({
     ends_at: input.get("ends_at") || "",

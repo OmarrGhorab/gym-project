@@ -1,4 +1,4 @@
-import { MapPinned, MessageCircle, Percent, ShieldAlert } from "lucide-react";
+import { MapPinned, MessageCircle, Percent, SendHorizontal, ShieldAlert } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +12,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { defaultWhatsAppTemplates, whatsappTemplateKeys } from "@/lib/whatsapp-templates";
 
-import { createViolationRule, saveWhatsAppTemplates, updateSettings, updateViolationRule } from "./_components/actions";
+import {
+  createViolationRule,
+  saveWhatsAppAutomation,
+  saveWhatsAppTemplates,
+  updateSettings,
+  updateViolationRule,
+} from "./_components/actions";
 import { getSettingsPageData } from "./_components/data";
 import { GymLocationMap } from "./_components/gym-location-map";
 import { SettingsActionForm } from "./_components/settings-action-form";
+import { WhatsAppConnectionCard } from "./_components/whatsapp-connection-card";
 
 export default async function Page() {
   const t = await getTranslations("Dashboard.settings");
@@ -153,6 +160,48 @@ export default async function Page() {
 
             <Button type="submit" className="w-full">
               {t("saveSettings")}
+            </Button>
+          </CardContent>
+        </Card>
+      </SettingsActionForm>
+      <WhatsAppConnectionCard />
+      <SettingsActionForm action={saveWhatsAppAutomation} className="grid grid-cols-1 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-normal">
+              <SendHorizontal className="size-4" /> Automatic sending
+            </CardTitle>
+            <CardDescription>
+              Pick which messages go out on their own. Anything left off still works the old way — staff open WhatsApp
+              from the member and press send. Each member gets a given message once.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="flex items-center gap-2 rounded-md border bg-background p-3">
+              <Checkbox
+                id="whatsapp.auto_send"
+                name="whatsapp.auto_send"
+                defaultChecked={settings.whatsapp.auto_send}
+              />
+              <Label htmlFor="whatsapp.auto_send">Send member messages automatically</Label>
+            </div>
+            <div className="grid gap-3">
+              {whatsappTemplateKeys.map((key) => (
+                <div key={key} className="flex items-start gap-2 rounded-md border bg-background p-3">
+                  <Checkbox
+                    id={`whatsapp.auto_events.${key}`}
+                    name={`whatsapp.auto_events.${key}`}
+                    defaultChecked={settings.whatsapp.auto_events[key] ?? false}
+                  />
+                  <div className="grid gap-0.5">
+                    <Label htmlFor={`whatsapp.auto_events.${key}`}>{formatTemplateLabel(key)}</Label>
+                    <p className="text-muted-foreground text-xs">{whatsappEventHelp[key]}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button type="submit" className="w-full">
+              Save automatic sending
             </Button>
           </CardContent>
         </Card>
@@ -362,6 +411,15 @@ export default async function Page() {
 function formatTemplateLabel(key: string) {
   return key.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
+
+/** When each automatic message fires, in the terms staff think about. */
+const whatsappEventHelp: Record<(typeof whatsappTemplateKeys)[number], string> = {
+  subscription_confirmation: "The moment a member is put on their first plan. Includes their entry barcode.",
+  renewal_confirmation: "The moment an existing member is put on another plan.",
+  expiry_reminder: "Once, when their subscription is close to its end date.",
+  low_sessions_reminder: "Once, on the check-in that leaves them 2 sessions or fewer.",
+  sessions_finished_reminder: "Once, on the check-in that uses their last session.",
+};
 
 function RuleNameSelect({ defaultValue, label }: { defaultValue: string; label: string }) {
   const value = attendanceRuleOptions.includes(defaultValue as (typeof attendanceRuleOptions)[number])

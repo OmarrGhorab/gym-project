@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Support\WhatsAppTemplates;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSettingsRequest extends FormRequest
@@ -179,10 +180,41 @@ class UpdateSettingsRequest extends FormRequest
             $normalized['shifts'] = $shifts;
         }
 
+        // 11. whatsapp templates + automatic sending
+        $whatsapp = $this->has('whatsapp') && is_array($this->input('whatsapp'))
+            ? array_intersect_key($this->input('whatsapp'), array_flip(['templates', 'auto_send', 'auto_events']))
+            : [];
+
         if ($this->has('whatsapp.templates') && is_array($this->input('whatsapp.templates'))) {
-            $normalized['whatsapp'] = ['templates' => $this->input('whatsapp.templates')];
-        } elseif ($this->has('whatsapp') && is_array($this->input('whatsapp'))) {
-            $normalized['whatsapp'] = array_intersect_key($this->input('whatsapp'), ['templates' => true]);
+            $whatsapp['templates'] = $this->input('whatsapp.templates');
+        }
+
+        if ($this->has('whatsapp.auto_send')) {
+            $whatsapp['auto_send'] = $this->boolean('whatsapp.auto_send');
+        } elseif (array_key_exists('auto_send', $whatsapp)) {
+            $whatsapp['auto_send'] = filter_var($whatsapp['auto_send'], FILTER_VALIDATE_BOOL);
+        }
+
+        if ($this->has('whatsapp.auto_events') && is_array($this->input('whatsapp.auto_events'))) {
+            $whatsapp['auto_events'] = $this->input('whatsapp.auto_events');
+        }
+
+        if (isset($whatsapp['auto_events']) && is_array($whatsapp['auto_events'])) {
+            // Store only known template keys, as real booleans. The stored value
+            // decides whether real members get messaged, so an unrecognised key
+            // or a "false" string must not survive into the settings table.
+            $events = $whatsapp['auto_events'];
+            $whatsapp['auto_events'] = [];
+
+            foreach (WhatsAppTemplates::keys() as $key) {
+                if (array_key_exists($key, $events)) {
+                    $whatsapp['auto_events'][$key] = filter_var($events[$key], FILTER_VALIDATE_BOOL);
+                }
+            }
+        }
+
+        if (! empty($whatsapp)) {
+            $normalized['whatsapp'] = $whatsapp;
         }
 
         $this->replace($normalized);
@@ -220,6 +252,9 @@ class UpdateSettingsRequest extends FormRequest
             'whatsapp' => ['nullable', 'array'],
             'whatsapp.templates' => ['nullable', 'array'],
             'whatsapp.templates.*' => ['nullable', 'string', 'max:5000'],
+            'whatsapp.auto_send' => ['nullable', 'boolean'],
+            'whatsapp.auto_events' => ['nullable', 'array'],
+            'whatsapp.auto_events.*' => ['nullable', 'boolean'],
         ];
 
         if ($this->hasFile('gym.logo')) {

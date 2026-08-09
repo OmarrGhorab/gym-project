@@ -109,8 +109,12 @@ final class UpdateSettings
             }
         }
 
-        if (isset($validated['whatsapp']['templates'])) {
-            $flat['whatsapp.templates'] = $validated['whatsapp']['templates'];
+        if (isset($validated['whatsapp'])) {
+            foreach (['templates', 'auto_send', 'auto_events'] as $key) {
+                if (array_key_exists($key, $validated['whatsapp'])) {
+                    $flat["whatsapp.{$key}"] = $validated['whatsapp'][$key];
+                }
+            }
         }
 
         return $flat;

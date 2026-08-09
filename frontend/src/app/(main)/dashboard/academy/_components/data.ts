@@ -1,7 +1,7 @@
 import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
-import type { DashboardSettings, EmployeeShift } from "../../settings/_components/data";
+import { type DashboardSettings, type EmployeeShift, emptyWhatsAppAutoEvents } from "../../settings/_components/data";
 
 export type StaffAcademyKpi = {
   label: string;
@@ -240,7 +240,7 @@ export async function getStaffManagementPageData(): Promise<{
       receipt_template: "default",
       reminder_days: [7],
       vat_rate: 14,
-      whatsapp: { templates: {} },
+      whatsapp: { templates: {}, auto_send: false, auto_events: emptyWhatsAppAutoEvents },
     }),
     safeFetch<EmployeeShift[]>("/attendance/shifts/manage", []).then(async (managed) => {
       if (managed.length > 0) {

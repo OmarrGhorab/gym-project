@@ -1,5 +1,5 @@
 import { serverApiFetch } from "@/lib/api/server";
-import type { WhatsAppTemplates } from "@/lib/whatsapp-templates";
+import { type WhatsAppTemplateKey, type WhatsAppTemplates, whatsappTemplateKeys } from "@/lib/whatsapp-templates";
 
 export type DashboardSettings = {
   attendance: {
@@ -35,6 +35,10 @@ export type DashboardSettings = {
   vat_rate: number;
   whatsapp: {
     templates: WhatsAppTemplates;
+    /** Master switch for sending member messages without staff pressing send. */
+    auto_send: boolean;
+    /** Per-event opt-in. The backend always returns every key. */
+    auto_events: Record<WhatsAppTemplateKey, boolean>;
   };
 };
 
@@ -76,6 +80,17 @@ export type ViolationRule = {
   updated_at: string | null;
 };
 
+/**
+ * Every automatic message off.
+ *
+ * The fallback used whenever the settings request fails: a failed read must not
+ * render toggles suggesting members are already being messaged automatically.
+ */
+export const emptyWhatsAppAutoEvents = Object.fromEntries(whatsappTemplateKeys.map((key) => [key, false])) as Record<
+  WhatsAppTemplateKey,
+  boolean
+>;
+
 const emptySettings: DashboardSettings = {
   attendance: {
     default_grace_minutes: 15,
@@ -108,7 +123,7 @@ const emptySettings: DashboardSettings = {
   receipt_template: "default",
   reminder_days: [7],
   vat_rate: 14,
-  whatsapp: { templates: {} },
+  whatsapp: { templates: {}, auto_send: false, auto_events: emptyWhatsAppAutoEvents },
 };
 
 export async function getSettingsPageData() {

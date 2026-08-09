@@ -1,0 +1,24 @@
+{
+  "name": "gym-whatsapp-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sends gym WhatsApp messages from the gym's own linked number, on behalf of the Laravel backend.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.3"
+  }
+}

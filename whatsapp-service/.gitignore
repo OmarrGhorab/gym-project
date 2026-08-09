@@ -1,0 +1,6 @@
+node_modules/
+.env
+
+# Linked-device credentials for the gym's WhatsApp number. Committing these
+# would let anyone with repo access send messages as the gym.
+auth_info/

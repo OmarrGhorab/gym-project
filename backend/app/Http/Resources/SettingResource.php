@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\WrapsApiResponse;
+use App\Support\WhatsAppTemplates;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -58,8 +59,31 @@ class SettingResource extends JsonResource
             ],
             'whatsapp' => [
                 'templates' => $settings['whatsapp.templates'] ?? [],
+                'auto_send' => (bool) ($settings['whatsapp.auto_send'] ?? false),
+                'auto_events' => $this->normalizeAutoEvents($settings['whatsapp.auto_events'] ?? []),
             ],
         ];
+    }
+
+    /**
+     * Every known event, always present, always boolean.
+     *
+     * The settings table only holds keys the gym has touched, but the toggles
+     * UI needs the full set — and an absent key means off, which is the safe
+     * default for anything that messages real members.
+     *
+     * @return array<string, bool>
+     */
+    private function normalizeAutoEvents(mixed $stored): array
+    {
+        $stored = is_array($stored) ? $stored : [];
+        $events = [];
+
+        foreach (WhatsAppTemplates::keys() as $key) {
+            $events[$key] = (bool) ($stored[$key] ?? false);
+        }
+
+        return $events;
     }
 
     /**

@@ -55,6 +55,23 @@ return [
         'driver' => env('MESSAGING_DRIVER'),
     ],
 
+    // Local WhatsApp gateway (see whatsapp-service/ at the repo root). It holds
+    // the gym's linked WhatsApp session and sends on our behalf, replacing the
+    // manual "open wa.me and press send" step.
+    //
+    // `enabled` is an env-level kill switch, deliberately separate from the
+    // per-event toggles in the settings table: local and staging share the
+    // production database dump, and must never message real members because of
+    // a toggle someone flipped in the dashboard.
+    'whatsapp' => [
+        'url' => env('WHATSAPP_SERVICE_URL'),
+        'token' => env('WHATSAPP_SERVICE_TOKEN'),
+        'enabled' => filter_var(env('WHATSAPP_AUTO_SEND', false), FILTER_VALIDATE_BOOL),
+        // Generous: the gateway throttles sends 5–20s apart and a message may
+        // wait behind others in its queue.
+        'timeout' => (int) env('WHATSAPP_SERVICE_TIMEOUT', 90),
+    ],
+
     // Social login provider (Laravel Socialite).
     // Credentials are env-only; keep client secrets out of version control.
     // Only Google is enabled; the API rejects all other providers.
