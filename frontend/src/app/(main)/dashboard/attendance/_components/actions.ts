@@ -6,18 +6,34 @@ import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
 
+/**
+ * A scan the desk has to decide on before it counts.
+ *
+ * Carried back to the client so the operator is asked at the moment of the
+ * scan, rather than having to notice a row further down the page.
+ */
+export type PendingVisitReview = {
+  id: number;
+  memberName: string | null;
+  planName: string | null;
+  reason: string;
+  sessionsRemaining: number | null;
+};
+
 export type AttendanceActionResult =
   | {
       ok: true;
       message: string;
       errors: Partial<Record<string, string[]>>;
       values: Record<string, string>;
+      review?: PendingVisitReview | null;
     }
   | {
       ok: false;
       message: string;
       errors: Partial<Record<string, string[]>>;
       values: Record<string, string>;
+      review?: null;
     };
 
 export async function scanMemberVisit(
@@ -234,9 +250,15 @@ async function mutateScan(
   let result: Awaited<
     ReturnType<
       typeof serverApiFetch<{
+        id?: number | null;
         schedule_status?: string | null;
         approval_status?: string | null;
         status?: string | null;
+        alert_reason?: string | null;
+        plan_name?: string | null;
+        member?: {
+          name?: string | null;
+        } | null;
         subscription?: {
           sessions_remaining?: number | null;
         } | null;
@@ -275,11 +297,24 @@ async function mutateScan(
       ? "Recorded with warning: this scan is outside the assigned shift."
       : apiMessage;
 
+  const visit = result.data;
+  const review: PendingVisitReview | null =
+    visit?.status === "pending_review" && typeof visit.id === "number"
+      ? {
+          id: visit.id,
+          memberName: visit.member?.name ?? null,
+          planName: visit.plan_name ?? null,
+          reason: visit.alert_reason ?? message,
+          sessionsRemaining: visit.subscription?.sessions_remaining ?? null,
+        }
+      : null;
+
   return {
     ok: true,
     message,
     errors: {},
     values,
+    review,
   };
 }
 

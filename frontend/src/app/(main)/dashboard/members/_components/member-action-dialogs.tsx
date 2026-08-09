@@ -1161,12 +1161,15 @@ function SubscriptionFormContent({
   ]);
 
   return (
-    <DialogContent className="sm:max-w-2xl">
+    // This form is long enough to outgrow a laptop viewport on its own, so the
+    // body scrolls inside the dialog and the footer stays put — otherwise the
+    // submit button sits below the fold behind "Add extra service".
+    <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
-      <form action={submit} className="grid gap-4">
+      <form action={submit} className="flex min-h-0 flex-1 flex-col gap-4">
         <input type="hidden" name="member_id" value={member.id} />
         {kind === "change" ? (
           <input
@@ -1211,433 +1214,439 @@ function SubscriptionFormContent({
             })),
           )}
         />
-        {state.message ? (
-          <div
-            className={
-              state.ok
-                ? "rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-600 text-sm"
-                : "rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm"
-            }
-          >
-            {state.message}
-          </div>
-        ) : null}
-        {kind === "change" && currentSubscription ? <CurrentMembershipSummary member={member} /> : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1 text-xs sm:col-span-2 sm:text-sm">
-            <button
-              type="button"
-              onClick={() => {
-                setPlanCategoryTab("gym_access");
-                const gymPlans =
-                  kind === "change" ? basePlans.filter((plan) => String(plan.id) !== currentPlanId) : basePlans;
-                setSelectedPlanId(gymPlans[0] ? String(gymPlans[0].id) : "");
-                setPaymentAmountOverride(null);
-              }}
+        {/* Negative margin + padding so focus rings are not clipped by the
+            scroll container's edge. */}
+        <div className="-mx-4 grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4">
+          {state.message ? (
+            <div
               className={
-                planCategoryTab === "gym_access"
-                  ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
-                  : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
+                state.ok
+                  ? "rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-emerald-600 text-sm"
+                  : "rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm"
               }
             >
-              Main plans
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPlanCategoryTab("fitness_studio");
-                const studioPlansForChange =
-                  kind === "change" ? studioPlans.filter((plan) => String(plan.id) !== currentPlanId) : studioPlans;
-                setSelectedPlanId(studioPlansForChange[0] ? String(studioPlansForChange[0].id) : "");
-                setPaymentAmountOverride(null);
-              }}
-              className={
-                planCategoryTab === "fitness_studio"
-                  ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
-                  : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
-              }
-            >
-              Fitness studio plans
-            </button>
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="plan_id">{kind === "create" ? t("plan") : t("newPlan")}</Label>
-            <FormSelect
-              id="plan_id"
-              name="plan_id"
-              value={selectedPlanId}
-              onValueChange={(value) => {
-                setSelectedPlanId(value);
-                setPaymentAmountOverride(null);
-              }}
-              required
-              placeholder={t("selectPlan")}
-              error={fieldError(state, "plan_id")}
-              options={availablePlans.map((plan) => ({
-                value: String(plan.id),
-                label: `${plan.name} - ${plan.price} EGP`,
-              }))}
-            />
-          </div>
-          {isStudioPlan ? (
+              {state.message}
+            </div>
+          ) : null}
+          {kind === "change" && currentSubscription ? <CurrentMembershipSummary member={member} /> : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/20 p-1 text-xs sm:col-span-2 sm:text-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setPlanCategoryTab("gym_access");
+                  const gymPlans =
+                    kind === "change" ? basePlans.filter((plan) => String(plan.id) !== currentPlanId) : basePlans;
+                  setSelectedPlanId(gymPlans[0] ? String(gymPlans[0].id) : "");
+                  setPaymentAmountOverride(null);
+                }}
+                className={
+                  planCategoryTab === "gym_access"
+                    ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
+                    : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
+                }
+              >
+                Main plans
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlanCategoryTab("fitness_studio");
+                  const studioPlansForChange =
+                    kind === "change" ? studioPlans.filter((plan) => String(plan.id) !== currentPlanId) : studioPlans;
+                  setSelectedPlanId(studioPlansForChange[0] ? String(studioPlansForChange[0].id) : "");
+                  setPaymentAmountOverride(null);
+                }}
+                className={
+                  planCategoryTab === "fitness_studio"
+                    ? "rounded-md bg-background px-2 py-1.5 font-medium text-foreground shadow-sm sm:px-3 sm:py-2"
+                    : "rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:px-3 sm:py-2"
+                }
+              >
+                Fitness studio plans
+              </button>
+            </div>
             <div className="grid gap-2 sm:col-span-2">
-              <Label htmlFor="coach_id">Assign Studio Coach</Label>
+              <Label htmlFor="plan_id">{kind === "create" ? t("plan") : t("newPlan")}</Label>
               <FormSelect
-                id="coach_id"
-                name="coach_id"
-                value={selectedCoachId}
-                onValueChange={setSelectedCoachId}
-                placeholder="Select a coach for this studio plan"
-                options={getPlanCoachOptions(selectedPlan, plans, staff).map((employee) => ({
-                  value: String(employee.id),
-                  label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+                id="plan_id"
+                name="plan_id"
+                value={selectedPlanId}
+                onValueChange={(value) => {
+                  setSelectedPlanId(value);
+                  setPaymentAmountOverride(null);
+                }}
+                required
+                placeholder={t("selectPlan")}
+                error={fieldError(state, "plan_id")}
+                options={availablePlans.map((plan) => ({
+                  value: String(plan.id),
+                  label: `${plan.name} - ${plan.price} EGP`,
                 }))}
               />
-              <p className="text-muted-foreground text-xs">
-                The assigned coach will receive coach commission for selling / coaching this studio membership.
-              </p>
             </div>
-          ) : null}
-          {kind === "create" ? (
-            <div className="grid gap-2">
-              <Label htmlFor="start_date">{t("startDate")}</Label>
-              <FormDatePicker
-                key={`${member.id}-${kind}-${open ? "open" : "closed"}-${startDate}`}
-                id="start_date"
-                name="start_date"
-                defaultValue={startDate}
-                placeholder={t("selectDate")}
-                required
-                error={fieldError(state, "start_date")}
-                onValueChange={setStartDate}
-              />
-            </div>
-          ) : null}
-          {kind === "create" ? (
-            <div className="grid gap-2">
-              <Label htmlFor="end_date">{t("endDate")}</Label>
-              <input type="hidden" name="end_date" value={endDate} />
-              <Input value={endDate || t("selectDate")} readOnly aria-readonly="true" id="end_date" />
-              <FieldError errors={state.errors.end_date} />
-            </div>
-          ) : null}
-          {kind === "change" ? (
-            <div className="grid gap-2 sm:col-span-2">
-              <input type="hidden" name="credit_mode" value="full_difference" />
-              {selectedPlan && currentSubscription ? (
-                <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm">
-                  <div className="flex items-center justify-between font-semibold text-blue-700 dark:text-blue-400">
-                    <span>Price difference (Suggested)</span>
-                    <span className="font-bold text-base">
-                      {priceDifference >= 0
-                        ? `+${priceDifference.toFixed(2)} EGP`
-                        : `${priceDifference.toFixed(2)} EGP`}
-                    </span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-muted-foreground text-xs">
-                    <div>
-                      <span>Current plan: </span>
-                      <strong className="text-foreground">
-                        {currentSubscription.plan_name ?? currentPlan?.name ?? "Current"} ({oldPlanPrice.toFixed(2)}{" "}
-                        EGP)
-                      </strong>
-                    </div>
-                    <div>
-                      <span>New plan: </span>
-                      <strong className="text-foreground">
-                        {selectedPlan.name} ({Number(selectedPlan.price).toFixed(2)} EGP)
-                      </strong>
-                      {Number(normalizedDiscount) > 0 ? (
-                        <span className="block">
-                          After discount: {(Number(selectedPlan.price) - Number(normalizedDiscount)).toFixed(2)} EGP
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <div className="grid gap-2">
-            <Label htmlFor="payment_amount">{t("paymentAmount")}</Label>
-            <input type="hidden" name="amount_due" value={paymentAmount} />
-            <Input
-              id="payment_amount"
-              name="payment_amount"
-              type="text"
-              required
-              value={paymentAmount}
-              readOnly={kind === "create"}
-              onChange={kind === "change" ? (event) => setPaymentAmountOverride(event.currentTarget.value) : undefined}
-              aria-invalid={Boolean(fieldError(state, "payment_amount"))}
-            />
-            {kind === "change" ? (
-              <p className="text-muted-foreground text-xs">
-                Enter price difference (+ for extra payment, - for refund).
-              </p>
-            ) : null}
-            <FieldError errors={state.errors.payment_amount} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="payment_method">{t("paymentMethod")}</Label>
-            <FormSelect
-              id="payment_method"
-              name="payment_method"
-              defaultValue="cash"
-              error={fieldError(state, "payment_method")}
-              options={[
-                { value: "cash", label: t("cash") },
-                { value: "card", label: t("card") },
-                { value: "bank_transfer", label: t("bankTransfer") },
-              ]}
-            />
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="discount_value">{t("discount")}</Label>
-            <input type="hidden" name="discount" value={normalizedDiscount} />
-            <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
-              <FormSelect
-                id="discount_type"
-                name="discount_type"
-                value={discountType}
-                onValueChange={(value) => setDiscountType((value as "fixed" | "percent") || "fixed")}
-                options={[
-                  { value: "fixed", label: t("fixedAmount") },
-                  { value: "percent", label: t("percent") },
-                ]}
-              />
-              <div className="relative">
-                <Input
-                  id="discount_value"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={discountValue}
-                  onChange={(event) => {
-                    const nextValue = event.currentTarget.value;
-
-                    setDiscountValue(nextValue);
-                  }}
-                  aria-invalid={Boolean(fieldError(state, "discount"))}
-                  className="pe-14"
+            {isStudioPlan ? (
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="coach_id">Assign Studio Coach</Label>
+                <FormSelect
+                  id="coach_id"
+                  name="coach_id"
+                  value={selectedCoachId}
+                  onValueChange={setSelectedCoachId}
+                  placeholder="Select a coach for this studio plan"
+                  options={getPlanCoachOptions(selectedPlan, plans, staff).map((employee) => ({
+                    value: String(employee.id),
+                    label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+                  }))}
                 />
-                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                  {discountType === "fixed" ? "EGP" : "%"}
-                </span>
-              </div>
-            </div>
-            <FieldError errors={state.errors.discount} />
-          </div>
-        </div>
-        <div className="grid gap-3 rounded-lg border border-dashed p-4">
-          {includedAddons.length > 0 ? (
-            <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-              <div>
-                <Label>Included extra services</Label>
                 <p className="text-muted-foreground text-xs">
-                  Included in the selected plan price. Choose the captain for each service.
+                  The assigned coach will receive coach commission for selling / coaching this studio membership.
                 </p>
               </div>
-              {includedAddons.map((included, index) => {
-                const includedPlan = servicePlans.find((plan) => String(plan.id) === included.plan_id);
-                const coachOptions = getPlanCoachOptions(includedPlan, plans, staff).map((employee) => ({
-                  value: String(employee.id),
-                  label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
-                }));
-                return (
-                  <div className="grid gap-2 sm:grid-cols-2" key={included.plan_id}>
-                    <Input readOnly value={includedPlan?.name ?? "Included extra service"} />
-                    <FormSelect
-                      name={`included_addons[${index}][coach_id]`}
-                      value={included.coach_id}
-                      onValueChange={(value) =>
-                        setIncludedAddons((items) =>
-                          items.map((item, itemIndex) => (itemIndex === index ? { ...item, coach_id: value } : item)),
-                        )
-                      }
-                      options={coachOptions}
-                      placeholder="Select captain"
-                    />
+            ) : null}
+            {kind === "create" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="start_date">{t("startDate")}</Label>
+                <FormDatePicker
+                  key={`${member.id}-${kind}-${open ? "open" : "closed"}-${startDate}`}
+                  id="start_date"
+                  name="start_date"
+                  defaultValue={startDate}
+                  placeholder={t("selectDate")}
+                  required
+                  error={fieldError(state, "start_date")}
+                  onValueChange={setStartDate}
+                />
+              </div>
+            ) : null}
+            {kind === "create" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="end_date">{t("endDate")}</Label>
+                <input type="hidden" name="end_date" value={endDate} />
+                <Input value={endDate || t("selectDate")} readOnly aria-readonly="true" id="end_date" />
+                <FieldError errors={state.errors.end_date} />
+              </div>
+            ) : null}
+            {kind === "change" ? (
+              <div className="grid gap-2 sm:col-span-2">
+                <input type="hidden" name="credit_mode" value="full_difference" />
+                {selectedPlan && currentSubscription ? (
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm">
+                    <div className="flex items-center justify-between font-semibold text-blue-700 dark:text-blue-400">
+                      <span>Price difference (Suggested)</span>
+                      <span className="font-bold text-base">
+                        {priceDifference >= 0
+                          ? `+${priceDifference.toFixed(2)} EGP`
+                          : `${priceDifference.toFixed(2)} EGP`}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-muted-foreground text-xs">
+                      <div>
+                        <span>Current plan: </span>
+                        <strong className="text-foreground">
+                          {currentSubscription.plan_name ?? currentPlan?.name ?? "Current"} ({oldPlanPrice.toFixed(2)}{" "}
+                          EGP)
+                        </strong>
+                      </div>
+                      <div>
+                        <span>New plan: </span>
+                        <strong className="text-foreground">
+                          {selectedPlan.name} ({Number(selectedPlan.price).toFixed(2)} EGP)
+                        </strong>
+                        {Number(normalizedDiscount) > 0 ? (
+                          <span className="block">
+                            After discount: {(Number(selectedPlan.price) - Number(normalizedDiscount)).toFixed(2)} EGP
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
+                ) : null}
+              </div>
+            ) : null}
+            <div className="grid gap-2">
+              <Label htmlFor="payment_amount">{t("paymentAmount")}</Label>
+              <input type="hidden" name="amount_due" value={paymentAmount} />
+              <Input
+                id="payment_amount"
+                name="payment_amount"
+                type="text"
+                required
+                value={paymentAmount}
+                readOnly={kind === "create"}
+                onChange={
+                  kind === "change" ? (event) => setPaymentAmountOverride(event.currentTarget.value) : undefined
+                }
+                aria-invalid={Boolean(fieldError(state, "payment_amount"))}
+              />
+              {kind === "change" ? (
+                <p className="text-muted-foreground text-xs">
+                  Enter price difference (+ for extra payment, - for refund).
+                </p>
+              ) : null}
+              <FieldError errors={state.errors.payment_amount} />
             </div>
-          ) : null}
-          <div className="space-y-1">
-            <Label>{t("addSubscriptionExtra")}</Label>
-            <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraDescription")}</p>
-            <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraNote")}</p>
-          </div>
-          {addons.map((addon, index) => {
-            const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id) ?? servicePlans[0];
-            const coachOptions = getPlanCoachOptions(addonPlan, plans, staff).map((employee) => ({
-              value: String(employee.id),
-              label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
-            }));
-            const addonDiscount = addonPlan
-              ? calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType)
-              : "0";
-            const addonPayment = addonPlan ? calculatePaymentAmount(addonPlan.price, addonDiscount) : "0";
-            const coachCommission = calculateAddonCoachCommissionPreview({
-              addonPayment,
-              basePayment: paymentAmount,
-              coachId: addon.coach_id || coachOptions[0]?.value || "",
-              plan: addonPlan,
-            });
+            <div className="grid gap-2">
+              <Label htmlFor="payment_method">{t("paymentMethod")}</Label>
+              <FormSelect
+                id="payment_method"
+                name="payment_method"
+                defaultValue="cash"
+                error={fieldError(state, "payment_method")}
+                options={[
+                  { value: "cash", label: t("cash") },
+                  { value: "card", label: t("card") },
+                  { value: "bank_transfer", label: t("bankTransfer") },
+                ]}
+              />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="discount_value">{t("discount")}</Label>
+              <input type="hidden" name="discount" value={normalizedDiscount} />
+              <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                <FormSelect
+                  id="discount_type"
+                  name="discount_type"
+                  value={discountType}
+                  onValueChange={(value) => setDiscountType((value as "fixed" | "percent") || "fixed")}
+                  options={[
+                    { value: "fixed", label: t("fixedAmount") },
+                    { value: "percent", label: t("percent") },
+                  ]}
+                />
+                <div className="relative">
+                  <Input
+                    id="discount_value"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={discountValue}
+                    onChange={(event) => {
+                      const nextValue = event.currentTarget.value;
 
-            return (
-              <div key={addon._key} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-2">
-                <div className="grid gap-2 lg:col-span-2">
-                  <Label>{t("extraService")}</Label>
-                  <FormSelect
-                    name={`addons.${index}.plan_id`}
-                    value={addon.plan_id}
-                    onValueChange={(value) =>
-                      setAddons((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? {
-                                ...item,
-                                coach_id: getDefaultCoachIdForPlan(
-                                  servicePlans.find((plan) => String(plan.id) === value),
-                                  plans,
-                                  staff,
-                                ),
-                                plan_id: value ?? "",
-                              }
-                            : item,
-                        ),
-                      )
-                    }
-                    contentClassName="w-[28rem] max-w-[calc(100vw-2rem)]"
-                    options={servicePlans.map((plan) => ({
-                      value: String(plan.id),
-                      label: `${plan.name} - ${plan.price} EGP`,
-                    }))}
+                      setDiscountValue(nextValue);
+                    }}
+                    aria-invalid={Boolean(fieldError(state, "discount"))}
+                    className="pe-14"
                   />
+                  <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    {discountType === "fixed" ? "EGP" : "%"}
+                  </span>
                 </div>
-                <div className="grid gap-2 lg:col-span-2">
-                  <Label>{t("coach")}</Label>
-                  <FormSelect
-                    name={`addons.${index}.coach_id`}
-                    value={addon.coach_id || coachOptions[0]?.value || ""}
-                    onValueChange={(value) =>
-                      setAddons((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, coach_id: value ?? "" } : item,
-                        ),
-                      )
-                    }
-                    contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
-                    options={coachOptions}
-                  />
+              </div>
+              <FieldError errors={state.errors.discount} />
+            </div>
+          </div>
+          <div className="grid gap-3 rounded-lg border border-dashed p-4">
+            {includedAddons.length > 0 ? (
+              <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                <div>
+                  <Label>Included extra services</Label>
+                  <p className="text-muted-foreground text-xs">
+                    Included in the selected plan price. Choose the captain for each service.
+                  </p>
                 </div>
-                <div className="grid gap-2">
-                  <Label>{t("discount")}</Label>
-                  <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                {includedAddons.map((included, index) => {
+                  const includedPlan = servicePlans.find((plan) => String(plan.id) === included.plan_id);
+                  const coachOptions = getPlanCoachOptions(includedPlan, plans, staff).map((employee) => ({
+                    value: String(employee.id),
+                    label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+                  }));
+                  return (
+                    <div className="grid gap-2 sm:grid-cols-2" key={included.plan_id}>
+                      <Input readOnly value={includedPlan?.name ?? "Included extra service"} />
+                      <FormSelect
+                        name={`included_addons[${index}][coach_id]`}
+                        value={included.coach_id}
+                        onValueChange={(value) =>
+                          setIncludedAddons((items) =>
+                            items.map((item, itemIndex) => (itemIndex === index ? { ...item, coach_id: value } : item)),
+                          )
+                        }
+                        options={coachOptions}
+                        placeholder="Select captain"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+            <div className="space-y-1">
+              <Label>{t("addSubscriptionExtra")}</Label>
+              <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraDescription")}</p>
+              <p className="text-muted-foreground text-xs">{t("addSubscriptionExtraNote")}</p>
+            </div>
+            {addons.map((addon, index) => {
+              const addonPlan = servicePlans.find((plan) => String(plan.id) === addon.plan_id) ?? servicePlans[0];
+              const coachOptions = getPlanCoachOptions(addonPlan, plans, staff).map((employee) => ({
+                value: String(employee.id),
+                label: employee.role ? `${employee.name} - ${employee.role}` : employee.name,
+              }));
+              const addonDiscount = addonPlan
+                ? calculateDiscountAmount(addonPlan.price, addon.discountValue, addon.discountType)
+                : "0";
+              const addonPayment = addonPlan ? calculatePaymentAmount(addonPlan.price, addonDiscount) : "0";
+              const coachCommission = calculateAddonCoachCommissionPreview({
+                addonPayment,
+                basePayment: paymentAmount,
+                coachId: addon.coach_id || coachOptions[0]?.value || "",
+                plan: addonPlan,
+              });
+
+              return (
+                <div key={addon._key} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-2">
+                  <div className="grid gap-2 lg:col-span-2">
+                    <Label>{t("extraService")}</Label>
                     <FormSelect
-                      name={`addons.${index}.discount_type`}
-                      value={addon.discountType}
+                      name={`addons.${index}.plan_id`}
+                      value={addon.plan_id}
                       onValueChange={(value) =>
                         setAddons((current) =>
                           current.map((item, itemIndex) =>
                             itemIndex === index
-                              ? { ...item, discountType: (value as "fixed" | "percent") ?? "fixed" }
+                              ? {
+                                  ...item,
+                                  coach_id: getDefaultCoachIdForPlan(
+                                    servicePlans.find((plan) => String(plan.id) === value),
+                                    plans,
+                                    staff,
+                                  ),
+                                  plan_id: value ?? "",
+                                }
+                              : item,
+                          ),
+                        )
+                      }
+                      contentClassName="w-[28rem] max-w-[calc(100vw-2rem)]"
+                      options={servicePlans.map((plan) => ({
+                        value: String(plan.id),
+                        label: `${plan.name} - ${plan.price} EGP`,
+                      }))}
+                    />
+                  </div>
+                  <div className="grid gap-2 lg:col-span-2">
+                    <Label>{t("coach")}</Label>
+                    <FormSelect
+                      name={`addons.${index}.coach_id`}
+                      value={addon.coach_id || coachOptions[0]?.value || ""}
+                      onValueChange={(value) =>
+                        setAddons((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, coach_id: value ?? "" } : item,
+                          ),
+                        )
+                      }
+                      contentClassName="w-[24rem] max-w-[calc(100vw-2rem)]"
+                      options={coachOptions}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("discount")}</Label>
+                    <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
+                      <FormSelect
+                        name={`addons.${index}.discount_type`}
+                        value={addon.discountType}
+                        onValueChange={(value) =>
+                          setAddons((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, discountType: (value as "fixed" | "percent") ?? "fixed" }
+                                : item,
+                            ),
+                          )
+                        }
+                        options={[
+                          { value: "fixed", label: t("fixedAmount") },
+                          { value: "percent", label: t("percent") },
+                        ]}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={addon.discountValue}
+                        onChange={(event) => {
+                          const nextValue = event.currentTarget.value;
+
+                          setAddons((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, discountValue: nextValue } : item,
+                            ),
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("paymentMethod")}</Label>
+                    <FormSelect
+                      name={`addons.${index}.payment_method`}
+                      value={addon.payment_method}
+                      onValueChange={(value) =>
+                        setAddons((current) =>
+                          current.map((item, itemIndex) =>
+                            itemIndex === index
+                              ? { ...item, payment_method: (value as "cash" | "card" | "bank_transfer") || "cash" }
                               : item,
                           ),
                         )
                       }
                       options={[
-                        { value: "fixed", label: t("fixedAmount") },
-                        { value: "percent", label: t("percent") },
+                        { value: "cash", label: t("cash") },
+                        { value: "card", label: t("card") },
+                        { value: "bank_transfer", label: t("bankTransfer") },
                       ]}
                     />
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={addon.discountValue}
-                      onChange={(event) => {
-                        const nextValue = event.currentTarget.value;
-
-                        setAddons((current) =>
-                          current.map((item, itemIndex) =>
-                            itemIndex === index ? { ...item, discountValue: nextValue } : item,
-                          ),
-                        );
-                      }}
-                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("addonCharge")}</Label>
+                    <Input value={addonPayment} readOnly />
+                    <p className="text-muted-foreground text-xs">{t("addonChargeHelp")}</p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{t("addonCoachCommission")}</Label>
+                    <Input value={coachCommission.amount} readOnly />
+                    <p className="text-muted-foreground text-xs">
+                      {coachCommission.isPercentage
+                        ? t("addonCoachCommissionPercentHelp")
+                        : t("addonCoachCommissionFixedHelp")}
+                    </p>
+                  </div>
+                  <div className="flex items-end lg:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setAddons((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                    >
+                      {t("delete")}
+                    </Button>
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label>{t("paymentMethod")}</Label>
-                  <FormSelect
-                    name={`addons.${index}.payment_method`}
-                    value={addon.payment_method}
-                    onValueChange={(value) =>
-                      setAddons((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? { ...item, payment_method: (value as "cash" | "card" | "bank_transfer") || "cash" }
-                            : item,
-                        ),
-                      )
-                    }
-                    options={[
-                      { value: "cash", label: t("cash") },
-                      { value: "card", label: t("card") },
-                      { value: "bank_transfer", label: t("bankTransfer") },
-                    ]}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("addonCharge")}</Label>
-                  <Input value={addonPayment} readOnly />
-                  <p className="text-muted-foreground text-xs">{t("addonChargeHelp")}</p>
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("addonCoachCommission")}</Label>
-                  <Input value={coachCommission.amount} readOnly />
-                  <p className="text-muted-foreground text-xs">
-                    {coachCommission.isPercentage
-                      ? t("addonCoachCommissionPercentHelp")
-                      : t("addonCoachCommissionFixedHelp")}
-                  </p>
-                </div>
-                <div className="flex items-end lg:justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setAddons((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                  >
-                    {t("delete")}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() =>
-              setAddons((current) => [
-                ...current,
-                {
-                  _key: `addon-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
-                  coach_id: getDefaultCoachIdForPlan(servicePlans[0], plans, staff),
-                  discountType: "fixed",
-                  discountValue: "0",
-                  payment_method: "cash",
-                  plan_id: servicePlans[0] ? String(servicePlans[0].id) : "",
-                },
-              ])
-            }
-            disabled={servicePlans.length === 0}
-          >
-            {t("addSubscriptionExtra")}
-          </Button>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() =>
+                setAddons((current) => [
+                  ...current,
+                  {
+                    _key: `addon-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`,
+                    coach_id: getDefaultCoachIdForPlan(servicePlans[0], plans, staff),
+                    discountType: "fixed",
+                    discountValue: "0",
+                    payment_method: "cash",
+                    plan_id: servicePlans[0] ? String(servicePlans[0].id) : "",
+                  },
+                ])
+              }
+              disabled={servicePlans.length === 0}
+            >
+              {t("addSubscriptionExtra")}
+            </Button>
+          </div>
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>

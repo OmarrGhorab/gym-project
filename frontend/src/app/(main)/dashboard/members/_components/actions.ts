@@ -22,6 +22,20 @@ const optionalDateInput = z.preprocess((value) => {
   return normalized.length > 0 ? normalized : null;
 }, z.string().date().nullable());
 
+/**
+ * An optional foreign key coming out of a <select>.
+ *
+ * An unpicked select submits "", and z.coerce.number() turns that into 0, which
+ * then fails .positive() with Zod's raw "Too small: expected number to be >0" —
+ * shown to staff as if they had mistyped something. Neither .nullable() nor
+ * .optional() catches it, because by then the empty string is already a 0.
+ */
+const optionalIdInput = z.preprocess((value) => {
+  const normalized = String(value ?? "").trim();
+
+  return normalized.length > 0 ? normalized : null;
+}, z.coerce.number().int().positive().nullable());
+
 const memberInputSchema = z.object({
   birth_date: optionalDateInput,
   email: z.preprocess((value) => {
@@ -563,7 +577,7 @@ const subscriptionInputSchema = z.object({
       }),
     )
     .default([]),
-  coach_id: z.coerce.number().int().positive().nullable().optional(),
+  coach_id: optionalIdInput.optional(),
   discount: optionalTextInput(),
   end_date: optionalDateInput,
   payment_amount: z.string().trim().min(1, "Payment amount is required."),

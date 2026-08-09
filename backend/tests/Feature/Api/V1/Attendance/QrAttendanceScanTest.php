@@ -105,6 +105,34 @@ test('member qr duplicate check in is sent for review without consuming a second
         ->and($subscription->fresh()->sessions_remaining)->toBe(5);
 });
 
+test('duplicate check in response names the member and does not report the visit as allowed', function (): void {
+    actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-DUP123', 'name' => 'Ali Abdelrahman']);
+    $subscription = Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => 4,
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'subscription_id' => $subscription->id,
+        'check_in_at' => '2026-06-26 09:53:00',
+        'check_out_at' => null,
+    ]);
+
+    $response = $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-DUP123',
+        'check_in_at' => '2026-06-26 10:07:00',
+    ])->assertCreated();
+
+    // The desk decides from this response alone, so it has to carry the member
+    // and must not claim the visit went through — nothing was consumed yet.
+    $response->assertJsonPath('data.member.name', 'Ali Abdelrahman')
+        ->assertJsonPath('data.plan_name', $subscription->plan->name)
+        ->assertJsonPath('data.alert_reason', 'Duplicate check-in: approve to count this visit and consume one session.');
+
+    expect($response->json('message'))->not->toContain('allowed');
+});
+
 test('member phone lookup rejects check-in for invalid subscription', function (): void {
     actingManager();
     $member = Member::factory()->create(['phone' => '+201111111111']);

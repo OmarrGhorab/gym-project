@@ -30,8 +30,15 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { useKeyboardWedgeScanner } from "@/hooks/use-keyboard-wedge-scanner";
 
-import { type AttendanceActionResult, createManualAttendance, scanMemberVisit, scanStaffAttendance } from "./actions";
+import {
+  type AttendanceActionResult,
+  createManualAttendance,
+  type PendingVisitReview,
+  scanMemberVisit,
+  scanStaffAttendance,
+} from "./actions";
 import type { AttendanceRecord, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
+import { DuplicateVisitDialog } from "./duplicate-visit-dialog";
 
 const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
 const fixedTopSelectCollision = {
@@ -75,6 +82,10 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const [selectedAddonId, setSelectedAddonId] = useState("none");
   const [memberLookupSource, setMemberLookupSource] = useState<"member_id" | "phone" | "name" | null>(null);
   const [lookupMembers, setLookupMembers] = useState(members);
+  // Mirrored into local state so resolving the dialog can dismiss it; the action
+  // result itself only changes on the next scan.
+  const [pendingReview, setPendingReview] = useState<PendingVisitReview | null>(null);
+  const clearPendingReview = useCallback(() => setPendingReview(null), []);
   const selectMember = useCallback(
     (member: MemberLookupOption | null, source: "member_id" | "phone" | "name" | null) => {
       setSelectedMember(member);
@@ -110,6 +121,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
       setSelectedMember(null);
       setMemberLookupSource(null);
       setSelectedAddonId("none");
+      setPendingReview(state.review ?? null);
       if (formRef.current) {
         formRef.current.reset();
       }
@@ -286,6 +298,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
           <PanelFooter pending={pending} label={t("submitMemberScan")} />
         </form>
       </CardContent>
+      <DuplicateVisitDialog review={pendingReview} onResolved={clearPendingReview} />
     </Card>
   );
 }
@@ -1331,6 +1344,12 @@ function useAttendanceActionToast(
 
   useEffect(() => {
     if (!state.message) {
+      return;
+    }
+
+    // A scan awaiting approval raises a dialog that says the same thing and asks
+    // for a decision. A success toast and chime next to it would read as "done".
+    if (state.review) {
       return;
     }
 

@@ -78,12 +78,8 @@ final class MemberVisitController extends ApiController
     {
         $visit = $action->handle($request->validated(), $request->user());
 
-        $message = $visit->status === 'flagged'
-            ? 'Member checked in with location alert'
-            : $this->successMessage($visit);
-
-        return (new MemberVisitResource($visit))
-            ->withMessage($message)
+        return (new MemberVisitResource($this->loadForScanResponse($visit)))
+            ->withMessage($this->scanMessage($visit))
             ->response()
             ->setStatusCode(201);
     }
@@ -92,14 +88,31 @@ final class MemberVisitController extends ApiController
     {
         $visit = $action->handle($request->validated(), $request->user());
 
-        $message = $visit->status === 'flagged'
-            ? 'Member checked in with location alert'
-            : $this->successMessage($visit);
-
-        return (new MemberVisitResource($visit))
-            ->withMessage($message)
+        return (new MemberVisitResource($this->loadForScanResponse($visit)))
+            ->withMessage($this->scanMessage($visit))
             ->response()
             ->setStatusCode(201);
+    }
+
+    /**
+     * The desk decides what to do from this response alone, so it has to name the
+     * member and the plan. Without eager-loading, the Resource renders a freshly
+     * created visit with a null member and no plan name.
+     */
+    private function loadForScanResponse(MemberVisit $visit): MemberVisit
+    {
+        return $visit->loadMissing(['member', 'subscription.plan', 'subscriptionAddon.plan']);
+    }
+
+    private function scanMessage(MemberVisit $visit): string
+    {
+        return match ($visit->status) {
+            // A duplicate scan is held for approval and consumes nothing yet.
+            // Reporting it as "allowed" told the desk the opposite of the truth.
+            'pending_review' => $visit->alert_reason ?? 'Duplicate check-in is waiting for approval.',
+            'flagged' => 'Member checked in with location alert',
+            default => $this->successMessage($visit),
+        };
     }
 
     private function successMessage(MemberVisit $visit): string
