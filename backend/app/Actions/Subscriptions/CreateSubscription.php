@@ -41,16 +41,18 @@ class CreateSubscription
 
         return DB::transaction(function () use ($data, $seller, $member, $plan): Subscription {
             $startDate = Carbon::parse($data['start_date'])->startOfDay();
+            // A custom end date only moves the expiry for this one member — staff
+            // use it to extend or shorten a period as a courtesy. The plan is
+            // still sold as a single plan, so price and sessions never multiply.
             $endDate = isset($data['end_date'])
                 ? Carbon::parse($data['end_date'])->startOfDay()
                 : $plan->endDateFrom($startDate);
-            $cycles = $this->cycleCount($startDate, $endDate, $plan);
             $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
-            $subtotal = bcmul((string) $plan->price, (string) $cycles, 2);
+            $subtotal = bcadd((string) $plan->price, '0.00', 2);
             $pricePaid = bcsub($subtotal, $discount, 2);
             $sessionAllowance = $plan->is_unlimited_sessions || $plan->sessions_count === null
                 ? null
-                : (int) $plan->sessions_count * $cycles;
+                : (int) $plan->sessions_count;
 
             if (bccomp($pricePaid, '0.00', 2) === -1) {
                 throw ValidationException::withMessages([
@@ -147,31 +149,6 @@ class CreateSubscription
 
             return $subscription->fresh(['member', 'plan', 'soldBy', 'payments', 'addons.plan', 'addons.coach', 'addons.payments']) ?? $subscription;
         });
-    }
-
-    private function cycleCount(Carbon $startDate, Carbon $endDate, Plan $plan): int
-    {
-        if ($endDate->lessThanOrEqualTo($startDate)) {
-            return 1;
-        }
-
-        $durationMonths = (int) ($plan->duration_months ?? 0);
-
-        if ($durationMonths > 0) {
-            $cursor = $startDate->copy();
-            $cycles = 0;
-
-            while ($cursor->lt($endDate)) {
-                $cursor->addMonthsNoOverflow($durationMonths);
-                $cycles += 1;
-            }
-
-            return max(1, $cycles);
-        }
-
-        $durationDays = max(1, (int) $plan->duration_days);
-
-        return max(1, (int) ceil($startDate->diffInDays($endDate) / $durationDays));
     }
 
     private function coachCanSellAddon(int $planId, int $coachId): bool

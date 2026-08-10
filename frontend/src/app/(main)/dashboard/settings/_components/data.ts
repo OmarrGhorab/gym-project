@@ -4,6 +4,8 @@ import { type WhatsAppTemplateKey, type WhatsAppTemplates, whatsappTemplateKeys 
 export type DashboardSettings = {
   attendance: {
     default_grace_minutes: number;
+    /** Seconds-apart scans treated as the same one, so the desk is not asked. */
+    duplicate_scan_grace_minutes: number;
     gym_latitude: number | null;
     gym_longitude: number | null;
     gym_radius_meters: number;
@@ -26,6 +28,12 @@ export type DashboardSettings = {
     schedule_mode: "fixed" | "per_employee";
   };
   shifts?: {
+    /** Whether the scheduler opens the desk on its own. Off means staff start it by hand. */
+    auto_open_enabled: boolean;
+    /** Whether staff must count the drawer and get a manager review to finish a shift. */
+    require_cash_count: boolean;
+    /** Whether a shift may only be opened inside its scheduled hours. */
+    enforce_schedule_window: boolean;
     handover_auto_accept: boolean;
     handover_auto_accept_on_match_only: boolean;
     require_handover_to_open: boolean;
@@ -94,6 +102,7 @@ export const emptyWhatsAppAutoEvents = Object.fromEntries(whatsappTemplateKeys.m
 const emptySettings: DashboardSettings = {
   attendance: {
     default_grace_minutes: 15,
+    duplicate_scan_grace_minutes: 2,
     gym_latitude: null,
     gym_longitude: null,
     gym_radius_meters: 150,
@@ -116,9 +125,12 @@ const emptySettings: DashboardSettings = {
     schedule_mode: "fixed",
   },
   shifts: {
+    auto_open_enabled: false,
+    require_cash_count: false,
+    enforce_schedule_window: false,
     handover_auto_accept: false,
     handover_auto_accept_on_match_only: true,
-    require_handover_to_open: true,
+    require_handover_to_open: false,
   },
   receipt_template: "default",
   reminder_days: [7],

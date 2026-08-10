@@ -168,6 +168,8 @@ export type FinancePageData = FinanceDashboardData & {
     history: FinanceShiftSession[];
     shifts: Array<{ id: number; name: string; employees: ShiftStaffOption[] }>;
     requireHandoverToOpen: boolean;
+    /** When off, closing a shift finishes it — no count, no manager review. */
+    requireCashCount: boolean;
   };
 };
 
@@ -275,6 +277,7 @@ export async function getFinanceDashboardData(
       ? safeFetch<{
           shifts?: {
             require_handover_to_open?: boolean;
+            require_cash_count?: boolean;
           };
         }>("/settings", {})
       : { data: {} },
@@ -321,6 +324,9 @@ export async function getFinanceDashboardData(
       shifts: shiftOptions,
       requireHandoverToOpen: Boolean(
         settings.data && "shifts" in settings.data ? settings.data.shifts?.require_handover_to_open : false,
+      ),
+      requireCashCount: Boolean(
+        settings.data && "shifts" in settings.data ? settings.data.shifts?.require_cash_count : false,
       ),
     },
   };

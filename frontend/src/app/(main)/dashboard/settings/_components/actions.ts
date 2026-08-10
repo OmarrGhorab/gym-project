@@ -37,6 +37,9 @@ const settingsSchema = z.object({
   reminder_days: z
     .array(z.coerce.number().int().min(0, "Reminder days cannot be negative."))
     .min(1, "Add at least one reminder day."),
+  shifts_auto_open_enabled: z.boolean(),
+  shifts_require_cash_count: z.boolean(),
+  shifts_enforce_schedule_window: z.boolean(),
   shifts_handover_auto_accept: z.boolean(),
   shifts_handover_auto_accept_on_match_only: z.boolean(),
   shifts_require_handover_to_open: z.boolean(),
@@ -99,6 +102,12 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
       input.get("payroll.coach_performance_bonus_enabled") === "true",
     payroll_coach_performance_bonus_percentage: input.get("payroll.coach_performance_bonus_percentage") || "0",
     reminder_days: parseReminderDays(input.get("reminder_days")),
+    shifts_auto_open_enabled:
+      input.get("shifts.auto_open_enabled") === "on" || input.get("shifts.auto_open_enabled") === "true",
+    shifts_require_cash_count:
+      input.get("shifts.require_cash_count") === "on" || input.get("shifts.require_cash_count") === "true",
+    shifts_enforce_schedule_window:
+      input.get("shifts.enforce_schedule_window") === "on" || input.get("shifts.enforce_schedule_window") === "true",
     shifts_handover_auto_accept:
       input.get("shifts.handover_auto_accept") === "on" || input.get("shifts.handover_auto_accept") === "true",
     shifts_handover_auto_accept_on_match_only:
@@ -128,6 +137,9 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
       schedule_mode: parsed.data.payroll_schedule_mode,
     },
     shifts: {
+      auto_open_enabled: parsed.data.shifts_auto_open_enabled,
+      require_cash_count: parsed.data.shifts_require_cash_count,
+      enforce_schedule_window: parsed.data.shifts_enforce_schedule_window,
       handover_auto_accept: parsed.data.shifts_handover_auto_accept,
       handover_auto_accept_on_match_only: parsed.data.shifts_handover_auto_accept_on_match_only,
       require_handover_to_open: parsed.data.shifts_require_handover_to_open,

@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\MemberVisits\AutoCloseStaleMemberVisits;
 use App\Actions\MemberVisits\CheckInMemberVisit;
 use App\Actions\MemberVisits\CheckOutMemberVisit;
+use App\Actions\MemberVisits\ReviewMemberVisit;
 use App\Actions\MemberVisits\StoreMemberVisit;
 use App\Actions\MemberVisits\UpdateMemberVisit;
-use App\Actions\MemberVisits\ResolveMemberVisitSubscription;
 use App\Http\Requests\MemberVisits\ScanMemberVisitRequest;
 use App\Http\Requests\MemberVisits\StoreMemberVisitRequest;
 use App\Http\Requests\MemberVisits\UpdateMemberVisitRequest;
@@ -121,6 +121,15 @@ final class MemberVisitController extends ApiController
 
     private function scanMessage(MemberVisit $visit): string
     {
+        // The action returns the existing visit, unsaved, when a scan is close enough
+        // to the last one to be the same one. Saying "checked in" there would be a
+        // second confirmation for a check-in that never happened.
+        if (! $visit->wasRecentlyCreated) {
+            return $visit->status === 'pending_review'
+                ? 'Already waiting for a decision on this member.'
+                : 'Repeat scan ignored — the member is already checked in.';
+        }
+
         return match ($visit->status) {
             // A duplicate scan is held for approval and consumes nothing yet.
             // Reporting it as "allowed" told the desk the opposite of the truth.
@@ -158,23 +167,16 @@ final class MemberVisitController extends ApiController
             ->setStatusCode(200);
     }
 
-    public function review(Request $request, MemberVisit $memberVisit, ResolveMemberVisitSubscription $subscriptions): JsonResponse
+    public function review(Request $request, MemberVisit $memberVisit, ReviewMemberVisit $action): JsonResponse
     {
         $this->authorize('update', $memberVisit);
         $decision = $request->validate(['decision' => ['required', 'in:approved,dismissed']])['decision'];
-        abort_unless($memberVisit->status === 'pending_review', 422, 'This visit is not pending review.');
 
-        if ($decision === 'approved') {
-            $subscription = $subscriptions->consume($memberVisit->member, $memberVisit->check_in_at);
-            $addon = $memberVisit->subscription_addon_id
-                ? $subscriptions->consumeAddon($memberVisit->member, $memberVisit->check_in_at, $memberVisit->subscription_addon_id)
-                : $subscriptions->autoConsumeActiveAddon($memberVisit->member, $memberVisit->check_in_at, $subscription);
-            $memberVisit->update(['subscription_id' => $subscription->id, 'subscription_addon_id' => $addon?->id, 'status' => 'allowed', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'alert_reason' => null]);
-        } else {
-            $memberVisit->update(['status' => 'blocked', 'check_out_at' => $memberVisit->check_in_at, 'reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
-        }
+        $reviewed = $action->handle($memberVisit, $decision, $request->user());
 
-        return (new MemberVisitResource($memberVisit->fresh(['member.latestSubscription.plan', 'subscription.plan', 'creator'])))->withMessage('Member visit reviewed')->response();
+        return (new MemberVisitResource($reviewed->fresh(['member.latestSubscription.plan', 'subscription.plan', 'creator'])))
+            ->withMessage('Member visit reviewed')
+            ->response();
     }
 
     public function show(Request $request, MemberVisit $memberVisit): JsonResponse

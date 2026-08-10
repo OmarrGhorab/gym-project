@@ -1022,6 +1022,9 @@ function SubscriptionFormContent({
   const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
   const [selectedCoachId, setSelectedCoachId] = React.useState<string>("");
   const [startDate, setStartDate] = React.useState(defaultStartDate);
+  // `null` means "follow the plan duration". Staff can override the expiry for a
+  // single member without touching the plan definition itself.
+  const [endDateOverride, setEndDateOverride] = React.useState<string | null>(null);
   const [discountType, setDiscountType] = React.useState<"fixed" | "percent">("fixed");
   const [discountValue, setDiscountValue] = React.useState("0");
   const [paymentAmountOverride, setPaymentAmountOverride] = React.useState<string | null>(null);
@@ -1038,7 +1041,11 @@ function SubscriptionFormContent({
   const [includedAddons, setIncludedAddons] = React.useState<Array<{ coach_id: string; plan_id: string }>>([]);
   const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? availablePlans[0];
   const isStudioPlan = selectedPlan ? isStudioPlanItem(selectedPlan) : false;
-  const endDate = kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
+  const autoEndDate =
+    kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
+  const endDate = kind === "create" ? (endDateOverride ?? autoEndDate) : "";
+  const hasCustomEndDate = kind === "create" && endDateOverride !== null && endDateOverride !== autoEndDate;
+  const endDateBeforeStart = Boolean(endDate && startDate && endDate < startDate);
   const normalizedDiscount = selectedPlan
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
     : "0";
@@ -1108,6 +1115,7 @@ function SubscriptionFormContent({
       setSelectedPlanId(selectablePlans[0] ? String(selectablePlans[0].id) : "");
 
       setStartDate(defaultStartDate);
+      setEndDateOverride(null);
       setDiscountType("fixed");
       setDiscountValue("0");
       setPaymentAmountOverride(null);
@@ -1238,6 +1246,7 @@ function SubscriptionFormContent({
                   const gymPlans =
                     kind === "change" ? basePlans.filter((plan) => String(plan.id) !== currentPlanId) : basePlans;
                   setSelectedPlanId(gymPlans[0] ? String(gymPlans[0].id) : "");
+                  setEndDateOverride(null);
                   setPaymentAmountOverride(null);
                 }}
                 className={
@@ -1255,6 +1264,7 @@ function SubscriptionFormContent({
                   const studioPlansForChange =
                     kind === "change" ? studioPlans.filter((plan) => String(plan.id) !== currentPlanId) : studioPlans;
                   setSelectedPlanId(studioPlansForChange[0] ? String(studioPlansForChange[0].id) : "");
+                  setEndDateOverride(null);
                   setPaymentAmountOverride(null);
                 }}
                 className={
@@ -1274,6 +1284,7 @@ function SubscriptionFormContent({
                 value={selectedPlanId}
                 onValueChange={(value) => {
                   setSelectedPlanId(value);
+                  setEndDateOverride(null);
                   setPaymentAmountOverride(null);
                 }}
                 required
@@ -1321,10 +1332,29 @@ function SubscriptionFormContent({
             ) : null}
             {kind === "create" ? (
               <div className="grid gap-2">
-                <Label htmlFor="end_date">{t("endDate")}</Label>
-                <input type="hidden" name="end_date" value={endDate} />
-                <Input value={endDate || t("selectDate")} readOnly aria-readonly="true" id="end_date" />
-                <FieldError errors={state.errors.end_date} />
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="end_date">{t("endDate")}</Label>
+                  {hasCustomEndDate ? (
+                    <button
+                      type="button"
+                      className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
+                      onClick={() => setEndDateOverride(null)}
+                    >
+                      {t("endDateReset")}
+                    </button>
+                  ) : null}
+                </div>
+                <FormDatePicker
+                  id="end_date"
+                  name="end_date"
+                  value={endDate}
+                  placeholder={t("selectDate")}
+                  error={fieldError(state, "end_date") ?? (endDateBeforeStart ? t("endDateBeforeStart") : undefined)}
+                  onValueChange={(value) => setEndDateOverride(value === autoEndDate ? null : value)}
+                />
+                <p className="text-muted-foreground text-xs">
+                  {hasCustomEndDate ? t("endDateCustomHint", { date: autoEndDate }) : t("endDateAutoHint")}
+                </p>
               </div>
             ) : null}
             {kind === "change" ? (
@@ -1657,6 +1687,7 @@ function SubscriptionFormContent({
             disabled={
               pending ||
               basePlans.length === 0 ||
+              endDateBeforeStart ||
               (kind === "change" && currentSubscription?.status !== "active") ||
               (kind === "change" && !selectedPlanId)
             }

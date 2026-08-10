@@ -22,6 +22,12 @@ beforeEach(function (): void {
 test('the scheduled command opens the current shift once and an assigned employee closes it manually', function (): void {
     Carbon::setTestNow('2026-07-28 06:30:00');
 
+    // Auto-open is opt-in: the default desk is started by hand. These cases
+    // exercise the scheduler, so they turn it on explicitly.
+    Setting::query()->create(['key' => 'shifts.auto_open_enabled', 'value' => true]);
+    // Closing lands in pending_handover only when the drawer count is required.
+    Setting::query()->create(['key' => 'shifts.require_cash_count', 'value' => true]);
+
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     $shift = EmployeeShift::factory()->create([
@@ -60,6 +66,10 @@ test('the scheduled command opens the current shift once and an assigned employe
 test('an overnight shift keeps the date on which its desk opened', function (): void {
     Carbon::setTestNow('2026-07-29 00:30:00');
 
+    // Auto-open is opt-in: the default desk is started by hand. These cases
+    // exercise the scheduler, so they turn it on explicitly.
+    Setting::query()->create(['key' => 'shifts.auto_open_enabled', 'value' => true]);
+
     $shift = EmployeeShift::factory()->create([
         'starts_at' => '21:00:00',
         'ends_at' => '01:00:00',
@@ -84,6 +94,9 @@ test('automatic opening can be disabled and respects a pending handover', functi
     expect(ShiftSession::query()->count())->toBe(0);
 
     Setting::query()->where('key', 'shifts.auto_open_enabled')->update(['value' => true]);
+    // Handover blocking is also opt-in now, and it is the half of this case still
+    // under test — without it the scheduler would rightly open a second desk.
+    Setting::query()->create(['key' => 'shifts.require_handover_to_open', 'value' => true]);
     ShiftSession::query()->create([
         'employee_shift_id' => EmployeeShift::factory()->create()->id,
         'business_date' => '2026-07-28',

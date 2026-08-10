@@ -40,7 +40,12 @@ class OpenShiftSession
                 ]);
             }
 
-            if (! $forceOpen && ! $this->isWithinOpeningWindow($shift, $businessDate, now())) {
+            // Off by default. A desk that is started by hand cannot also insist the
+            // clock agrees: staff open late, cover an unstaffed shift, or start the
+            // evening desk early, and none of that should need an administrator.
+            $enforceWindow = (bool) $this->setting('shifts.enforce_schedule_window', false);
+
+            if ($enforceWindow && ! $forceOpen && ! $this->isWithinOpeningWindow($shift, $businessDate, now())) {
                 throw ValidationException::withMessages([
                     'employee_shift_id' => $shift->name.' cannot be opened outside its scheduled time. Use an authorized force-open only for an exceptional situation.',
                 ]);
@@ -67,7 +72,9 @@ class OpenShiftSession
                 ]);
             }
 
-            $requireHandover = (bool) $this->setting('shifts.require_handover_to_open', true);
+            // Off by default: an unfinished handover on someone else's session must
+            // not stop the person in front of the desk from starting theirs.
+            $requireHandover = (bool) $this->setting('shifts.require_handover_to_open', false);
             $previous = ShiftSession::query()
                 ->whereIn('status', [
                     ShiftSession::STATUS_PENDING_HANDOVER,

@@ -113,6 +113,8 @@ export function ShiftDesk({
   pendingSessions = [],
   shifts = [],
   requireHandoverToOpen: _requireHandoverToOpen = true,
+  requireCashCount = false,
+  currentUserName,
   canOperate,
   canReview,
 }: {
@@ -121,6 +123,8 @@ export function ShiftDesk({
   pendingSessions?: ShiftDeskSession[];
   shifts?: ShiftDeskShift[];
   requireHandoverToOpen?: boolean;
+  requireCashCount?: boolean;
+  currentUserName?: string | null;
   canOperate: boolean;
   canReview: boolean;
 }) {
@@ -287,7 +291,7 @@ export function ShiftDesk({
       </div>
     );
   } else if (canOperate) {
-    sessionBody = <OpenSessionForm shifts={shifts} pending={pending} onOpen={run} />;
+    sessionBody = <OpenSessionForm shifts={shifts} pending={pending} onOpen={run} currentUserName={currentUserName} />;
   } else {
     sessionBody = (
       <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4 text-center">
@@ -308,7 +312,11 @@ export function ShiftDesk({
       <CardContent className="grid gap-4">
         {sessionBody}
 
-        {pendingSessions.length > 0 ? (
+        {/* With counting off, CloseShiftSession finishes the session outright, so
+            nothing lands in pendingSessions and this block never renders. The guard
+            is explicit so an old pending row from before the switch cannot resurrect
+            a workflow the gym has turned off. */}
+        {requireCashCount && pendingSessions.length > 0 ? (
           <div className="grid gap-3">
             <div>
               <p className="font-medium text-sm">{t("finishHandover")}</p>
@@ -631,10 +639,12 @@ function OpenSessionForm({
   shifts,
   pending,
   onOpen,
+  currentUserName,
 }: {
   shifts: ShiftDeskShift[];
   pending: boolean;
   onOpen: (action: () => Promise<{ ok: boolean; message: string }>) => void;
+  currentUserName?: string | null;
 }) {
   const t = useTranslations("Dashboard.finance");
   const [shiftId, setShiftId] = useState<string>(shifts[0] ? String(shifts[0].id) : "");
@@ -645,9 +655,10 @@ function OpenSessionForm({
   const staff = selectedShift?.employees ?? [];
 
   const selectedStaff = staff.find((employee) => String(employee.id) === employeeId);
+  const selfLabel = currentUserName?.trim() ? currentUserName.trim() : t("staffOnDutySelf");
   const selectedStaffLabel =
     employeeId === "self"
-      ? "Me"
+      ? selfLabel
       : selectedStaff
         ? selectedStaff.role
           ? `${selectedStaff.name} — ${selectedStaff.role}`
@@ -701,7 +712,7 @@ function OpenSessionForm({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="self">Me</SelectItem>
+                <SelectItem value="self">{selfLabel}</SelectItem>
                 {staff.map((employee) => (
                   <SelectItem key={employee.id} value={String(employee.id)}>
                     {employee.role ? `${employee.name} — ${employee.role}` : employee.name}

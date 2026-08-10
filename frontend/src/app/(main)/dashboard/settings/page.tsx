@@ -68,6 +68,14 @@ export default async function Page() {
                 defaultValue={settings.attendance.default_grace_minutes}
               />
               <Field
+                label={t("duplicateScanGrace")}
+                name="attendance.duplicate_scan_grace_minutes"
+                type="number"
+                step="0.5"
+                defaultValue={settings.attendance.duplicate_scan_grace_minutes}
+                hint={t("duplicateScanGraceHint")}
+              />
+              <Field
                 label={t("reminderDays")}
                 name="reminder_days"
                 type="text"
@@ -83,6 +91,39 @@ export default async function Page() {
                 <p className="text-muted-foreground text-xs">{t("shiftHandoverSettingsHelp")}</p>
               </div>
               <div className="grid gap-2">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="shifts.auto_open_enabled"
+                    name="shifts.auto_open_enabled"
+                    defaultChecked={settings.shifts?.auto_open_enabled ?? false}
+                  />
+                  <div className="grid gap-0.5">
+                    <Label htmlFor="shifts.auto_open_enabled">{t("shiftAutoOpen")}</Label>
+                    <p className="text-muted-foreground text-xs">{t("shiftAutoOpenHelp")}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="shifts.require_cash_count"
+                    name="shifts.require_cash_count"
+                    defaultChecked={settings.shifts?.require_cash_count ?? false}
+                  />
+                  <div className="grid gap-0.5">
+                    <Label htmlFor="shifts.require_cash_count">{t("shiftRequireCashCount")}</Label>
+                    <p className="text-muted-foreground text-xs">{t("shiftRequireCashCountHelp")}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="shifts.enforce_schedule_window"
+                    name="shifts.enforce_schedule_window"
+                    defaultChecked={settings.shifts?.enforce_schedule_window ?? false}
+                  />
+                  <div className="grid gap-0.5">
+                    <Label htmlFor="shifts.enforce_schedule_window">{t("shiftEnforceWindow")}</Label>
+                    <p className="text-muted-foreground text-xs">{t("shiftEnforceWindowHelp")}</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="shifts.handover_auto_accept"
@@ -103,7 +144,7 @@ export default async function Page() {
                   <Checkbox
                     id="shifts.require_handover_to_open"
                     name="shifts.require_handover_to_open"
-                    defaultChecked={settings.shifts?.require_handover_to_open ?? true}
+                    defaultChecked={settings.shifts?.require_handover_to_open ?? false}
                   />
                   <Label htmlFor="shifts.require_handover_to_open">{t("requireHandoverToOpen")}</Label>
                 </div>

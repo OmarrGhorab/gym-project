@@ -113,7 +113,7 @@ final class AutoOpenScheduledShiftSessions
 
     private function hasBlockingHandover(): bool
     {
-        if (! (bool) $this->setting('shifts.require_handover_to_open', true)) {
+        if (! (bool) $this->setting('shifts.require_handover_to_open', false)) {
             return false;
         }
 
@@ -128,7 +128,10 @@ final class AutoOpenScheduledShiftSessions
 
     private function enabled(): bool
     {
-        return (bool) $this->setting('shifts.auto_open_enabled', true);
+        // Off unless the gym opts in. The desk is opened by whoever is standing at
+        // it; a scheduler opening drawers nobody asked for is the behaviour this
+        // default exists to prevent.
+        return (bool) $this->setting('shifts.auto_open_enabled', false);
     }
 
     private function setting(string $key, mixed $default): mixed

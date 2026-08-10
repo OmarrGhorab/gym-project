@@ -154,6 +154,12 @@ class UpdateSettingsRequest extends FormRequest
             $attendance['default_grace_minutes'] = $this->input('attendance')['default_grace_minutes'];
         }
 
+        if ($this->has('attendance.duplicate_scan_grace_minutes')) {
+            $attendance['duplicate_scan_grace_minutes'] = $this->input('attendance.duplicate_scan_grace_minutes');
+        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('duplicate_scan_grace_minutes', $this->input('attendance'))) {
+            $attendance['duplicate_scan_grace_minutes'] = $this->input('attendance')['duplicate_scan_grace_minutes'];
+        }
+
         if (! empty($attendance)) {
             $normalized['attendance'] = $attendance;
         }
@@ -162,12 +168,18 @@ class UpdateSettingsRequest extends FormRequest
         $shifts = [];
         if ($this->has('shifts') && is_array($this->input('shifts'))) {
             $shifts = array_intersect_key($this->input('shifts'), array_flip([
+                'auto_open_enabled',
+                'require_cash_count',
+                'enforce_schedule_window',
                 'handover_auto_accept',
                 'handover_auto_accept_on_match_only',
                 'require_handover_to_open',
             ]));
         }
         foreach ([
+            'auto_open_enabled' => 'shifts.auto_open_enabled',
+            'require_cash_count' => 'shifts.require_cash_count',
+            'enforce_schedule_window' => 'shifts.enforce_schedule_window',
             'handover_auto_accept' => 'shifts.handover_auto_accept',
             'handover_auto_accept_on_match_only' => 'shifts.handover_auto_accept_on_match_only',
             'require_handover_to_open' => 'shifts.require_handover_to_open',
@@ -245,10 +257,14 @@ class UpdateSettingsRequest extends FormRequest
             'attendance.gym_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'attendance.gym_radius_meters' => ['nullable', 'integer', 'min:10', 'max:10000'],
             'attendance.default_grace_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
+            'attendance.duplicate_scan_grace_minutes' => ['nullable', 'numeric', 'min:0', 'max:60'],
             'shifts' => ['nullable', 'array'],
             'shifts.handover_auto_accept' => ['nullable', 'boolean'],
             'shifts.handover_auto_accept_on_match_only' => ['nullable', 'boolean'],
             'shifts.require_handover_to_open' => ['nullable', 'boolean'],
+            'shifts.auto_open_enabled' => ['nullable', 'boolean'],
+            'shifts.require_cash_count' => ['nullable', 'boolean'],
+            'shifts.enforce_schedule_window' => ['nullable', 'boolean'],
             'whatsapp' => ['nullable', 'array'],
             'whatsapp.templates' => ['nullable', 'array'],
             'whatsapp.templates.*' => ['nullable', 'string', 'max:5000'],

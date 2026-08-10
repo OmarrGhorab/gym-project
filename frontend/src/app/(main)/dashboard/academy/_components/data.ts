@@ -211,6 +211,7 @@ export async function getStaffManagementPageData(): Promise<{
     safeFetch<DashboardSettings>("/settings", {
       attendance: {
         default_grace_minutes: 15,
+        duplicate_scan_grace_minutes: 2,
         gym_latitude: null,
         gym_longitude: null,
         gym_radius_meters: 150,
@@ -233,9 +234,12 @@ export async function getStaffManagementPageData(): Promise<{
         schedule_mode: "fixed",
       },
       shifts: {
+        auto_open_enabled: false,
+        require_cash_count: false,
+        enforce_schedule_window: false,
         handover_auto_accept: false,
         handover_auto_accept_on_match_only: true,
-        require_handover_to_open: true,
+        require_handover_to_open: false,
       },
       receipt_template: "default",
       reminder_days: [7],

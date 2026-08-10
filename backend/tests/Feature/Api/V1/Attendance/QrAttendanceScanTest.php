@@ -101,8 +101,11 @@ test('member qr duplicate check in is sent for review without consuming a second
         ->assertCreated()
         ->assertJsonPath('data.status', 'pending_review');
 
+    // Unchanged at 4: the held scan consumes nothing, and the member's first visit
+    // keeps the session it already used. Refunding it here — as this once did — gave
+    // back a session the member had genuinely spent.
     expect(MemberVisit::where('member_id', $member->id)->count())->toBe(2)
-        ->and($subscription->fresh()->sessions_remaining)->toBe(5);
+        ->and($subscription->fresh()->sessions_remaining)->toBe(4);
 });
 
 test('duplicate check in response names the member and does not report the visit as allowed', function (): void {
@@ -131,12 +134,16 @@ test('duplicate check in response names the member and does not report the visit
     // and must not claim the visit went through — nothing was consumed yet.
     $response->assertJsonPath('data.member.name', 'Ali Abdelrahman')
         ->assertJsonPath('data.plan_name', $subscription->plan->name)
-        ->assertJsonPath('data.alert_reason', 'Duplicate check-in: approve to count this visit and consume one session.')
+        ->assertJsonPath(
+            'data.alert_reason',
+            'Already checked in today. Approve only if the member really came back — it counts a second visit and uses another session. Dismiss if the badge was scanned twice.',
+        )
         // What the desk needs to judge the scan: when the plan runs out, how much
         // is left on it, and how often this member has already been in this month.
         ->assertJsonPath('data.plan_end_date', '2026-06-30')
-        ->assertJsonPath('data.subscription.sessions_remaining', 5)
-        // The reversed first visit counts; the pending duplicate does not.
+        ->assertJsonPath('data.subscription.sessions_remaining', 4)
+        // One visit today, not two: the member's real check-in counts, the held
+        // duplicate does not until someone decides on it.
         ->assertJsonPath('data.member.visits_this_month', 1);
 
     expect($response->json('message'))->not->toContain('allowed');
@@ -590,4 +597,109 @@ test('member check in notifies admins when an extra-on plan has two sessions rem
                 ->contains(fn ($notification): bool => ($notification->data['category'] ?? null) === 'membership.addon_sessions_low'
                     && ($notification->data['sessions_remaining'] ?? null) === 2)
         )->toBeTrue();
+});
+
+test('the desk decides whether a second scan is a real visit or a double scan', function (): void {
+    Carbon::setTestNow('2026-06-26 10:07:00');
+    actingManager();
+
+    $member = Member::factory()->create(['attendance_code' => 'M-TWICE1']);
+    $subscription = Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => 10,
+    ]);
+    $first = MemberVisit::factory()->for($member)->create([
+        'subscription_id' => $subscription->id,
+        'check_in_at' => '2026-06-26 09:53:00',
+        'check_out_at' => null,
+        'status' => 'allowed',
+    ]);
+
+    $held = $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-TWICE1'])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending_review')
+        // Before anyone decides, the day counts once. This is the default the desk
+        // sees: one visit per day, everything beyond it is a question.
+        ->assertJsonPath('data.member.visits_this_month', 1)
+        ->json('data.id');
+
+    // Dismissed as a double scan: nothing changes for the member at all.
+    $this->postJson("/api/v1/member-visits/{$held}/review", ['decision' => 'dismissed'])->assertOk();
+
+    expect($subscription->fresh()->sessions_remaining)->toBe(10)
+        ->and($first->fresh()->status)->toBe('allowed')
+        ->and($first->fresh()->check_out_at)->toBeNull();
+
+    // A second held scan, this time approved: the member really did come back.
+    $second = $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-TWICE1'])
+        ->assertCreated()
+        ->json('data.id');
+
+    $this->postJson("/api/v1/member-visits/{$second}/review", ['decision' => 'approved'])->assertOk();
+
+    // Now it costs a session, the earlier visit is closed out, and the day counts twice.
+    expect($subscription->fresh()->sessions_remaining)->toBe(9)
+        ->and($first->fresh()->check_out_at)->not->toBeNull()
+        ->and(MemberVisit::where('member_id', $member->id)->where('status', 'allowed')->count())->toBe(2);
+});
+
+test('a repeat scan within the grace window is ignored instead of asking the desk', function (): void {
+    Carbon::setTestNow('2026-06-26 10:00:00');
+    actingManager();
+
+    $member = Member::factory()->create(['attendance_code' => 'M-FAST01']);
+    Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => 10,
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-FAST01'])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed');
+
+    // The scanner fires again a few seconds later, or the member taps twice.
+    Carbon::setTestNow('2026-06-26 10:00:20');
+    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-FAST01'])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed');
+
+    // No second row at all, so nothing to review and nothing to inflate the count.
+    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1)
+        ->and(MemberVisit::where('member_id', $member->id)->where('status', 'pending_review')->count())->toBe(0);
+
+    // Past the window it becomes a real question again.
+    Carbon::setTestNow('2026-06-26 10:05:00');
+    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-FAST01'])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending_review');
+
+    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(2);
+});
+
+test('a member cannot queue up more than one pending decision', function (): void {
+    Carbon::setTestNow('2026-06-26 10:00:00');
+    actingManager();
+
+    $member = Member::factory()->create(['attendance_code' => 'M-QUEUE1']);
+    Subscription::factory()->for($member)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_remaining' => 10,
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-QUEUE1'])->assertCreated();
+
+    Carbon::setTestNow('2026-06-26 10:10:00');
+    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-QUEUE1'])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending_review');
+
+    // Scanning again while the desk has not answered must not stack another question.
+    Carbon::setTestNow('2026-06-26 10:30:00');
+    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-QUEUE1'])->assertCreated();
+
+    expect(MemberVisit::where('member_id', $member->id)->where('status', 'pending_review')->count())->toBe(1)
+        ->and(MemberVisit::where('member_id', $member->id)->count())->toBe(2);
 });

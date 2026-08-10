@@ -87,6 +87,8 @@ export default async function Page({
             pendingSessions={data.shiftDesk.pending}
             shifts={data.shiftDesk.shifts}
             requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
+            requireCashCount={data.shiftDesk.requireCashCount}
+            currentUserName={user?.name ?? null}
             canOperate={canOperateShiftDesk}
             canReview={canReviewShiftDesk}
           />

@@ -277,7 +277,7 @@ test('admin can create a member with initial subscription atomically', function 
     expect(Subscription::query()->whereHas('member', fn ($query) => $query->where('name', 'Atomic Member'))->count())->toBe(1);
 });
 
-test('admin can create a member with custom multi-cycle subscription expiry', function (): void {
+test('admin can create a member with a custom subscription expiry without multiplying the price', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
@@ -297,7 +297,7 @@ test('admin can create a member with custom multi-cycle subscription expiry', fu
             'end_date' => '2026-09-08',
             'discount' => '0.00',
             'payment' => [
-                'amount' => '900.00',
+                'amount' => '300.00',
                 'method' => 'cash',
             ],
         ],
@@ -311,7 +311,7 @@ test('admin can create a member with custom multi-cycle subscription expiry', fu
 
     expect($subscription)
         ->not->toBeNull()
-        ->and($subscription?->price_paid)->toBe('900.00');
+        ->and($subscription?->price_paid)->toBe('300.00');
 });
 
 test('member is not created when initial subscription creation fails', function (): void {

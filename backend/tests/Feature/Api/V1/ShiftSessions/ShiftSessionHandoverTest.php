@@ -24,6 +24,13 @@ beforeEach(function (): void {
     Carbon::setTestNow();
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
+    // This file is about the count-and-review workflow, which is opt-in: without
+    // it, closing a shift finishes the session outright and there is no handover
+    // to exercise.
+    Setting::query()->create(['key' => 'shifts.require_cash_count', 'value' => true]);
+    // Same for the schedule window — a hand-driven desk opens whenever staff are
+    // there, so the cases below that assert the window turn it on deliberately.
+    Setting::query()->create(['key' => 'shifts.enforce_schedule_window', 'value' => true]);
 });
 
 afterEach(function (): void {
@@ -733,4 +740,70 @@ test('non admins cannot force a shift open outside its schedule', function (): v
     ])
         ->assertUnprocessable()
         ->assertJsonPath('error.details.force_open.0', 'Only an administrator can force a shift open outside its schedule.');
+});
+
+test('with the drawer count off, closing a shift finishes it outright', function (): void {
+    // The default desk: no count, no manager review. Closing means closed.
+    Setting::query()->where('key', 'shifts.require_cash_count')->update(['value' => false]);
+
+    $shiftUser = User::factory()->create();
+    $shiftUser->assignRole(FoundationPermissions::ROLE_CASHIER);
+    Sanctum::actingAs($shiftUser);
+
+    $shift = EmployeeShift::factory()->create(['starts_at' => '08:00:00', 'ends_at' => '23:59:00']);
+    shiftStaff($shiftUser, $shift);
+
+    $session = ShiftSession::query()->create([
+        'employee_shift_id' => $shift->id,
+        'business_date' => now()->toDateString(),
+        'opened_at' => now()->subMinutes(30),
+        'opened_by' => $shiftUser->id,
+        'status' => ShiftSession::STATUS_OPEN,
+        'opening_float' => '0.00',
+    ]);
+
+    $this->postJson("/api/v1/shift-sessions/{$session->id}/close")
+        ->assertOk()
+        ->assertJsonPath('data.status', ShiftSession::STATUS_AUTO_ACCEPTED);
+
+    $closed = $session->fresh();
+
+    // Nothing is left waiting for a human, and the money the system recorded is
+    // still stored — the totals are not the thing being skipped, the chore is.
+    expect($closed->closed_at)->not->toBeNull()
+        ->and($closed->admin_decision)->toBe('accepted')
+        ->and($closed->admin_reviewed_at)->not->toBeNull()
+        ->and($closed->expected_net)->not->toBeNull();
+
+    // And the desk is free: a finished session must not block the next one.
+    expect(ShiftSession::query()->whereIn('status', [
+        ShiftSession::STATUS_PENDING_HANDOVER,
+        ShiftSession::STATUS_PENDING_ADMIN,
+        ShiftSession::STATUS_DISPUTED,
+    ])->count())->toBe(0);
+});
+
+test('with the schedule window off, staff can open a shift outside its hours', function (): void {
+    // The reported case: it is 18:00 and the only desk on the list runs 11:00-16:00.
+    // A hand-driven desk must not need an administrator to start it.
+    Setting::query()->where('key', 'shifts.enforce_schedule_window')->update(['value' => false]);
+    Carbon::setTestNow('2026-08-09 18:18:00');
+
+    $shiftUser = User::factory()->create();
+    $shiftUser->assignRole(FoundationPermissions::ROLE_CASHIER);
+    Sanctum::actingAs($shiftUser);
+
+    $shift = EmployeeShift::factory()->create([
+        'name' => 'Midday Desk 11-16',
+        'starts_at' => '11:00:00',
+        'ends_at' => '16:00:00',
+    ]);
+    shiftStaff($shiftUser, $shift);
+
+    // No force_open, and the user is not an administrator.
+    $this->postJson('/api/v1/shift-sessions', ['employee_shift_id' => $shift->id])
+        ->assertCreated()
+        ->assertJsonPath('data.status', ShiftSession::STATUS_OPEN);
+
+    expect(ShiftSession::query()->where('employee_shift_id', $shift->id)->count())->toBe(1);
 });

@@ -3,6 +3,7 @@
 namespace App\Actions\ShiftSessions;
 
 use App\Models\Employee;
+use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\User;
 use App\Services\OperationalNotifier;
@@ -70,11 +71,19 @@ class CloseShiftSession
 
             $this->overtime->finish($locked, $employee->id, now());
 
+            // Without the cash count, closing a shift means the shift is closed.
+            // Leaving it in pending_handover turned one action into a three-step
+            // chore — count, submit, wait for a manager — for a desk that is meant
+            // to be driven by hand.
+            $requireCount = (bool) $this->requireCashCount();
+
             $locked->update([
                 'closed_at' => now(),
                 'closed_by' => $user->id,
                 'closed_by_employee_id' => $employee->id,
-                'status' => ShiftSession::STATUS_PENDING_HANDOVER,
+                'status' => $requireCount
+                    ? ShiftSession::STATUS_PENDING_HANDOVER
+                    : ShiftSession::STATUS_AUTO_ACCEPTED,
                 // Expected = system money (cash includes opening float).
                 'expected_cash' => $totals['cash'],
                 'expected_card' => $totals['card'],
@@ -82,10 +91,15 @@ class CloseShiftSession
                 'expected_expenses' => $totals['expenses'],
                 'expected_net' => $totals['net'],
                 // Pre-fill counted with expected so staff only edits what differs.
+                // With counting off these are simply what the system recorded.
                 'counted_cash' => $totals['cash'],
                 'counted_card' => $totals['card'],
                 'counted_bank' => $totals['bank'],
                 'counted_expenses' => $totals['expenses'],
+                // auto_accepted already means "closed without a human reviewing it",
+                // which is exactly true here — so history and reports need no new state.
+                'admin_decision' => $requireCount ? null : 'accepted',
+                'admin_reviewed_at' => $requireCount ? null : now(),
             ]);
 
             return $locked->fresh(['shift', 'openedBy', 'closedBy', 'openedByEmployee', 'closedByEmployee']);
@@ -94,5 +108,13 @@ class CloseShiftSession
         $this->notifier->shiftSessionClosed($closed);
 
         return $closed;
+    }
+
+    /** Off by default: the drawer count is a control the gym opts into, not a step it inherits. */
+    private function requireCashCount(): bool
+    {
+        $value = Setting::query()->where('key', 'shifts.require_cash_count')->first()?->value;
+
+        return $value === null ? false : filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 }

@@ -126,3 +126,31 @@ test('updating settings logs an audit entry', function (): void {
         'description' => 'Updated system settings',
     ]);
 });
+
+test('shift automation defaults to manual and the auto-open toggle round-trips', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    // Nothing stored: the desk must describe itself as hand-driven, or staff are
+    // blocked from opening a shift by a workflow nobody asked for.
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.auto_open_enabled', false)
+        ->assertJsonPath('data.shifts.require_handover_to_open', false);
+
+    $this->putJson('/api/v1/settings', [
+        'shifts' => [
+            'auto_open_enabled' => true,
+            'require_handover_to_open' => true,
+        ],
+    ])->assertOk();
+
+    // The gym can switch the automation back on — this is a default, not a removal.
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.auto_open_enabled', true)
+        ->assertJsonPath('data.shifts.require_handover_to_open', true);
+
+    expect(App\Models\Setting::query()->where('key', 'shifts.auto_open_enabled')->exists())->toBeTrue();
+});

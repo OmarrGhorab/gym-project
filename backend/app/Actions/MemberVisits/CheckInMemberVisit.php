@@ -4,6 +4,7 @@ namespace App\Actions\MemberVisits;
 
 use App\Actions\Attendance\ResolveAttendanceIdentity;
 use App\Models\MemberVisit;
+use App\Models\Setting;
 use App\Models\User;
 use App\Support\Geofence;
 use Illuminate\Support\Carbon;
@@ -29,18 +30,26 @@ final class CheckInMemberVisit
             $this->autoCloseStaleVisits->handle($checkIn);
             $openVisit = MemberVisit::query()->where('member_id', $member->id)->whereNull('check_out_at')->latest('check_in_at')->lockForUpdate()->first();
             if ($openVisit) {
-                if ($openVisit->subscription?->sessions_remaining !== null) {
-                    $openVisit->subscription()->increment('sessions_remaining');
+                // A scan seconds after the last one is the same badge being read
+                // twice — a scanner repeat, or someone tapping again because nothing
+                // seemed to happen. Recording it at all is what buried the desk in
+                // questions, so it is not recorded: the existing visit is returned
+                // untouched and nothing is asked.
+                if ($openVisit->check_in_at->diffInSeconds($checkIn) < $this->graceSeconds()) {
+                    return $openVisit;
                 }
-                if ($openVisit->subscriptionAddon?->sessions_remaining !== null) {
-                    $openVisit->subscriptionAddon()->increment('sessions_remaining');
-                }
-                $openVisit->update([
-                    'check_out_at' => $checkIn,
-                    'status' => 'flagged',
-                    'alert_reason' => 'First check-in reversed after a duplicate scan was submitted for review.',
-                ]);
 
+                // One question at a time. A member who keeps scanning while the desk
+                // has not answered yet must not queue up a second identical decision.
+                if ($openVisit->status === 'pending_review') {
+                    return $openVisit;
+                }
+
+                // The first visit is left exactly as it is: it already happened, and
+                // it is the one the member is standing in the gym on. Reversing and
+                // refunding it here meant that dismissing the duplicate handed back a
+                // session the member had genuinely used, and left their real visit
+                // flagged. Only the desk's decision on the new scan may change money.
                 return MemberVisit::create([
                     'member_id' => $member->id,
                     'subscription_id' => $openVisit->subscription_id,
@@ -53,7 +62,7 @@ final class CheckInMemberVisit
                     'check_in_location_status' => $location['location_status'],
                     'status' => 'pending_review',
                     'scan_method' => $this->scanMethod($data),
-                    'alert_reason' => 'Duplicate check-in: approve to count this visit and consume one session.',
+                    'alert_reason' => 'Already checked in today. Approve only if the member really came back — it counts a second visit and uses another session. Dismiss if the badge was scanned twice.',
                     'notes' => $data['notes'] ?? null,
                     'created_by' => $user->id,
                 ]);
@@ -100,6 +109,19 @@ final class CheckInMemberVisit
             'subscriptionAddon.plan',
             'creator',
         ]);
+    }
+
+    /**
+     * How long after a scan another scan is treated as the same one.
+     *
+     * Two minutes covers a scanner repeat and a member tapping again, while
+     * staying far below any believable "left and came straight back".
+     */
+    private function graceSeconds(): int
+    {
+        $minutes = Setting::query()->where('key', 'attendance.duplicate_scan_grace_minutes')->first()?->value;
+
+        return (int) round(max(0, is_numeric($minutes) ? (float) $minutes : 2.0) * 60);
     }
 
     private function scanMethod(array $data): string
