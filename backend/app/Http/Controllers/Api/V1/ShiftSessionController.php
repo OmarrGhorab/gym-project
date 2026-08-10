@@ -95,7 +95,6 @@ class ShiftSessionController extends ApiController
         $this->authorizeFinanceView($request);
         $data = $request->validate(['date' => ['nullable', 'date']]);
         $date = isset($data['date']) ? Carbon::parse($data['date'])->toDateString() : Carbon::today()->toDateString();
-        $currentEmployeeId = $request->user()?->employee?->id;
 
         $coveringStaff = OvertimeShift::query()
             ->activeClaim()
@@ -120,7 +119,7 @@ class ShiftSessionController extends ApiController
             ->orderBy('name')
             ->get();
 
-        $payload = $shifts->map(function (EmployeeShift $shift) use ($allEmployees, $coveringStaff, $currentEmployeeId, $request): array {
+        $payload = $shifts->map(function (EmployeeShift $shift) use ($allEmployees, $coveringStaff, $request): array {
             $row = (new EmployeeShiftResource($shift))->toArray($request);
             $row['employees'] = $allEmployees
                 ->sortBy(fn ($employee): string => sprintf(
@@ -130,8 +129,11 @@ class ShiftSessionController extends ApiController
                 ))
                 ->concat($coveringStaff->get($shift->id, collect())->pluck('employee'))
                 ->unique('id')
-                // "Me" already represents the signed-in employee in the picker.
-                ->reject(fn ($employee): bool => $currentEmployeeId !== null && (int) $employee->id === (int) $currentEmployeeId)
+                // Everyone is listed by name, the signed-in employee included. The
+                // picker used to hide them behind a "Me" option, which showed the
+                // user's name while the rules ran against their employee record —
+                // so an admin whose employee is on no shift was offered a choice
+                // that could only ever fail.
                 ->map(fn ($employee): array => [
                     'id' => $employee->id,
                     'name' => $employee->name,

@@ -1,9 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { redirectIfAuthenticated } from "@/lib/session";
+
 import { LoginForm } from "../../_components/login-form";
 
-export default function LoginV1() {
+export default async function LoginV1() {
+  await redirectIfAuthenticated();
+
   return (
     <div className="flex h-dvh">
       <div className="relative hidden overflow-hidden bg-primary lg:block lg:w-1/3">

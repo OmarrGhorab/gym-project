@@ -114,7 +114,6 @@ export function ShiftDesk({
   shifts = [],
   requireHandoverToOpen: _requireHandoverToOpen = true,
   requireCashCount = false,
-  currentUserName,
   canOperate,
   canReview,
 }: {
@@ -124,7 +123,6 @@ export function ShiftDesk({
   shifts?: ShiftDeskShift[];
   requireHandoverToOpen?: boolean;
   requireCashCount?: boolean;
-  currentUserName?: string | null;
   canOperate: boolean;
   canReview: boolean;
 }) {
@@ -291,7 +289,7 @@ export function ShiftDesk({
       </div>
     );
   } else if (canOperate) {
-    sessionBody = <OpenSessionForm shifts={shifts} pending={pending} onOpen={run} currentUserName={currentUserName} />;
+    sessionBody = <OpenSessionForm shifts={shifts} pending={pending} onOpen={run} />;
   } else {
     sessionBody = (
       <div className="grid gap-3 rounded-lg border border-dashed bg-muted/10 p-4 text-center">
@@ -639,31 +637,32 @@ function OpenSessionForm({
   shifts,
   pending,
   onOpen,
-  currentUserName,
 }: {
   shifts: ShiftDeskShift[];
   pending: boolean;
   onOpen: (action: () => Promise<{ ok: boolean; message: string }>) => void;
-  currentUserName?: string | null;
 }) {
   const t = useTranslations("Dashboard.finance");
   const [shiftId, setShiftId] = useState<string>(shifts[0] ? String(shifts[0].id) : "");
-  const [employeeId, setEmployeeId] = useState<string>("self");
+  const [employeeId, setEmployeeId] = useState<string>("");
   const [openingFloat, setOpeningFloat] = useState("");
 
   const selectedShift = shifts.find((shift) => String(shift.id) === shiftId);
   const staff = selectedShift?.employees ?? [];
 
-  const selectedStaff = staff.find((employee) => String(employee.id) === employeeId);
-  const selfLabel = currentUserName?.trim() ? currentUserName.trim() : t("staffOnDutySelf");
-  const selectedStaffLabel =
-    employeeId === "self"
-      ? selfLabel
-      : selectedStaff
-        ? selectedStaff.role
-          ? `${selectedStaff.name} — ${selectedStaff.role}`
-          : selectedStaff.name
-        : undefined;
+  // The API sorts this shift's own staff first, so falling back to the head of the
+  // list names somebody actually assigned to the shift rather than whoever happens
+  // to be signed in. Derived instead of stored so switching shifts cannot leave a
+  // stale employee selected.
+  const activeEmployeeId = staff.some((employee) => String(employee.id) === employeeId)
+    ? employeeId
+    : (staff[0] && String(staff[0].id)) || "";
+  const selectedStaff = staff.find((employee) => String(employee.id) === activeEmployeeId);
+  const selectedStaffLabel = selectedStaff
+    ? selectedStaff.role
+      ? `${selectedStaff.name} — ${selectedStaff.role}`
+      : selectedStaff.name
+    : undefined;
 
   if (shifts.length === 0) {
     return (
@@ -687,7 +686,7 @@ function OpenSessionForm({
             value={shiftId}
             onValueChange={(next) => {
               setShiftId(next ?? "");
-              setEmployeeId("self");
+              setEmployeeId("");
             }}
           >
             <SelectTrigger id="open-shift-id" className="w-full">
@@ -706,13 +705,12 @@ function OpenSessionForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="open-shift-staff">{t("staffOnDuty")}</Label>
-          <Select value={employeeId} onValueChange={(next) => setEmployeeId(next ?? "self")}>
-            <SelectTrigger id="open-shift-staff" className="w-full">
-              <SelectValue>{selectedStaffLabel}</SelectValue>
+          <Select value={activeEmployeeId} onValueChange={(next) => setEmployeeId(next ?? "")}>
+            <SelectTrigger id="open-shift-staff" className="w-full" disabled={staff.length === 0}>
+              <SelectValue placeholder={t("selectStaffOnDuty")}>{selectedStaffLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="self">{selfLabel}</SelectItem>
                 {staff.map((employee) => (
                   <SelectItem key={employee.id} value={String(employee.id)}>
                     {employee.role ? `${employee.name} — ${employee.role}` : employee.name}
@@ -721,6 +719,7 @@ function OpenSessionForm({
               </SelectGroup>
             </SelectContent>
           </Select>
+          {staff.length === 0 ? <p className="text-[11px] text-amber-600">{t("noStaffForShift")}</p> : null}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="open-shift-float">{t("openingFloat")}</Label>
@@ -739,12 +738,12 @@ function OpenSessionForm({
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
-          disabled={pending || !shiftId}
+          disabled={pending || !shiftId || !activeEmployeeId}
           onClick={() =>
             onOpen(() =>
               openShiftSession({
                 employee_shift_id: Number(shiftId),
-                employee_id: employeeId === "self" ? undefined : Number(employeeId),
+                employee_id: Number(activeEmployeeId),
                 // Leave blank to carry the previous shift's counted cash. The first
                 // session of a new business day starts at zero.
                 opening_float: openingFloat === "" ? undefined : openingFloat,

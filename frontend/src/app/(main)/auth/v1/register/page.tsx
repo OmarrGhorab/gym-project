@@ -1,9 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { redirectIfAuthenticated } from "@/lib/session";
+
 import { RegisterForm } from "../../_components/register-form";
 
-export default function RegisterV1() {
+export default async function RegisterV1() {
+  await redirectIfAuthenticated();
+
   return (
     <div className="flex h-dvh">
       <div className="flex w-full items-center justify-center bg-background p-8 lg:w-2/3">

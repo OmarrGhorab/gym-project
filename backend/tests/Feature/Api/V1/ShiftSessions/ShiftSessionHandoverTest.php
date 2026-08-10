@@ -84,7 +84,7 @@ test('a dated cover employee appears in the shift desk and can hold that covered
         ->assertJsonPath('data.staff_on_duty.name', 'Covering Employee');
 });
 
-test('shift desk does not duplicate the signed-in employee already represented by me', function (): void {
+test('shift desk lists the signed-in employee by name instead of a me option', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);
@@ -92,9 +92,12 @@ test('shift desk does not duplicate the signed-in employee already represented b
     $shift = EmployeeShift::factory()->create();
     shiftStaff($user, $shift, 'Signed In Staff');
 
+    // Hiding them behind "Me" showed the user's name while the rules ran against
+    // their employee record, so an admin whose employee is on no shift was offered
+    // a choice that could only ever fail.
     $this->getJson('/api/v1/shift-sessions/options')
         ->assertOk()
-        ->assertJsonMissing(['name' => 'Signed In Staff']);
+        ->assertJsonFragment(['name' => 'Signed In Staff']);
 });
 
 test('staff can open close and submit matching handover for admin review', function (): void {

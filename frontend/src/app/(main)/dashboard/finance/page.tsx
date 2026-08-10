@@ -91,7 +91,6 @@ export default async function Page({
             shifts={data.shiftDesk.shifts}
             requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
             requireCashCount={data.shiftDesk.requireCashCount}
-            currentUserName={user?.name ?? null}
             canOperate={canOperateShiftDesk}
             canReview={canReviewShiftDesk}
           />

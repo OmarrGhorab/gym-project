@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import { API_BASE_URL } from "@/app/api/auth/_lib";
 import { AUTH_TOKEN_COOKIE } from "@/lib/auth-cookie";
+import { firstAccessibleDashboardPath } from "@/lib/authorization";
 
 export type DashboardUser = {
   id: string;
@@ -94,12 +95,28 @@ async function loadCurrentUser(): Promise<DashboardUser | null> {
 
 export const getCurrentUser = cache(loadCurrentUser);
 
+/**
+ * Sends an already signed-in user to their dashboard instead of a login or
+ * register page.
+ *
+ * The session is resolved rather than sniffed from the cookie: an expired or
+ * revoked token still leaves the cookie in place, and bouncing on its mere
+ * presence would strand that user on a dashboard that renders nothing, with the
+ * login form unreachable. No user means no session, so the auth page renders and
+ * signing in again overwrites the stale cookie.
+ */
 export async function redirectIfAuthenticated() {
-  const token = await getAuthToken();
+  const user = await getCurrentUser();
 
-  if (token) {
-    redirect("/dashboard/default");
+  if (!user) {
+    return;
   }
+
+  // Land where signing in would have landed, not on a fixed page the user may
+  // have no permission to see.
+  const destination = firstAccessibleDashboardPath(user);
+
+  redirect(destination === "/dashboard/[...not-found]" ? "/unauthorized" : destination);
 }
 
 function mapDashboardRole(roles: string[] = []) {

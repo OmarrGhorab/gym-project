@@ -3,11 +3,15 @@ import Link from "next/link";
 
 import { getTranslations } from "next-intl/server";
 
+import { redirectIfAuthenticated } from "@/lib/session";
+
 import { LanguageToggle } from "../../_components/language-toggle";
 import { LoginForm } from "../../_components/login-form";
 import { GoogleButton } from "../../_components/social-auth/google-button";
 
 export default async function LoginV2() {
+  await redirectIfAuthenticated();
+
   const currentYear = new Date().getFullYear();
   const [tCommon, tLogin] = await Promise.all([getTranslations("Auth.common"), getTranslations("Auth.login")]);
 

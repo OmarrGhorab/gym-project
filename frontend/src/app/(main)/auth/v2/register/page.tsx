@@ -2,10 +2,14 @@ import Link from "next/link";
 
 import { getTranslations } from "next-intl/server";
 
+import { redirectIfAuthenticated } from "@/lib/session";
+
 import { LanguageToggle } from "../../_components/language-toggle";
 import { RegisterForm } from "../../_components/register-form";
 
 export default async function RegisterV2() {
+  await redirectIfAuthenticated();
+
   const currentYear = new Date().getFullYear();
   const [tCommon, tRegister] = await Promise.all([getTranslations("Auth.common"), getTranslations("Auth.register")]);
 
