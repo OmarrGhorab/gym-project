@@ -129,7 +129,7 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   }, [state]);
 
   return (
-    <Card className="xl:col-span-6">
+    <Card className="xl:col-span-12">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-normal">
           <UserCheck className="size-4" />
@@ -369,7 +369,7 @@ function StaffScanCard({
   }, [employees, scanValue, selectEmployee]);
 
   return (
-    <Card className="xl:col-span-6">
+    <Card className="xl:col-span-12">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-normal">
           <LogIn className="size-4" />

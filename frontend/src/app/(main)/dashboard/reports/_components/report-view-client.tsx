@@ -48,6 +48,11 @@ type ReportViewClientProps = {
   initialData: Record<string, unknown>;
 };
 
+// Labels like "Member Subscriptions" cannot sit on one line in a narrow grid
+// cell, so on phones the icon stacks above wrapped text instead of overflowing.
+const reportTabTriggerClass =
+  "h-auto min-w-0 flex-col gap-1 whitespace-normal px-2 py-1.5 text-center text-xs leading-tight sm:flex-row sm:gap-2 sm:text-sm";
+
 export function ReportViewClient({ initialType, initialQuery, initialData }: ReportViewClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -136,36 +141,38 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
         }
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 gap-1 p-1 md:grid-cols-4 xl:grid-cols-8">
-          <TabsTrigger value="overview" className="gap-2">
+        {/* The list wraps to 2 rows on phones, so the primitive's fixed h-8 has to
+            go — otherwise every row is squashed into 32px total. */}
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 group-data-horizontal/tabs:h-auto md:grid-cols-4 xl:grid-cols-8">
+          <TabsTrigger value="overview" className={reportTabTriggerClass}>
             <Calendar className="size-4" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="employees" className="gap-2">
+          <TabsTrigger value="employees" className={reportTabTriggerClass}>
             <Users className="size-4" />
             Employees
           </TabsTrigger>
-          <TabsTrigger value="captains" className="gap-2">
+          <TabsTrigger value="captains" className={reportTabTriggerClass}>
             <UserRound className="size-4" />
             Captains
           </TabsTrigger>
-          <TabsTrigger value="classes_plans" className="gap-2">
+          <TabsTrigger value="classes_plans" className={reportTabTriggerClass}>
             <Users className="size-4" />
             Classes & Plans
           </TabsTrigger>
-          <TabsTrigger value="products_finance" className="gap-2">
+          <TabsTrigger value="products_finance" className={reportTabTriggerClass}>
             <Package className="size-4" />
             Products & POS
           </TabsTrigger>
-          <TabsTrigger value="member_subscriptions" className="gap-2">
+          <TabsTrigger value="member_subscriptions" className={reportTabTriggerClass}>
             <IdCard className="size-4" />
             Member Subscriptions
           </TabsTrigger>
-          <TabsTrigger value="subs_shifts" className="gap-2">
+          <TabsTrigger value="subs_shifts" className={reportTabTriggerClass}>
             <BarChart3 className="size-4" />
             Subscriptions & Shifts
           </TabsTrigger>
-          <TabsTrigger value="income_outcome" className="gap-2">
+          <TabsTrigger value="income_outcome" className={reportTabTriggerClass}>
             <Banknote className="size-4" />
             Income vs Outcome
           </TabsTrigger>
