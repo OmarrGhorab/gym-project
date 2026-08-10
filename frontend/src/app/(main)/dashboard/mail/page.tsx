@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormSelect } from "@/components/ui/form-controls";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { markNotificationRead } from "./_components/actions";
 import { getNotificationsPageData } from "./_components/data";
@@ -312,7 +313,11 @@ function formatDate(
     return t("notRecorded");
   }
 
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: GYM_TIME_ZONE,
+  }).format(new Date(value));
 }
 
 function humanizeCategory(value: string) {

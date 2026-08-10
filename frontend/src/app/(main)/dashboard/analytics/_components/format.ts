@@ -1,3 +1,5 @@
+import { GYM_TIME_ZONE } from "@/lib/timezone";
+
 export function formatDuration(minutes: number, locale = "en") {
   const numberFormatter = new Intl.NumberFormat(locale);
 
@@ -27,5 +29,6 @@ export function formatTime(value: string | null, locale = "en", fallback = "Not 
   return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: GYM_TIME_ZONE,
   }).format(date);
 }

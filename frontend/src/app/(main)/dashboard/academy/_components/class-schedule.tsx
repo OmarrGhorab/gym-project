@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import type { StaffAcademyShift } from "./data";
 import { formatTimeRange12Hour } from "./time-format";
@@ -31,7 +32,12 @@ function statusBarClass(status: StaffAcademyShift["status"]) {
 export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
   const t = useTranslations("Dashboard.academy");
   const locale = useLocale();
-  const today = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", weekday: "long" }).format(new Date());
+  const today = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+    timeZone: GYM_TIME_ZONE,
+    weekday: "long",
+  }).format(new Date());
 
   return (
     <Card>

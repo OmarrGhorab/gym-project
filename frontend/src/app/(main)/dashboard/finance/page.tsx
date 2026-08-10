@@ -6,6 +6,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { getOvertimeShiftDeskData } from "../attendance/_components/data";
 import { OvertimeShiftsPanel } from "../attendance/_components/overtime-shifts-panel";
@@ -69,7 +70,9 @@ export default async function Page({
   const canOperateShiftDesk = quickActionPermissions.canRecordExpense || quickActionPermissions.canCollectDue;
   const canReviewShiftDesk =
     quickActionPermissions.canUpdateExpense || (user ? canAccess(user, "settings.manage") : false);
-  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
+  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: GYM_TIME_ZONE }).format(
+    new Date(),
+  );
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
@@ -131,7 +134,11 @@ export default async function Page({
                   locale,
                   to: resolvedTo,
                 }}
-                updatedAt={new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date())}
+                updatedAt={new Intl.DateTimeFormat(locale, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: GYM_TIME_ZONE,
+                }).format(new Date())}
               />
             </Suspense>
           </div>

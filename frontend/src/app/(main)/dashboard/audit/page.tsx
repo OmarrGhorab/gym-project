@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormDatePicker, FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { getAuditPageData } from "./_components/data";
 
@@ -376,5 +377,6 @@ function formatDate(value: string, locale: string) {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: GYM_TIME_ZONE,
   }).format(date);
 }

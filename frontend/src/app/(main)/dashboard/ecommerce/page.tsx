@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { CustomerReviews } from "./_components/customer-reviews";
 import {
@@ -34,7 +35,9 @@ export default async function Page({
   const to = normalizePosDate(params?.to);
   const canCreateSale = user ? canAccess(user, "sales.create") : false;
   const data = await getPosDashboardData({ dateRange: { from, to }, paymentMethod, period }, { canCreateSale });
-  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(new Date());
+  const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: GYM_TIME_ZONE }).format(
+    new Date(),
+  );
   const canViewReports = user ? canAccess(user, "reports.view") : false;
   const canViewProducts = user ? canAccess(user, "products.view") : false;
   const canVoidSale = user ? canAccess(user, "sales.void") : false;

@@ -1,4 +1,5 @@
 import { serverApiFetch } from "@/lib/api/server";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 export type OperationsTask = {
   id: string;
@@ -123,5 +124,6 @@ export function formatDateTime(value: string | null) {
   return new Intl.DateTimeFormat("en", {
     day: "numeric",
     month: "short",
+    timeZone: GYM_TIME_ZONE,
   }).format(date);
 }

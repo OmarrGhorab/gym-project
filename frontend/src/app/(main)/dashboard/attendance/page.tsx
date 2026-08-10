@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { AttendanceDayPicker } from "./_components/attendance-day-picker";
@@ -401,6 +402,7 @@ function formatDateTime(value: string | null, locale: string) {
     hour: "2-digit",
     minute: "2-digit",
     month: "short",
+    timeZone: GYM_TIME_ZONE,
   }).format(new Date(value));
 }
 
