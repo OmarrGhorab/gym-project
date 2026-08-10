@@ -212,3 +212,45 @@ test('it calculates package-included coach commission from the included service 
         ->and($commission->commission_type)->toBe('subscription_addon_coach')
         ->and($commission->amount)->toBe('150.00');
 });
+
+test('only the coach the member subscribed with earns commission on a multi coach plan', function (): void {
+    $member = Member::factory()->create();
+    $chosenCoach = Employee::factory()->captain()->create();
+    $otherCoach = Employee::factory()->captain()->create();
+    // No seller rate, so the only commissions in play are the coach ones.
+    $plan = Plan::factory()->create([
+        'category' => 'nutrition',
+        'price' => '350.00',
+        'commission_rate' => 0,
+    ]);
+
+    // Both coaches are offered on the plan at 50% — they are alternatives the
+    // member picks between, not co-earners who split or stack the payout.
+    foreach ([$chosenCoach, $otherCoach] as $coach) {
+        EmployeePlanCommissionRule::create([
+            'employee_id' => $coach->id,
+            'plan_id' => $plan->id,
+            'calculation_type' => 'percentage',
+            'value' => '50.0000',
+            'is_active' => true,
+        ]);
+    }
+
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'coach_id' => $chosenCoach->id,
+        'sold_by_user_id' => null,
+        'price_paid' => '350.00',
+    ]);
+    Commission::query()->delete();
+
+    $created = app(CalculateCommission::class)->forSource($subscription);
+    $commissions = Commission::query()->get();
+
+    expect($created)->toBe(1)
+        ->and($commissions)->toHaveCount(1)
+        ->and($commissions->first()->employee_id)->toBe($chosenCoach->id)
+        ->and($commissions->first()->amount)->toBe('175.00')
+        ->and($commissions->where('employee_id', $otherCoach->id))->toHaveCount(0);
+});

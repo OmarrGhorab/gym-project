@@ -206,26 +206,22 @@ export function PlanCreateForm({
     [employees, plan?.id, state.values.employee_commission_rules],
   );
   const [employeeRules, setEmployeeRules] = React.useState<PlanEmployeeCommissionDraft[]>(initialEmployeeRules);
-  const employeeCommissionTotal = React.useMemo(
-    () =>
-      employeeRules.reduce((total, rule) => {
-        if (!rule.is_active) {
-          return total;
-        }
-
-        const value = Math.max(0, Number(rule.value || 0));
-        const base = Math.max(0, Number(planPrice || 0));
-
-        if (rule.calculation_type === "percentage") {
-          return total + base * (Math.min(value, 100) / 100);
-        }
-
-        return total + value;
-      }, 0),
-    [employeeRules, planPrice],
-  );
   const planPriceNumber = Math.max(0, Number(planPrice || 0));
-  const gymNetBeforeExpenses = Math.max(0, planPriceNumber - employeeCommissionTotal);
+  // The coaches listed here are alternatives, not co-earners: a member picks one
+  // coach at checkout and CalculateCommission pays only that subscription's coach.
+  // So a sale costs one coach's rate — summing every rule made two coaches at 50%
+  // read as 100% commission and zero gym net.
+  const coachCommissionAmounts = React.useMemo(
+    () => employeeRules.filter((rule) => rule.is_active).map((rule) => commissionAmount(rule, planPriceNumber)),
+    [employeeRules, planPriceNumber],
+  );
+  const lowestCoachCommission = coachCommissionAmounts.length > 0 ? Math.min(...coachCommissionAmounts) : 0;
+  const highestCoachCommission = coachCommissionAmounts.length > 0 ? Math.max(...coachCommissionAmounts) : 0;
+  // Sub-cent spread is rounding noise, not a real difference in what coaches earn.
+  const coachCommissionVaries = highestCoachCommission - lowestCoachCommission >= 0.005;
+  // Worst case for the gym is the most expensive coach the member could pick.
+  const gymNetBeforeExpenses = Math.max(0, planPriceNumber - highestCoachCommission);
+  const gymNetBestCase = Math.max(0, planPriceNumber - lowestCoachCommission);
   const selectedCategoryScope = categoryScopeByValue.get(category) ?? "extra_service";
 
   // Only categories the admin marked as valid for the selected plan type.
@@ -814,6 +810,8 @@ export function PlanCreateForm({
           employeeLabel={t("employee")}
           commissionTypeLabel={t("commissionType")}
           commissionValueLabel={t("commissionValue")}
+          planPrice={planPriceNumber}
+          earnsLabel={(amount) => t("coachEarnsPerSale", { amount: formatMoney(amount.toFixed(2)) })}
           fixedLabel={t("fixedCommission")}
           percentLabel={t("percentageCommission")}
           activeLabel={t("active")}
@@ -835,12 +833,23 @@ export function PlanCreateForm({
           <>
             <div className="flex items-center justify-between gap-3">
               <span className="text-muted-foreground">{t("summaryCoachCommission")}</span>
-              <span className="font-medium tabular-nums">{formatMoney(employeeCommissionTotal.toFixed(2))}</span>
+              <span className="font-medium tabular-nums">
+                {coachCommissionVaries
+                  ? formatMoneyRange(lowestCoachCommission, highestCoachCommission)
+                  : formatMoney(highestCoachCommission.toFixed(2))}
+              </span>
             </div>
             <div className="flex items-center justify-between gap-3 border-t pt-2">
               <span className="font-medium">{t("summaryGymNet")}</span>
-              <span className="font-semibold tabular-nums">{formatMoney(gymNetBeforeExpenses.toFixed(2))}</span>
+              <span className="font-semibold tabular-nums">
+                {coachCommissionVaries
+                  ? formatMoneyRange(gymNetBeforeExpenses, gymNetBestCase)
+                  : formatMoney(gymNetBeforeExpenses.toFixed(2))}
+              </span>
             </div>
+            {coachCommissionAmounts.length > 1 ? (
+              <p className="text-muted-foreground text-xs">{t("summaryCoachCommissionHint")}</p>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -897,6 +906,17 @@ function formatMoney(value: string) {
   }
 
   return `EGP ${number.toFixed(2)}`;
+}
+
+/** What a single coach earns on one sale of this plan. */
+function commissionAmount(rule: PlanEmployeeCommissionDraft, planPrice: number) {
+  const value = Math.max(0, Number(rule.value || 0));
+
+  return rule.calculation_type === "percentage" ? planPrice * (Math.min(value, 100) / 100) : value;
+}
+
+function formatMoneyRange(from: number, to: number) {
+  return `${formatMoney(from.toFixed(2))} – ${formatMoney(to.toFixed(2))}`;
 }
 
 function Field({
@@ -1134,10 +1154,12 @@ function PlanEmployeesSection({
   commissionValueLabel,
   deleteLabel,
   description,
+  earnsLabel,
   employeeLabel,
   employees,
   fixedLabel,
   percentLabel,
+  planPrice,
   rules,
   setRules,
   title,
@@ -1148,10 +1170,12 @@ function PlanEmployeesSection({
   commissionValueLabel: string;
   deleteLabel: string;
   description: string;
+  earnsLabel: (amount: number) => string;
   employeeLabel: string;
   employees: PlanEmployeeOption[];
   fixedLabel: string;
   percentLabel: string;
+  planPrice: number;
   rules: PlanEmployeeCommissionDraft[];
   setRules: React.Dispatch<React.SetStateAction<PlanEmployeeCommissionDraft[]>>;
   title: string;
@@ -1258,6 +1282,9 @@ function PlanEmployeesSection({
                 );
               }}
             />
+            {rule.is_active ? (
+              <p className="text-muted-foreground text-xs">{earnsLabel(commissionAmount(rule, planPrice))}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-end gap-2 sm:col-span-2 xl:col-span-1">
