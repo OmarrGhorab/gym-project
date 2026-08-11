@@ -4,6 +4,7 @@ namespace App\Actions\Reports;
 
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
 use Carbon\Carbon;
 
 final class ClassesPlansReport
@@ -31,7 +32,18 @@ final class ClassesPlansReport
 
         $plans = $plansQuery->get();
 
+        // Extra services are sold as their own plan on a separate table, so counting
+        // subscriptions alone hid every add-on sale — both from the extra's own plan
+        // row and from the period total.
         $periodStats = Subscription::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->groupBy('plan_id')
+            ->selectRaw('plan_id, COUNT(*) as c, SUM(price_paid) as rev')
+            ->toBase()
+            ->get()
+            ->keyBy('plan_id');
+
+        $addonPeriodStats = SubscriptionAddon::query()
             ->whereBetween('created_at', [$from, $to])
             ->groupBy('plan_id')
             ->selectRaw('plan_id, COUNT(*) as c, SUM(price_paid) as rev')
@@ -55,9 +67,11 @@ final class ClassesPlansReport
             ->get()
             ->pluck('c', 'plan_id');
 
-        $plansTable = $plans->map(function (Plan $plan) use ($periodStats, $expiringSoon): array {
-            $periodRevenue = (float) ($periodStats->get($plan->id)?->rev ?? 0);
-            $periodCount = (int) ($periodStats->get($plan->id)?->c ?? 0);
+        $plansTable = $plans->map(function (Plan $plan) use ($periodStats, $addonPeriodStats, $expiringSoon): array {
+            $periodRevenue = (float) ($periodStats->get($plan->id)?->rev ?? 0)
+                + (float) ($addonPeriodStats->get($plan->id)?->rev ?? 0);
+            $periodCount = (int) ($periodStats->get($plan->id)?->c ?? 0)
+                + (int) ($addonPeriodStats->get($plan->id)?->c ?? 0);
 
             $expiringSoonCount = (int) ($expiringSoon[$plan->id] ?? 0);
 
@@ -124,7 +138,8 @@ final class ClassesPlansReport
             ->count();
 
         $periodNewSubs = Subscription::query()->whereBetween('created_at', [$from, $to])->count();
-        $periodTotalRevenue = (float) Subscription::query()->whereBetween('created_at', [$from, $to])->sum('price_paid');
+        $periodTotalRevenue = (float) Subscription::query()->whereBetween('created_at', [$from, $to])->sum('price_paid')
+            + (float) SubscriptionAddon::query()->whereBetween('created_at', [$from, $to])->sum('price_paid');
 
         $formatSub = function (Subscription $sub): array {
             $daysLeft = $sub->end_date ? (int) Carbon::today()->diffInDays($sub->end_date, false) : null;

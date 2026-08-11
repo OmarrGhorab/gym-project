@@ -229,7 +229,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
       </Card>
 
       {/* Render Active Report View */}
-      {activeTab === "overview" && <ReportsOverviewView data={initialData} onShortcut={handleQuickDate} />}
+      {activeTab === "overview" && <ReportsOverviewView data={initialData} />}
 
       {activeTab === "employees" && <EmployeesReportView data={initialData} from={fromDate} to={toDate} />}
 
@@ -288,20 +288,14 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
   );
 }
 
-function ReportsOverviewView({
-  data,
-  onShortcut,
-}: {
-  data: Record<string, unknown>;
-  onShortcut: (value: number | "this_month" | "last_month" | "ytd") => void;
-}) {
+function ReportsOverviewView({ data }: { data: Record<string, unknown> }) {
   const totals = asRecord(data.totals);
   const daily = asRows(data.daily);
   const dailyPagination = useTablePagination(daily);
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ReportMetric
           title="POS sales"
           value={currency(totals.pos_sales)}
@@ -312,23 +306,14 @@ function ReportsOverviewView({
           value={currency(totals.membership_revenue)}
           detail={`${Number(totals.memberships ?? 0)} memberships`}
         />
+        <ReportMetric title="Refunds" value={currency(totals.refunds)} detail="Returned to members" destructive />
         <ReportMetric title="Expenses" value={currency(totals.expenses)} detail="Recorded expenses" destructive />
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-          <div>
-            <CardTitle>Daily sales & expenses</CardTitle>
-            <CardDescription>Each row uses the selected calendar date range.</CardDescription>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            <Button size="sm" variant="outline" onClick={() => onShortcut(7)}>
-              Expenses: last 7 days
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onShortcut("this_month")}>
-              Expenses: this month
-            </Button>
-          </div>
+        <CardHeader>
+          <CardTitle>Daily sales & expenses</CardTitle>
+          <CardDescription>Each row uses the selected calendar date range.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -339,6 +324,7 @@ function ReportsOverviewView({
                 <TableHead>Expenses</TableHead>
                 <TableHead>Memberships</TableHead>
                 <TableHead>Membership paid</TableHead>
+                <TableHead>Refunds</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -349,10 +335,11 @@ function ReportsOverviewView({
                   <TableCell className="text-destructive">{currency(row.expenses)}</TableCell>
                   <TableCell>{String(row.memberships ?? 0)}</TableCell>
                   <TableCell>{currency(row.membership_revenue)}</TableCell>
+                  <TableCell className="text-destructive">{currency(row.refunds)}</TableCell>
                 </TableRow>
               ))}
-              {daily.length === 0 ? <EmptyTableRow columns={5} label="No activity in this date range." /> : null}
-              <TablePagination columns={5} pagination={dailyPagination} />
+              {daily.length === 0 ? <EmptyTableRow columns={6} label="No activity in this date range." /> : null}
+              <TablePagination columns={6} pagination={dailyPagination} />
             </TableBody>
           </Table>
         </CardContent>
@@ -1948,6 +1935,29 @@ function SubsShiftsView({
         </Card>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Outside Any Shift</CardDescription>
+            <CardTitle className="text-2xl text-amber-600 dark:text-amber-400">
+              EGP {String(totals.unassigned_revenue ?? "0.00")}
+            </CardTitle>
+            <CardDescription>
+              {String(totals.unassigned_payments_count ?? 0)} payment(s) taken while no desk session was open — subs EGP{" "}
+              {String(totals.unassigned_subscription_revenue ?? "0.00")}, POS EGP{" "}
+              {String(totals.unassigned_pos_revenue ?? "0.00")}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Money This Period</CardDescription>
+            <CardTitle className="text-2xl">EGP {String(totals.total_period_revenue ?? "0.00")}</CardTitle>
+            <CardDescription>Everything collected in the range, in a shift or not.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+
       {/* Shifts Breakdown Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -2126,16 +2136,27 @@ function MemberSubscriptionsView({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <ReportMetric
           title="Members"
           value={String(totals.members_count ?? 0)}
+          detail={`${String(totals.subscriptions_count ?? 0)} subscription(s) in range`}
+        />
+        <ReportMetric
+          title="Subscriptions"
+          value={String(totals.subscriptions_count ?? 0)}
           detail={`${String(totals.active_count ?? 0)} active · ${String(totals.expired_count ?? 0)} expired`}
         />
         <ReportMetric
           title="Collected"
           value={currency(totals.total_collected)}
-          detail="Latest subscription + add-ons"
+          detail="All subscriptions + add-ons in range"
+        />
+        <ReportMetric
+          title="Refunded"
+          value={currency(totals.total_refunded)}
+          detail="Returned to members"
+          destructive={Number(totals.total_refunded ?? 0) > 0}
         />
         <ReportMetric
           title="Outstanding"
@@ -2146,12 +2167,9 @@ function MemberSubscriptionsView({
         <ReportMetric
           title="Check-ins"
           value={String(totals.total_visits ?? 0)}
-          detail={`${String(totals.frozen_count ?? 0)} frozen · ${String(totals.stopped_count ?? 0)} stopped`}
-        />
-        <ReportMetric
-          title="Avg. sessions used"
-          value={totals.avg_attendance_rate === null ? "—" : `${String(totals.avg_attendance_rate ?? 0)}%`}
-          detail="Session-limited plans only"
+          detail={`${String(totals.frozen_count ?? 0)} frozen · ${String(totals.stopped_count ?? 0)} stopped · ${
+            totals.avg_attendance_rate === null ? "—" : `${String(totals.avg_attendance_rate ?? 0)}%`
+          } sessions used`}
         />
       </div>
 

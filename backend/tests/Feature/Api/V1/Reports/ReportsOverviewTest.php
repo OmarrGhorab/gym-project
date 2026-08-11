@@ -9,6 +9,7 @@ use App\Models\Plan;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionRefund;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -63,4 +64,47 @@ test('reports overview returns daily expenses, sales, bookings, memberships and 
         ->assertJsonPath('data.totals.memberships', 1)
         ->assertJsonPath('data.totals.membership_revenue', '375.00')
         ->assertJsonPath('data.totals.session_visits', 1);
+});
+
+test('reports overview keeps membership revenue gross and reports refunds separately', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $member = Member::factory()->create();
+    $subscription = Subscription::factory()->for($member)->for(Plan::factory())->create([
+        'created_at' => '2026-07-26 08:00:00',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '1000.00',
+        'paid_at' => '2026-07-26 09:00:00',
+        'status' => 'paid',
+    ]);
+    // Refund day: netting this into the revenue card used to drive it negative
+    // with nothing on screen explaining where the money went.
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '-1200.00',
+        'paid_at' => '2026-07-26 15:00:00',
+        'status' => Payment::STATUS_REFUNDED,
+    ]);
+    SubscriptionRefund::create([
+        'subscription_id' => $subscription->id,
+        'amount' => '1200.00',
+        'method' => 'cash',
+        'reason' => 'cancelled',
+        'refunded_at' => '2026-07-26 15:00:00',
+        'created_by' => $admin->id,
+    ]);
+
+    $this->getJson('/api/v1/reports/overview?from=2026-07-26&to=2026-07-26')
+        ->assertOk()
+        ->assertJsonPath('data.totals.membership_revenue', '1000.00')
+        ->assertJsonPath('data.totals.refunds', '1200.00')
+        ->assertJsonPath('data.daily.0.membership_revenue', '1000.00')
+        ->assertJsonPath('data.daily.0.refunds', '1200.00');
 });

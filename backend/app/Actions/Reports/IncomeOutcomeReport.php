@@ -27,20 +27,24 @@ final class IncomeOutcomeReport
         $to = Carbon::parse($params['to'] ?? now()->toDateString())->endOfDay();
         $groupBy = $params['group_by'] ?? 'day';
 
+        // Income is GROSS money collected (collected() excludes the negative refund
+        // rows). Refunds are subtracted once, as their own outcome line below —
+        // using revenue() here netted them off income and then subtracted them
+        // again, understating net profit by the full refund total.
         $totalSubIncome = (float) Payment::query()
-            ->revenue()
+            ->collected()
             ->whereIn('payable_type', [Subscription::class, SubscriptionAddon::class])
             ->whereBetween('paid_at', [$from, $to])
             ->sum('amount');
 
         $totalPosIncome = (float) Payment::query()
-            ->revenue()
+            ->collected()
             ->where('payable_type', Sale::class)
             ->whereBetween('paid_at', [$from, $to])
             ->sum('amount');
 
         $totalOtherIncome = (float) Payment::query()
-            ->revenue()
+            ->collected()
             ->whereNotIn('payable_type', [Subscription::class, SubscriptionAddon::class, Sale::class])
             ->whereBetween('paid_at', [$from, $to])
             ->sum('amount');
@@ -104,7 +108,7 @@ final class IncomeOutcomeReport
 
         $subIncomeByBucket = $bucketTotals(
             Payment::query()
-                ->revenue()
+                ->collected()
                 ->whereIn('payable_type', [Subscription::class, SubscriptionAddon::class])
                 ->whereBetween('paid_at', [$qFrom, $qTo]),
             $paidAtBucket,
@@ -113,7 +117,7 @@ final class IncomeOutcomeReport
 
         $posIncomeByBucket = $bucketTotals(
             Payment::query()
-                ->revenue()
+                ->collected()
                 ->where('payable_type', Sale::class)
                 ->whereBetween('paid_at', [$qFrom, $qTo]),
             $paidAtBucket,
@@ -122,7 +126,7 @@ final class IncomeOutcomeReport
 
         $otherIncomeByBucket = $bucketTotals(
             Payment::query()
-                ->revenue()
+                ->collected()
                 ->whereNotIn('payable_type', [Subscription::class, SubscriptionAddon::class, Sale::class])
                 ->whereBetween('paid_at', [$qFrom, $qTo]),
             $paidAtBucket,

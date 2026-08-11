@@ -78,40 +78,10 @@ final class MemberSubscriptionsReport
         $limit = min(max((int) ($params['limit'] ?? self::DEFAULT_LIMIT), 1), self::MAX_LIMIT);
         $statusFilter = $params['status'] ?? null;
 
-        $query = Subscription::query()
+        $query = $this->filtered($params)
             ->whereIn('id', Subscription::query()->selectRaw('MAX(id)')->groupBy('member_id'))
             ->with(self::RELATIONS)
-            ->when($params['search'] ?? null, fn ($q, $search) => $q->whereHas(
-                'member',
-                fn ($member) => $member
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('attendance_code', 'like', "%{$search}%"),
-            ))
-            ->when($params['plan_id'] ?? null, fn ($q, $planId) => $q->where('plan_id', (int) $planId))
-            ->when($params['coach_id'] ?? null, fn ($q, $coachId) => $q->where(
-                fn ($scoped) => $scoped
-                    ->where('subscriptions.coach_id', (int) $coachId)
-                    ->orWhereHas('member', fn ($member) => $member->where('coach_id', (int) $coachId)),
-            ))
             ->latest('end_date');
-
-        // Date range keeps members whose latest subscription period overlaps the
-        // window, so an older still-running membership is not hidden by it.
-        if (! empty($params['from']) || ! empty($params['to'])) {
-            $from = Carbon::parse($params['from'] ?? $params['to'])->startOfDay();
-            $to = Carbon::parse($params['to'] ?? $params['from'])->endOfDay();
-
-            $query
-                ->whereDate('start_date', '<=', $to->toDateString())
-                ->whereDate('end_date', '>=', $from->toDateString());
-        }
-
-        // Effective status resolves plan grace days in PHP, so only the plain
-        // stored statuses can be pushed down to SQL.
-        if ($statusFilter && $statusFilter !== 'expired') {
-            $query->where('status', $statusFilter);
-        }
 
         $subscriptions = $query->get();
         $visitStats = $this->visitStats($subscriptions->pluck('id')->all());
@@ -130,9 +100,57 @@ final class MemberSubscriptionsReport
         $rows = $rows->take($limit)->values()->all();
 
         return [
-            'totals' => $this->totals($rows, $matched),
+            'totals' => $this->totals($params, count($rows), $matched),
             'members' => $rows,
         ];
+    }
+
+    /**
+     * The filters both the member rows and the period totals share.
+     *
+     * Kept in one place so the totals can never end up describing a different
+     * set of subscriptions than the table was filtered to.
+     *
+     * @param  array<string, mixed>  $params
+     * @return \Illuminate\Database\Eloquent\Builder<Subscription>
+     */
+    private function filtered(array $params)
+    {
+        $statusFilter = $params['status'] ?? null;
+
+        $query = Subscription::query()
+            ->when($params['search'] ?? null, fn ($q, $search) => $q->whereHas(
+                'member',
+                fn ($member) => $member
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('attendance_code', 'like', "%{$search}%"),
+            ))
+            ->when($params['plan_id'] ?? null, fn ($q, $planId) => $q->where('plan_id', (int) $planId))
+            ->when($params['coach_id'] ?? null, fn ($q, $coachId) => $q->where(
+                fn ($scoped) => $scoped
+                    ->where('subscriptions.coach_id', (int) $coachId)
+                    ->orWhereHas('member', fn ($member) => $member->where('coach_id', (int) $coachId)),
+            ));
+
+        // Date range keeps subscriptions whose period overlaps the window, so an
+        // older still-running membership is not hidden by it.
+        if (! empty($params['from']) || ! empty($params['to'])) {
+            $from = Carbon::parse($params['from'] ?? $params['to'])->startOfDay();
+            $to = Carbon::parse($params['to'] ?? $params['from'])->endOfDay();
+
+            $query
+                ->whereDate('start_date', '<=', $to->toDateString())
+                ->whereDate('end_date', '>=', $from->toDateString());
+        }
+
+        // Effective status resolves plan grace days in PHP, so only the plain
+        // stored statuses can be pushed down to SQL.
+        if ($statusFilter && $statusFilter !== 'expired') {
+            $query->where('status', $statusFilter);
+        }
+
+        return $query;
     }
 
     /**
@@ -557,46 +575,69 @@ final class MemberSubscriptionsReport
     }
 
     /**
-     * @param  list<array<string, mixed>>  $rows
+     * Money and status totals for EVERY subscription matching the filters, not
+     * just the one row shown per member.
+     *
+     * The table deliberately shows a member once, from their newest membership.
+     * Totalling those rows meant a member who renewed three times in the period
+     * only contributed their last renewal, so collections and refunds read far
+     * below what actually moved. The totals therefore run over the full filtered
+     * set while the table keeps its one-row-per-member shape.
+     *
+     * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
-    private function totals(array $rows, int $matched): array
+    private function totals(array $params, int $shown, int $matched): array
     {
-        $latest = array_column($rows, 'latest');
+        $statusFilter = $params['status'] ?? null;
+
+        $subscriptions = $this->filtered($params)->with(self::RELATIONS)->get();
+        $visitStats = $this->visitStats($subscriptions->pluck('id')->all());
+        $addonVisitStats = $this->addonVisitStats($subscriptions->pluck('id')->all());
+
+        $all = $subscriptions
+            ->map(fn (Subscription $subscription): array => $this->subscriptionRow($subscription, $visitStats, $addonVisitStats))
+            ->when(
+                $statusFilter === 'expired',
+                fn (Collection $mapped) => $mapped->filter(fn (array $row): bool => $row['status'] === 'expired'),
+            )
+            ->values()
+            ->all();
 
         $collected = array_reduce(
-            $latest,
+            $all,
             fn (string $carry, array $row): string => bcadd($carry, $row['package_paid_total'], 2),
             '0.00',
         );
         $outstanding = array_reduce(
-            $latest,
+            $all,
             fn (string $carry, array $row): string => bcadd($carry, $row['package_balance'], 2),
             '0.00',
         );
         $refunded = array_reduce(
-            $latest,
+            $all,
             fn (string $carry, array $row): string => bcadd($carry, $row['refund_total'], 2),
             '0.00',
         );
 
         $rated = array_values(array_filter(
-            array_column($latest, 'attendance_rate'),
+            array_column($all, 'attendance_rate'),
             fn (?float $rate): bool => $rate !== null,
         ));
 
         return [
-            'members_count' => count($rows),
+            'members_count' => $shown,
             'matched_count' => $matched,
-            'truncated' => $matched > count($rows),
-            'active_count' => count(array_filter($latest, fn (array $row): bool => $row['status'] === 'active')),
-            'expired_count' => count(array_filter($latest, fn (array $row): bool => $row['status'] === 'expired')),
-            'frozen_count' => count(array_filter($latest, fn (array $row): bool => $row['status'] === 'frozen')),
-            'stopped_count' => count(array_filter($latest, fn (array $row): bool => $row['status'] === 'stopped')),
+            'truncated' => $matched > $shown,
+            'subscriptions_count' => count($all),
+            'active_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'active')),
+            'expired_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'expired')),
+            'frozen_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'frozen')),
+            'stopped_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'stopped')),
             'total_collected' => $collected,
             'total_outstanding' => $outstanding,
             'total_refunded' => $refunded,
-            'total_visits' => array_sum(array_column($latest, 'visits_count')),
+            'total_visits' => array_sum(array_column($all, 'visits_count')),
             'avg_attendance_rate' => $rated === [] ? null : round(array_sum($rated) / count($rated), 1),
         ];
     }

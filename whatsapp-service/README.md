@@ -124,6 +124,15 @@ curl -H "Authorization: Bearer $TOKEN" 127.0.0.1:3001/status
 pkill -f 'node src/index.js'
 ```
 
+- **"Waiting for this message. This may take a while." on WhatsApp Desktop, but
+  the phone shows it fine** — a sent message is encrypted once per device on the
+  account. A device that cannot decrypt its copy asks the sender to resend it;
+  the service answers that from the `SentMessageStore` via the socket's
+  `getMessage`. Only messages sent *since the service last started* are in that
+  store, so anything already stuck stays stuck — the sending copy is gone. New
+  messages recover on their own. If it happens for every message, check the
+  service was restarted after a deploy and that `getMessage` is still wired into
+  `makeWASocket`.
 - **Stuck on `qr_pending`** — the QR expires every ~20s and regenerates; reload
   the settings page for a fresh one.
 - **Went to `logged_out` on its own** — the device was unlinked from the phone,

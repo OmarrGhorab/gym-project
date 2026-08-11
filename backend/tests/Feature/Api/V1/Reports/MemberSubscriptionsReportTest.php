@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use App\Models\SubscriptionFreeze;
+use App\Models\SubscriptionRefund;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Carbon\Carbon;
@@ -466,4 +467,85 @@ test('a user without reports permission is forbidden', function (): void {
     Sanctum::actingAs(User::factory()->create());
 
     $this->getJson('/api/v1/reports/member-subscriptions')->assertForbidden();
+});
+
+test('totals cover every subscription in the period, not just each member latest', function (): void {
+    Carbon::setTestNow('2026-07-20 12:00:00');
+    actAsReportViewer();
+
+    $member = Member::factory()->create(['name' => 'Renewing Member']);
+    $plan = Plan::factory()->create(['price' => '500.00']);
+
+    // Three periods for ONE member, all overlapping the report window. Totalling
+    // only the newest row hid the first two renewals' money entirely.
+    foreach ([['2026-07-01', '2026-07-10'], ['2026-07-11', '2026-07-20'], ['2026-07-21', '2026-07-31']] as $index => [$start, $end]) {
+        $subscription = Subscription::factory()->create([
+            'member_id' => $member->id,
+            'plan_id' => $plan->id,
+            'status' => $index === 2 ? 'active' : 'stopped',
+            'start_date' => $start,
+            'end_date' => $end,
+            'price_paid' => '500.00',
+        ]);
+
+        Payment::factory()->create([
+            'payable_type' => Subscription::class,
+            'payable_id' => $subscription->id,
+            'amount' => '500.00',
+            'status' => 'paid',
+            'paid_at' => $start.' 10:00:00',
+        ]);
+    }
+
+    $response = $this->getJson('/api/v1/reports/member-subscriptions?from=2026-07-01&to=2026-07-31')
+        ->assertOk()
+        // Still one row per member in the table…
+        ->assertJsonPath('data.totals.members_count', 1)
+        ->assertJsonCount(1, 'data.members')
+        // …but the money and counts span all three periods.
+        ->assertJsonPath('data.totals.subscriptions_count', 3)
+        ->assertJsonPath('data.totals.total_collected', '1500.00')
+        ->assertJsonPath('data.totals.active_count', 1)
+        ->assertJsonPath('data.totals.stopped_count', 2);
+
+    expect($response->json('data.members.0.latest.package_paid_total'))->toBe('500.00');
+});
+
+test('totals count refunds from every subscription in the period', function (): void {
+    Carbon::setTestNow('2026-07-20 12:00:00');
+    actAsReportViewer();
+
+    $member = Member::factory()->create();
+    $plan = Plan::factory()->create(['price' => '500.00']);
+
+    $older = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'stopped',
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-10',
+        'price_paid' => '500.00',
+    ]);
+    Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+        'start_date' => '2026-07-11',
+        'end_date' => '2026-07-31',
+        'price_paid' => '500.00',
+    ]);
+
+    // Refund sits on the OLDER period — invisible while totals read only the newest.
+    SubscriptionRefund::create([
+        'subscription_id' => $older->id,
+        'amount' => '450.00',
+        'method' => 'cash',
+        'reason' => 'cancelled',
+        'refunded_at' => '2026-07-05 10:00:00',
+        'created_by' => User::factory()->create()->id,
+    ]);
+
+    $this->getJson('/api/v1/reports/member-subscriptions?from=2026-07-01&to=2026-07-31')
+        ->assertOk()
+        ->assertJsonPath('data.totals.total_refunded', '450.00');
 });

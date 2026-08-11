@@ -40,6 +40,49 @@ async function buildPayload({ message, imageUrl }) {
 }
 
 /**
+ * Remembers the content of recently sent messages so retries can be answered.
+ *
+ * WhatsApp is multi-device: a message we send is encrypted separately for every
+ * device on the account, including the gym's own phone and WhatsApp Desktop.
+ * When one of those devices has no usable Signal session it cannot decrypt its
+ * copy, so it asks the sender to send it again (a "retry receipt") and shows
+ * "Waiting for this message. This may take a while." until the sender answers.
+ *
+ * Baileys answers that request by calling `getMessage` for the original
+ * content. Its default implementation returns undefined, which means the retry
+ * is silently dropped and the device waits forever — the phone still shows the
+ * message because its session was already healthy.
+ *
+ * 512 entries is well past the ~256 WhatsApp itself keeps, and each entry is a
+ * small protobuf, so the cap costs little and stops a long-running service from
+ * growing without bound.
+ */
+class SentMessageStore {
+  constructor(limit = 512) {
+    this.limit = limit;
+    this.messages = new Map();
+  }
+
+  remember(id, message) {
+    if (!id || !message) {
+      return;
+    }
+
+    // Re-inserting moves the key to the end, keeping eviction truly oldest-first.
+    this.messages.delete(id);
+    this.messages.set(id, message);
+
+    while (this.messages.size > this.limit) {
+      this.messages.delete(this.messages.keys().next().value);
+    }
+  }
+
+  get(id) {
+    return id ? this.messages.get(id) : undefined;
+  }
+}
+
+/**
  * Holds the single WhatsApp Web session for the gym's number.
  *
  * The session survives restarts: Baileys writes its credentials to `authDir`
@@ -55,6 +98,9 @@ class WhatsAppConnection {
     this.lastError = null;
     this.connectedNumber = null;
     this.starting = null;
+    // Outlives the socket: a reconnect must not lose the messages a device is
+    // still waiting on, since that is exactly when retries arrive.
+    this.sentMessages = new SentMessageStore();
   }
 
   async start() {
@@ -85,6 +131,9 @@ class WhatsAppConnection {
       browser: Browsers.ubuntu("Gym Dashboard"),
       markOnlineOnConnect: false,
       syncFullHistory: false,
+      // Answers retry receipts. Without this a device that could not decrypt a
+      // message stays stuck on "Waiting for this message" forever.
+      getMessage: async (key) => this.sentMessages.get(key?.id),
     });
 
     this.socket = socket;
@@ -203,6 +252,10 @@ class WhatsAppConnection {
     await this.socket.sendPresenceUpdate("paused", jid);
 
     const sent = await this.socket.sendMessage(jid, await buildPayload({ message, imageUrl }));
+
+    // Keep the plaintext content so a device that fails to decrypt its copy can
+    // ask for it again and actually get it.
+    this.sentMessages.remember(sent?.key?.id, sent?.message);
 
     return { id: sent?.key?.id ?? null, jid };
   }

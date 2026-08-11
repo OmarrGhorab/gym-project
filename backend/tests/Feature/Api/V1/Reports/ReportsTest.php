@@ -1,10 +1,19 @@
 <?php
 
+use App\Actions\Payments\RecordPayment;
+use App\Models\Employee;
+use App\Models\EmployeeShift;
 use App\Models\Member;
+use App\Models\Payment;
 use App\Models\Payroll;
+use App\Models\Plan;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\ShiftSession;
+use App\Models\Subscription;
+use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionRefund;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -163,4 +172,176 @@ test('income outcome does not count paid payroll twice when its expense ledger r
         ->assertJsonPath('data.timeline.0.expenses_outcome', '125.00')
         ->assertJsonPath('data.timeline.0.payroll_outcome', '500.00')
         ->assertJsonPath('data.timeline.0.total_outcome', '625.00');
+});
+
+test('income outcome counts a refund once instead of netting it off income and subtracting it again', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '1000.00']);
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'stopped',
+        'price_paid' => '1000.00',
+    ]);
+
+    Payment::create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '1000.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-07-28 10:00:00',
+    ]);
+    // A cancellation writes BOTH a negative payment row and a refund row for the
+    // same money; income must stay gross so the refund is only deducted once.
+    Payment::create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '-400.00',
+        'method' => 'cash',
+        'status' => Payment::STATUS_REFUNDED,
+        'paid_at' => '2026-07-28 11:00:00',
+    ]);
+    SubscriptionRefund::create([
+        'subscription_id' => $subscription->id,
+        'amount' => '400.00',
+        'method' => 'cash',
+        'reason' => 'cancelled',
+        'refunded_at' => '2026-07-28 11:00:00',
+        'created_by' => $user->id,
+    ]);
+
+    $this->getJson('/api/v1/reports/income-outcome?from=2026-07-28&to=2026-07-28')
+        ->assertOk()
+        ->assertJsonPath('data.totals.subscription_income', '1000.00')
+        ->assertJsonPath('data.totals.refunds_outcome', '400.00')
+        ->assertJsonPath('data.totals.net_profit', '600.00')
+        ->assertJsonPath('data.timeline.0.net_profit', '600.00');
+});
+
+test('classes plans period revenue includes extra services sold with the membership', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '800.00']);
+    $extraPlan = Plan::factory()->active()->create(['price' => '2500.00', 'category' => 'personal_training']);
+    $coach = Employee::factory()->create(['role' => 'coach']);
+
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+        'price_paid' => '800.00',
+        'created_at' => '2026-07-28 10:00:00',
+    ]);
+    $addon = SubscriptionAddon::create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => $extraPlan->id,
+        'coach_id' => $coach->id,
+        'start_date' => '2026-07-28',
+        'end_date' => '2026-08-28',
+        'status' => 'active',
+        'price_paid' => '2500.00',
+        'discount' => '0.00',
+        'sold_by_user_id' => $user->id,
+        'created_by' => $user->id,
+    ]);
+    // created_at is not fillable, so stamp the sale date the report groups on.
+    $addon->forceFill(['created_at' => '2026-07-28 10:00:00'])->save();
+
+    $response = $this->getJson('/api/v1/reports/classes-plans?from=2026-07-28&to=2026-07-28')
+        ->assertOk()
+        // 800 main + 2500 extra — the extra used to be dropped entirely.
+        ->assertJsonPath('data.totals.total_revenue_period', '3300.00');
+
+    $extraRow = collect($response->json('data.plans_summary'))->firstWhere('id', $extraPlan->id);
+
+    expect($extraRow['revenue_period'])->toBe('2500.00')
+        ->and($extraRow['new_subscriptions_period'])->toBe(1);
+});
+
+test('subs shifts report accounts for money taken while no shift was open', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '900.00']);
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+        'price_paid' => '900.00',
+    ]);
+
+    // No shift session exists for this window at all — this money used to vanish
+    // from the report entirely rather than showing as unattributed.
+    Payment::create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '900.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-07-28 13:00:00',
+        'shift_session_id' => null,
+    ]);
+
+    $this->getJson('/api/v1/reports/subs-shifts?from=2026-07-28&to=2026-07-28')
+        ->assertOk()
+        ->assertJsonPath('data.totals.total_shifts_count', 0)
+        ->assertJsonPath('data.totals.total_shift_revenue', '0.00')
+        ->assertJsonPath('data.totals.unassigned_revenue', '900.00')
+        ->assertJsonPath('data.totals.unassigned_subscription_revenue', '900.00')
+        ->assertJsonPath('data.totals.unassigned_payments_count', 1)
+        // The number that must always reflect every payment in the window.
+        ->assertJsonPath('data.totals.total_period_revenue', '900.00')
+        ->assertJsonPath('data.unassigned.total_revenue', '900.00');
+});
+
+test('a payment taken during an open shift is attributed to that shift and not to the unassigned bucket', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '900.00']);
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+        'price_paid' => '900.00',
+    ]);
+
+    $session = ShiftSession::create([
+        'employee_shift_id' => EmployeeShift::factory()->create()->id,
+        'business_date' => '2026-07-28',
+        'status' => ShiftSession::STATUS_OPEN,
+        'opened_by' => $user->id,
+        'opened_at' => '2026-07-28 09:00:00',
+        'closed_at' => null,
+        'opening_float' => '0.00',
+    ]);
+
+    // RecordPayment stamps the open session, so this lands on the shift row.
+    app(RecordPayment::class)->handle($subscription, [
+        'amount' => '900.00',
+        'method' => 'cash',
+        'paid_at' => '2026-07-28 13:00:00',
+    ], $user);
+
+    $this->getJson('/api/v1/reports/subs-shifts?from=2026-07-28&to=2026-07-28')
+        ->assertOk()
+        ->assertJsonPath('data.totals.total_shifts_count', 1)
+        ->assertJsonPath('data.shifts.0.id', $session->id)
+        ->assertJsonPath('data.shifts.0.subscription_sales_amount', '900.00')
+        ->assertJsonPath('data.totals.total_shift_revenue', '900.00')
+        ->assertJsonPath('data.totals.unassigned_revenue', '0.00')
+        ->assertJsonPath('data.totals.total_period_revenue', '900.00');
 });
