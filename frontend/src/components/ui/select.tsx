@@ -6,7 +6,61 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select = SelectPrimitive.Root
+/**
+ * Walks the JSX given to <Select> and collects every <SelectItem>'s value and
+ * label, including items nested in <SelectContent>/<SelectGroup>, fragments and
+ * arrays from .map().
+ *
+ * Reading the element tree works even while the popup is closed, because these
+ * are element descriptors — nothing has to be mounted.
+ */
+function collectSelectItems(
+  node: React.ReactNode,
+  found: Array<{ label: React.ReactNode; value: unknown }>,
+) {
+  React.Children.forEach(node, (child) => {
+    if (!React.isValidElement(child)) {
+      return
+    }
+
+    const props = child.props as { children?: React.ReactNode; value?: unknown }
+
+    if ((child.type === SelectItem || child.type === SelectPrimitive.Item) && props.value !== undefined) {
+      found.push({ label: props.children, value: props.value })
+    }
+
+    if (props.children) {
+      collectSelectItems(props.children, found)
+    }
+  })
+}
+
+/**
+ * Base UI's <Select.Value> renders the RAW value unless the root is given
+ * `items`, which is why triggers were showing ids and codes ("1", "bank_transfer")
+ * instead of names. Deriving `items` from the items already declared in the JSX
+ * makes every select label itself correctly without touching call sites.
+ *
+ * An explicit `items` prop, or a children function on <SelectValue>, still wins.
+ */
+function Select({ items, children, ...props }: SelectPrimitive.Root.Props<any, any>) {
+  const derivedItems = React.useMemo(() => {
+    if (items) {
+      return items
+    }
+
+    const found: Array<{ label: React.ReactNode; value: unknown }> = []
+    collectSelectItems(children, found)
+
+    return found.length > 0 ? found : undefined
+  }, [items, children])
+
+  return (
+    <SelectPrimitive.Root items={derivedItems} {...props}>
+      {children}
+    </SelectPrimitive.Root>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
