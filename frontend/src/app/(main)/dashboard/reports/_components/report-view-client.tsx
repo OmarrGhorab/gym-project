@@ -1879,6 +1879,7 @@ function SubsShiftsView({
       "Subscription Sales",
       "POS Sales",
       "Total Revenue",
+      "Expenses",
       "Expected Cash",
       "Counted Cash",
       "Discrepancy",
@@ -1892,6 +1893,7 @@ function SubsShiftsView({
       String(s.subscription_sales_amount ?? "0.00"),
       String(s.pos_sales_amount ?? "0.00"),
       String(s.total_revenue ?? "0.00"),
+      String(s.expenses_amount ?? "0.00"),
       String(s.expected_cash ?? "0.00"),
       String(s.counted_cash ?? "N/A"),
       String(s.discrepancy ?? "0.00"),
@@ -1935,7 +1937,7 @@ function SubsShiftsView({
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Outside Any Shift</CardDescription>
@@ -1954,6 +1956,18 @@ function SubsShiftsView({
             <CardDescription>Total Money This Period</CardDescription>
             <CardTitle className="text-2xl">EGP {String(totals.total_period_revenue ?? "0.00")}</CardTitle>
             <CardDescription>Everything collected in the range, in a shift or not.</CardDescription>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Expenses This Period</CardDescription>
+            <CardTitle className="text-2xl text-destructive">
+              EGP {String(totals.total_period_expenses ?? "0.00")}
+            </CardTitle>
+            <CardDescription>
+              EGP {String(totals.total_shift_expenses ?? "0.00")} paid during a shift, EGP{" "}
+              {String(totals.unassigned_expenses ?? "0.00")} outside one.
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -1994,6 +2008,7 @@ function SubsShiftsView({
                 <TableHead>Subs Sales</TableHead>
                 <TableHead>POS Sales</TableHead>
                 <TableHead className="text-end">Total Shift Income</TableHead>
+                <TableHead>Expenses</TableHead>
                 <TableHead>Expected Cash</TableHead>
                 <TableHead>Counted Cash</TableHead>
                 <TableHead>Discrepancy</TableHead>
@@ -2013,6 +2028,7 @@ function SubsShiftsView({
                   </TableCell>
                   <TableCell className="font-medium text-emerald-600">EGP {String(s.pos_sales_amount)}</TableCell>
                   <TableCell className="text-end font-bold">EGP {String(s.total_revenue)}</TableCell>
+                  <TableCell className="text-destructive">EGP {String(s.expenses_amount ?? "0.00")}</TableCell>
                   <TableCell>EGP {String(s.expected_cash)}</TableCell>
                   <TableCell>{s.counted_cash ? `EGP ${s.counted_cash}` : "N/A"}</TableCell>
                   <TableCell className={Number(s.discrepancy) < 0 ? "font-semibold text-rose-600" : ""}>
@@ -2022,12 +2038,12 @@ function SubsShiftsView({
               ))}
               {shifts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="py-6 text-center text-muted-foreground">
                     No shift sessions found.
                   </TableCell>
                 </TableRow>
               )}
-              <TablePagination columns={10} pagination={shiftPagination} />
+              <TablePagination columns={11} pagination={shiftPagination} />
             </TableBody>
           </Table>
         </CardContent>

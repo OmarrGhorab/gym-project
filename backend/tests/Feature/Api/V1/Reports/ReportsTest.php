@@ -345,3 +345,100 @@ test('a payment taken during an open shift is attributed to that shift and not t
         ->assertJsonPath('data.totals.unassigned_revenue', '0.00')
         ->assertJsonPath('data.totals.total_period_revenue', '900.00');
 });
+
+test('subs shifts report keeps a shift that opened on an earlier day', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '900.00']);
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+        'price_paid' => '900.00',
+    ]);
+
+    // Opened the evening before and still running into the day being reported on.
+    $session = ShiftSession::create([
+        'employee_shift_id' => EmployeeShift::factory()->create()->id,
+        'business_date' => '2026-07-27',
+        'status' => ShiftSession::STATUS_OPEN,
+        'opened_by' => $user->id,
+        'opened_at' => '2026-07-27 22:00:00',
+        'closed_at' => null,
+        'opening_float' => '0.00',
+    ]);
+
+    Payment::create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '900.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-07-28 13:00:00',
+        'shift_session_id' => $session->id,
+    ]);
+
+    // Money from the shift's OTHER day must not leak into this window.
+    Payment::create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '500.00',
+        'method' => 'cash',
+        'status' => 'paid',
+        'paid_at' => '2026-07-27 23:00:00',
+        'shift_session_id' => $session->id,
+    ]);
+
+    $this->getJson('/api/v1/reports/subs-shifts?from=2026-07-28&to=2026-07-28')
+        ->assertOk()
+        ->assertJsonPath('data.totals.total_shifts_count', 1)
+        ->assertJsonPath('data.shifts.0.id', $session->id)
+        ->assertJsonPath('data.shifts.0.subscription_sales_amount', '900.00')
+        ->assertJsonPath('data.totals.total_shift_revenue', '900.00')
+        ->assertJsonPath('data.totals.total_period_revenue', '900.00');
+});
+
+test('subs shifts report reports expenses recorded during a shift', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $session = ShiftSession::create([
+        'employee_shift_id' => EmployeeShift::factory()->create()->id,
+        'business_date' => '2026-07-28',
+        'status' => ShiftSession::STATUS_OPEN,
+        'opened_by' => $user->id,
+        'opened_at' => '2026-07-28 09:00:00',
+        'closed_at' => null,
+        'opening_float' => '0.00',
+    ]);
+
+    DB::table('expenses')->insert([
+        'amount' => '250.00',
+        'category' => 'supplies',
+        'date' => '2026-07-28',
+        'description' => 'Cleaning supplies',
+        'created_by' => $user->id,
+        'shift_session_id' => $session->id,
+        'created_at' => '2026-07-28 10:00:00',
+    ]);
+    DB::table('expenses')->insert([
+        'amount' => '100.00',
+        'category' => 'supplies',
+        'date' => '2026-07-28',
+        'description' => 'Paid with no desk open',
+        'created_by' => $user->id,
+        'shift_session_id' => null,
+        'created_at' => '2026-07-28 10:00:00',
+    ]);
+
+    $this->getJson('/api/v1/reports/subs-shifts?from=2026-07-28&to=2026-07-28')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.0.expenses_amount', '250.00')
+        ->assertJsonPath('data.totals.total_shift_expenses', '250.00')
+        ->assertJsonPath('data.totals.unassigned_expenses', '100.00')
+        ->assertJsonPath('data.totals.total_period_expenses', '350.00');
+});
