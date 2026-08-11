@@ -1,4 +1,5 @@
 import { serverApiFetch } from "@/lib/api/server";
+import { getGymToday, getGymTodayString } from "@/lib/timezone";
 
 export type PosPeriodFilter = "this-month" | "last-month" | "last-30-days" | "year-to-date";
 export type PosPaymentMethodFilter = "pos" | "cash" | "card" | "bank_transfer";
@@ -228,7 +229,7 @@ export async function getPosDashboardData(
             [],
           )
         : { data: [] as PosMemberOption[] },
-      safeFetch<{ total_revenue: string; sales: unknown[] }>(`/sales/daily?date=${formatDateParam(new Date())}`, {
+      safeFetch<{ total_revenue: string; sales: unknown[] }>(`/sales/daily?date=${getGymTodayString()}`, {
         total_revenue: "0.00",
         sales: [],
       }),
@@ -291,23 +292,25 @@ function titleCase(value: string) {
 }
 
 function getPosPeriodDateRange(period: PosPeriodFilter) {
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Anchored on the gym's calendar, then walked in UTC so the arithmetic stays
+  // pure day-counting — no zone shifts the month boundary by one.
+  const { year, month, day } = getGymToday();
+  const startOfToday = new Date(Date.UTC(year, month - 1, day));
   let from: Date;
   let to: Date;
 
   if (period === "last-month") {
-    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    to = new Date(now.getFullYear(), now.getMonth(), 0);
+    from = new Date(Date.UTC(year, month - 2, 1));
+    to = new Date(Date.UTC(year, month - 1, 0));
   } else if (period === "last-30-days") {
     from = new Date(startOfToday);
-    from.setDate(startOfToday.getDate() - 29);
+    from.setUTCDate(startOfToday.getUTCDate() - 29);
     to = startOfToday;
   } else if (period === "year-to-date") {
-    from = new Date(now.getFullYear(), 0, 1);
+    from = new Date(Date.UTC(year, 0, 1));
     to = startOfToday;
   } else {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    from = new Date(Date.UTC(year, month - 1, 1));
     to = startOfToday;
   }
 
@@ -318,7 +321,7 @@ function getPosPeriodDateRange(period: PosPeriodFilter) {
 }
 
 function formatDateParam(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
 async function safeFetch<T>(path: string, fallback: T): Promise<{ data: T }> {
