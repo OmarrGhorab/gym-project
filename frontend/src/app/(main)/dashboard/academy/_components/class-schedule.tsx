@@ -65,10 +65,7 @@ export function ClassSchedule({ shifts }: { shifts: StaffAcademyShift[] }) {
                     </div>
                   </div>
 
-                  <Badge
-                    variant="secondary"
-                    className="shrink-0 rounded-md px-2.5 py-1 font-medium text-[10px]"
-                  >
+                  <Badge variant="secondary" className="shrink-0 rounded-md px-2.5 py-1 font-medium text-[10px]">
                     {t("assignedStaffCount", { staff: shift.staff_count })}
                   </Badge>
                 </div>

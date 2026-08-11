@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FormSelect, FormTimePicker } from "@/components/ui/form-controls";
+import { FormTimePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { deactivateShift, saveShift, updateSettings } from "../../settings/_components/actions";
-import type { DashboardSettings, EmployeeShift } from "../../settings/_components/data";
+import { deactivateShift, saveShift } from "../../settings/_components/actions";
+import type { EmployeeShift } from "../../settings/_components/data";
 import { SettingsActionButton, SettingsActionForm } from "../../settings/_components/settings-action-form";
 
 type StaffEmployeeOption = {
@@ -25,55 +25,15 @@ type StaffEmployeeOption = {
 
 export async function StaffOperations({
   employees = [],
-  settings,
   shifts,
 }: {
   employees?: StaffEmployeeOption[];
-  settings: DashboardSettings;
   shifts: EmployeeShift[];
 }) {
   const t = await getTranslations("Dashboard.settings");
-  const payroll = settings.payroll ?? { default_pay_day: 30, schedule_mode: "fixed" as const };
-  const payrollScheduleMode = payroll.schedule_mode;
-  const payrollDefaultPayDay = payroll.default_pay_day;
 
   return (
     <div className="grid gap-4">
-      <SettingsActionForm action={updateSettings} className="grid grid-cols-1 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-normal">{t("payrollScheduling")}</CardTitle>
-            <CardDescription>{t("payrollSchedulingDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="payroll.schedule_mode">{t("payrollScheduleMode")}</Label>
-              <FormSelect
-                id="payroll.schedule_mode"
-                name="payroll.schedule_mode"
-                defaultValue={payrollScheduleMode}
-                options={[
-                  { value: "fixed", label: t("payrollScheduleFixed") },
-                  { value: "per_employee", label: t("payrollSchedulePerEmployee") },
-                ]}
-              />
-            </div>
-            <Field
-              label={t("defaultPayDay")}
-              name="payroll.default_pay_day"
-              type="number"
-              min={1}
-              max={31}
-              defaultValue={payrollDefaultPayDay}
-            />
-            <p className="text-muted-foreground text-xs">{t("payrollSchedulingHelp")}</p>
-            <Button type="submit" className="w-full">
-              {t("saveSettings")}
-            </Button>
-          </CardContent>
-        </Card>
-      </SettingsActionForm>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-normal">

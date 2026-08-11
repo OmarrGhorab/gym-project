@@ -17,12 +17,6 @@ const settingsSchema = z.object({
   attendance_gym_latitude: z.coerce.number().min(-90).max(90).nullable(),
   attendance_gym_longitude: z.coerce.number().min(-180).max(180).nullable(),
   attendance_gym_radius_meters: z.coerce.number().int().min(1, "GPS radius must be at least 1 meter."),
-  payroll_default_pay_day: z.coerce
-    .number()
-    .int()
-    .min(1, "Pay day must be between 1 and 31.")
-    .max(31, "Pay day must be between 1 and 31."),
-  payroll_schedule_mode: z.enum(["fixed", "per_employee"]),
   reminder_days: z
     .array(z.coerce.number().int().min(0, "Reminder days cannot be negative."))
     .min(1, "Add at least one reminder day."),
@@ -50,8 +44,6 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
     attendance_gym_latitude: nullableNumber(input.get("attendance.gym_latitude")),
     attendance_gym_longitude: nullableNumber(input.get("attendance.gym_longitude")),
     attendance_gym_radius_meters: input.get("attendance.gym_radius_meters") || "150",
-    payroll_default_pay_day: input.get("payroll.default_pay_day") || "30",
-    payroll_schedule_mode: input.get("payroll.schedule_mode") || "fixed",
     reminder_days: parseReminderDays(input.get("reminder_days")),
     shifts_require_cash_count:
       input.get("shifts.require_cash_count") === "on" || input.get("shifts.require_cash_count") === "true",
@@ -73,10 +65,6 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
       gym_latitude: parsed.data.attendance_gym_latitude,
       gym_longitude: parsed.data.attendance_gym_longitude,
       gym_radius_meters: parsed.data.attendance_gym_radius_meters,
-    },
-    payroll: {
-      default_pay_day: parsed.data.payroll_default_pay_day,
-      schedule_mode: parsed.data.payroll_schedule_mode,
     },
     shifts: {
       require_cash_count: parsed.data.shifts_require_cash_count,

@@ -15,18 +15,10 @@ import { Input } from "@/components/ui/input";
 
 import type { AcademyActionResult } from "./actions";
 import { updateEmployeePayDay } from "./actions";
-import type { AcademyEmployeePayDay, PayrollSettings } from "./data";
+import type { AcademyEmployeePayDay } from "./data";
 
-export function PayDayManager({
-  employees,
-  payrollSettings,
-}: {
-  employees: AcademyEmployeePayDay[];
-  payrollSettings: PayrollSettings["payroll"] | null;
-}) {
+export function PayDayManager({ employees }: { employees: AcademyEmployeePayDay[] }) {
   const t = useTranslations("Dashboard.academy");
-  const fixedPayDay = payrollSettings?.default_pay_day ?? null;
-  const isFixed = payrollSettings?.schedule_mode !== "per_employee";
 
   return (
     <Card className="overflow-hidden">
@@ -35,43 +27,31 @@ export function PayDayManager({
         <CardDescription>{t("payDayManagerDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {isFixed ? (
-          <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-muted-foreground text-xs">
-            {fixedPayDay ? t("payDayFixedNotice", { day: fixedPayDay }) : t("payDayFixedUnset")}
-          </div>
-        ) : null}
+        <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-2 text-muted-foreground text-xs">
+          {t("payDayEndOfMonthNotice")}
+        </div>
         {employees.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground text-sm">
             {t("payDayNoEmployees")}
           </div>
         ) : (
-          employees.map((employee) => (
-            <PayDayRow employee={employee} fixedPayDay={fixedPayDay} isFixed={isFixed} key={employee.id} />
-          ))
+          employees.map((employee) => <PayDayRow employee={employee} key={employee.id} />)
         )}
       </CardContent>
     </Card>
   );
 }
 
-function PayDayRow({
-  employee,
-  fixedPayDay,
-  isFixed,
-}: {
-  employee: AcademyEmployeePayDay;
-  fixedPayDay: number | null;
-  isFixed: boolean;
-}) {
+function PayDayRow({ employee }: { employee: AcademyEmployeePayDay }) {
   const t = useTranslations("Dashboard.academy");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [errors, setErrors] = React.useState<AcademyActionResult["errors"]>({});
-  const [value, setValue] = React.useState(() => getInitialPayDay(employee.pay_day, fixedPayDay));
+  const [value, setValue] = React.useState(() => (employee.pay_day ? String(employee.pay_day) : ""));
 
   React.useEffect(() => {
-    setValue(getInitialPayDay(employee.pay_day, fixedPayDay));
-  }, [employee.pay_day, fixedPayDay]);
+    setValue(employee.pay_day ? String(employee.pay_day) : "");
+  }, [employee.pay_day]);
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -102,7 +82,7 @@ function PayDayRow({
           <div className="flex flex-wrap items-center gap-2">
             <div className="truncate font-medium text-sm">{employee.name}</div>
             <Badge variant="outline" className="rounded-full px-2 py-0 text-[11px]">
-              {employee.pay_day ? t("payDayValue", { day: employee.pay_day }) : t("payDayUnset")}
+              {employee.pay_day ? t("payDayValue", { day: employee.pay_day }) : t("payDayEndOfMonth")}
             </Badge>
           </div>
           <div className="text-muted-foreground text-xs capitalize">{employee.role}</div>
@@ -122,27 +102,15 @@ function PayDayRow({
             max={31}
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            disabled={isFixed}
+            placeholder={t("payDayEndOfMonth")}
             className="h-9 w-28"
             aria-invalid={Boolean(errors?.pay_day?.[0])}
           />
         </div>
-        <Button type="submit" size="sm" className="h-9" disabled={pending || isFixed}>
-          {isFixed ? t("fixed") : t("save")}
+        <Button type="submit" size="sm" className="h-9" disabled={pending}>
+          {t("save")}
         </Button>
       </div>
     </form>
   );
-}
-
-function getInitialPayDay(employeePayDay: number | null, fixedPayDay: number | null) {
-  if (employeePayDay) {
-    return String(employeePayDay);
-  }
-
-  if (fixedPayDay) {
-    return String(fixedPayDay);
-  }
-
-  return "";
 }

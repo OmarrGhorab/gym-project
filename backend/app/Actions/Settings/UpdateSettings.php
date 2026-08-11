@@ -78,17 +78,6 @@ final class UpdateSettings
             }
         }
 
-        if (isset($validated['payroll'])) {
-            foreach ([
-                'schedule_mode',
-                'default_pay_day',
-            ] as $key) {
-                if (array_key_exists($key, $validated['payroll'])) {
-                    $flat["payroll.{$key}"] = $validated['payroll'][$key];
-                }
-            }
-        }
-
         if (isset($validated['shifts'])) {
             foreach (['require_cash_count', 'handover_auto_accept', 'handover_auto_accept_on_match_only', 'require_handover_to_open'] as $key) {
                 if (array_key_exists($key, $validated['shifts'])) {

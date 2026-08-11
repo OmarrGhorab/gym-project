@@ -28,7 +28,7 @@ export default async function Page() {
         users={data.users}
         permissions={employeePermissions}
       />
-      <StaffOperations settings={data.settings} shifts={data.shifts} employees={data.employees} />
+      <StaffOperations shifts={data.shifts} employees={data.employees} />
     </div>
   );
 }

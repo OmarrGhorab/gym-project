@@ -79,13 +79,6 @@ export const emptyStaffAcademyData: StaffAcademyData = {
   upcoming_events: [],
 };
 
-export type PayrollSettings = {
-  payroll?: {
-    default_pay_day: number;
-    schedule_mode: "fixed" | "per_employee";
-  };
-};
-
 export type AcademyEmployeePayDay = {
   id: number;
   name: string;
@@ -179,16 +172,6 @@ export async function getAcademyEmployees(): Promise<AcademyEmployeePayDay[]> {
   }
 }
 
-export async function getPayrollSettings(): Promise<PayrollSettings["payroll"] | null> {
-  try {
-    const result = await serverApiFetch<PayrollSettings>("/settings");
-
-    return result.data.payroll ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function getStaffManagementPageData(): Promise<{
   employees: AcademyEmployee[];
   settings: DashboardSettings;
@@ -199,7 +182,7 @@ export async function getStaffManagementPageData(): Promise<{
     safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?per_page=100", []),
     safeFetch<DashboardSettings>("/settings", {
       attendance: {
-            gym_latitude: null,
+        gym_latitude: null,
         gym_longitude: null,
         gym_radius_meters: 150,
       },
@@ -211,10 +194,6 @@ export async function getStaffManagementPageData(): Promise<{
         },
         logo: null,
         name: "ATP Gym",
-      },
-      payroll: {
-        default_pay_day: 30,
-        schedule_mode: "fixed",
       },
       shifts: {
         require_cash_count: false,

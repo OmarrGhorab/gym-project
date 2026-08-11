@@ -59,9 +59,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                     <TableCell>
                       <div>{row.employee.shift?.name ?? t("noShift")}</div>
                       <div className="text-muted-foreground text-xs">
-                        {row.employee.shift
-                          ? row.employee.shift.name
-                          : "-"}
+                        {row.employee.shift ? row.employee.shift.name : "-"}
                       </div>
                     </TableCell>
                     <TableCell>{row.performance?.attendance_count ?? 0}</TableCell>

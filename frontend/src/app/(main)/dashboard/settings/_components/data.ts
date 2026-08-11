@@ -17,10 +17,6 @@ export type DashboardSettings = {
     logo: string | null;
     name: string;
   };
-  payroll?: {
-    default_pay_day: number;
-    schedule_mode: "fixed" | "per_employee";
-  };
   shifts?: {
     /** Whether the scheduler opens the desk on its own. Off means staff start it by hand. */
     /** Whether staff must count the drawer and get a manager review to finish a shift. */
@@ -73,10 +69,6 @@ const emptySettings: DashboardSettings = {
     },
     logo: null,
     name: "ATP Gym",
-  },
-  payroll: {
-    default_pay_day: 30,
-    schedule_mode: "fixed",
   },
   shifts: {
     require_cash_count: false,

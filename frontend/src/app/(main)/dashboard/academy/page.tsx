@@ -10,7 +10,7 @@ import { getCurrentUser } from "@/lib/session";
 
 import { AssignmentStatus } from "./_components/assignment-status";
 import { ClassSchedule } from "./_components/class-schedule";
-import { getAcademyEmployees, getPayrollSettings, getStaffAcademyData } from "./_components/data";
+import { getAcademyEmployees, getStaffAcademyData } from "./_components/data";
 import { KpiCards } from "./_components/kpi-cards";
 import { PayDayManager } from "./_components/pay-day-manager";
 import { PerformanceHighlights } from "./_components/performance-highlights";
@@ -31,11 +31,10 @@ export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.academy");
   const resolvedSearchParams = await searchParams;
   const period = getAcademyPeriod(resolvedSearchParams);
-  const [user, data, employees, payrollSettings] = await Promise.all([
+  const [user, data, employees] = await Promise.all([
     getCurrentUser(),
     getStaffAcademyData(period),
     getAcademyEmployees(),
-    getPayrollSettings(),
   ]);
   const shortcutRanges = getShortcutRanges(period);
   const visibleKpis = data.kpis.filter((kpi) => kpi.label !== "Payroll Receipts");
@@ -129,7 +128,7 @@ export default async function Page({ searchParams }: PageProps) {
 
       {canViewReports ? <PerformanceHighlights highlights={data.performance_highlights} /> : null}
 
-      <PayDayManager employees={employees} payrollSettings={payrollSettings} />
+      <PayDayManager employees={employees} />
     </div>
   );
 }

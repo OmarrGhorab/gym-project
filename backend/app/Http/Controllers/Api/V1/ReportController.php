@@ -165,7 +165,7 @@ final class ReportController extends ApiController
 
         $events = collect()
             ->merge($this->customCalendarEvents($from, $to))
-            ->merge($this->generatedCalendarEvents($from, $to, $settings))
+            ->merge($this->generatedCalendarEvents($from, $to))
             ->when($type, fn ($items) => $items->where('type', $type))
             ->sortBy(['start', 'title'])
             ->values()
@@ -349,11 +349,8 @@ final class ReportController extends ApiController
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function generatedCalendarEvents(CarbonImmutable $from, CarbonImmutable $to, StoreSetting $settings)
+    private function generatedCalendarEvents(CarbonImmutable $from, CarbonImmutable $to)
     {
-        $payrollScheduleMode = (string) ($settings->read('payroll.schedule_mode') ?? 'fixed');
-        $defaultPayrollPayDay = (int) ($settings->read('payroll.default_pay_day') ?? 30);
-
         $renewals = Subscription::query()
             ->with(['member:id,name', 'plan:id,name'])
             ->where('status', 'active')
@@ -386,13 +383,8 @@ final class ReportController extends ApiController
             ->latest()
             ->limit(50)
             ->get()
-            ->map(function (Payroll $row) use ($payrollScheduleMode, $defaultPayrollPayDay): array {
-                $date = $this->resolvePayrollDueDate(
-                    $row->month,
-                    $row->employee?->pay_day,
-                    $payrollScheduleMode,
-                    $defaultPayrollPayDay,
-                );
+            ->map(function (Payroll $row): array {
+                $date = $this->resolvePayrollDueDate($row->month, $row->employee?->pay_day);
 
                 return [
                     'id' => 'payroll-'.$row->id,
@@ -494,14 +486,21 @@ final class ReportController extends ApiController
             ->filter(fn (array $event): bool => filled($event['date']));
     }
 
-    private function resolvePayrollDueDate(string $month, ?int $employeePayDay, string $scheduleMode, int $defaultPayDay): string
+    /**
+     * Payroll is scheduled per employee. An employee without a pay day is paid on
+     * the last day of the month, and a day past the end of a short month (e.g. 31
+     * in February) lands on that month's last day rather than overflowing.
+     */
+    private function resolvePayrollDueDate(string $month, ?int $employeePayDay): string
     {
-        $day = $scheduleMode === 'per_employee' && $employeePayDay ? $employeePayDay : $defaultPayDay;
-        $day = max(1, min(31, $day));
         $monthStart = CarbonImmutable::parse($month.'-01');
         $lastDay = (int) $monthStart->endOfMonth()->format('j');
 
-        return $monthStart->day(min($day, $lastDay))->toDateString();
+        if ($employeePayDay === null || $employeePayDay < 1) {
+            return $monthStart->day($lastDay)->toDateString();
+        }
+
+        return $monthStart->day(min($employeePayDay, $lastDay))->toDateString();
     }
 
     /**
