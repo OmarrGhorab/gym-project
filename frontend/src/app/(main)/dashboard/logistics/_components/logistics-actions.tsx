@@ -439,7 +439,13 @@ export function CreatePurchaseOrderDialog({ products }: { products?: InventoryPr
                 className="w-full"
                 aria-invalid={Boolean(state.errors?.product_id?.[0])}
               >
-                <SelectValue placeholder={t("selectProduct")} />
+                {/* Base UI renders the raw value unless told how to label it, so
+                    without this the trigger showed the product id. */}
+                <SelectValue placeholder={t("selectProduct")}>
+                  {(value) =>
+                    safeProducts.find((product) => String(product.id) === String(value))?.name ?? t("selectProduct")
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -545,7 +551,7 @@ export function ProductQuickActions({
           <Field label={t("type")}>
             <Select name="type" defaultValue="in">
               <SelectTrigger className="h-8">
-                <SelectValue />
+                <SelectValue>{(value) => (value === "out" ? t("stockOut") : t("stockIn"))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="in">{t("stockIn")}</SelectItem>
