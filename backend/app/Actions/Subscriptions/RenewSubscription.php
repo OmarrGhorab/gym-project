@@ -21,6 +21,15 @@ class RenewSubscription
     {
         $subscription->loadMissing(['member', 'plan']);
 
+        // A frozen period has no settled end date yet — it is recalculated from the
+        // resume date. Stacking a renewal on the pre-freeze end_date would overlap the
+        // days the freeze is protecting, so the freeze has to be resolved first.
+        if ($subscription->status === 'frozen') {
+            throw ValidationException::withMessages([
+                'subscription' => 'Unfreeze this subscription before renewing it.',
+            ]);
+        }
+
         $plan = isset($data['plan_id'])
             ? Plan::query()->findOrFail($data['plan_id'])
             : $subscription->plan;
@@ -55,9 +64,13 @@ class RenewSubscription
         return $this->createSubscription->handle([
             'member_id' => $subscription->member_id,
             'plan_id' => $plan->id,
+            // Keep the member with their coach across periods, but only while the plan
+            // is unchanged — a different plan may not be one that coach can service.
+            'coach_id' => $plan->id === $subscription->plan_id ? $subscription->coach_id : null,
             'start_date' => $startDate->toDateString(),
             'discount' => $data['discount'] ?? 0,
             'payment' => $data['payment'],
+            'addons' => $data['addons'] ?? [],
         ], $seller);
     }
 }

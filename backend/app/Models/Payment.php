@@ -90,4 +90,9 @@ class Payment extends Model
     {
         return $query->whereIn('status', self::COLLECTED_STATUSES);
     }
+
+    public function shiftSession(): BelongsTo
+    {
+        return $this->belongsTo(ShiftSession::class);
+    }
 }

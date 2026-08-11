@@ -3,7 +3,7 @@ import { serverApiFetch } from "@/lib/api/server";
 export type OperationsCalendarEvent = {
   id: number | string;
   source_id: number | null;
-  source: "custom" | "subscription" | "payroll" | "product" | "attendance_violation";
+  source: "custom" | "subscription" | "payroll" | "product" | "attendance";
   date: string;
   start: string | null;
   end: string | null;

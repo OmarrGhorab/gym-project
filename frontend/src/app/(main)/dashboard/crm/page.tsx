@@ -12,13 +12,19 @@ export default async function Page() {
   const canViewMoney = user
     ? canAccess(user, ["reports.view", "payroll.view", "expenses.view", "export.reports"])
     : false;
+  const canApproveFreeze = user ? canAccess(user, "subscriptions.freeze_approve") : false;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <KpiCards summary={data.summary} canViewMoney={canViewMoney} />
       {canViewMoney ? <PipelineActivity data={data.chart} summary={data.summary} /> : null}
       <TaskReminders followUps={data.followUps} renewalGoal={data.renewalGoal} />
-      <OpportunitiesSection rows={data.pipelineRows} reminderDays={data.reminderDays} canViewMoney={canViewMoney} />
+      <OpportunitiesSection
+        rows={data.pipelineRows}
+        reminderDays={data.reminderDays}
+        canViewMoney={canViewMoney}
+        canApproveFreeze={canApproveFreeze}
+      />
     </div>
   );
 }

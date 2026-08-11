@@ -18,8 +18,6 @@ import { StaffQrDialog } from "./employee-performance-table";
 type ShiftOption = {
   id: number;
   name: string;
-  starts_at: string;
-  ends_at: string;
 };
 
 type UserOption = {

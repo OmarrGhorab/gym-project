@@ -16,9 +16,6 @@ class EmployeeShiftFactory extends Factory
     {
         return [
             'name' => 'Morning Shift',
-            'starts_at' => '09:00',
-            'ends_at' => '17:00',
-            'grace_minutes' => 15,
             'is_active' => true,
         ];
     }

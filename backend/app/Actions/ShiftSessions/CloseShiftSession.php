@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\User;
+use App\Actions\Attendance\CheckOutEmployeeAttendance;
 use App\Services\OperationalNotifier;
 use App\Support\FoundationPermissions;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class CloseShiftSession
         private readonly ComputeShiftSessionTotals $totals,
         private readonly ResolveShiftStaff $staff,
         private readonly OperationalNotifier $notifier,
-        private readonly TrackShiftOvertime $overtime,
+        private readonly CheckOutEmployeeAttendance $checkOut,
     ) {}
 
     /**
@@ -49,27 +50,16 @@ class CloseShiftSession
                 }
             }
 
-            $isAssignedStaffOnDuty = $employeeId !== null
-                && (int) $employeeId === (int) $locked->opened_by_employee_id;
-
-            // Only an employee of this shift may close its drawer.
             $employee = $this->staff->handle(
                 $locked->shift,
                 $user,
                 $employeeId,
                 'employee_id',
-                $locked->business_date,
-                $isAssignedStaffOnDuty,
+                $employeeId !== null && (int) $employeeId === (int) $locked->opened_by_employee_id,
             );
-
-            // The scheduled end time is not a gate: staff close the session by hand when they
-            // actually check out, which may be earlier or later than the schedule on an
-            // overtime shift.
 
             // Recompute + claim orphans so expected totals match every payment/expense in the window.
             $totals = $this->totals->handle($locked);
-
-            $this->overtime->finish($locked, $employee->id, now());
 
             // Without the cash count, closing a shift means the shift is closed.
             // Leaving it in pending_handover turned one action into a three-step
@@ -104,6 +94,12 @@ class CloseShiftSession
 
             return $locked->fresh(['shift', 'openedBy', 'closedBy', 'openedByEmployee', 'closedByEmployee']);
         });
+
+        // Ending the shift ends the day for whoever was holding it. A no-op when
+        // they never scanned in or already scanned out.
+        if ($closed->closedByEmployee) {
+            $this->checkOut->closeOut($closed->closedByEmployee, now(), $user);
+        }
 
         $this->notifier->shiftSessionClosed($closed);
 

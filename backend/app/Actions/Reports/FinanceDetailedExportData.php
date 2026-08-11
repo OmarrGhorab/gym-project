@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\Expense;
 use App\Models\Payment;
+use App\Models\ShiftSession;
 use App\Models\Payroll;
 use App\Models\Sale;
 use App\Models\Subscription;
@@ -77,7 +78,7 @@ class FinanceDetailedExportData
         $shifts = EmployeeShift::query()
             ->with(['employees' => fn ($query) => $query->active()->orderBy('name')])
             ->where('is_active', true)
-            ->orderBy('starts_at')
+            ->orderBy('name')
             ->get();
 
         $dues = $this->buildDuesRows($locale);
@@ -247,7 +248,6 @@ class FinanceDetailedExportData
                 'commissions_total' => (float) $row->commissions_total,
                 'bonuses' => (float) $row->bonuses,
                 'deductions' => (float) $row->deductions,
-                'attendance_deductions' => (float) $row->attendance_deductions,
                 'net_salary' => (float) $row->net_salary,
                 'status' => $this->normalizeLabel($row->status, $locale),
                 'paid_at' => $this->dateTime($row->paid_at),
@@ -296,15 +296,15 @@ class FinanceDetailedExportData
     ): array {
         $rows = collect();
 
+        // Shifts carry no clock window any more, so a transaction is filed under
+        // the desk session that was open when it happened, not under the time.
         $shiftMeta = $shifts
-            ->map(fn (EmployeeShift $shift): array => [
-                'shift' => $shift,
-                'start' => $this->timeToMinutes($shift->starts_at),
-                'end' => $this->timeToMinutes($shift->ends_at),
-                'time_label' => $this->shiftTimeLabel($shift),
-                'staff' => $shift->employees?->pluck('name')->join(', ') ?? '',
-            ])
-            ->values();
+            ->mapWithKeys(fn (EmployeeShift $shift): array => [
+                $shift->id => [
+                    'shift' => $shift,
+                    'staff' => $shift->employees?->pluck('name')->join(', ') ?? '',
+                ],
+            ]);
 
         foreach ($subscriptions as $subscription) {
             $actor = $subscription->soldBy ?? $subscription->creator;
@@ -324,6 +324,7 @@ class FinanceDetailedExportData
                 actor: $actor,
                 shiftMeta: $shiftMeta,
                 locale: $locale,
+                session: $this->sessionOfFirstPayment($subscription->payments),
             ));
         }
 
@@ -345,6 +346,7 @@ class FinanceDetailedExportData
                 actor: $actor,
                 shiftMeta: $shiftMeta,
                 locale: $locale,
+                session: $this->sessionOfFirstPayment($addon->payments),
             ));
         }
 
@@ -366,6 +368,7 @@ class FinanceDetailedExportData
                 actor: $sale->soldBy,
                 shiftMeta: $shiftMeta,
                 locale: $locale,
+                session: $sale->shiftSession,
             ));
         }
 
@@ -385,6 +388,7 @@ class FinanceDetailedExportData
                 actor: $expense->creator,
                 shiftMeta: $shiftMeta,
                 locale: $locale,
+                session: $expense->shiftSession,
             ));
         }
 
@@ -414,6 +418,7 @@ class FinanceDetailedExportData
                 actor: $payment->creator,
                 shiftMeta: $shiftMeta,
                 locale: $locale,
+                session: $payment->shiftSession,
             ));
         }
 
@@ -474,16 +479,19 @@ class FinanceDetailedExportData
         ?User $actor,
         Collection $shiftMeta,
         string $locale,
+        ?ShiftSession $session = null,
     ): array {
-        $matched = $this->shiftForTime($occurredAt, $shiftMeta);
-        $shift = $matched['shift'] ?? null;
+        $matched = $session?->employee_shift_id !== null
+            ? $shiftMeta->get($session->employee_shift_id)
+            : null;
+        $shift = $matched['shift'] ?? $session?->shift;
 
         return [
             'date' => $occurredAt->toDateString(),
             'transaction_at' => $this->dateTime($occurredAt),
             'shift' => $shift?->name ?? $this->t('outside_shift', $locale),
-            'shift_time' => $matched ? $matched['time_label'] : '',
-            'staff_on_shift' => $matched ? $matched['staff'] : '',
+            'shift_time' => $session ? $this->sessionWindow($session) : '',
+            'staff_on_shift' => $session?->openedByEmployee?->name ?? ($matched['staff'] ?? ''),
             'source' => $source,
             'record_id' => $recordId,
             'member' => $member,
@@ -502,40 +510,28 @@ class FinanceDetailedExportData
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $shiftMeta
-     * @return array<string, mixed>|null
+     * A subscription or add-on holds no session itself; the drawer it went
+     * through is the one that took its first payment.
+     *
+     * @param  Collection<int, Payment>  $payments
      */
-    private function shiftForTime(Carbon $time, Collection $shiftMeta): ?array
+    private function sessionOfFirstPayment(Collection $payments): ?ShiftSession
     {
-        $timeMinutes = ((int) $time->format('H')) * 60 + (int) $time->format('i');
-
-        return $shiftMeta->first(function (array $meta) use ($timeMinutes): bool {
-            $start = $meta['start'];
-            $end = $meta['end'];
-
-            if ($start === $end) {
-                return true;
-            }
-
-            if ($start < $end) {
-                return $timeMinutes >= $start && $timeMinutes < $end;
-            }
-
-            return $timeMinutes >= $start || $timeMinutes < $end;
-        });
+        return $payments->sortBy('created_at')->first()?->shiftSession;
     }
 
-    private function shiftTimeLabel(EmployeeShift $shift): string
+    /** The open-to-close window the money actually passed through. */
+    private function sessionWindow(ShiftSession $session): string
     {
-        return Carbon::parse($shift->starts_at)->format('g:i A').' - '.Carbon::parse($shift->ends_at)->format('g:i A');
+        $opened = $session->opened_at?->format('g:i A');
+
+        if (! $opened) {
+            return '';
+        }
+
+        return $opened.' - '.($session->closed_at?->format('g:i A') ?? '…');
     }
 
-    private function timeToMinutes(mixed $value): int
-    {
-        $time = Carbon::parse($value);
-
-        return ((int) $time->format('H')) * 60 + (int) $time->format('i');
-    }
 
     /**
      * @return array<int, array<string, mixed>>

@@ -113,11 +113,14 @@ type SubscriptionResource = {
   } | null;
   plan?: {
     id?: number;
+    price?: number | string | null;
     duration_days?: number | string | null;
     duration_months?: number | string | null;
     max_freeze_days?: number | string | null;
     min_freeze_days?: number | string | null;
     access_grace_days?: number | string | null;
+    freeze_requires_approval?: boolean | null;
+    is_sellable?: boolean | null;
     name?: string | null;
   } | null;
   freeze?: {
@@ -130,15 +133,21 @@ type SubscriptionResource = {
   } | null;
   addons?: {
     id: number;
+    plan_id?: number | null;
+    coach_id?: number | null;
+    status?: string | null;
     end_date?: string | null;
     price_paid?: string | number | null;
     paid_total?: string | number | null;
     sessions_total?: number | null;
     sessions_remaining?: number | null;
     plan?: {
+      id?: number | null;
       name?: string | null;
+      price?: string | number | null;
     } | null;
     coach?: {
+      id?: number | null;
       name?: string | null;
     } | null;
   }[];
@@ -159,6 +168,16 @@ type PlanResource = {
   /** null when the plan is unlimited — there is no session count to track. */
   sessions_count?: number | null;
   is_unlimited_sessions?: boolean | null;
+  /** Who may sell/service this plan — the backend rejects any other coach. */
+  employee_commission_rules?: Array<{
+    employee_id?: number | null;
+    is_active?: boolean | null;
+    employee?: {
+      id?: number | null;
+      name?: string | null;
+      role?: string | null;
+    } | null;
+  }> | null;
 };
 
 type CoachOptionResource = {
@@ -420,11 +439,22 @@ function mapSubscriptionToPipeline(
     memberQr: subscription.member?.attendance_qr ?? null,
     planId: subscription.plan?.id ?? null,
     plan: subscription.plan?.name ?? null,
+    // Renewal prices the NEXT period, so it must read the plan's live list price —
+    // `value` is the last period's price after whatever discount was given then.
+    planPrice: Number(subscription.plan?.price ?? matchingPlan?.price ?? baseValue),
+    planDurationDays: toNullableNumber(subscription.plan?.duration_days ?? matchingPlan?.duration_days),
+    planDurationMonths: toNullableNumber(subscription.plan?.duration_months ?? matchingPlan?.duration_months),
+    planIsSellable: subscription.plan?.is_sellable ?? Boolean(matchingPlan),
     addons: (subscription.addons ?? []).map((addon) => ({
       id: addon.id,
+      planId: addon.plan_id ?? addon.plan?.id ?? null,
+      coachId: addon.coach_id ?? addon.coach?.id ?? null,
+      status: addon.status ?? "active",
       name: addon.plan?.name ?? "",
       coach: addon.coach?.name ?? null,
       price: Number(addon.price_paid ?? 0),
+      // List price of the service — what re-buying it for the next period costs.
+      planPrice: Number(addon.plan?.price ?? addon.price_paid ?? 0),
       paidTotal: Number(addon.paid_total ?? 0),
       endDate: addon.end_date ?? null,
       sessionsTotal: addon.sessions_total ?? null,
@@ -444,6 +474,14 @@ function mapSubscriptionToPipeline(
         kind: category === "gym_access" ? ("main" as const) : ("extra" as const),
         sessionsCount: plan.sessions_count ?? null,
         isUnlimitedSessions: Boolean(plan.is_unlimited_sessions),
+        coaches: (plan.employee_commission_rules ?? [])
+          .filter((rule) => rule.is_active !== false)
+          .map((rule) => ({
+            id: Number(rule.employee?.id ?? rule.employee_id ?? 0),
+            name: rule.employee?.name ?? "",
+            role: rule.employee?.role ?? "coach",
+          }))
+          .filter((coach) => coach.id > 0 && coach.name !== ""),
       };
     }),
     coachOptions: coaches.map((coach) => ({
@@ -474,6 +512,7 @@ function mapSubscriptionToPipeline(
     reminderDays,
     maxFreezeDays: Number(subscription.plan?.max_freeze_days ?? 0),
     minFreezeDays: Number(subscription.plan?.min_freeze_days ?? 0),
+    freezeRequiresApproval: Boolean(subscription.plan?.freeze_requires_approval),
     freeze: subscription.freeze
       ? {
           freezeStart: subscription.freeze.freeze_start ?? null,
@@ -543,6 +582,16 @@ function getSubscriptionStatusPriority(status: string) {
     default:
       return 0;
   }
+}
+
+function toNullableNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function getDaysUntil(date: string | null | undefined) {

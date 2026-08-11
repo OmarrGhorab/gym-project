@@ -2,8 +2,7 @@
 
 namespace App\Actions\Reports;
 
-use App\Models\AttendanceViolation;
-use App\Models\AttendanceViolationRule;
+use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\Member;
@@ -117,12 +116,11 @@ final class SystemHealthSummary
         $withoutUser = Employee::query()->where('status', 'active')->whereNull('user_id')->count();
         $withoutCode = Employee::query()->where('status', 'active')->whereNull('attendance_code')->count();
         $activeShifts = EmployeeShift::query()->where('is_active', true)->count();
-        $rules = AttendanceViolationRule::query()->where('is_active', true)->count();
-        $pendingViolations = AttendanceViolation::query()->where('status', 'pending')->count();
+        $openAttendance = Attendance::query()->whereNotNull('check_in')->whereNull('check_out')->count();
 
         return [
             'name' => 'Staff & Attendance',
-            'description' => 'Employee shifts, QR scans, warnings, and payroll attendance impact.',
+            'description' => 'Employee shifts, QR scans, and days left without a check-out.',
             'rows' => [
                 $this->row(
                     'Staff roster',
@@ -139,16 +137,15 @@ final class SystemHealthSummary
                     '/dashboard/academy',
                 ),
                 $this->row(
-                    'Attendance rules',
-                    'Late, absence, early leave, and off-shift rules decide warning and deduction behavior.',
-                    ($activeShifts > 0 && $rules > 0) ? ($pendingViolations > 0 ? 'warning' : 'ready') : 'critical',
+                    'Attendance coverage',
+                    'Staff scan in and out against a named shift; nothing is judged against a clock.',
+                    $activeShifts > 0 ? ($openAttendance > 0 ? 'warning' : 'ready') : 'critical',
                     'Attendance',
-                    "{$pendingViolations} pending",
-                    AttendanceViolation::query()->latest()->value('updated_at'),
+                    "{$openAttendance} open",
+                    Attendance::query()->latest()->value('updated_at'),
                     [
                         $this->check('Active shifts', (string) $activeShifts, $activeShifts > 0 ? 'ready' : 'critical'),
-                        $this->check('Active rules', (string) $rules, $rules > 0 ? 'ready' : 'critical'),
-                        $this->check('Pending warnings', (string) $pendingViolations, $pendingViolations === 0 ? 'ready' : 'warning'),
+                        $this->check('Without check-out', (string) $openAttendance, $openAttendance === 0 ? 'ready' : 'warning'),
                     ],
                     '/dashboard/academy',
                 ),
@@ -210,15 +207,14 @@ final class SystemHealthSummary
     {
         $pendingPayroll = Payroll::query()->where('status', 'pending')->count();
         $paidPayroll = Payroll::query()->where('status', 'paid')->count();
-        $attendanceDeductions = (float) Payroll::query()->sum('attendance_deductions');
 
         return [
             'name' => 'Finance & Payroll',
-            'description' => 'Payroll receipts, salary deductions, and financial obligations.',
+            'description' => 'Payroll receipts, manual adjustments, and financial obligations.',
             'rows' => [
                 $this->row(
                     'Payroll receipts',
-                    'Salary receipt generation uses payroll records, attendance deductions, and employee snapshots.',
+                    'Salary receipts combine base pay, commissions, and the bonuses and deductions an admin enters.',
                     ($pendingPayroll + $paidPayroll) > 0 ? 'ready' : 'warning',
                     'Payroll',
                     "{$pendingPayroll} pending",
@@ -226,7 +222,6 @@ final class SystemHealthSummary
                     [
                         $this->check('Pending payroll', (string) $pendingPayroll, $pendingPayroll === 0 ? 'ready' : 'warning'),
                         $this->check('Paid payroll', (string) $paidPayroll, $paidPayroll > 0 ? 'ready' : 'warning'),
-                        $this->check('Attendance deductions', $this->money($attendanceDeductions), $attendanceDeductions > 0 ? 'warning' : 'ready'),
                     ],
                     '/dashboard/finance',
                 ),
@@ -247,7 +242,6 @@ final class SystemHealthSummary
         $hasGymCoordinates = filled($settings->get('attendance.gym_latitude'))
             && filled($settings->get('attendance.gym_longitude'))
             && filled($settings->get('attendance.gym_radius_meters'));
-        $hasGraceMinutes = filled($settings->get('attendance.default_grace_minutes'));
 
         return [
             'name' => 'Security & Settings',
@@ -270,13 +264,12 @@ final class SystemHealthSummary
                 $this->row(
                     'Gym attendance settings',
                     'Coordinates and radius are required for GPS geofence checks on member and staff scans.',
-                    ($hasGymCoordinates && $hasGraceMinutes) ? 'ready' : 'critical',
+                    $hasGymCoordinates ? 'ready' : 'critical',
                     'Settings',
                     $hasGymCoordinates ? 'geofence ready' : 'geofence missing',
                     Setting::query()->latest()->value('updated_at'),
                     [
                         $this->check('Gym coordinates', $hasGymCoordinates ? 'Configured' : 'Missing', $hasGymCoordinates ? 'ready' : 'critical'),
-                        $this->check('Grace minutes', $hasGraceMinutes ? 'Configured' : 'Missing', $hasGraceMinutes ? 'ready' : 'warning'),
                     ],
                     '/dashboard/settings',
                 ),

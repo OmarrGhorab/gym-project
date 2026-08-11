@@ -76,7 +76,9 @@ class CreateSubscription
                 'created_by' => $seller->id,
             ]);
 
-            if (bccomp($pricePaid, '0.00', 2) === 1) {
+            // Skip the payment row when there is nothing to settle (fully discounted)
+            // or nothing handed over yet (member pays later, balance stays due).
+            if (bccomp($pricePaid, '0.00', 2) === 1 && bccomp((string) ($data['payment']['amount'] ?? '0'), '0.00', 2) === 1) {
                 $this->recordPayment->handle($subscription, $data['payment'], $seller);
             }
 
@@ -137,7 +139,7 @@ class CreateSubscription
                     'created_by' => $seller->id,
                 ]);
 
-                if (bccomp($addonPricePaid, '0.00', 2) === 1) {
+                if (bccomp($addonPricePaid, '0.00', 2) === 1 && bccomp((string) ($addonData['payment']['amount'] ?? '0'), '0.00', 2) === 1) {
                     $this->recordPayment->handle($addon, $addonData['payment'], $seller);
                 }
             }
@@ -162,9 +164,17 @@ class CreateSubscription
 
     private function carryForwardActiveAddons(Subscription $subscription, Carbon $startDate): void
     {
+        // A service just bought on this subscription must not also pull the member's
+        // still-running copy of the same service across — that would show the extra twice.
+        $justPurchasedPlanIds = SubscriptionAddon::query()
+            ->where('subscription_id', $subscription->id)
+            ->pluck('plan_id')
+            ->all();
+
         SubscriptionAddon::query()
             ->where('member_id', $subscription->member_id)
             ->where('status', 'active')
+            ->whereNotIn('plan_id', $justPurchasedPlanIds)
             ->where(function ($query) use ($subscription): void {
                 $query->where('subscription_id', '!=', $subscription->id)
                     ->orWhereNull('subscription_id');

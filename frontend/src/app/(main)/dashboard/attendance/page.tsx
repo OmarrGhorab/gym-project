@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { AlertTriangle, Clock3, Download, LogIn, MapPinned, Users } from "lucide-react";
+import { AlertTriangle, Clock3, Download, FileText, LogIn, MapPinned, Users } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,6 @@ import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { AttendanceActionPanels } from "./_components/attendance-action-panels";
 import { AttendanceDayPicker } from "./_components/attendance-day-picker";
-import { AttendanceWarningsTable } from "./_components/attendance-warnings-table";
 import { getAttendancePageData } from "./_components/data";
 import { MemberVisitReviewActions } from "./_components/member-visit-review-actions";
 
@@ -19,11 +18,7 @@ type PageProps = {
   searchParams: Promise<{
     correction?: string;
     date?: string;
-    warning_employee_id?: string;
-    warning_page?: string;
-    warning_per_page?: string;
-    warning_status?: string;
-    warning_type?: string;
+    report_date?: string;
   }>;
 };
 
@@ -32,35 +27,23 @@ export default async function Page({ searchParams }: PageProps) {
   const locale = await getLocale();
   const numberFormatter = new Intl.NumberFormat(locale);
   const resolvedSearchParams = await searchParams;
-  const selectedDate = normalizeDate(resolvedSearchParams.date);
+  // The nightly report notification deep-links here with the day it covers.
+  const selectedDate = normalizeDate(readParam(resolvedSearchParams.report_date) ?? resolvedSearchParams.date);
   const selectedMonth = selectedDate.slice(0, 7);
-  const warningStatusParam = readParam(resolvedSearchParams.warning_status);
-  const warningFilters = {
-    employeeId: readParam(resolvedSearchParams.warning_employee_id),
-    page: readParam(resolvedSearchParams.warning_page) ?? "1",
-    perPage: readParam(resolvedSearchParams.warning_per_page) ?? "10",
-    status: warningStatusParam && warningStatusParam !== "all" ? warningStatusParam : undefined,
-    type: readParam(resolvedSearchParams.warning_type),
-  };
-  const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth, warnings: warningFilters });
+  const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth });
   const correctionRecordId = Number(resolvedSearchParams.correction);
   const correctionRecord = Number.isFinite(correctionRecordId)
     ? data.records.find((record) => record.id === correctionRecordId)
     : undefined;
   const dayTotals = data.records.reduce(
-    (acc, row) => {
-      const countsAsPresent =
-        !["off_shift", "unassigned"].includes(row.schedule_status ?? "") &&
-        (row.status === "present" || row.status === "late");
-
-      return {
-        absent: acc.absent + (row.status === "absent" ? 1 : 0),
-        late: acc.late + (row.status === "late" ? 1 : 0),
-        present: acc.present + (countsAsPresent ? 1 : 0),
-        records: acc.records + 1,
-      };
-    },
-    { absent: 0, late: 0, present: 0, records: 0 },
+    (acc, row) => ({
+      absent: acc.absent + (row.status === "absent" ? 1 : 0),
+      // Checked in and not yet signed out — the only open item on the day sheet.
+      stillIn: acc.stillIn + (row.check_in && !row.check_out ? 1 : 0),
+      present: acc.present + (row.status === "present" ? 1 : 0),
+      records: acc.records + 1,
+    }),
+    { absent: 0, present: 0, records: 0, stillIn: 0 },
   );
 
   return (
@@ -73,6 +56,7 @@ export default async function Page({ searchParams }: PageProps) {
         <div className="flex flex-wrap items-center gap-2">
           <AttendanceExportButtons
             labels={{
+              dailyReport: t("downloadDailyReport"),
               membersDaily: t("exportMembersDaily"),
               membersMonthly: t("exportMembersMonthly"),
               staffDaily: t("exportStaffDaily"),
@@ -87,7 +71,12 @@ export default async function Page({ searchParams }: PageProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <MetricCard icon={Users} label={t("recordsSelectedDay")} value={numberFormatter.format(dayTotals.records)} />
         <MetricCard icon={LogIn} label={t("present")} value={numberFormatter.format(dayTotals.present)} tone="ready" />
-        <MetricCard icon={Clock3} label={t("late")} value={numberFormatter.format(dayTotals.late)} tone="warning" />
+        <MetricCard
+          icon={Clock3}
+          label={t("stillIn")}
+          value={numberFormatter.format(dayTotals.stillIn)}
+          tone="warning"
+        />
         <MetricCard
           icon={AlertTriangle}
           label={t("absent")}
@@ -103,20 +92,6 @@ export default async function Page({ searchParams }: PageProps) {
         employees={data.employees}
         members={data.members}
         shifts={data.shifts}
-      />
-
-      <AttendanceWarningsTable
-        employees={data.employees}
-        filters={{
-          date: selectedDate,
-          employeeId: warningFilters.employeeId ?? "",
-          page: Number(warningFilters.page),
-          perPage: warningFilters.perPage,
-          status: warningFilters.status ?? "all",
-          type: warningFilters.type ?? "",
-        }}
-        meta={data.violationsMeta}
-        violations={data.violations}
       />
 
       <div className="grid grid-cols-1 gap-4">
@@ -139,11 +114,7 @@ export default async function Page({ searchParams }: PageProps) {
               </TableHeader>
               <TableBody>
                 {data.records.map((record) => {
-                  const displayStatus = getAttendanceDisplayStatus(
-                    record.status,
-                    record.schedule_status,
-                    record.check_out,
-                  );
+                  const displayStatus = getAttendanceDisplayStatus(record.status, record.check_out);
 
                   return (
                     <TableRow key={record.id}>
@@ -244,12 +215,9 @@ export default async function Page({ searchParams }: PageProps) {
               <TableRow>
                 <TableHead>{t("employee")}</TableHead>
                 <TableHead>{t("present")}</TableHead>
-                <TableHead>{t("late")}</TableHead>
                 <TableHead>{t("absent")}</TableHead>
-                <TableHead>{t("offDays")}</TableHead>
-                <TableHead>{t("lateMinutes")}</TableHead>
-                <TableHead>{t("earlyLeave")}</TableHead>
-                <TableHead>{t("offDayBonus")}</TableHead>
+                <TableHead>{t("excused")}</TableHead>
+                <TableHead>{t("stillIn")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -260,15 +228,12 @@ export default async function Page({ searchParams }: PageProps) {
                     <div className="text-muted-foreground text-xs">{row.role}</div>
                   </TableCell>
                   <TableCell>{numberFormatter.format(row.present_count)}</TableCell>
-                  <TableCell>{numberFormatter.format(row.late_count)}</TableCell>
                   <TableCell>{numberFormatter.format(row.absent_count)}</TableCell>
-                  <TableCell>{numberFormatter.format(row.off_day_count)}</TableCell>
-                  <TableCell>{formatDurationMinutes(row.late_minutes, locale)}</TableCell>
-                  <TableCell>{formatDurationMinutes(row.early_leave_minutes, locale)}</TableCell>
-                  <TableCell>EGP {row.off_day_bonus_amount}</TableCell>
+                  <TableCell>{numberFormatter.format(row.excused_count)}</TableCell>
+                  <TableCell>{numberFormatter.format(row.open_count)}</TableCell>
                 </TableRow>
               ))}
-              {data.summary.length === 0 ? <EmptyRow cols={8} label={t("noMonthlySummary")} /> : null}
+              {data.summary.length === 0 ? <EmptyRow cols={5} label={t("noMonthlySummary")} /> : null}
             </TableBody>
           </Table>
         </CardContent>
@@ -282,6 +247,7 @@ function AttendanceExportButtons({
   selectedDate,
 }: {
   labels: {
+    dailyReport: string;
     membersDaily: string;
     membersMonthly: string;
     staffDaily: string;
@@ -293,6 +259,15 @@ function AttendanceExportButtons({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <Button
+        nativeButton={false}
+        size="sm"
+        variant="outline"
+        render={<a href={`/api/attendance/daily-report?date=${selectedDate}`} />}
+      >
+        <FileText className="size-4" />
+        {labels.dailyReport}
+      </Button>
       <ExportButton href={`/api/attendance/export?resource=attendance&period=daily&date=${selectedDate}`}>
         {labels.staffDaily}
       </ExportButton>
@@ -352,23 +327,11 @@ function StatusBadge({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getAttendanceDisplayStatus(status: string, scheduleStatus: string | null, checkOut: string | null) {
-  if (checkOut) {
-    return "checked_out";
-  }
-
-  if (scheduleStatus && ["off_day", "off_shift", "unassigned"].includes(scheduleStatus)) {
-    return scheduleStatus;
-  }
-
-  return status;
+function getAttendanceDisplayStatus(status: string, checkOut: string | null) {
+  return checkOut ? "checked_out" : status;
 }
 
 function statusLabel(status: string, t: Awaited<ReturnType<typeof getTranslations<"Dashboard.attendance">>>) {
-  if (["off_day", "off_shift", "unassigned"].includes(status)) {
-    return t(`scheduleStatuses.${status}`);
-  }
-
   return t(`statuses.${status}`);
 }
 

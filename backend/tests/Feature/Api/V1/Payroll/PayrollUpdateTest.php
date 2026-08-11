@@ -104,8 +104,8 @@ test('manual payroll adjustment reasons are stored for the payslip', function ()
         'manual_deduction_reason' => 'Employee salary advance.',
     ])
         ->assertOk()
-        ->assertJsonPath('data.attendance_snapshot.manual_bonus_reason', 'Covered an extra class.')
-        ->assertJsonPath('data.attendance_snapshot.manual_deduction_reason', 'Employee salary advance.');
+        ->assertJsonPath('data.manual_bonus_reason', 'Covered an extra class.')
+        ->assertJsonPath('data.manual_deduction_reason', 'Employee salary advance.');
 
     $this->getJson("/api/v1/payroll/{$payroll->id}/payslip")
         ->assertOk()
@@ -113,8 +113,8 @@ test('manual payroll adjustment reasons are stored for the payslip', function ()
 
     $this->getJson("/api/v1/payroll?employee_id={$payroll->employee_id}&month={$payroll->month}")
         ->assertOk()
-        ->assertJsonPath('data.0.attendance_snapshot.manual_bonus_reason', 'Covered an extra class.')
-        ->assertJsonPath('data.0.attendance_snapshot.manual_deduction_reason', 'Employee salary advance.');
+        ->assertJsonPath('data.0.manual_bonus_reason', 'Covered an extra class.')
+        ->assertJsonPath('data.0.manual_deduction_reason', 'Employee salary advance.');
 });
 
 test('manual payroll amounts require a reason', function (): void {
@@ -135,7 +135,7 @@ test('manual payroll amounts require a reason', function (): void {
         'bonuses' => '200.00',
     ])
         ->assertUnprocessable()
-        ->assertJsonPath('error.details.manual_bonus_reason.0', 'Add a reason for the manual bonus.');
+        ->assertJsonPath('error.details.manual_bonus_reason.0', 'Add a reason for the bonus.');
 });
 
 test('an Arabic manual bonus reason is only emitted through the Arabic payslip field', function (): void {

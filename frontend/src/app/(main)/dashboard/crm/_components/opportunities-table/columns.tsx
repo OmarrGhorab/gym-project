@@ -6,7 +6,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { addDays, format, parseISO } from "date-fns";
+import { addDays, addMonths, format, parseISO } from "date-fns";
 import { CalendarIcon, EllipsisVertical } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
@@ -69,6 +69,8 @@ const healthStripSlots = Array.from({ length: 18 }, (_, index) => ({
 }));
 
 const paymentMethodItems = [{ value: "cash" }, { value: "card" }, { value: "bank_transfer" }] as const;
+
+type PaymentMethod = (typeof paymentMethodItems)[number]["value"];
 
 type SubscriptionAction = "renew" | "freeze" | "stop" | "unfreeze" | "cancel";
 type CrmT = ReturnType<typeof useTranslations<"Dashboard.crm">>;
@@ -145,6 +147,7 @@ export function getOpportunitiesColumns(
   t: CrmT,
   reminderDays: number[],
   canViewMoney: boolean,
+  canApproveFreeze: boolean,
 ): ColumnDef<MembershipPipelineRow>[] {
   const moneyColumns: ColumnDef<MembershipPipelineRow>[] = canViewMoney
     ? [
@@ -359,7 +362,12 @@ export function getOpportunitiesColumns(
       header: () => <div className="text-right">{t("actions")}</div>,
       cell: ({ row }) => (
         <div className="text-right">
-          <SubscriptionActions subscription={row.original} t={t} reminderDays={reminderDays} />
+          <SubscriptionActions
+            subscription={row.original}
+            t={t}
+            reminderDays={reminderDays}
+            canApproveFreeze={canApproveFreeze}
+          />
         </div>
       ),
       enableHiding: false,
@@ -373,10 +381,12 @@ function SubscriptionActions({
   subscription,
   t,
   reminderDays,
+  canApproveFreeze,
 }: {
   subscription: MembershipPipelineRow;
   t: CrmT;
   reminderDays: number[];
+  canApproveFreeze: boolean;
 }) {
   const router = useRouter();
   const locale = useLocale();
@@ -391,6 +401,9 @@ function SubscriptionActions({
   const [resumeOnDate, setResumeOnDate] = React.useState(() => getTodayDateString());
   const [cancelAddonId, setCancelAddonId] = React.useState<number | null>(null);
   const [cancelRefundScope, setCancelRefundScope] = React.useState<"full_package" | "main_plan">("full_package");
+  const [renewDiscount, setRenewDiscount] = React.useState("0");
+  const [renewAmount, setRenewAmount] = React.useState(() => formatMoneyInput(subscription.planPrice));
+  const [renewAddons, setRenewAddons] = React.useState<Record<number, { selected: boolean; coachId: string }>>({});
 
   const dialogPlans: PlanRow[] = React.useMemo(
     () =>
@@ -490,13 +503,36 @@ function SubscriptionActions({
     };
   }, [subscription]);
   const [cancelRefundAmount, setCancelRefundAmount] = React.useState(() => subscription.defaultRefundAmount.toFixed(2));
+  const renewDiscountValue = Math.max(0, Number(renewDiscount) || 0);
+  const renewAmountValue = Math.max(0, Number(renewAmount) || 0);
+  const renewTotalDue = Math.max(0, subscription.planPrice - renewDiscountValue);
+  const renewRemainingBalance = Math.max(0, renewTotalDue - renewAmountValue);
+  const renewOverpayment = Math.max(0, renewAmountValue - renewTotalDue);
+  const renewPeriod = getRenewPeriod(subscription);
+  // Extras that ended or were refunded have to be re-bought; ones still running are
+  // moved onto the new period by the backend, so offering them again would duplicate.
+  const { renewable: renewableAddons, carried: carriedAddons } = splitAddonsForRenewal(subscription, renewPeriod.start);
+  const selectedRenewAddons = renewableAddons.filter((addon) => renewAddons[addon.id]?.selected);
+  const renewAddonsTotal = selectedRenewAddons.reduce((sum, addon) => sum + addon.planPrice, 0);
+  const renewPackageTotal = renewTotalDue + renewAddonsTotal;
+  const isRenewInvalid =
+    renewDiscountValue > subscription.planPrice ||
+    !subscription.planIsSellable ||
+    selectedRenewAddons.some((addon) => !addon.planId || !renewAddons[addon.id]?.coachId);
   const selectedFreezeDays = getInclusiveDays(freezeStartDate, freezeEndDate);
   const freezeEndRange = getFreezeEndRange(freezeStartDate, subscription.minFreezeDays, subscription.maxFreezeDays);
   const isFreezeDurationInvalid =
     selectedFreezeDays === null ||
     (subscription.minFreezeDays > 0 && selectedFreezeDays < subscription.minFreezeDays) ||
     selectedFreezeDays > subscription.maxFreezeDays;
-  const freezeDisabledReason = subscription.maxFreezeDays < 1 ? t("freezeUnavailableReason") : null;
+  // An approval-only plan is not blocked outright — it is blocked for staff who
+  // cannot sign it off, which is what the backend enforces.
+  const freezeDisabledReason =
+    subscription.maxFreezeDays < 1
+      ? t("freezeUnavailableReason")
+      : subscription.freezeRequiresApproval && !canApproveFreeze
+        ? t("freezeApprovalMissing")
+        : null;
   const backendActions = getBackendActions(subscription.status);
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
   const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
@@ -541,26 +577,59 @@ function SubscriptionActions({
     }
   }
 
+  /** Discount reprices the renewal, so the amount collected follows it unless staff override it after. */
+  function updateRenewDiscount(value: string) {
+    setRenewDiscount(value);
+
+    const nextDiscount = Math.max(0, Number(value) || 0);
+
+    setRenewAmount(formatMoneyInput(Math.max(0, subscription.planPrice - nextDiscount)));
+  }
+
   async function submitRenew(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const formData = new FormData(event.currentTarget);
-    const amount = String(formData.get("amount") ?? "").trim();
-    const discount = String(formData.get("discount") ?? "").trim();
-
-    if (!amount || Number(amount) <= 0) {
+    if (renewAmount.trim() === "" || renewAmountValue < 0) {
       toast.error(t("paymentAmountRequired"));
+      return;
+    }
+
+    if (renewDiscountValue > subscription.planPrice) {
+      toast.error(t("renewDiscountTooLarge", { price: formatCurrency(subscription.planPrice, { currency: "EGP" }) }));
+      return;
+    }
+
+    const addonPayload = selectedRenewAddons.flatMap((addon) => {
+      const coachId = Number(renewAddons[addon.id]?.coachId);
+
+      if (!addon.planId || !Number.isFinite(coachId) || coachId <= 0) {
+        return [];
+      }
+
+      return [
+        {
+          plan_id: addon.planId,
+          coach_id: coachId,
+          discount: "0.00",
+          payment: { amount: addon.planPrice.toFixed(2), method: paymentMethod },
+        },
+      ];
+    });
+
+    if (addonPayload.length !== selectedRenewAddons.length) {
+      toast.error(t("renewExtraCoachRequired"));
       return;
     }
 
     setPendingAction("renew");
 
     const result = await renewMembershipSubscription(subscription.subscriptionId, {
-      ...(discount ? { discount } : {}),
+      discount: renewDiscountValue.toFixed(2),
       payment: {
-        amount,
+        amount: renewAmountValue.toFixed(2),
         method: paymentMethod,
       },
+      ...(addonPayload.length > 0 ? { addons: addonPayload } : {}),
     });
 
     finishAction(result);
@@ -649,6 +718,26 @@ function SubscriptionActions({
       if (action === "freeze" && freezeDisabledReason) {
         toast.error(t("freezeUnavailable"), { description: freezeDisabledReason });
         return;
+      }
+
+      if (action === "renew") {
+        // Reprice from the plan every time the dialog opens — a stale amount from a
+        // previous attempt would silently under- or over-charge the new period.
+        setRenewDiscount("0");
+        setRenewAmount(formatMoneyInput(subscription.planPrice));
+        setRenewAddons(
+          Object.fromEntries(
+            subscription.addons.map((addon) => {
+              const options = getAddonCoachOptions(subscription, addon.planId);
+              // Keep the previous coach only while they still service this plan;
+              // otherwise fall back to the first eligible one.
+              const previousStillEligible = options.some((coach) => coach.id === addon.coachId);
+              const defaultCoach = previousStillEligible ? addon.coachId : (options[0]?.id ?? null);
+
+              return [addon.id, { selected: false, coachId: defaultCoach ? String(defaultCoach) : "" }];
+            }),
+          ),
+        );
       }
 
       setDialogMode(action);
@@ -878,16 +967,162 @@ function SubscriptionActions({
                 <div className="font-medium text-sm">{t("renewSubscription")}</div>
                 <p className="text-muted-foreground text-xs">{t("renewDescription")}</p>
               </div>
+
+              <div className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs">
+                <div className="font-semibold text-foreground text-xs uppercase tracking-wider">
+                  {t("renewSummary")}
+                </div>
+                <SummaryRow label={t("member")} value={subscription.member ?? t("notLinked")} />
+                <SummaryRow label={t("plan")} value={subscription.plan ?? t("noPlan")} />
+                <SummaryRow
+                  label={t("renewNewPeriod")}
+                  value={formatSubscriptionPeriod(renewPeriod.start, renewPeriod.end, t)}
+                />
+                <SummaryRow
+                  label={t("planPrice")}
+                  value={formatCurrency(subscription.planPrice, { currency: "EGP" })}
+                />
+                <SummaryRow
+                  label={t("discount")}
+                  value={`- ${formatCurrency(renewDiscountValue, { currency: "EGP" })}`}
+                />
+                {selectedRenewAddons.map((addon) => (
+                  <SummaryRow
+                    key={`summary-${addon.id}`}
+                    label={`+ ${addon.name}`}
+                    value={formatCurrency(addon.planPrice, { currency: "EGP" })}
+                  />
+                ))}
+                {carriedAddons.map((addon) => (
+                  <SummaryRow
+                    key={`carried-${addon.id}`}
+                    label={`+ ${addon.name}`}
+                    value={t("renewExtraCarriedOver")}
+                  />
+                ))}
+                <div className="flex justify-between border-t pt-1.5 font-semibold text-foreground">
+                  <span>{t("renewTotalDue")}</span>
+                  <span className="font-mono tabular-nums">
+                    {formatCurrency(renewPackageTotal, { currency: "EGP" })}
+                  </span>
+                </div>
+                <SummaryRow
+                  label={t("renewPayingNow")}
+                  value={formatCurrency(renewAmountValue + renewAddonsTotal, { currency: "EGP" })}
+                />
+                {renewRemainingBalance > 0 ? (
+                  <SummaryRow
+                    label={t("renewRemainingBalance")}
+                    value={formatCurrency(renewRemainingBalance, { currency: "EGP" })}
+                  />
+                ) : null}
+                {renewOverpayment > 0 ? (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    {t("renewExtraCredit", { amount: formatCurrency(renewOverpayment, { currency: "EGP" }) })}
+                  </p>
+                ) : null}
+                {renewDiscountValue > subscription.planPrice ? (
+                  <p className="text-[11px] text-red-700 dark:text-red-300">
+                    {t("renewDiscountTooLarge", {
+                      price: formatCurrency(subscription.planPrice, { currency: "EGP" }),
+                    })}
+                  </p>
+                ) : null}
+                {subscription.planIsSellable ? null : (
+                  <p className="text-[11px] text-red-700 dark:text-red-300">{t("renewPlanUnavailable")}</p>
+                )}
+              </div>
+
+              {renewableAddons.length > 0 ? (
+                <div className="grid gap-2 rounded-md border p-3">
+                  <div>
+                    <div className="font-medium text-sm">{t("renewExtrasTitle")}</div>
+                    <p className="text-muted-foreground text-xs">{t("renewExtrasDescription")}</p>
+                  </div>
+                  {renewableAddons.map((addon) => {
+                    const entry = renewAddons[addon.id] ?? { selected: false, coachId: "" };
+                    // Only coaches with an active commission rule on this service can be
+                    // sold it — anyone else is rejected by the API on submit.
+                    const addonCoaches = getAddonCoachOptions(subscription, addon.planId);
+                    const hasCoach = addonCoaches.length > 0;
+
+                    return (
+                      <div key={addon.id} className="grid gap-2 rounded-md bg-muted/30 p-2.5">
+                        <label className="flex items-start gap-2 text-sm" htmlFor={fieldId(`renew-extra-${addon.id}`)}>
+                          <Checkbox
+                            id={fieldId(`renew-extra-${addon.id}`)}
+                            checked={entry.selected}
+                            disabled={!addon.planId || !hasCoach}
+                            onCheckedChange={(checked) =>
+                              setRenewAddons((current) => ({
+                                ...current,
+                                [addon.id]: { ...entry, selected: Boolean(checked) },
+                              }))
+                            }
+                          />
+                          <span className="grid gap-0.5">
+                            <span className="font-medium">{addon.name}</span>
+                            <span className="text-muted-foreground text-xs">
+                              {formatCurrency(addon.planPrice, { currency: "EGP" })}
+                              {addon.sessionsTotal ? ` · ${t("daysValue", { count: addon.sessionsTotal })}` : ""}
+                            </span>
+                            {hasCoach ? null : (
+                              <span className="text-[11px] text-red-700 dark:text-red-300">
+                                {t("renewExtraNoCoachAssigned")}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                        {entry.selected && hasCoach ? (
+                          <div className="grid gap-1.5 text-xs">
+                            {t("selectCoach")}
+                            <Select
+                              value={entry.coachId}
+                              onValueChange={(value) =>
+                                setRenewAddons((current) => ({
+                                  ...current,
+                                  [addon.id]: { ...entry, coachId: value ?? "" },
+                                }))
+                              }
+                            >
+                              <SelectTrigger id={fieldId(`renew-extra-coach-${addon.id}`)} className="w-full">
+                                {/* Base UI renders the raw value unless it is told how to label it. */}
+                                <SelectValue placeholder={t("selectCoach")}>
+                                  {(value) =>
+                                    addonCoaches.find((coach) => String(coach.id) === String(value))?.name ??
+                                    t("selectCoach")
+                                  }
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {addonCoaches.map((coach) => (
+                                    <SelectItem key={coach.id} value={String(coach.id)}>
+                                      {coach.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("renew-amount")}>
-                  {t("paymentAmount")}
+                  {t("renewMainPlanPayment")}
                   <Input
                     id={fieldId("renew-amount")}
                     name="amount"
                     type="number"
-                    min="0.01"
+                    min="0"
                     step="0.01"
-                    defaultValue={subscription.value || ""}
+                    value={renewAmount}
+                    onChange={(event) => setRenewAmount(event.currentTarget.value)}
                   />
                 </label>
                 <label className="grid gap-1.5 text-sm" htmlFor={fieldId("renew-discount")}>
@@ -897,8 +1132,10 @@ function SubscriptionActions({
                     name="discount"
                     type="number"
                     min="0"
+                    max={subscription.planPrice}
                     step="0.01"
-                    defaultValue="0"
+                    value={renewDiscount}
+                    onChange={(event) => updateRenewDiscount(event.currentTarget.value)}
                   />
                 </label>
               </div>
@@ -909,7 +1146,9 @@ function SubscriptionActions({
                   onValueChange={(value) => setPaymentMethod(value as "cash" | "card" | "bank_transfer")}
                 >
                   <SelectTrigger id={fieldId("renew-method")} className="w-full">
-                    <SelectValue placeholder={t("selectPaymentMethod")} />
+                    <SelectValue placeholder={t("selectPaymentMethod")}>
+                      {(value) => (value ? t(`paymentMethods.${value as PaymentMethod}`) : t("selectPaymentMethod"))}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -926,7 +1165,7 @@ function SubscriptionActions({
                 <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
                   {t("cancel")}
                 </Button>
-                <Button type="submit" size="sm" disabled={pendingAction !== null}>
+                <Button type="submit" size="sm" disabled={pendingAction !== null || isRenewInvalid}>
                   {pendingAction === "renew" ? t("renewing") : t("renew")}
                 </Button>
               </div>
@@ -962,7 +1201,9 @@ function SubscriptionActions({
                     onValueChange={(value) => setPaymentMethod(value as "cash" | "card" | "bank_transfer")}
                   >
                     <SelectTrigger id={fieldId("payment-method")} className="w-full">
-                      <SelectValue placeholder={t("selectPaymentMethod")} />
+                      <SelectValue placeholder={t("selectPaymentMethod")}>
+                        {(value) => (value ? t(`paymentMethods.${value as PaymentMethod}`) : t("selectPaymentMethod"))}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
@@ -1111,7 +1352,9 @@ function SubscriptionActions({
                   onValueChange={(value) => setPaymentMethod(value as "cash" | "card" | "bank_transfer")}
                 >
                   <SelectTrigger id={fieldId("cancel-method")} className="w-full">
-                    <SelectValue placeholder={t("selectPaymentMethod")} />
+                    <SelectValue placeholder={t("selectPaymentMethod")}>
+                      {(value) => (value ? t(`paymentMethods.${value as PaymentMethod}`) : t("selectPaymentMethod"))}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -1152,6 +1395,12 @@ function SubscriptionActions({
                   selected: selectedFreezeDays ?? 0,
                 })}
               </div>
+              {subscription.freezeRequiresApproval ? (
+                <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300">
+                  {t("freezeNeedsApproval")}{" "}
+                  {canApproveFreeze ? t("freezeApprovalGranted") : t("freezeApprovalMissing")}
+                </div>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
                 <DatePickerField
                   id={fieldId("freeze-start")}
@@ -1492,6 +1741,15 @@ function getDialogDescription(mode: DialogMode, t: CrmT) {
   }
 }
 
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium font-mono tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 function DetailRow({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 px-3 py-2">
@@ -1544,6 +1802,63 @@ function clampDateString(value: string, min: Date, max: Date) {
   }
 
   return value;
+}
+
+function formatMoneyInput(value: number) {
+  return Number.isFinite(value) && value > 0 ? String(Number(value.toFixed(2))) : "0";
+}
+
+/**
+ * Mirrors RenewSubscription + Plan::endDateFrom so staff see the period they are
+ * buying before they commit: closed periods restart today, live ones stack.
+ */
+function getRenewPeriod(subscription: MembershipPipelineRow) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const currentEnd = parseDateString(subscription.endDate ?? "");
+  const isClosed = subscription.status === "stopped" || subscription.status === "expired";
+  const start = !isClosed && currentEnd && currentEnd >= today ? addDays(currentEnd, 1) : today;
+
+  const months = subscription.planDurationMonths ?? 0;
+  const end = months > 0 ? addMonths(start, months) : addDays(start, Math.max(0, subscription.planDurationDays ?? 0));
+
+  return { start: formatDateString(start), end: formatDateString(end) };
+}
+
+/**
+ * Coaches the API will accept for an extra service: those holding an active
+ * commission rule on that plan (CreateSubscription::coachCanSellAddon). Anyone
+ * else fails validation, so they must never reach the dropdown.
+ */
+function getAddonCoachOptions(subscription: MembershipPipelineRow, planId: number | null) {
+  if (planId === null) {
+    return [];
+  }
+
+  return subscription.planOptions.find((plan) => plan.id === planId)?.coaches ?? [];
+}
+
+/**
+ * Mirrors CreateSubscription::carryForwardActiveAddons — an extra that is still
+ * active on the renewal start date follows the member to the new period for free,
+ * so only the closed ones are offered for re-purchase.
+ */
+function splitAddonsForRenewal(subscription: MembershipPipelineRow, renewStart: string) {
+  const renewable: MembershipPipelineRow["addons"] = [];
+  const carried: MembershipPipelineRow["addons"] = [];
+
+  for (const addon of subscription.addons) {
+    const stillRunning = addon.status === "active" && (addon.endDate === null || addon.endDate >= renewStart);
+
+    if (stillRunning) {
+      carried.push(addon);
+    } else {
+      renewable.push(addon);
+    }
+  }
+
+  return { renewable, carried };
 }
 
 function getInclusiveDays(start: string, end: string) {

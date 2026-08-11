@@ -82,10 +82,6 @@ final class UpdateSettings
             foreach ([
                 'schedule_mode',
                 'default_pay_day',
-                'clean_attendance_bonus_enabled',
-                'clean_attendance_bonus_percentage',
-                'coach_performance_bonus_enabled',
-                'coach_performance_bonus_percentage',
             ] as $key) {
                 if (array_key_exists($key, $validated['payroll'])) {
                     $flat["payroll.{$key}"] = $validated['payroll'][$key];
@@ -94,7 +90,7 @@ final class UpdateSettings
         }
 
         if (isset($validated['shifts'])) {
-            foreach (['auto_open_enabled', 'require_cash_count', 'enforce_schedule_window', 'handover_auto_accept', 'handover_auto_accept_on_match_only', 'require_handover_to_open'] as $key) {
+            foreach (['require_cash_count', 'handover_auto_accept', 'handover_auto_accept_on_match_only', 'require_handover_to_open'] as $key) {
                 if (array_key_exists($key, $validated['shifts'])) {
                     $flat["shifts.{$key}"] = $validated['shifts'][$key];
                 }
@@ -102,7 +98,7 @@ final class UpdateSettings
         }
 
         if (isset($validated['attendance'])) {
-            foreach (['gym_latitude', 'gym_longitude', 'gym_radius_meters', 'default_grace_minutes', 'duplicate_scan_grace_minutes'] as $key) {
+            foreach (['gym_latitude', 'gym_longitude', 'gym_radius_meters'] as $key) {
                 if (array_key_exists($key, $validated['attendance'])) {
                     $flat["attendance.{$key}"] = $validated['attendance'][$key];
                 }

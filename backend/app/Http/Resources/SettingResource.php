@@ -37,31 +37,17 @@ class SettingResource extends JsonResource
             'payroll' => [
                 'schedule_mode' => $settings['payroll.schedule_mode'] ?? 'fixed',
                 'default_pay_day' => isset($settings['payroll.default_pay_day']) ? (int) $settings['payroll.default_pay_day'] : 30,
-                'clean_attendance_bonus_enabled' => (bool) ($settings['payroll.clean_attendance_bonus_enabled'] ?? true),
-                'clean_attendance_bonus_percentage' => isset($settings['payroll.clean_attendance_bonus_percentage'])
-                    ? (float) $settings['payroll.clean_attendance_bonus_percentage']
-                    : 2.0,
-                'coach_performance_bonus_enabled' => (bool) ($settings['payroll.coach_performance_bonus_enabled'] ?? true),
-                'coach_performance_bonus_percentage' => isset($settings['payroll.coach_performance_bonus_percentage'])
-                    ? (float) $settings['payroll.coach_performance_bonus_percentage']
-                    : 3.0,
             ],
             'attendance' => [
                 'gym_latitude' => isset($settings['attendance.gym_latitude']) ? (float) $settings['attendance.gym_latitude'] : null,
                 'gym_longitude' => isset($settings['attendance.gym_longitude']) ? (float) $settings['attendance.gym_longitude'] : null,
                 'gym_radius_meters' => isset($settings['attendance.gym_radius_meters']) ? (int) $settings['attendance.gym_radius_meters'] : 150,
-                'default_grace_minutes' => isset($settings['attendance.default_grace_minutes']) ? (int) $settings['attendance.default_grace_minutes'] : 15,
-                'duplicate_scan_grace_minutes' => isset($settings['attendance.duplicate_scan_grace_minutes'])
-                    ? (float) $settings['attendance.duplicate_scan_grace_minutes']
-                    : 2.0,
             ],
             'shifts' => [
                 // Defaults describe a desk that is driven by hand: nothing opens on a
                 // schedule, and nothing stands between an employee and starting their
                 // shift. Both can be switched back on from Settings.
-                'auto_open_enabled' => (bool) ($settings['shifts.auto_open_enabled'] ?? false),
                 'require_cash_count' => (bool) ($settings['shifts.require_cash_count'] ?? false),
-                'enforce_schedule_window' => (bool) ($settings['shifts.enforce_schedule_window'] ?? false),
                 'handover_auto_accept' => (bool) ($settings['shifts.handover_auto_accept'] ?? false),
                 'handover_auto_accept_on_match_only' => (bool) ($settings['shifts.handover_auto_accept_on_match_only'] ?? true),
                 'require_handover_to_open' => (bool) ($settings['shifts.require_handover_to_open'] ?? false),

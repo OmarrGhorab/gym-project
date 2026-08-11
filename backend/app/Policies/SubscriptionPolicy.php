@@ -38,6 +38,12 @@ class SubscriptionPolicy
         return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE);
     }
 
+    /** Sign off a freeze on a plan flagged `freeze_requires_approval`. */
+    public function approveFreeze(User $user, Subscription $subscription): bool
+    {
+        return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE);
+    }
+
     public function stop(User $user, Subscription $subscription): bool
     {
         return $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_STOP);

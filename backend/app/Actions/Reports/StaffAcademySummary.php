@@ -3,7 +3,6 @@
 namespace App\Actions\Reports;
 
 use App\Models\Attendance;
-use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\OperationsCalendarEvent;
@@ -30,16 +29,20 @@ final class StaffAcademySummary
         $activeEmployees = Employee::query()->active()->count();
         $monthlyAttendance = Attendance::query()
             ->whereBetween('date', [$monthStart, $monthEnd])
-            ->get(['status', 'late_minutes', 'early_leave_minutes']);
-        $attended = $monthlyAttendance->whereIn('status', ['present', 'late'])->count();
+            ->get(['status']);
+        $attended = $monthlyAttendance->where('status', 'present')->count();
         $attendanceRate = $monthlyAttendance->isNotEmpty()
             ? ($attended / max($monthlyAttendance->count(), 1)) * 100
             : 0.0;
 
         $todayAttendance = Attendance::query()
             ->whereDate('date', $today)
-            ->get(['status', 'schedule_status', 'approval_status']);
-        $pendingViolations = AttendanceViolation::query()->where('status', 'pending')->count();
+            ->get(['status', 'check_in', 'check_out']);
+        // Nobody signed them out — the only attendance state left that needs a look.
+        $openAttendance = Attendance::query()
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->count();
         $pendingPayroll = Payroll::query()->where('status', 'pending')->count();
 
         return [
@@ -62,9 +65,9 @@ final class StaffAcademySummary
                     'trend' => null,
                 ],
                 [
-                    'label' => 'Warnings Pending',
-                    'value' => $pendingViolations,
-                    'detail' => 'needs admin decision',
+                    'label' => 'Open Attendance',
+                    'value' => $openAttendance,
+                    'detail' => 'checked in with no check-out',
                     'trend' => null,
                 ],
                 [
@@ -75,14 +78,15 @@ final class StaffAcademySummary
                 ],
             ],
             'shift_schedule' => $this->shiftSchedule($now),
-            'warning_status' => $this->warningStatus($monthStart, $monthEnd),
+            'attendance_exceptions' => $this->attendanceExceptions($monthStart, $monthEnd),
             'performance_highlights' => $this->performanceHighlights($monthStart, $monthEnd),
             'upcoming_events' => $this->upcomingEvents($now),
             'today' => [
-                'checked_in' => $todayAttendance->whereIn('status', ['present', 'late'])->count(),
-                'late' => $todayAttendance->where('status', 'late')->count(),
-                'off_shift' => $todayAttendance->where('schedule_status', 'off_shift')->count(),
-                'pending_approval' => $todayAttendance->where('approval_status', 'pending')->count(),
+                'checked_in' => $todayAttendance->where('status', 'present')->count(),
+                'absent' => $todayAttendance->where('status', 'absent')->count(),
+                'still_in' => $todayAttendance
+                    ->filter(fn (Attendance $row): bool => $row->check_in !== null && $row->check_out === null)
+                    ->count(),
             ],
         ];
     }
@@ -96,103 +100,49 @@ final class StaffAcademySummary
             ->with(['employees' => fn ($query) => $query->active()->orderBy('name')->select('id', 'name', 'role', 'shift_id')])
             ->withCount(['employees' => fn ($query) => $query->active()])
             ->where('is_active', true)
-            ->orderBy('starts_at')
+            ->orderBy('name')
             ->limit(6)
             ->get()
-            ->map(function (EmployeeShift $shift) use ($now): array {
-                $startsAtValue = $shift->starts_at instanceof \DateTimeInterface ? $shift->starts_at->format('H:i:s') : (string) $shift->starts_at;
-                $endsAtValue = $shift->ends_at instanceof \DateTimeInterface ? $shift->ends_at->format('H:i:s') : (string) $shift->ends_at;
-                $startsAt = CarbonImmutable::parse($now->toDateString().' '.$startsAtValue);
-                $endsAt = CarbonImmutable::parse($now->toDateString().' '.$endsAtValue);
-                $status = match (true) {
-                    $now->between($startsAt, $endsAt) => 'in_progress',
-                    $now->lessThan($startsAt) => 'upcoming',
-                    default => 'completed',
-                };
-
-                return [
-                    'id' => $shift->id,
-                    'name' => $shift->name,
-                    'time' => $startsAt->format('H:i').' - '.$endsAt->format('H:i'),
-                    'date' => $now->toDateString(),
-                    'staff_count' => $shift->employees_count,
-                    'staff_names' => $shift->employees
-                        ->map(fn (Employee $employee): string => "{$employee->name} ({$employee->role})")
-                        ->values()
-                        ->all(),
-                    'grace_minutes' => $shift->grace_minutes,
-                    'status' => $status,
-                ];
-            })
+            ->map(fn (EmployeeShift $shift): array => [
+                'id' => $shift->id,
+                'name' => $shift->name,
+                'date' => $now->toDateString(),
+                'staff_count' => $shift->employees_count,
+                'staff_names' => $shift->employees
+                    ->map(fn (Employee $employee): string => "{$employee->name} ({$employee->role})")
+                    ->values()
+                    ->all(),
+            ])
             ->values()
             ->all();
     }
 
     /**
-     * @return array<int, array{label: string, warning: int, approved: int, pending: int, auto_applied: int}>
+     * Attendance exceptions read straight off the attendance rows themselves —
+     * there is no rulebook behind them any more, so a row is either still
+     * waiting on an admin decision or already settled.
+     *
+     * @return array<int, array{label: string, pending: int, reviewed: int}>
      */
-    private function warningStatus(string $from, string $to): array
+    private function attendanceExceptions(string $from, string $to): array
     {
         $rows = [
-            'late' => ['label' => 'Late', 'warning' => 0, 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
-            'absence' => ['label' => 'Absence', 'warning' => 0, 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
-            'off_shift' => ['label' => 'Off shift', 'warning' => 0, 'approved' => 0, 'pending' => 0, 'auto_applied' => 0],
+            'absence' => ['label' => 'Absence', 'pending' => 0, 'reviewed' => 0],
+            'no_check_out' => ['label' => 'No check-out', 'pending' => 0, 'reviewed' => 0],
+            'off_site' => ['label' => 'Off-site scan', 'pending' => 0, 'reviewed' => 0],
         ];
-
-        $violations = AttendanceViolation::query()
-            ->whereBetween('violation_date', [$from, $to])
-            ->selectRaw('type')
-            ->selectRaw("SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warning_count")
-            ->selectRaw("SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count")
-            ->selectRaw("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count")
-            ->selectRaw("SUM(CASE WHEN status = 'auto_applied' THEN 1 ELSE 0 END) as auto_applied_count")
-            ->groupBy('type')
-            ->orderBy('type')
-            ->get();
-
-        foreach ($violations as $violation) {
-            $type = (string) $violation->type;
-
-            if (! isset($rows[$type])) {
-                $rows[$type] = [
-                    'label' => str($type)->replace('_', ' ')->headline()->toString(),
-                    'warning' => 0,
-                    'approved' => 0,
-                    'pending' => 0,
-                    'auto_applied' => 0,
-                ];
-            }
-
-            $rows[$type]['warning'] += (int) $violation->warning_count;
-            $rows[$type]['approved'] += (int) $violation->approved_count;
-            $rows[$type]['pending'] += (int) $violation->pending_count;
-            $rows[$type]['auto_applied'] += (int) $violation->auto_applied_count;
-        }
-
-        $existingViolationKeys = AttendanceViolation::query()
-            ->whereBetween('violation_date', [$from, $to])
-            ->whereNotNull('attendance_id')
-            ->get(['attendance_id', 'type'])
-            ->mapWithKeys(fn (AttendanceViolation $violation): array => [
-                $violation->attendance_id.'|'.$violation->type => true,
-            ]);
 
         Attendance::query()
             ->whereBetween('date', [$from, $to])
-            ->where(function ($query): void {
-                $query->where('status', 'late')
-                    ->orWhere('status', 'absent')
-                    ->orWhere('schedule_status', 'off_shift');
-            })
-            ->get(['id', 'status', 'schedule_status', 'approval_status'])
-            ->each(function (Attendance $attendance) use (&$rows, $existingViolationKeys): void {
-                foreach ($this->attendanceWarningTypes($attendance) as $type) {
-                    if ($existingViolationKeys->has($attendance->id.'|'.$type)) {
-                        continue;
-                    }
+            ->get(['id', 'status', 'check_in', 'check_out', 'check_in_location_status', 'check_out_location_status'])
+            ->each(function (Attendance $attendance) use (&$rows): void {
+                // "Pending" is now simply an open day; anything closed has been settled.
+                $bucket = $attendance->check_in !== null && $attendance->check_out === null
+                    ? 'pending'
+                    : 'reviewed';
 
-                    $status = $attendance->approval_status === 'pending' ? 'pending' : 'warning';
-                    $rows[$type][$status]++;
+                foreach ($this->attendanceExceptionTypes($attendance) as $type) {
+                    $rows[$type][$bucket]++;
                 }
             });
 
@@ -202,20 +152,20 @@ final class StaffAcademySummary
     /**
      * @return array<int, string>
      */
-    private function attendanceWarningTypes(Attendance $attendance): array
+    private function attendanceExceptionTypes(Attendance $attendance): array
     {
         $types = [];
-
-        if ($attendance->status === 'late') {
-            $types[] = 'late';
-        }
 
         if ($attendance->status === 'absent') {
             $types[] = 'absence';
         }
 
-        if ($attendance->schedule_status === 'off_shift') {
-            $types[] = 'off_shift';
+        if ($attendance->check_in !== null && $attendance->check_out === null) {
+            $types[] = 'no_check_out';
+        }
+
+        if (in_array('outside', [$attendance->check_in_location_status, $attendance->check_out_location_status], true)) {
+            $types[] = 'off_site';
         }
 
         return $types;
@@ -233,7 +183,7 @@ final class StaffAcademySummary
                 DB::table('attendance')
                     ->select('employee_id', DB::raw('COUNT(*) as attendance_count'))
                     ->whereBetween('date', [$from, $to])
-                    ->whereIn('status', ['present', 'late'])
+                    ->where('status', 'present')
                     ->groupBy('employee_id'),
                 'a',
                 'employees.id',
@@ -261,9 +211,16 @@ final class StaffAcademySummary
                 'sa.coach_id'
             )
             ->leftJoinSub(
-                DB::table('attendance_violations')
-                    ->select('employee_id', DB::raw('COUNT(*) as warnings_count'))
-                    ->whereBetween('violation_date', [$from, $to])
+                DB::table('attendance')
+                    ->select('employee_id', DB::raw('COUNT(*) as exceptions_count'))
+                    ->whereBetween('date', [$from, $to])
+                    ->where(function ($query): void {
+                        $query->where('status', 'absent')
+                            ->orWhere('check_in_location_status', 'outside')
+                            ->orWhere(function ($open): void {
+                                $open->whereNotNull('check_in')->whereNull('check_out');
+                            });
+                    })
                     ->groupBy('employee_id'),
                 'v',
                 'employees.id',
@@ -279,7 +236,7 @@ final class StaffAcademySummary
                 DB::raw('COALESCE(c.commissions_total, 0) as commissions_total'),
                 DB::raw('COALESCE(sa.coached_services_count, 0) as coached_services_count'),
                 DB::raw('COALESCE(sa.coached_services_revenue, 0) as coached_services_revenue'),
-                DB::raw('COALESCE(v.warnings_count, 0) as warnings_count'),
+                DB::raw('COALESCE(v.exceptions_count, 0) as exceptions_count'),
             ])
             ->whereIn(DB::raw('LOWER(employees.role)'), ['coach', 'captain'])
             ->orderByDesc('coached_services_count')
@@ -297,8 +254,8 @@ final class StaffAcademySummary
             $revenueScore = ((float) $row->coached_services_revenue / $maxRevenue) * 25;
             $commissionScore = ((float) $row->commissions_total / $maxCommissions) * 25;
             $attendanceScore = ((int) $row->attendance_count / $maxAttendance) * 10;
-            $warningPenalty = (int) $row->warnings_count * 10;
-            $score = min(100, max(0, $serviceScore + $revenueScore + $commissionScore + $attendanceScore - $warningPenalty));
+            $exceptionPenalty = (int) $row->exceptions_count * 10;
+            $score = min(100, max(0, $serviceScore + $revenueScore + $commissionScore + $attendanceScore - $exceptionPenalty));
 
             return [
                 'employee_id' => (int) $row->id,
@@ -310,7 +267,7 @@ final class StaffAcademySummary
                 'commissions_total' => number_format((float) $row->commissions_total, 2, '.', ''),
                 'coached_services_count' => (int) $row->coached_services_count,
                 'coached_services_revenue' => number_format((float) $row->coached_services_revenue, 2, '.', ''),
-                'warnings_count' => (int) $row->warnings_count,
+                'exceptions_count' => (int) $row->exceptions_count,
             ];
         })->values()->all();
     }

@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Attendance;
-use App\Models\AttendanceViolation;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
@@ -28,8 +27,6 @@ test('accountant can view staff academy summary', function (): void {
 
     $shift = EmployeeShift::factory()->create([
         'name' => 'Morning 9-5',
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
     ]);
     $employee = Employee::factory()->create([
         'name' => 'Coach Ahmed',
@@ -42,15 +39,9 @@ test('accountant can view staff academy summary', function (): void {
         'employee_id' => $employee->id,
         'shift_id' => $shift->id,
         'date' => '2026-06-29',
-        'status' => 'late',
-        'late_minutes' => 20,
-    ]);
-    AttendanceViolation::factory()->create([
-        'employee_id' => $employee->id,
-        'attendance_id' => null,
-        'violation_date' => '2026-06-29',
-        'type' => 'late',
-        'status' => 'pending',
+        'status' => 'present',
+        'check_in' => '09:20',
+        'check_out' => null,
     ]);
     Commission::factory()->create([
         'employee_id' => $employee->id,
@@ -75,7 +66,7 @@ test('accountant can view staff academy summary', function (): void {
         ->assertJsonPath('data.kpis.0.value', 1)
         ->assertJsonPath('data.kpis.2.value', 1)
         ->assertJsonPath('data.shift_schedule.0.name', 'Morning 9-5')
-        ->assertJsonPath('data.warning_status.0.pending', 1)
+        ->assertJsonPath('data.attendance_exceptions.1.pending', 1)
         ->assertJsonPath('data.performance_highlights.0.name', 'Coach Ahmed')
         ->assertJsonFragment(['title' => 'Staff training'])
         ->assertJsonFragment(['title' => 'Coach Ahmed salary receipt'])
@@ -85,10 +76,10 @@ test('accountant can view staff academy summary', function (): void {
                 'period' => ['from', 'to'],
                 'kpis',
                 'shift_schedule',
-                'warning_status',
+                'attendance_exceptions',
                 'performance_highlights',
                 'upcoming_events',
-                'today' => ['checked_in', 'late', 'off_shift', 'pending_approval'],
+                'today' => ['checked_in', 'absent', 'still_in'],
             ],
         ]);
 });
@@ -106,7 +97,7 @@ test('users without reports permission cannot view staff academy summary', funct
         ->assertForbidden();
 });
 
-test('staff academy warning chart counts late attendance without a violation row', function (): void {
+test('staff academy exception chart counts a settled absence', function (): void {
     Carbon::setTestNow('2026-07-07 17:15:00');
 
     $accountant = User::factory()->create();
@@ -115,19 +106,15 @@ test('staff academy warning chart counts late attendance without a violation row
 
     $employee = Employee::factory()->create(['status' => 'active']);
 
-    Attendance::factory()->create([
+    Attendance::factory()->absent()->create([
         'employee_id' => $employee->id,
         'date' => '2026-07-07',
-        'status' => 'late',
-        'schedule_status' => 'late',
-        'approval_status' => 'approved',
-        'late_minutes' => 25,
     ]);
 
     $this->getJson('/api/v1/reports/staff-academy?from=2026-07-01&to=2026-07-31')
         ->assertOk()
-        ->assertJsonPath('data.warning_status.0.label', 'Late')
-        ->assertJsonPath('data.warning_status.0.warning', 1);
+        ->assertJsonPath('data.attendance_exceptions.0.label', 'Absence')
+        ->assertJsonPath('data.attendance_exceptions.0.reviewed', 1);
 });
 
 test('staff academy coach performance excludes non coach employees', function (): void {

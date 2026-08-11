@@ -19,7 +19,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 
 import type { StaffAcademyPageData } from "./data";
-import { formatTime12Hour } from "./time-format";
 
 export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData["employeeRows"] }) {
   const t = useTranslations("Dashboard.academy");
@@ -61,7 +60,7 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                       <div>{row.employee.shift?.name ?? t("noShift")}</div>
                       <div className="text-muted-foreground text-xs">
                         {row.employee.shift
-                          ? `${formatTime12Hour(row.employee.shift.starts_at, locale)} - ${formatTime12Hour(row.employee.shift.ends_at, locale)}`
+                          ? row.employee.shift.name
                           : "-"}
                       </div>
                     </TableCell>

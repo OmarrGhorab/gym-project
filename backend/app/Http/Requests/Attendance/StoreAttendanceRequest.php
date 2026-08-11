@@ -22,12 +22,8 @@ class StoreAttendanceRequest extends FormRequest
             'date' => ['required', 'date_format:Y-m-d'],
             'check_in' => ['nullable', 'date_format:H:i'],
             'check_out' => ['nullable', 'date_format:H:i', 'after_or_equal:check_in'],
-            'status' => ['required', Rule::in(['present', 'absent', 'late', 'excused'])],
-            'schedule_status' => ['nullable', Rule::in(['on_shift', 'late', 'off_shift', 'unassigned'])],
-            'approval_status' => ['nullable', Rule::in(['approved', 'pending', 'dismissed'])],
+            'status' => ['required', Rule::in(['present', 'absent', 'excused'])],
             'notes' => ['nullable', 'string', 'max:2000'],
-            // Whether a late/early-leave warning should follow from these times.
-            'apply_penalty' => ['nullable', 'boolean'],
         ];
     }
 

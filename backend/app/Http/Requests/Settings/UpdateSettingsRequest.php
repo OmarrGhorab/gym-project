@@ -99,23 +99,6 @@ class UpdateSettingsRequest extends FormRequest
             $payroll['default_pay_day'] = $this->input('payroll')['default_pay_day'];
         }
 
-        foreach ([
-            'clean_attendance_bonus_enabled',
-            'clean_attendance_bonus_percentage',
-            'coach_performance_bonus_enabled',
-            'coach_performance_bonus_percentage',
-        ] as $key) {
-            if ($this->has("payroll.{$key}")) {
-                $payroll[$key] = str_ends_with($key, '_enabled')
-                    ? $this->boolean("payroll.{$key}")
-                    : $this->input("payroll.{$key}");
-            } elseif ($this->has('payroll') && is_array($this->input('payroll')) && array_key_exists($key, $this->input('payroll'))) {
-                $payroll[$key] = str_ends_with($key, '_enabled')
-                    ? filter_var($this->input('payroll')[$key], FILTER_VALIDATE_BOOL)
-                    : $this->input('payroll')[$key];
-            }
-        }
-
         if (! empty($payroll)) {
             $normalized['payroll'] = $payroll;
         }
@@ -146,20 +129,6 @@ class UpdateSettingsRequest extends FormRequest
             $attendance['gym_radius_meters'] = $this->input('attendance')['gym_radius_meters'];
         }
 
-        if ($this->has('attendance.default_grace_minutes')) {
-            $attendance['default_grace_minutes'] = $this->input('attendance.default_grace_minutes');
-        } elseif ($this->has('attendance_default_grace_minutes')) {
-            $attendance['default_grace_minutes'] = $this->input('attendance_default_grace_minutes');
-        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('default_grace_minutes', $this->input('attendance'))) {
-            $attendance['default_grace_minutes'] = $this->input('attendance')['default_grace_minutes'];
-        }
-
-        if ($this->has('attendance.duplicate_scan_grace_minutes')) {
-            $attendance['duplicate_scan_grace_minutes'] = $this->input('attendance.duplicate_scan_grace_minutes');
-        } elseif ($this->has('attendance') && is_array($this->input('attendance')) && array_key_exists('duplicate_scan_grace_minutes', $this->input('attendance'))) {
-            $attendance['duplicate_scan_grace_minutes'] = $this->input('attendance')['duplicate_scan_grace_minutes'];
-        }
-
         if (! empty($attendance)) {
             $normalized['attendance'] = $attendance;
         }
@@ -168,18 +137,14 @@ class UpdateSettingsRequest extends FormRequest
         $shifts = [];
         if ($this->has('shifts') && is_array($this->input('shifts'))) {
             $shifts = array_intersect_key($this->input('shifts'), array_flip([
-                'auto_open_enabled',
                 'require_cash_count',
-                'enforce_schedule_window',
                 'handover_auto_accept',
                 'handover_auto_accept_on_match_only',
                 'require_handover_to_open',
             ]));
         }
         foreach ([
-            'auto_open_enabled' => 'shifts.auto_open_enabled',
             'require_cash_count' => 'shifts.require_cash_count',
-            'enforce_schedule_window' => 'shifts.enforce_schedule_window',
             'handover_auto_accept' => 'shifts.handover_auto_accept',
             'handover_auto_accept_on_match_only' => 'shifts.handover_auto_accept_on_match_only',
             'require_handover_to_open' => 'shifts.require_handover_to_open',
@@ -248,23 +213,15 @@ class UpdateSettingsRequest extends FormRequest
             'payroll' => ['nullable', 'array'],
             'payroll.schedule_mode' => ['nullable', 'string', 'in:fixed,per_employee'],
             'payroll.default_pay_day' => ['nullable', 'integer', 'min:1', 'max:31'],
-            'payroll.clean_attendance_bonus_enabled' => ['nullable', 'boolean'],
-            'payroll.clean_attendance_bonus_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'payroll.coach_performance_bonus_enabled' => ['nullable', 'boolean'],
-            'payroll.coach_performance_bonus_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'attendance' => ['nullable', 'array'],
             'attendance.gym_latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'attendance.gym_longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'attendance.gym_radius_meters' => ['nullable', 'integer', 'min:10', 'max:10000'],
-            'attendance.default_grace_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
-            'attendance.duplicate_scan_grace_minutes' => ['nullable', 'numeric', 'min:0', 'max:60'],
             'shifts' => ['nullable', 'array'],
             'shifts.handover_auto_accept' => ['nullable', 'boolean'],
             'shifts.handover_auto_accept_on_match_only' => ['nullable', 'boolean'],
             'shifts.require_handover_to_open' => ['nullable', 'boolean'],
-            'shifts.auto_open_enabled' => ['nullable', 'boolean'],
             'shifts.require_cash_count' => ['nullable', 'boolean'],
-            'shifts.enforce_schedule_window' => ['nullable', 'boolean'],
             'whatsapp' => ['nullable', 'array'],
             'whatsapp.templates' => ['nullable', 'array'],
             'whatsapp.templates.*' => ['nullable', 'string', 'max:5000'],

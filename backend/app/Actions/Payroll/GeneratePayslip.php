@@ -4,7 +4,6 @@ namespace App\Actions\Payroll;
 
 use App\Http\Resources\PayslipResource;
 use App\Models\Attendance;
-use App\Models\AttendanceViolation;
 use App\Models\Commission;
 use App\Models\Payroll;
 use App\Models\Subscription;
@@ -44,18 +43,6 @@ class GeneratePayslip
                 ])
                 ->get();
             $payroll->setRelation('monthAttendance', $attendanceRows);
-
-            $violations = AttendanceViolation::query()
-                ->with('rule')
-                ->where('employee_id', $payroll->employee_id)
-                ->whereBetween('violation_date', [
-                    "{$payroll->month}-01",
-                    now()->parse("{$payroll->month}-01")->endOfMonth()->toDateString(),
-                ])
-                ->orderBy('violation_date')
-                ->orderBy('id')
-                ->get();
-            $payroll->setRelation('attendanceViolations', $violations);
             $breakdown = $this->buildBreakdown->execute(
                 $payroll,
                 $monthCommissions,

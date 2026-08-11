@@ -48,7 +48,7 @@ export type LiveAttendanceData = {
     staff_checkins: number;
     flagged_scans: number;
     blocked_visits: number;
-    late_staff: number;
+    staff_still_in: number;
     peak_hour: string | null;
   };
   hourly: LiveAttendanceHourlyPoint[];
@@ -84,7 +84,7 @@ const emptyLiveAttendanceData: LiveAttendanceData = {
     staff_checkins: 0,
     flagged_scans: 0,
     blocked_visits: 0,
-    late_staff: 0,
+    staff_still_in: 0,
     peak_hour: null,
   },
   hourly: [],

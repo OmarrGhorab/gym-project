@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\AttendanceViolation;
+use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Member;
 use App\Models\MemberVisit;
@@ -29,10 +29,11 @@ test('accountant can view operations summary', function (): void {
     Sanctum::actingAs($accountant);
 
     $employee = Employee::factory()->create(['name' => 'Late Captain']);
-    AttendanceViolation::factory()->create([
+    Attendance::factory()->create([
         'employee_id' => $employee->id,
-        'violation_date' => Carbon::today()->toDateString(),
-        'status' => 'pending',
+        'date' => Carbon::today()->toDateString(),
+        'check_in' => '09:00',
+        'check_out' => null,
     ]);
     Payroll::factory()->create([
         'employee_id' => $employee->id,
@@ -61,7 +62,7 @@ test('accountant can view operations summary', function (): void {
         ->assertOk()
         ->assertJsonPath('data.summary.pending_review_count', 2)
         ->assertJsonPath('data.summary.focus_href', '/dashboard/attendance')
-        ->assertJsonFragment(['title' => 'Review Late Captain attendance warning'])
+        ->assertJsonFragment(['title' => "Close out Late Captain's attendance"])
         ->assertJsonFragment(['title' => 'Restock Protein Bar'])
         ->assertJsonFragment(['tag' => 'Payroll', 'href' => '/dashboard/payroll'])
         ->assertJsonFragment(['tag' => 'Inventory', 'href' => '/dashboard/logistics'])

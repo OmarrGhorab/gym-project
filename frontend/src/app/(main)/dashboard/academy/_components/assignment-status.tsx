@@ -16,25 +16,17 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import type { StaffAcademyWarningStatus } from "./data";
+import type { StaffAcademyAttendanceException } from "./data";
 
-function ApprovedLegendIcon() {
+function ReviewedLegendIcon() {
   return <span className="block size-2 rounded-[2px] bg-chart-3" />;
-}
-
-function WarningLegendIcon() {
-  return <span className="block size-2 rounded-[2px] bg-muted-foreground" />;
 }
 
 function PendingLegendIcon() {
   return <span className="block size-2 rounded-[2px] bg-chart-2" />;
 }
 
-function AutoAppliedLegendIcon() {
-  return <span className="block size-2 rounded-[2px] bg-destructive" />;
-}
-
-function WarningDotPattern({ color, id }: { color: string; id: string }) {
+function ExceptionDotPattern({ color, id }: { color: string; id: string }) {
   return (
     <pattern id={id} width="6" height="6" patternUnits="userSpaceOnUse">
       <rect width="6" height="6" fill={color} fillOpacity="0.7" />
@@ -44,87 +36,59 @@ function WarningDotPattern({ color, id }: { color: string; id: string }) {
   );
 }
 
-export function AssignmentStatus({ warnings }: { warnings: StaffAcademyWarningStatus[] }) {
+export function AssignmentStatus({ exceptions }: { exceptions: StaffAcademyAttendanceException[] }) {
   const t = useTranslations("Dashboard.academy");
   const chartConfig = {
-    approved: {
-      label: t("approved"),
+    reviewed: {
+      label: t("reviewed"),
       color: "var(--chart-3)",
-      icon: ApprovedLegendIcon,
-    },
-    warning: {
-      label: t("warning"),
-      color: "var(--muted-foreground)",
-      icon: WarningLegendIcon,
+      icon: ReviewedLegendIcon,
     },
     pending: {
       label: t("pending"),
       color: "var(--chart-2)",
       icon: PendingLegendIcon,
     },
-    auto_applied: {
-      label: t("autoApplied"),
-      color: "var(--destructive)",
-      icon: AutoAppliedLegendIcon,
-    },
   } satisfies ChartConfig;
 
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="text-sm">{t("warningStatus")}</CardTitle>
+        <CardTitle className="text-sm">{t("attendanceExceptions")}</CardTitle>
         <CardAction>
           <Link
             href="/dashboard/attendance"
             className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
           >
-            {t("reviewWarnings")} <ArrowRight className="size-4" />
+            {t("reviewAttendance")} <ArrowRight className="size-4" />
           </Link>
         </CardAction>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-70 w-full">
-          <BarChart accessibilityLayer data={warnings} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+          <BarChart accessibilityLayer data={exceptions} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
             <defs>
-              <WarningDotPattern color="var(--color-warning)" id="warning-warning-pattern" />
-              <WarningDotPattern color="var(--color-approved)" id="warning-approved-pattern" />
-              <WarningDotPattern color="var(--color-pending)" id="warning-pending-pattern" />
-              <WarningDotPattern color="var(--color-auto_applied)" id="warning-auto-applied-pattern" />
+              <ExceptionDotPattern color="var(--color-pending)" id="exception-pending-pattern" />
+              <ExceptionDotPattern color="var(--color-reviewed)" id="exception-reviewed-pattern" />
             </defs>
             <CartesianGrid vertical={false} />
             <XAxis axisLine={false} dataKey="label" tickLine={false} tickMargin={10} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
             <ChartLegend content={<ChartLegendContent className="justify-start" />} verticalAlign="top" />
             <Bar
-              dataKey="warning"
-              fill="url(#warning-warning-pattern)"
-              radius={4}
-              stroke="var(--color-warning)"
-              strokeOpacity={0.45}
-              strokeWidth={0.5}
-            />
-            <Bar
-              dataKey="approved"
-              fill="url(#warning-approved-pattern)"
-              radius={4}
-              stroke="var(--color-approved)"
-              strokeOpacity={0.45}
-              strokeWidth={0.5}
-            />
-            <Bar
               dataKey="pending"
-              fill="url(#warning-pending-pattern)"
+              fill="url(#exception-pending-pattern)"
               radius={4}
               stroke="var(--color-pending)"
               strokeOpacity={0.5}
               strokeWidth={0.5}
             />
             <Bar
-              dataKey="auto_applied"
-              fill="url(#warning-auto-applied-pattern)"
+              dataKey="reviewed"
+              fill="url(#exception-reviewed-pattern)"
               radius={4}
-              stroke="var(--color-auto_applied)"
-              strokeOpacity={0.5}
+              stroke="var(--color-reviewed)"
+              strokeOpacity={0.45}
               strokeWidth={0.5}
             />
           </BarChart>

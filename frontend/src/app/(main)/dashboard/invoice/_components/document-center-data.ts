@@ -11,7 +11,7 @@ export type DocumentPayrollRow = {
   };
   month: string;
   base_salary: string;
-  attendance_deductions: string;
+  deductions: string;
   net_salary: string;
   status: string;
   paid_at: string | null;
@@ -55,26 +55,26 @@ export type DocumentAttendanceSummary = {
   role: string;
   month: string;
   present_count: number;
-  late_count: number;
   absent_count: number;
-  late_minutes: number;
+  excused_count: number;
+  open_count: number;
 };
 
-type AttendanceViolation = {
+/** A day somebody checked into and never signed out of. */
+type PendingAttendanceRow = {
   id: number;
-  status: string;
 };
 
 type DocumentTotals = {
   members: number;
   payroll: number;
-  pendingViolations: number;
+  pendingApprovals: number;
   sales: number;
 };
 
 export type DocumentCenterData = {
   attendance: {
-    pendingViolations: number;
+    pendingApprovals: number;
     summary: DocumentAttendanceSummary[];
   };
   members: DocumentMemberRow[];
@@ -84,17 +84,17 @@ export type DocumentCenterData = {
 };
 
 export async function getDocumentCenterData(): Promise<DocumentCenterData> {
-  const [payroll, sales, members, attendanceSummary, attendanceViolations] = await Promise.all([
+  const [payroll, sales, members, attendanceSummary, pendingAttendance] = await Promise.all([
     safePage<DocumentPayrollRow>("/payroll?sort=-created_at&page=1&per_page=10"),
     safePage<DocumentSaleRow>("/sales?sort=-created_at&page=1&per_page=10"),
     safePage<DocumentMemberRow>("/members?sort=-created_at&page=1&per_page=12"),
     safeData<DocumentAttendanceSummary[]>("/attendance/summary", []),
-    safePage<AttendanceViolation>("/attendance/violations?status=pending&page=1&per_page=50"),
+    safePage<PendingAttendanceRow>("/attendance?filter[open]=1&page=1&per_page=50"),
   ]);
 
   return {
     attendance: {
-      pendingViolations: attendanceViolations.total,
+      pendingApprovals: pendingAttendance.total,
       summary: attendanceSummary.slice(0, 8),
     },
     members: members.rows,
@@ -103,7 +103,7 @@ export async function getDocumentCenterData(): Promise<DocumentCenterData> {
     totals: {
       members: members.total,
       payroll: payroll.total,
-      pendingViolations: attendanceViolations.total,
+      pendingApprovals: pendingAttendance.total,
       sales: sales.total,
     },
   };

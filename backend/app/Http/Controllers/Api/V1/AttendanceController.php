@@ -2,37 +2,28 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Attendance\BuildDailyAttendanceReport;
 use App\Actions\Attendance\CheckInEmployeeAttendance;
 use App\Actions\Attendance\CheckOutEmployeeAttendance;
-use App\Actions\Attendance\ResolveEmployeeOffDay;
 use App\Actions\Attendance\StoreAttendance;
 use App\Actions\Attendance\UpdateAttendance;
-use App\Http\Requests\Attendance\ReviewAttendanceViolationRequest;
 use App\Http\Requests\Attendance\ScanAttendanceRequest;
 use App\Http\Requests\Attendance\StoreAttendanceRequest;
-use App\Http\Requests\Attendance\StoreAttendanceViolationRuleRequest;
 use App\Http\Requests\Attendance\StoreEmployeeShiftRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
-use App\Http\Requests\Attendance\UpdateAttendanceViolationRuleRequest;
 use App\Http\Requests\Attendance\UpdateEmployeeShiftRequest;
 use App\Http\Resources\AttendanceResource;
-use App\Http\Resources\AttendanceViolationResource;
-use App\Http\Resources\AttendanceViolationRuleResource;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\EmployeeShiftResource;
 use App\Models\Attendance;
-use App\Models\AttendanceViolation;
-use App\Models\AttendanceViolationRule;
+use App\Models\DailyAttendanceReport;
 use App\Models\Employee;
-use App\Models\EmployeeOffDayOverride;
 use App\Models\EmployeeShift;
-use App\Models\ShiftOffRotation;
-use App\Services\OperationalNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -48,6 +39,15 @@ final class AttendanceController extends ApiController
                 AllowedFilter::exact('employee_id'),
                 AllowedFilter::exact('date'),
                 AllowedFilter::exact('status'),
+                // Checked in with no check-out — the only attendance row that still
+                // needs somebody to act on it.
+                AllowedFilter::callback('open', function ($query, $value): void {
+                    if (! filter_var($value, FILTER_VALIDATE_BOOL)) {
+                        return;
+                    }
+
+                    $query->whereNotNull('check_in')->whereNull('check_out');
+                }),
                 AllowedFilter::callback('from', function ($query, $value): void {
                     $query->where('date', '>=', $value);
                 }),
@@ -77,7 +77,7 @@ final class AttendanceController extends ApiController
         $this->authorize('viewAny', Attendance::class);
 
         return $this->success(
-            data: EmployeeShiftResource::collection(EmployeeShift::query()->where('is_active', true)->orderBy('starts_at')->get())->resolve(),
+            data: EmployeeShiftResource::collection(EmployeeShift::query()->where('is_active', true)->orderBy('name')->get())->resolve(),
             message: 'Employee shifts retrieved',
         );
     }
@@ -125,112 +125,10 @@ final class AttendanceController extends ApiController
 
         return $this->success(
             data: EmployeeShiftResource::collection(
-                EmployeeShift::query()->with('offRotation')->orderBy('starts_at')->orderBy('name')->get()
+                EmployeeShift::query()->orderBy('name')->get()
             )->resolve(),
             message: 'Employee shifts retrieved',
         );
-    }
-
-    public function upsertShiftOffRotation(Request $request, EmployeeShift $employeeShift): JsonResponse
-    {
-        $request->user()->can('settings.manage') || abort(403);
-
-        $data = $request->validate([
-            'off_weekday' => ['required', 'integer', 'between:0,6'],
-            'rotation_start_date' => ['required', 'date'],
-            'employee_order' => ['required', 'array', 'min:1'],
-            'employee_order.*' => ['integer', 'exists:employees,id'],
-            'is_active' => ['sometimes', 'boolean'],
-        ]);
-
-        $rotation = ShiftOffRotation::query()->updateOrCreate(
-            ['employee_shift_id' => $employeeShift->id],
-            [
-                'off_weekday' => (int) $data['off_weekday'],
-                'rotation_start_date' => $data['rotation_start_date'],
-                'employee_order' => array_values(array_map('intval', $data['employee_order'])),
-                'is_active' => (bool) ($data['is_active'] ?? true),
-            ],
-        );
-
-        return $this->success(
-            data: [
-                'id' => $rotation->id,
-                'employee_shift_id' => $rotation->employee_shift_id,
-                'off_weekday' => (int) $rotation->off_weekday,
-                'rotation_start_date' => $rotation->rotation_start_date?->toDateString(),
-                'employee_order' => array_map('intval', $rotation->employee_order ?? []),
-                'is_active' => (bool) $rotation->is_active,
-                'preview' => app(ResolveEmployeeOffDay::class)->preview($rotation, 8),
-            ],
-            message: 'Shift off rotation saved',
-        );
-    }
-
-    public function shiftOffRotationPreview(Request $request, EmployeeShift $employeeShift): JsonResponse
-    {
-        $request->user()->can('settings.manage') || abort(403);
-
-        $rotation = ShiftOffRotation::query()
-            ->where('employee_shift_id', $employeeShift->id)
-            ->first();
-
-        if (! $rotation) {
-            return $this->success(data: ['preview' => []], message: 'No rotation configured');
-        }
-
-        $weeks = min(max((int) $request->integer('weeks', 8), 1), 26);
-
-        return $this->success(
-            data: [
-                'preview' => app(ResolveEmployeeOffDay::class)->preview($rotation, $weeks),
-            ],
-            message: 'Rotation preview retrieved',
-        );
-    }
-
-    public function storeOffDayOverride(Request $request): JsonResponse
-    {
-        $request->user()->can('settings.manage') || abort(403);
-
-        $data = $request->validate([
-            'employee_id' => ['required', 'integer', 'exists:employees,id'],
-            'date' => ['required', 'date'],
-            'type' => ['required', 'string', 'in:off,work'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $override = EmployeeOffDayOverride::query()->updateOrCreate(
-            [
-                'employee_id' => $data['employee_id'],
-                'date' => $data['date'],
-            ],
-            [
-                'type' => $data['type'],
-                'notes' => $data['notes'] ?? null,
-                'created_by' => $request->user()->id,
-            ],
-        );
-
-        return $this->success(
-            data: [
-                'id' => $override->id,
-                'employee_id' => $override->employee_id,
-                'date' => $override->date?->toDateString(),
-                'type' => $override->type,
-                'notes' => $override->notes,
-            ],
-            message: 'Off-day override saved',
-        );
-    }
-
-    public function destroyOffDayOverride(Request $request, EmployeeOffDayOverride $override): JsonResponse
-    {
-        $request->user()->can('settings.manage') || abort(403);
-
-        $override->delete();
-
-        return $this->success(data: null, message: 'Off-day override deleted');
     }
 
     public function storeShift(StoreEmployeeShiftRequest $request): JsonResponse
@@ -265,117 +163,6 @@ final class AttendanceController extends ApiController
             ->setStatusCode(200);
     }
 
-    public function violations(Request $request): JsonResponse
-    {
-        $this->authorize('viewAny', Attendance::class);
-
-        $query = AttendanceViolation::query()
-            ->with(['employee', 'rule'])
-            ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
-            ->when($request->query('type'), fn ($query, $type) => $query->where('type', $type))
-            ->when($request->query('employee_id'), fn ($query, $employeeId) => $query->where('employee_id', $employeeId))
-            ->latest('violation_date');
-
-        $violations = $query->paginate(15)->withQueryString();
-
-        return $this->success(
-            data: AttendanceViolationResource::collection($violations->getCollection())->resolve(),
-            message: 'Attendance violations retrieved',
-            meta: [
-                'current_page' => $violations->currentPage(),
-                'per_page' => $violations->perPage(),
-                'total' => $violations->total(),
-                'last_page' => $violations->lastPage(),
-            ],
-        );
-    }
-
-    public function violationRules(Request $request): JsonResponse
-    {
-        $this->authorize('viewAny', Attendance::class);
-
-        return $this->success(
-            data: AttendanceViolationRuleResource::collection(
-                AttendanceViolationRule::query()->orderBy('code')->get()
-            )->resolve(),
-            message: 'Attendance violation rules retrieved',
-        );
-    }
-
-    public function updateViolationRule(
-        UpdateAttendanceViolationRuleRequest $request,
-        AttendanceViolationRule $attendanceViolationRule,
-    ): JsonResponse {
-        $attendanceViolationRule->update($request->validated());
-
-        return (new AttendanceViolationRuleResource($attendanceViolationRule->fresh()))
-            ->withMessage('Attendance violation rule updated')
-            ->response()
-            ->setStatusCode(200);
-    }
-
-    public function storeViolationRule(StoreAttendanceViolationRuleRequest $request): JsonResponse
-    {
-        $data = $request->validated();
-        $code = Str::slug($data['name'], '_');
-
-        $attendanceViolationRule = AttendanceViolationRule::query()->updateOrCreate(
-            ['code' => $code],
-            $data + ['code' => $code],
-        );
-
-        return (new AttendanceViolationRuleResource($attendanceViolationRule->fresh()))
-            ->withMessage('Attendance violation rule created')
-            ->response()
-            ->setStatusCode(201);
-    }
-
-    public function reviewViolation(
-        ReviewAttendanceViolationRequest $request,
-        AttendanceViolation $attendanceViolation,
-        OperationalNotifier $notifier,
-    ): JsonResponse {
-        $data = $request->validated();
-        $deductionDays = $data['deduction_days'] ?? $attendanceViolation->deduction_days;
-        $deductionAmount = $data['deduction_amount'] ?? $attendanceViolation->deduction_amount;
-        $originalDeductionAmount = (string) $attendanceViolation->deduction_amount;
-        $originalStatus = (string) $attendanceViolation->status;
-
-        if (! array_key_exists('deduction_amount', $data) && $data['status'] === 'approved') {
-            $attendanceViolation->loadMissing('employee');
-
-            if ($attendanceViolation->employee?->base_salary !== null) {
-                $dailySalary = bcdiv((string) $attendanceViolation->employee->base_salary, '30', 2);
-                $deductionAmount = bcmul($dailySalary, (string) $deductionDays, 2);
-            }
-        }
-
-        $attendanceViolation->update([
-            'status' => $data['status'],
-            'deduction_days' => $deductionDays,
-            'deduction_amount' => $deductionAmount,
-            'notes' => $data['notes'] ?? $attendanceViolation->notes,
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ]);
-
-        if (
-            bccomp((string) $deductionAmount, '0.00', 2) === 1
-            && ($originalStatus !== $data['status'] || bccomp($originalDeductionAmount, (string) $deductionAmount, 2) !== 0)
-        ) {
-            $reviewedViolation = $attendanceViolation->fresh(['employee.user', 'payroll']);
-
-            if ($reviewedViolation instanceof AttendanceViolation) {
-                $notifier->employeeAttendanceDeduction($reviewedViolation);
-            }
-        }
-
-        return (new AttendanceViolationResource($attendanceViolation->fresh(['employee', 'rule'])))
-            ->withMessage('Attendance violation reviewed')
-            ->response()
-            ->setStatusCode(200);
-    }
-
     public function checkIn(ScanAttendanceRequest $request, CheckInEmployeeAttendance $action): JsonResponse
     {
         $attendance = $action->handle($request->validated(), $request->user());
@@ -394,6 +181,37 @@ final class AttendanceController extends ApiController
             ->withMessage('Employee check-out recorded')
             ->response()
             ->setStatusCode(200);
+    }
+
+    /**
+     * Serve the day's attendance PDF — the same sheet the nightly job mails out.
+     *
+     * A stored copy is served when the scheduler already built one, otherwise it
+     * is rendered on demand so an admin can pull any day, not just last night.
+     */
+    public function dailyReport(Request $request, BuildDailyAttendanceReport $builder)
+    {
+        $this->authorize('viewAny', Attendance::class);
+
+        $validated = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $businessDate = Carbon::parse($validated['date'] ?? now()->toDateString())->startOfDay();
+        $filename = $builder->filename($businessDate);
+        $stored = DailyAttendanceReport::query()
+            ->whereDate('business_date', $businessDate->toDateString())
+            ->value('file_path');
+        $disk = (string) config('export.disk', 'local');
+
+        $pdf = $stored !== null && Storage::disk($disk)->exists($stored)
+            ? Storage::disk($disk)->get($stored)
+            : $builder->pdf($businessDate);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "inline; filename=\"{$filename}\"",
+        ]);
     }
 
     public function summary(Request $request): JsonResponse
@@ -423,14 +241,10 @@ final class AttendanceController extends ApiController
                 'employees.name',
                 'employees.role',
                 DB::raw('COUNT(*) as records_count'),
-                DB::raw("SUM(CASE WHEN attendance.status IN ('present', 'late') THEN 1 ELSE 0 END) as present_count"),
-                DB::raw("SUM(CASE WHEN attendance.status = 'late' THEN 1 ELSE 0 END) as late_count"),
+                DB::raw("SUM(CASE WHEN attendance.status = 'present' THEN 1 ELSE 0 END) as present_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
                 DB::raw("SUM(CASE WHEN attendance.status = 'excused' THEN 1 ELSE 0 END) as excused_count"),
-                DB::raw("SUM(CASE WHEN attendance.schedule_status = 'off_day' THEN 1 ELSE 0 END) as off_day_count"),
-                DB::raw('SUM(attendance.late_minutes) as late_minutes'),
-                DB::raw('SUM(attendance.early_leave_minutes) as early_leave_minutes'),
-                DB::raw('SUM(attendance.off_day_bonus_amount) as off_day_bonus_amount'),
+                DB::raw('SUM(CASE WHEN attendance.check_in IS NOT NULL AND attendance.check_out IS NULL THEN 1 ELSE 0 END) as open_count'),
             ])
             ->orderBy('employees.name');
 
@@ -443,13 +257,9 @@ final class AttendanceController extends ApiController
                 'month' => $month,
                 'records_count' => (int) $row->records_count,
                 'present_count' => (int) $row->present_count,
-                'late_count' => (int) $row->late_count,
                 'absent_count' => (int) $row->absent_count,
                 'excused_count' => (int) $row->excused_count,
-                'off_day_count' => (int) $row->off_day_count,
-                'late_minutes' => (int) $row->late_minutes,
-                'early_leave_minutes' => (int) $row->early_leave_minutes,
-                'off_day_bonus_amount' => number_format((float) $row->off_day_bonus_amount, 2, '.', ''),
+                'open_count' => (int) $row->open_count,
             ])->values(),
             message: 'Attendance monthly summary retrieved',
         );

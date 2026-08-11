@@ -25,16 +25,26 @@ const optionalMoneySchema = z
   .trim()
   .optional()
   .refine((value) => value === undefined || value === "" || Number(value) >= 0, "Discount cannot be negative.");
+/** Renewal payments may be 0 — a full discount, or a period opened with the balance still due. */
 const paymentSchema = z.object({
   amount: z
     .string()
     .trim()
-    .refine((value) => Number(value) > 0, "Payment amount must be greater than zero."),
+    .refine((value) => value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0, {
+      error: "Payment amount cannot be negative.",
+    }),
   method: paymentMethodSchema,
+});
+const renewalAddonSchema = z.object({
+  plan_id: z.coerce.number().int().positive("Choose a valid extra service."),
+  coach_id: z.coerce.number().int().positive("Each extra service needs a coach."),
+  discount: optionalMoneySchema,
+  payment: paymentSchema,
 });
 const renewalSchema = z.object({
   discount: optionalMoneySchema,
   payment: paymentSchema,
+  addons: z.array(renewalAddonSchema).optional(),
 });
 const recordPaymentSchema = z.object({
   amount: z
@@ -143,6 +153,15 @@ export type RenewMembershipSubscriptionInput = {
     amount: string;
     method: "cash" | "card" | "bank_transfer";
   };
+  addons?: Array<{
+    plan_id: number;
+    coach_id: number;
+    discount?: string;
+    payment: {
+      amount: string;
+      method: "cash" | "card" | "bank_transfer";
+    };
+  }>;
 };
 
 export async function renewMembershipSubscription(

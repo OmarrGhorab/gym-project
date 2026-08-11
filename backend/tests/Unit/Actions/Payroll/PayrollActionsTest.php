@@ -58,6 +58,8 @@ test('update payroll recomputes net correctly', function (): void {
     $updated = app(UpdatePayroll::class)->execute($payroll, [
         'bonuses' => 150.00,
         'deductions' => 50.00,
+        'manual_bonus_reason' => 'Covered two extra shifts',
+        'manual_deduction_reason' => 'Salary advance',
     ]);
 
     expect($updated->bonuses)->toBe('150.00')

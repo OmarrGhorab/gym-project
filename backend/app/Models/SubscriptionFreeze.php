@@ -33,6 +33,8 @@ class SubscriptionFreeze extends Model
         'remaining_days_at_freeze',
         'reason',
         'created_by',
+        'approved_by',
+        'approved_at',
     ];
 
     protected function casts(): array
@@ -42,11 +44,18 @@ class SubscriptionFreeze extends Model
             'freeze_end' => 'date',
             'resumed_on' => 'date',
             'remaining_days_at_freeze' => 'integer',
+            'approved_at' => 'datetime',
         ];
     }
 
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    /** Set only for plans that require sign-off before freezing. */
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }

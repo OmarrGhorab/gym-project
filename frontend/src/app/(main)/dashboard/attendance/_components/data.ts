@@ -2,13 +2,6 @@ import { serverApiFetch } from "@/lib/api/server";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
 
-export type PaginationMeta = {
-  current_page: number;
-  last_page: number;
-  per_page: number;
-  total: number;
-};
-
 export type AttendanceRecord = {
   id: number;
   employee_id: number;
@@ -24,12 +17,7 @@ export type AttendanceRecord = {
   check_out: string | null;
   status: string;
   scan_method: string | null;
-  schedule_status: string | null;
-  approval_status: string | null;
   notes: string | null;
-  late_minutes: number;
-  early_leave_minutes: number;
-  off_day_bonus_amount: string;
   check_in_location: {
     status: string | null;
     distance_meters: number | null;
@@ -43,35 +31,9 @@ export type AttendanceSummary = {
   month: string;
   records_count: number;
   present_count: number;
-  late_count: number;
   absent_count: number;
   excused_count: number;
-  off_day_count: number;
-  late_minutes: number;
-  early_leave_minutes: number;
-  off_day_bonus_amount: string;
-};
-
-export type AttendanceViolation = {
-  id: number;
-  employee?: {
-    name: string;
-    role: string;
-  };
-  rule?: {
-    id: number;
-    code: string;
-    name: string;
-    description: string | null;
-  };
-  violation_date: string;
-  type: string;
-  minutes: number | null;
-  deduction_days: string;
-  deduction_amount: string;
-  estimated_deduction_amount: string | null;
-  status: string;
-  notes: string | null;
+  open_count: number;
 };
 
 export type EmployeeOption = {
@@ -114,49 +76,7 @@ export type MemberLookupOption = {
 export type EmployeeShift = {
   id: number;
   name: string;
-  starts_at: string;
-  ends_at: string;
-  grace_minutes: number;
   is_active: boolean;
-};
-
-export type OvertimeShiftSlot = {
-  id: number;
-  name: string;
-  starts_at: string | null;
-  ends_at: string | null;
-};
-
-/** A scheduled employee who never checked in — their shift is open for cover. */
-export type OvertimeCandidate = {
-  employee: { id: number; name: string; role: string | null };
-  shift: OvertimeShiftSlot | null;
-  date: string;
-  covered_by: {
-    overtime_shift_id: number;
-    employee_id: number;
-    employee_name: string | null;
-    status: string;
-  } | null;
-};
-
-export type OvertimeShiftRecord = {
-  id: number;
-  employee_id: number;
-  employee?: { id: number; name: string | null; role: string | null } | null;
-  covering_for_employee_id: number | null;
-  covering_for?: { id: number; name: string | null; role: string | null } | null;
-  employee_shift_id: number | null;
-  shift?: OvertimeShiftSlot | null;
-  date: string;
-  starts_at: string | null;
-  ends_at: string | null;
-  hours: string | null;
-  bonus_amount: string;
-  status: string;
-  notes: string | null;
-  reviewed_at: string | null;
-  settled_at: string | null;
 };
 
 export type MemberVisitStationRow = {
@@ -179,116 +99,31 @@ export type MemberVisitStationRow = {
   alert_reason: string | null;
 };
 
-export type AttendanceWarningsQuery = {
-  employeeId?: string;
-  page?: string;
-  perPage?: string;
-  status?: string;
-  type?: string;
-};
-
-export async function getAttendancePageData({
-  date,
-  month,
-  warnings,
-}: {
-  date: string;
-  month: string;
-  warnings: AttendanceWarningsQuery;
-}) {
-  const warningParams = new URLSearchParams({
-    page: warnings.page ?? "1",
-    per_page: warnings.perPage ?? "10",
-  });
-
-  if (warnings.status) {
-    warningParams.set("status", warnings.status);
-  }
-
-  if (warnings.type) {
-    warningParams.set("type", warnings.type);
-  }
-
-  if (warnings.employeeId) {
-    warningParams.set("employee_id", warnings.employeeId);
-  }
-
-  const [employees, members, memberVisits, overtimeCandidates, overtimeShifts, records, shifts, summary, violations] =
-    await Promise.all([
-      safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
-      safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
-      safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
-        // Every visit of the day, not a preview: 100 is the API's per_page ceiling and
-        // comfortably above a full day's check-ins.
-        `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=100`,
-        [],
-      ),
-      safeFetch<OvertimeCandidate[]>(`/overtime-shifts/candidates?date=${encodeURIComponent(date)}`, []),
-      safeFetch<OvertimeShiftRecord[] | PaginatedData<OvertimeShiftRecord>>(
-        `/overtime-shifts?date=${encodeURIComponent(date)}&per_page=50`,
-        [],
-      ),
-      safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>(
-        `/attendance?filter[date]=${encodeURIComponent(date)}&sort=-date&page=1&per_page=100`,
-        [],
-      ),
-      safeFetch<EmployeeShift[]>("/attendance/shifts", []),
-      safeFetch<AttendanceSummary[]>(`/attendance/summary?month=${encodeURIComponent(month)}`, []),
-      safeFetch<AttendanceViolation[] | PaginatedData<AttendanceViolation>>(
-        `/attendance/violations?${warningParams.toString()}`,
-        [],
-      ),
-    ]);
-  const violationsList = unwrapList(violations);
+export async function getAttendancePageData({ date, month }: { date: string; month: string }) {
+  const [employees, members, memberVisits, records, shifts, summary] = await Promise.all([
+    safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
+    safeFetch<MemberLookupOption[] | PaginatedData<MemberLookupOption>>("/members?per_page=100", []),
+    safeFetch<MemberVisitStationRow[] | PaginatedData<MemberVisitStationRow>>(
+      // Every visit of the day, not a preview: 100 is the API's per_page ceiling and
+      // comfortably above a full day's check-ins.
+      `/member-visits?filter[from]=${encodeURIComponent(date)}&filter[to]=${encodeURIComponent(date)}&sort=-check_in_at&page=1&per_page=100`,
+      [],
+    ),
+    safeFetch<AttendanceRecord[] | PaginatedData<AttendanceRecord>>(
+      `/attendance?filter[date]=${encodeURIComponent(date)}&sort=-date&page=1&per_page=100`,
+      [],
+    ),
+    safeFetch<EmployeeShift[]>("/attendance/shifts", []),
+    safeFetch<AttendanceSummary[]>(`/attendance/summary?month=${encodeURIComponent(month)}`, []),
+  ]);
 
   return {
     employees: unwrapList(employees),
     members: unwrapList(members),
     memberVisits: unwrapList(memberVisits),
-    overtimeCandidates,
-    overtimeShifts: unwrapList(overtimeShifts),
     records: unwrapList(records).slice(0, 12),
     shifts,
     summary,
-    violations: violationsList,
-    violationsMeta: paginationMeta(violations, violationsList.length),
-  };
-}
-
-export async function getOvertimeShiftDeskData(date: string) {
-  const [employees, candidates, overtimeShifts, shifts] = await Promise.all([
-    safeFetch<EmployeeOption[] | PaginatedData<EmployeeOption>>("/attendance/employee-options?per_page=100", []),
-    safeFetch<OvertimeCandidate[]>(`/overtime-shifts/candidates?date=${encodeURIComponent(date)}`, []),
-    safeFetch<OvertimeShiftRecord[] | PaginatedData<OvertimeShiftRecord>>(
-      `/overtime-shifts?date=${encodeURIComponent(date)}&per_page=50`,
-      [],
-    ),
-    safeFetch<EmployeeShift[]>("/attendance/shifts", []),
-  ]);
-
-  return {
-    candidates,
-    employees: unwrapList(employees),
-    overtimeShifts: unwrapList(overtimeShifts),
-    shifts,
-  };
-}
-
-function paginationMeta<T>(payload: T[] | PaginatedData<T>, fallbackTotal: number): PaginationMeta {
-  if (Array.isArray(payload)) {
-    return {
-      current_page: 1,
-      last_page: 1,
-      per_page: fallbackTotal,
-      total: fallbackTotal,
-    };
-  }
-
-  return {
-    current_page: Number(payload.meta?.current_page ?? 1),
-    last_page: Number(payload.meta?.last_page ?? 1),
-    per_page: Number(payload.meta?.per_page ?? fallbackTotal),
-    total: Number(payload.meta?.total ?? fallbackTotal),
   };
 }
 

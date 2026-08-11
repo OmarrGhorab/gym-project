@@ -50,11 +50,8 @@ test('accountant can view live gym attendance summary', function (): void {
         'date' => Carbon::today()->toDateString(),
         'check_in' => '09:20',
         'check_out' => null,
-        'status' => 'late',
+        'status' => 'present',
         'scan_method' => 'qr',
-        'schedule_status' => 'late',
-        'approval_status' => 'pending',
-        'late_minutes' => 20,
         'check_in_location_status' => 'inside',
     ]);
 
@@ -66,7 +63,7 @@ test('accountant can view live gym attendance summary', function (): void {
         ->assertJsonPath('data.today.member_visits', 2)
         ->assertJsonPath('data.today.staff_checkins', 1)
         ->assertJsonPath('data.today.blocked_visits', 1)
-        ->assertJsonPath('data.today.late_staff', 1)
+        ->assertJsonPath('data.today.staff_still_in', 1)
         ->assertJsonFragment(['name' => 'Late Captain'])
         ->assertJsonFragment(['name' => 'Blocked Member'])
         ->assertJsonMissingPath('data.currently_inside_rows.2')
@@ -74,7 +71,7 @@ test('accountant can view live gym attendance summary', function (): void {
             'data' => [
                 'generated_at',
                 'currently_inside' => ['total', 'members', 'staff'],
-                'today' => ['member_visits', 'staff_checkins', 'flagged_scans', 'blocked_visits', 'late_staff', 'peak_hour'],
+                'today' => ['member_visits', 'staff_checkins', 'flagged_scans', 'blocked_visits', 'staff_still_in', 'peak_hour'],
                 'hourly' => [
                     '*' => ['hour', 'members', 'staff', 'total'],
                 ],
@@ -159,7 +156,6 @@ test('live attendance summary includes staff currently checked in without member
         'check_out' => null,
         'status' => 'late',
         'scan_method' => 'manual',
-        'late_minutes' => 406,
     ]);
 
     $this->getJson('/api/v1/reports/live-attendance?date=2026-07-07&hours=24&audience=all&metric=occupancy')

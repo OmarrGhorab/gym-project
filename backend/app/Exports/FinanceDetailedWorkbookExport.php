@@ -117,7 +117,6 @@ class FinanceDetailedWorkbookExport implements WithMultipleSheets
             'addons' => ['ar' => 'الإضافات', 'en' => 'Add-ons'],
             'addons_count' => ['ar' => 'عدد الإضافات', 'en' => 'Add-ons'],
             'amount' => ['ar' => 'المبلغ', 'en' => 'Amount'],
-            'attendance_deductions' => ['ar' => 'خصومات الحضور', 'en' => 'Attendance deductions'],
             'balance' => ['ar' => 'الرصيد', 'en' => 'Balance'],
             'base_salary' => ['ar' => 'الراتب الأساسي', 'en' => 'Base salary'],
             'booked_addons_total' => ['ar' => 'إجمالي قيمة الإضافات', 'en' => 'Booked add-ons total'],

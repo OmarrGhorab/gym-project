@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Actions\ShiftSessions\ComputeShiftSessionTotals;
-use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\GymTask;
@@ -242,10 +241,8 @@ class OperationalNotifier
                 'commissions_total' => number_format((float) $payroll->commissions_total, 2, '.', ''),
                 'bonuses' => number_format((float) $payroll->bonuses, 2, '.', ''),
                 'deductions' => number_format((float) $payroll->deductions, 2, '.', ''),
-                'attendance_deductions' => number_format((float) $payroll->attendance_deductions, 2, '.', ''),
                 'net_salary' => number_format((float) $payroll->net_salary, 2, '.', ''),
                 'paid_at' => $payroll->paid_at?->toIso8601String(),
-                'attendance_snapshot' => $payroll->attendance_snapshot,
                 'payslip_url' => "/api/payroll/{$payroll->id}/payslip",
             ],
         );
@@ -388,7 +385,7 @@ class OperationalNotifier
         $body = "{$totals['sessions']} session(s): collections EGP {$totals['collections']}, ".
             "expenses EGP {$totals['expenses']}, net EGP {$totals['net']}.";
         if ($unresolved > 0 || $withoutSession > 0) {
-            $body .= " {$unresolved} unresolved session(s), {$withoutSession} scheduled shift(s) without a session.";
+            $body .= " {$unresolved} unresolved session(s), {$withoutSession} shift(s) without a session.";
         }
 
         $this->notifyAdmins(
@@ -444,14 +441,14 @@ class OperationalNotifier
         );
     }
 
-    public function offShiftAttendance(Employee $employee, string $date, ?string $checkIn, ?string $shiftName): void
+    public function employeeCheckedIn(Employee $employee, string $date, ?string $checkIn, ?string $shiftName): void
     {
         $this->notifyAdmins(
-            title: 'Off-shift staff attendance',
-            body: "{$employee->name} checked in outside the assigned shift".($shiftName ? " ({$shiftName})" : '').'.',
-            category: 'attendance.off_shift',
+            title: 'Staff checked in',
+            body: "{$employee->name} checked in at ".($checkIn ?? 'an unrecorded time').($shiftName ? " on {$shiftName}" : '').'.',
+            category: 'attendance.check_in',
             link: NotificationLink::attendance($employee->id, $date),
-            severity: 'warning',
+            severity: 'info',
             extra: [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
@@ -462,126 +459,51 @@ class OperationalNotifier
         );
     }
 
-    public function lateAttendance(Employee $employee, string $date, ?string $checkIn, ?string $shiftName, int $lateMinutes): void
+    public function employeeCheckedOut(Employee $employee, string $date, ?string $checkOut, ?string $shiftName): void
     {
         $this->notifyAdmins(
-            title: 'Late staff attendance',
-            body: "{$employee->name} checked in {$lateMinutes} minute(s) late".($shiftName ? " for {$shiftName}" : '').'.',
-            category: 'attendance.late',
+            title: 'Staff checked out',
+            body: "{$employee->name} checked out at ".($checkOut ?? 'an unrecorded time').($shiftName ? " from {$shiftName}" : '').'.',
+            category: 'attendance.check_out',
             link: NotificationLink::attendance($employee->id, $date),
-            severity: 'warning',
+            severity: 'info',
             extra: [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
                 'shift_name' => $shiftName,
                 'attendance_date' => $date,
-                'check_in' => $checkIn,
-                'late_minutes' => $lateMinutes,
+                'check_out' => $checkOut,
             ],
         );
     }
 
-    public function employeeAttendanceWarning(AttendanceViolation $violation): void
+    /**
+     * @param  array<string, mixed>  $totals
+     */
+    public function dailyAttendanceReport(string $businessDate, array $totals, string $downloadUrl): void
     {
-        $violation->loadMissing(['employee.user', 'rule']);
-        $employee = $violation->employee;
-
-        if (! $employee instanceof Employee || ! $employee->user) {
-            return;
-        }
-
-        $minutes = $violation->minutes ? " ({$violation->minutes} minute(s))" : '';
-        $willDeduct = bccomp((string) $violation->deduction_days, '0.00', 2) === 1;
-
-        $this->notifyUsers(
-            collect([$employee->user]),
-            title: $willDeduct ? 'Attendance deduction pending' : 'Attendance warning',
-            body: $willDeduct
-                ? "A {$violation->type}{$minutes} record may deduct {$violation->deduction_days} day(s)."
-                : "A {$violation->type}{$minutes} warning was recorded. Please keep an eye on your attendance.",
-            category: $willDeduct ? 'attendance.deduction_pending' : 'attendance.warning',
-            link: NotificationLink::attendanceViolation(
-                $violation->id,
-                $employee->id,
-                $violation->violation_date?->toDateString(),
-                $violation->type,
+        $this->notifyAdmins(
+            title: "Daily attendance report — {$businessDate}",
+            body: sprintf(
+                '%d of %d staff scanned in: %d absent, %d never scanned, %d still not signed out. Open the PDF for each arrival and departure time.',
+                (int) ($totals['records_count'] ?? 0),
+                (int) ($totals['employees_count'] ?? 0),
+                (int) ($totals['absent_count'] ?? 0),
+                (int) ($totals['no_scan_count'] ?? 0),
+                (int) ($totals['still_in_count'] ?? 0),
             ),
-            severity: $willDeduct ? 'warning' : 'info',
-            extra: [
-                'attendance_violation_id' => $violation->id,
-                'employee_id' => $employee->id,
-                'employee_name' => $employee->name,
-                'violation_type' => $violation->type,
-                'violation_date' => $violation->violation_date?->toDateString(),
-                'minutes' => $violation->minutes,
-                'deduction_days' => number_format((float) $violation->deduction_days, 2, '.', ''),
-                'status' => $violation->status,
+            category: 'attendance.daily_report',
+            link: [
+                'page' => 'attendance',
+                'entity_type' => null,
+                'entity_id' => null,
+                'url' => $downloadUrl,
             ],
-        );
-    }
-
-    public function employeeAttendanceDeduction(AttendanceViolation $violation): void
-    {
-        $violation->loadMissing(['employee.user', 'payroll']);
-        $employee = $violation->employee;
-
-        if (! $employee instanceof Employee || ! $employee->user) {
-            return;
-        }
-
-        if (bccomp((string) $violation->deduction_amount, '0.00', 2) !== 1) {
-            return;
-        }
-
-        $this->notifyUsers(
-            collect([$employee->user]),
-            title: 'Attendance deduction applied',
-            body: "EGP {$violation->deduction_amount} was applied for {$violation->type} on {$violation->violation_date?->toDateString()}.",
-            category: 'attendance.deduction',
-            link: NotificationLink::employeePayroll(
-                $employee->id,
-                $violation->payroll?->month ?? $violation->violation_date?->toDateString(),
-                [
-                    'payroll' => $violation->payroll_id,
-                    'violation' => $violation->id,
-                ],
-            ),
-            severity: 'warning',
+            severity: 'info',
             extra: [
-                'attendance_violation_id' => $violation->id,
-                'employee_id' => $employee->id,
-                'employee_name' => $employee->name,
-                'violation_type' => $violation->type,
-                'violation_date' => $violation->violation_date?->toDateString(),
-                'deduction_amount' => number_format((float) $violation->deduction_amount, 2, '.', ''),
-                'deduction_days' => number_format((float) $violation->deduction_days, 2, '.', ''),
-                'payroll_id' => $violation->payroll_id,
-                'payroll_month' => $violation->payroll?->month,
-            ],
-        );
-    }
-
-    public function employeeAttendanceBonus(Employee $employee, string $date, string $amount, ?string $shiftName): void
-    {
-        $employee->loadMissing('user');
-
-        if (! $employee->user || bccomp($amount, '0.00', 2) !== 1) {
-            return;
-        }
-
-        $this->notifyUsers(
-            collect([$employee->user]),
-            title: 'Attendance bonus earned',
-            body: "You earned EGP {$amount} attendance bonus".($shiftName ? " for {$shiftName}" : '').'.',
-            category: 'attendance.bonus',
-            link: NotificationLink::employeePayroll($employee->id, $date),
-            severity: 'success',
-            extra: [
-                'employee_id' => $employee->id,
-                'employee_name' => $employee->name,
-                'shift_name' => $shiftName,
-                'attendance_date' => $date,
-                'bonus_amount' => number_format((float) $amount, 2, '.', ''),
+                'business_date' => $businessDate,
+                'download_url' => $downloadUrl,
+                ...$totals,
             ],
         );
     }

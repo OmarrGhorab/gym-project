@@ -8,8 +8,6 @@ import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
 import { GYM_TIME_ZONE } from "@/lib/timezone";
 
-import { getOvertimeShiftDeskData } from "../attendance/_components/data";
-import { OvertimeShiftsPanel } from "../attendance/_components/overtime-shifts-panel";
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
 import { getFinanceDashboardData } from "./_components/data";
 import { FinanceFilters } from "./_components/finance-filters";
@@ -58,11 +56,6 @@ export default async function Page({
     canViewReports: user ? canAccess(user, "reports.view") : false,
   };
   const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy, quickActionPermissions);
-  const overtimeDate = formatDateFns(new Date(), "yyyy-MM-dd");
-  const canManageOvertime = user ? canAccess(user, "settings.manage") : false;
-  const overtimeData = canManageOvertime
-    ? await getOvertimeShiftDeskData(overtimeDate)
-    : { candidates: [], employees: [], overtimeShifts: [], shifts: [] };
   const canViewLedger =
     quickActionPermissions.canViewPayments ||
     quickActionPermissions.canCollectDue ||
@@ -94,16 +87,6 @@ export default async function Page({
             canOperate={canOperateShiftDesk}
             canReview={canReviewShiftDesk}
           />
-          {canManageOvertime ? (
-            <OvertimeShiftsPanel
-              canManageOvertime
-              candidates={overtimeData.candidates}
-              employees={overtimeData.employees}
-              overtimeShifts={overtimeData.overtimeShifts}
-              selectedDate={overtimeDate}
-              shifts={overtimeData.shifts}
-            />
-          ) : null}
         </>
       ) : null}
 

@@ -11,8 +11,6 @@ use Illuminate\Support\Collection;
 
 final class BuildPayslipBreakdown
 {
-    public function __construct(private readonly CalculatePayrollBonuses $bonusCalculator) {}
-
     /**
      * @param  EloquentCollection<int, Commission>  $commissions
      * @return array{commissions: Collection<int, array<string, mixed>>, bonuses: Collection<int, array<string, mixed>>}
@@ -74,82 +72,37 @@ final class BuildPayslipBreakdown
             });
     }
 
-    /** @return Collection<int, array<string, mixed>> */
+    /**
+     * The only bonus a payslip can carry is the one an admin typed in, so the
+     * breakdown is a single row that echoes the reason they recorded with it.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
     private function bonusRows(Payroll $payroll): Collection
     {
         $rows = collect();
-        $saved = $payroll->attendance_snapshot['bonuses'] ?? null;
-        $components = $payroll->status === 'paid' && ! is_array($saved)
-            ? $this->bonusCalculator->legacy($payroll)
-            : $this->bonusCalculator->execute($payroll);
-        $saved = is_array($saved) ? $saved : [];
+        $bonuses = number_format((float) $payroll->bonuses, 2, '.', '');
 
-        foreach ($components['off_day_rows'] as $row) {
-            $date = $row->date?->toDateString() ?? '-';
-            $rows->push([
-                'type' => 'Off-day attendance',
-                'type_ar' => 'حضور يوم إجازة',
-                'details' => "Worked scheduled day off on {$date}",
-                'details_ar' => "حضور يوم الإجازة بتاريخ {$date}",
-                'amount' => number_format((float) $row->off_day_bonus_amount, 2, '.', ''),
-            ]);
+        if (bccomp($bonuses, '0.00', 2) !== 1) {
+            return $rows;
         }
 
-        $cleanAmount = (string) ($saved['clean_attendance'] ?? $components['clean_attendance']);
-        $cleanPercentage = $this->percentageLabel(
-            (string) ($saved['clean_attendance_percentage'] ?? $components['clean_attendance_percentage']),
-        );
-        if (bccomp($cleanAmount, '0.00', 2) === 1) {
-            $rows->push([
-                'type' => 'Clean attendance bonus',
-                'type_ar' => 'مكافأة انتظام الحضور',
-                'details' => "No attendance violations ({$cleanPercentage} of base salary)",
-                'details_ar' => "لا توجد مخالفات حضور ({$cleanPercentage} من الراتب الأساسي)",
-                'amount' => $cleanAmount,
-            ]);
-        }
+        $reason = trim((string) ($payroll->manual_bonus_reason ?? ''));
+        $isArabicReason = $this->containsArabic($reason);
 
-        $coachAmount = (string) ($saved['coach_performance'] ?? $components['coach_performance']);
-        $coachPercentage = $this->percentageLabel(
-            (string) ($saved['coach_performance_percentage'] ?? $components['coach_performance_percentage']),
-        );
-        $coachedAddonsCount = (int) ($saved['coached_addons_count'] ?? $components['coached_addons']->count());
-        if (bccomp($coachAmount, '0.00', 2) === 1) {
-            $rows->push([
-                'type' => 'Coach performance bonus',
-                'type_ar' => 'مكافأة أداء المدرب',
-                'details' => "{$coachedAddonsCount} coached add-on(s) this month ({$coachPercentage} of base salary)",
-                'details_ar' => "{$coachedAddonsCount} خدمة إضافية تم تدريبها هذا الشهر ({$coachPercentage} من الراتب الأساسي)",
-                'amount' => $coachAmount,
-            ]);
-        }
-
-        $manual = array_key_exists('manual_total', $saved)
-            ? (string) $saved['manual_total']
-            : bcsub((string) $payroll->bonuses, $components['total'], 2);
-
-        if (bccomp($manual, '0.00', 2) === 1) {
-            $reason = trim((string) ($payroll->attendance_snapshot['manual_bonus_reason'] ?? ''));
-            $isArabicReason = $this->containsArabic($reason);
-            $rows->push([
-                'type' => 'Manual management bonus',
-                'type_ar' => 'مكافأة إدارية يدوية',
-                'details' => $reason === '' || ! $isArabicReason
-                    ? ($reason !== '' ? $reason : 'Entered manually in payroll; no separate reason was recorded')
-                    : '',
-                'details_ar' => $reason === '' || $isArabicReason
-                    ? ($reason !== '' ? $reason : 'تم إدخالها يدويا في المرتب ولم يسجل سبب منفصل')
-                    : '',
-                'amount' => $manual,
-            ]);
-        }
+        $rows->push([
+            'type' => 'Management bonus',
+            'type_ar' => 'مكافأة إدارية',
+            'details' => $reason === '' || ! $isArabicReason
+                ? ($reason !== '' ? $reason : 'Entered manually in payroll; no separate reason was recorded')
+                : '',
+            'details_ar' => $reason === '' || $isArabicReason
+                ? ($reason !== '' ? $reason : 'تم إدخالها يدويا في المرتب ولم يسجل سبب منفصل')
+                : '',
+            'amount' => $bonuses,
+        ]);
 
         return $rows;
-    }
-
-    private function percentageLabel(string $percentage): string
-    {
-        return rtrim(rtrim(number_format((float) $percentage, 2, '.', ''), '0'), '.').'%';
     }
 
     private function containsArabic(string $text): bool

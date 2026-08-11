@@ -35,16 +35,6 @@ test('attendance link opens the day sheet for the employee', function (): void {
         ->and($link['url'])->toBe('/dashboard/attendance?date=2026-06-11&employee=3');
 });
 
-test('attendance violation link filters the warnings table to the employee', function (): void {
-    $link = NotificationLink::attendanceViolation(9, 3, '2026-06-11', 'late');
-
-    expect($link['entity_type'])->toBe('attendance_violation')
-        ->and($link['entity_id'])->toBe(9)
-        ->and($link['url'])->toBe(
-            '/dashboard/attendance?date=2026-06-11&employee=3&violation=9&warning_employee_id=3&warning_status=all&warning_type=late'
-        );
-});
-
 test('finance links scope the date range to the record date', function (): void {
     expect(NotificationLink::expense(5, '2026-06-11')['url'])
         ->toBe('/dashboard/finance?from=2026-06-11&to=2026-06-11&expense=5')

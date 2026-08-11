@@ -188,7 +188,6 @@
             return match ($header) {
                 'addon_id' => $report['meta']['locale'] === 'ar' ? 'رقم الإضافة' : 'Add-on ID',
                 'amount' => $report['meta']['locale'] === 'ar' ? 'المبلغ' : 'Amount',
-                'attendance_deductions' => $report['meta']['locale'] === 'ar' ? 'خصومات الحضور' : 'Attendance deductions',
                 'balance' => $report['meta']['locale'] === 'ar' ? 'الرصيد' : 'Balance',
                 'base_salary' => $report['meta']['locale'] === 'ar' ? 'الراتب الأساسي' : 'Base salary',
                 'booked_amount' => $report['meta']['locale'] === 'ar' ? 'القيمة المسجلة' : 'Booked amount',

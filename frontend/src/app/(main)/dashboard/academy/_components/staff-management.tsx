@@ -9,8 +9,6 @@ import { EmployeeActionForm, type EmployeeActionPermissions } from "./staff-acti
 type ShiftOption = {
   id: number;
   name: string;
-  starts_at: string;
-  ends_at: string;
 };
 
 type UserOption = {

@@ -2,7 +2,6 @@
 
 namespace App\Actions\ShiftSessions;
 
-use App\Models\EmployeeShift;
 use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\User;
@@ -91,34 +90,18 @@ class SubmitShiftHandover
         return $value ?? $default;
     }
 
-    /** The final scheduled desk must always be accepted or rejected by an admin. */
+    /**
+     * The last desk of the day must always be accepted or rejected by an admin.
+     *
+     * Shifts have no end times to rank, so "last" means no other session for the
+     * same business day was opened after this one.
+     */
     private function isFinalShiftOfBusinessDay(ShiftSession $session): bool
     {
-        $session->loadMissing('shift');
-        if ($session->shift === null) {
-            return true;
-        }
-
-        $endMinute = fn (EmployeeShift $shift): int => $this->endMinute($shift);
-        $lastEndMinute = EmployeeShift::query()
-            ->where('is_active', true)
-            ->get()
-            ->map($endMinute)
-            ->max();
-
-        return $this->endMinute($session->shift) >= ($lastEndMinute ?? 0);
-    }
-
-    private function endMinute(EmployeeShift $shift): int
-    {
-        $start = $shift->starts_at?->format('H:i') ?? '00:00';
-        $end = $shift->ends_at?->format('H:i') ?? '00:00';
-        [$startHour, $startMinute] = array_map('intval', explode(':', $start));
-        [$endHour, $endMinute] = array_map('intval', explode(':', $end));
-
-        $startTotal = ($startHour * 60) + $startMinute;
-        $endTotal = ($endHour * 60) + $endMinute;
-
-        return $endTotal <= $startTotal ? $endTotal + (24 * 60) : $endTotal;
+        return ! ShiftSession::query()
+            ->whereDate('business_date', $session->business_date)
+            ->whereKeyNot($session->id)
+            ->where('opened_at', '>', $session->opened_at)
+            ->exists();
     }
 }

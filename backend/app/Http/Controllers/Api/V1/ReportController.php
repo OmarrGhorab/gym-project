@@ -24,7 +24,6 @@ use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\MemberSubscriptionsReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
 use App\Http\Requests\Reports\UpdateOperationsCalendarEventRequest;
-use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\OperationsCalendarEvent;
 use App\Models\Payroll;
@@ -452,37 +451,38 @@ final class ReportController extends ApiController
                 'assigned_employees' => [],
             ]);
 
-        $attendance = AttendanceViolation::query()
+        $attendance = Attendance::query()
             ->with('employee:id,name,role')
-            ->where('status', 'pending')
-            ->whereBetween('violation_date', [$from->toDateString(), $to->toDateString()])
-            ->orderBy('violation_date')
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->orderBy('date')
             ->limit(50)
             ->get()
-            ->map(fn (AttendanceViolation $violation): array => [
-                'id' => 'attendance-'.$violation->id,
-                'source_id' => $violation->id,
-                'source' => 'attendance_violation',
-                'date' => $violation->violation_date?->toDateString(),
-                'start' => $violation->violation_date?->toDateString(),
+            ->map(fn (Attendance $row): array => [
+                'id' => 'attendance-'.$row->id,
+                'source_id' => $row->id,
+                'source' => 'attendance',
+                'date' => $row->date?->toDateString(),
+                'start' => $row->date?->toDateString(),
                 'end' => null,
                 'all_day' => true,
-                'title' => 'Review '.$violation->employee?->name.' warning',
+                'title' => 'Close out '.$row->employee?->name."'s attendance",
                 'type' => 'attendance',
                 'custom_type_label' => null,
                 'status' => 'scheduled',
-                'notes' => $violation->notes,
+                'notes' => $row->notes,
                 'editable' => false,
                 'location' => null,
-                'assigned_employee' => $violation->employee ? [
-                    'id' => $violation->employee->id,
-                    'name' => $violation->employee->name,
-                    'role' => $violation->employee->role,
+                'assigned_employee' => $row->employee ? [
+                    'id' => $row->employee->id,
+                    'name' => $row->employee->name,
+                    'role' => $row->employee->role,
                 ] : null,
-                'assigned_employees' => $violation->employee ? [[
-                    'id' => $violation->employee->id,
-                    'name' => $violation->employee->name,
-                    'role' => $violation->employee->role,
+                'assigned_employees' => $row->employee ? [[
+                    'id' => $row->employee->id,
+                    'name' => $row->employee->name,
+                    'role' => $row->employee->role,
                 ]] : [],
             ]);
 

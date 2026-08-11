@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\AttendanceViolation;
 use App\Models\Employee;
 use App\Models\GymTask;
 use App\Models\Member;
@@ -159,36 +158,30 @@ test('payroll notification links to the payroll month of the employee', function
         ]);
 });
 
-test('attendance warning links to the day sheet and the employee warnings', function (): void {
-    $user = User::factory()->create();
-    $employee = Employee::factory()->create(['user_id' => $user->id]);
-    $violation = AttendanceViolation::factory()->create([
-        'employee_id' => $employee->id,
-        'violation_date' => '2026-06-09',
-        'type' => 'late',
-        'deduction_days' => '0.00',
-    ]);
-
-    app(OperationalNotifier::class)->employeeAttendanceWarning($violation);
-
-    $data = $user->notifications()->latest()->first()?->data;
-
-    expect($data['url'])->toBe(
-        "/dashboard/attendance?date=2026-06-09&employee={$employee->id}&violation={$violation->id}"
-        ."&warning_employee_id={$employee->id}&warning_status=all&warning_type=late"
-    )
-        ->and($data['link']['entity_type'])->toBe('attendance_violation');
-});
-
-test('late attendance notification links to the employee day sheet', function (): void {
+test('check-in notification links to the employee day sheet', function (): void {
     $admin = deepLinkAdmin();
     $employee = Employee::factory()->create();
 
-    app(OperationalNotifier::class)->lateAttendance($employee, '2026-06-09', '09:15', 'Morning', 15);
+    app(OperationalNotifier::class)->employeeCheckedIn($employee, '2026-06-09', '09:15', 'Morning');
 
     $data = $admin->notifications()->latest()->first()?->data;
 
-    expect($data['url'])->toBe("/dashboard/attendance?date=2026-06-09&employee={$employee->id}");
+    expect($data['url'])->toBe("/dashboard/attendance?date=2026-06-09&employee={$employee->id}")
+        ->and($data['category'])->toBe('attendance.check_in')
+        ->and($data['check_in'])->toBe('09:15');
+});
+
+test('check-out notification links to the employee day sheet', function (): void {
+    $admin = deepLinkAdmin();
+    $employee = Employee::factory()->create();
+
+    app(OperationalNotifier::class)->employeeCheckedOut($employee, '2026-06-09', '16:20', 'Morning');
+
+    $data = $admin->notifications()->latest()->first()?->data;
+
+    expect($data['url'])->toBe("/dashboard/attendance?date=2026-06-09&employee={$employee->id}")
+        ->and($data['category'])->toBe('attendance.check_out')
+        ->and($data['check_out'])->toBe('16:20');
 });
 
 test('task notification links to the assigned task', function (): void {

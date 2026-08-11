@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\GymTasks\StoreGymTaskRequest;
 use App\Http\Requests\GymTasks\UpdateGymTaskRequest;
-use App\Models\AttendanceViolation;
+use App\Models\Attendance;
 use App\Models\GymTask;
 use App\Models\GymTaskComment;
 use App\Models\Payment;
@@ -191,29 +191,30 @@ final class GymTaskController extends ApiController
     {
         $today = CarbonImmutable::today();
 
-        $attendance = AttendanceViolation::query()
+        $attendance = Attendance::query()
             ->with('employee:id,name,role')
-            ->where('status', 'pending')
-            ->orderBy('violation_date')
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->orderBy('date')
             ->limit(20)
             ->get()
-            ->map(fn (AttendanceViolation $violation): array => [
-                'id' => 'attendance-'.$violation->id,
-                'source_id' => $violation->id,
-                'source' => 'attendance_violation',
-                'title' => 'Review '.$violation->employee?->name.' attendance warning',
-                'description' => $violation->notes ?? 'Late, absence, or off-shift warning needs admin decision.',
+            ->map(fn (Attendance $row): array => [
+                'id' => 'attendance-'.$row->id,
+                'source_id' => $row->id,
+                'source' => 'attendance',
+                'title' => 'Close out '.$row->employee?->name."'s attendance",
+                'description' => $row->notes ?? 'Checked in with no check-out recorded.',
                 'status' => 'review',
                 'priority' => 'high',
                 'category' => 'attendance',
                 'progress' => 75,
-                'due_date' => $violation->violation_date?->toDateString(),
+                'due_date' => $row->date?->toDateString(),
                 'editable' => false,
                 'href' => '/dashboard/attendance',
-                'assigned_employee' => $violation->employee ? [
-                    'id' => $violation->employee->id,
-                    'name' => $violation->employee->name,
-                    'role' => $violation->employee->role,
+                'assigned_employee' => $row->employee ? [
+                    'id' => $row->employee->id,
+                    'name' => $row->employee->name,
+                    'role' => $row->employee->role,
                 ] : null,
                 'metrics' => ['comments' => 1, 'documents' => 0, 'attachments' => 0],
             ]);

@@ -9,12 +9,21 @@ export const membershipPipelineSchema = z.object({
   memberQr: z.string().nullable(),
   planId: z.number().nullable(),
   plan: z.string().nullable(),
+  /** The plan's current list price — what the next period costs, not what the last one was sold for. */
+  planPrice: z.number(),
+  planDurationDays: z.number().nullable(),
+  planDurationMonths: z.number().nullable(),
+  planIsSellable: z.boolean(),
   addons: z.array(
     z.object({
       id: z.number(),
+      planId: z.number().nullable(),
+      coachId: z.number().nullable(),
+      status: z.string(),
       name: z.string(),
       coach: z.string().nullable(),
       price: z.number(),
+      planPrice: z.number(),
       paidTotal: z.number(),
       endDate: z.string().nullable(),
       sessionsTotal: z.number().nullable().optional(),
@@ -32,6 +41,8 @@ export const membershipPipelineSchema = z.object({
       kind: z.enum(["main", "extra"]),
       sessionsCount: z.number().nullable().optional(),
       isUnlimitedSessions: z.boolean().optional(),
+      /** Coaches with an active commission rule — the only ones the API accepts for this plan. */
+      coaches: z.array(z.object({ id: z.number(), name: z.string(), role: z.string() })),
     }),
   ),
   coachOptions: z.array(
@@ -62,6 +73,7 @@ export const membershipPipelineSchema = z.object({
   reminderDays: z.array(z.number()),
   maxFreezeDays: z.number(),
   minFreezeDays: z.number(),
+  freezeRequiresApproval: z.boolean(),
   freeze: z
     .object({
       freezeStart: z.string().nullable(),

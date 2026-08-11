@@ -115,7 +115,6 @@ Route::prefix('v1')->group(function (): void {
         require __DIR__.'/api/expenses.php';
         require __DIR__.'/api/shift-sessions.php';
         require __DIR__.'/api/attendance.php';
-        require __DIR__.'/api/overtime-shifts.php';
         require __DIR__.'/api/reports.php';
         require __DIR__.'/api/gym-tasks.php';
         require __DIR__.'/api/roles.php';

@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\AttendanceViolation;
+use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\GymTask;
 use App\Models\User;
@@ -21,11 +21,12 @@ test('accountant can manage manual gym tasks and see generated alerts', function
     Sanctum::actingAs($accountant);
 
     $employee = Employee::factory()->create(['name' => 'Late Captain']);
-    AttendanceViolation::factory()->create([
+    Attendance::factory()->create([
         'employee_id' => $employee->id,
-        'violation_date' => now()->toDateString(),
-        'status' => 'pending',
-        'notes' => 'Late check-in',
+        'date' => now()->toDateString(),
+        'check_in' => '09:00',
+        'check_out' => null,
+        'notes' => 'Never signed out',
     ]);
 
     $response = $this->postJson('/api/v1/gym-tasks', [
@@ -67,7 +68,7 @@ test('accountant can manage manual gym tasks and see generated alerts', function
     $this->getJson('/api/v1/gym-tasks')
         ->assertOk()
         ->assertJsonFragment(['title' => 'Check treadmill maintenance'])
-        ->assertJsonFragment(['title' => 'Review Late Captain attendance warning']);
+        ->assertJsonFragment(['title' => "Close out Late Captain's attendance"]);
 });
 
 test('users without reports permission cannot view gym tasks', function (): void {

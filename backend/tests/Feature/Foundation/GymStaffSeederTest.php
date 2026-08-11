@@ -13,17 +13,17 @@ test('gym staff seeder staffs every desk shift and can run without pre-seeded ro
     $this->seed(GymStaffSeeder::class);
 
     expect(EmployeeShift::whereIn('name', [
-        'Morning Desk 06-11',
-        'Midday Desk 11-16',
-        'Evening Desk 16-21',
-        'Closing Desk 21-00',
+        'Morning',
+        'Midday',
+        'Evening',
+        'Closing',
         'Flexible Admin',
     ])->count())->toBe(5)
         ->and(Employee::count())->toBe(count(GymStaffSeeder::staffRecords()))
         ->and(Employee::where('name', 'Sara Coach')->first()?->role)->toBe('coach');
 
     // Every desk shift carries its own cashiers so shift-desk handover flows are testable.
-    foreach (['Morning Desk 06-11', 'Midday Desk 11-16', 'Evening Desk 16-21', 'Closing Desk 21-00'] as $shiftName) {
+    foreach (['Morning', 'Midday', 'Evening', 'Closing'] as $shiftName) {
         $shiftId = EmployeeShift::where('name', $shiftName)->value('id');
 
         expect(Employee::where('shift_id', $shiftId)->count())->toBeGreaterThanOrEqual(3);
@@ -56,7 +56,7 @@ test('gym staff seeder is idempotent', function (): void {
     $this->seed(EmployeeShiftSeeder::class);
     $this->seed(GymStaffSeeder::class);
 
-    expect(EmployeeShift::where('name', 'Morning Desk 06-11')->count())->toBe(1)
+    expect(EmployeeShift::where('name', 'Morning')->count())->toBe(1)
         ->and(User::where('email', 'morning.cashier1@gym.test')->count())->toBe(1)
         ->and(Employee::where('phone', '+201011110006')->count())->toBe(1)
         ->and(Employee::count())->toBe(count(GymStaffSeeder::staffRecords()))

@@ -85,7 +85,9 @@ final class LiveAttendanceSummary
                     + $staffAttendance->where('check_in_location_status', 'outside')->count()
                     + $staffAttendance->where('check_out_location_status', 'outside')->count(),
                 'blocked_visits' => $memberVisits->where('status', 'blocked')->count(),
-                'late_staff' => $staffAttendance->where('late_minutes', '>', 0)->count(),
+                'staff_still_in' => $staffAttendance
+                    ->filter(fn (Attendance $attendance): bool => $attendance->check_in !== null && $attendance->check_out === null)
+                    ->count(),
                 'peak_hour' => ($peak['total'] ?? 0) > 0 ? $peak['hour'] : null,
             ],
             'hourly' => $hourly,
@@ -198,9 +200,7 @@ final class LiveAttendanceSummary
                 $checkIn = $times[$attendance->id]['in'] ?? null;
 
                 return $checkIn && $checkIn->betweenIncluded($slotStart, $slotEnd)
-                    && (((int) $attendance->late_minutes) > 0
-                        || $attendance->approval_status === 'pending'
-                        || in_array($attendance->schedule_status, ['off_shift', 'late'], true));
+                    && $this->needsAttention($attendance);
             })->count(),
             default => $staffAttendance->filter(function (Attendance $attendance) use ($times, $slotStart, $slotEnd): bool {
                 $checkIn = $times[$attendance->id]['in'] ?? null;
@@ -294,7 +294,7 @@ final class LiveAttendanceSummary
                 'check_in_at' => $checkIn?->toIso8601String(),
                 'duration_minutes' => $checkIn ? (int) $checkIn->diffInMinutes($now) : 0,
                 'scan_method' => $attendance->scan_method,
-                'status' => $attendance->late_minutes > 0 ? 'late' : $attendance->status,
+                'status' => $attendance->status,
                 'location_status' => $attendance->check_in_location_status,
             ];
         });
@@ -326,12 +326,10 @@ final class LiveAttendanceSummary
             ]);
 
         $staffAlerts = $staffAttendance
-            ->filter(fn (Attendance $attendance): bool => ((int) $attendance->late_minutes) > 0
-                || $attendance->approval_status === 'pending'
-                || in_array($attendance->schedule_status, ['off_shift', 'late'], true))
+            ->filter(fn (Attendance $attendance): bool => $this->needsAttention($attendance))
             ->map(fn (Attendance $attendance): array => [
                 'id' => 'staff-'.$attendance->id,
-                'severity' => $attendance->approval_status === 'pending' ? 'high' : 'medium',
+                'severity' => $attendance->check_in_location_status === 'outside' ? 'high' : 'medium',
                 'type' => 'staff',
                 'name' => $attendance->employee?->name ?? 'Unknown employee',
                 'message' => $this->staffAlertMessage($attendance),
@@ -348,20 +346,27 @@ final class LiveAttendanceSummary
             ->all();
     }
 
+    /**
+     * With no schedule to measure against, the two things worth an admin's
+     * attention are a scan taken away from the gym and a day nobody closed.
+     */
+    private function needsAttention(Attendance $attendance): bool
+    {
+        return $attendance->check_in_location_status === 'outside'
+            || $attendance->check_out_location_status === 'outside'
+            || ($attendance->check_in !== null && $attendance->check_out === null);
+    }
+
     private function staffAlertMessage(Attendance $attendance): string
     {
-        if ($attendance->approval_status === 'pending') {
-            return 'Pending attendance approval';
+        if ($attendance->check_in_location_status === 'outside') {
+            return 'Checked in away from the gym';
         }
 
-        if (((int) $attendance->late_minutes) > 0) {
-            return "{$attendance->late_minutes} minutes late";
+        if ($attendance->check_out_location_status === 'outside') {
+            return 'Checked out away from the gym';
         }
 
-        if ($attendance->schedule_status) {
-            return str_replace('_', ' ', ucfirst($attendance->schedule_status));
-        }
-
-        return 'Attendance warning';
+        return 'Still checked in — no check-out recorded';
     }
 }

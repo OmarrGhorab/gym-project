@@ -9,7 +9,7 @@ export type Task = KanbanTask & {
 
 export function sourceLabel(source: string) {
   if (source === "manual") return "Manual";
-  if (source === "attendance_violation") return "Attendance";
+  if (source === "attendance") return "Attendance";
   if (source === "subscription") return "Renewal";
   if (source === "payroll") return "Payroll";
   if (source === "product") return "Inventory";

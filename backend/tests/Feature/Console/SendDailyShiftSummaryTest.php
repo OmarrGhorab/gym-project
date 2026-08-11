@@ -31,8 +31,6 @@ test('it sends one daily shift summary after every scheduled shift has ended', f
     $date = Carbon::parse('2026-07-27')->startOfDay();
     $shift = EmployeeShift::factory()->create([
         'name' => 'Day Desk',
-        'starts_at' => '09:00:00',
-        'ends_at' => '17:00:00',
     ]);
     $employee = Employee::factory()->create([
         'shift_id' => $shift->id,
@@ -107,20 +105,16 @@ test('it sends one daily shift summary after every scheduled shift has ended', f
         ->toMatchArray(['sent' => false, 'reason' => 'already_sent']);
 });
 
-test('it waits until the final active shift has ended', function (): void {
+test('it reports no active shifts when none are configured', function (): void {
     Notification::fake();
 
     $admin = User::factory()->create();
     $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
 
     $date = Carbon::parse('2026-07-27')->startOfDay();
-    EmployeeShift::factory()->create([
-        'starts_at' => '16:00:00',
-        'ends_at' => '21:00:00',
-    ]);
 
-    $result = app(SendDailyShiftSummary::class)->handle($date, $date->copy()->setTime(20, 59));
+    $result = app(SendDailyShiftSummary::class)->handle($date, $date->copy()->setTime(23, 50));
 
-    expect($result)->toMatchArray(['sent' => false, 'reason' => 'shifts_not_finished']);
+    expect($result)->toMatchArray(['sent' => false, 'reason' => 'no_active_shifts']);
     Notification::assertNothingSent();
 });

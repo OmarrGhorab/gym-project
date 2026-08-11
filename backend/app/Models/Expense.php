@@ -39,4 +39,9 @@ class Expense extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function shiftSession(): BelongsTo
+    {
+        return $this->belongsTo(ShiftSession::class);
+    }
 }

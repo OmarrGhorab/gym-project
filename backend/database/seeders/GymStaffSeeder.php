@@ -102,22 +102,22 @@ class GymStaffSeeder extends Seeder
     public static function staffRecords(): array
     {
         $deskShifts = [
-            'Morning Desk 06-11' => [
+            'Morning' => [
                 ['name' => 'Nour Morning A', 'email' => 'morning.cashier1@gym.test', 'phone' => '+201020010001'],
                 ['name' => 'Hana Morning B', 'email' => 'morning.cashier2@gym.test', 'phone' => '+201020010002'],
                 ['name' => 'Yara Morning C', 'email' => 'morning.cashier3@gym.test', 'phone' => '+201020010003'],
             ],
-            'Midday Desk 11-16' => [
+            'Midday' => [
                 ['name' => 'Karim Midday A', 'email' => 'midday.cashier1@gym.test', 'phone' => '+201020020001'],
                 ['name' => 'Laila Midday B', 'email' => 'midday.cashier2@gym.test', 'phone' => '+201020020002'],
                 ['name' => 'Tamer Midday C', 'email' => 'midday.cashier3@gym.test', 'phone' => '+201020020003'],
             ],
-            'Evening Desk 16-21' => [
+            'Evening' => [
                 ['name' => 'Salma Evening A', 'email' => 'evening.cashier1@gym.test', 'phone' => '+201020030001'],
                 ['name' => 'Omar Evening B', 'email' => 'evening.cashier2@gym.test', 'phone' => '+201020030002'],
                 ['name' => 'Dina Evening C', 'email' => 'evening.cashier3@gym.test', 'phone' => '+201020030003'],
             ],
-            'Closing Desk 21-00' => [
+            'Closing' => [
                 ['name' => 'Ramy Closing A', 'email' => 'closing.cashier1@gym.test', 'phone' => '+201020040001'],
                 ['name' => 'Mona Closing B', 'email' => 'closing.cashier2@gym.test', 'phone' => '+201020040002'],
                 ['name' => 'Fady Closing C', 'email' => 'closing.cashier3@gym.test', 'phone' => '+201020040003'],
@@ -153,7 +153,7 @@ class GymStaffSeeder extends Seeder
                 'login_role' => FoundationPermissions::ROLE_CAPTAIN,
                 'employee_role' => 'captain',
                 'phone' => '+201011110004',
-                'shift' => 'Midday Desk 11-16',
+                'shift' => 'Midday',
                 'base_salary' => 8000,
                 'pay_day' => 5,
                 'hire_date' => '2026-01-20',
@@ -164,7 +164,7 @@ class GymStaffSeeder extends Seeder
                 'login_role' => null,
                 'employee_role' => 'coach',
                 'phone' => '+201011110005',
-                'shift' => 'Evening Desk 16-21',
+                'shift' => 'Evening',
                 'base_salary' => 7000,
                 'pay_day' => 5,
                 'hire_date' => '2026-02-10',
@@ -175,7 +175,7 @@ class GymStaffSeeder extends Seeder
                 'login_role' => null,
                 'employee_role' => 'coach',
                 'phone' => '+201011110006',
-                'shift' => 'Midday Desk 11-16',
+                'shift' => 'Midday',
                 'base_salary' => 6500,
                 'pay_day' => 5,
                 'hire_date' => '2026-02-18',
@@ -186,7 +186,7 @@ class GymStaffSeeder extends Seeder
                 'login_role' => null,
                 'employee_role' => 'coach',
                 'phone' => '+201011110007',
-                'shift' => 'Evening Desk 16-21',
+                'shift' => 'Evening',
                 'base_salary' => 7500,
                 'pay_day' => 5,
                 'hire_date' => '2026-02-20',
@@ -197,7 +197,7 @@ class GymStaffSeeder extends Seeder
                 'login_role' => null,
                 'employee_role' => 'coach',
                 'phone' => '+201011110009',
-                'shift' => 'Morning Desk 06-11',
+                'shift' => 'Morning',
                 'base_salary' => 7800,
                 'pay_day' => 5,
                 'hire_date' => '2026-02-22',
@@ -227,7 +227,7 @@ class GymStaffSeeder extends Seeder
             'login_role' => FoundationPermissions::ROLE_CASHIER,
             'employee_role' => 'employee',
             'phone' => '+201099990003',
-            'shift' => 'Midday Desk 11-16',
+            'shift' => 'Midday',
             'base_salary' => 5500,
             'pay_day' => 28,
             'hire_date' => '2026-03-01',

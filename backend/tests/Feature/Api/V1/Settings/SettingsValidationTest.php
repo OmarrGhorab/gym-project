@@ -50,7 +50,6 @@ test('it validates setting constraints', function (): void {
             'gym_latitude' => 120,
             'gym_longitude' => 220,
             'gym_radius_meters' => 5,
-            'default_grace_minutes' => 300,
         ],
     ])->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed');

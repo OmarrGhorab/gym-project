@@ -4,7 +4,6 @@ namespace App\Actions\MemberVisits;
 
 use App\Actions\Attendance\ResolveAttendanceIdentity;
 use App\Models\MemberVisit;
-use App\Models\Setting;
 use App\Models\User;
 use App\Support\Geofence;
 use Illuminate\Support\Carbon;
@@ -30,17 +29,16 @@ final class CheckInMemberVisit
             $this->autoCloseStaleVisits->handle($checkIn);
             $openVisit = MemberVisit::query()->where('member_id', $member->id)->whereNull('check_out_at')->latest('check_in_at')->lockForUpdate()->first();
             if ($openVisit) {
-                // A scan seconds after the last one is the same badge being read
-                // twice — a scanner repeat, or someone tapping again because nothing
-                // seemed to happen. Recording it at all is what buried the desk in
-                // questions, so it is not recorded: the existing visit is returned
-                // untouched and nothing is asked.
-                if ($openVisit->check_in_at->diffInSeconds($checkIn) < $this->graceSeconds()) {
-                    return $openVisit;
-                }
-
-                // One question at a time. A member who keeps scanning while the desk
-                // has not answered yet must not queue up a second identical decision.
+                // Every repeat scan is put to the desk, however soon it lands. The
+                // machine cannot tell a double-read from a member who genuinely
+                // walked back in, and guessing either way is worse than asking: a
+                // wrong guess silently swallows a real visit or silently spends a
+                // session. The desk decides, always.
+                //
+                // One question at a time, though. A member who keeps scanning while
+                // the desk has not answered yet must not queue up a second identical
+                // decision — the open question is returned instead, so the same
+                // dialog stays on screen rather than stacking.
                 if ($openVisit->status === 'pending_review') {
                     return $openVisit;
                 }
@@ -109,19 +107,6 @@ final class CheckInMemberVisit
             'subscriptionAddon.plan',
             'creator',
         ]);
-    }
-
-    /**
-     * How long after a scan another scan is treated as the same one.
-     *
-     * Two minutes covers a scanner repeat and a member tapping again, while
-     * staying far below any believable "left and came straight back".
-     */
-    private function graceSeconds(): int
-    {
-        $minutes = Setting::query()->where('key', 'attendance.duplicate_scan_grace_minutes')->first()?->value;
-
-        return (int) round(max(0, is_numeric($minutes) ? (float) $minutes : 2.0) * 60);
     }
 
     private function scanMethod(array $data): string

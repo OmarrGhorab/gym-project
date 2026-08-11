@@ -55,7 +55,6 @@ test('admin can update settings', function (): void {
             'gym_latitude' => 30.0444,
             'gym_longitude' => 31.2357,
             'gym_radius_meters' => 120,
-            'default_grace_minutes' => 20,
         ],
     ];
 
@@ -66,8 +65,7 @@ test('admin can update settings', function (): void {
         ->assertJsonPath('data.vat_rate', 18.5)
         ->assertJsonPath('data.attendance.gym_latitude', 30.0444)
         ->assertJsonPath('data.attendance.gym_longitude', 31.2357)
-        ->assertJsonPath('data.attendance.gym_radius_meters', 120)
-        ->assertJsonPath('data.attendance.default_grace_minutes', 20);
+        ->assertJsonPath('data.attendance.gym_radius_meters', 120);
 
     // Read back and check
     $this->getJson('/api/v1/settings')
@@ -127,7 +125,7 @@ test('updating settings logs an audit entry', function (): void {
     ]);
 });
 
-test('shift automation defaults to manual and the auto-open toggle round-trips', function (): void {
+test('shift automation defaults to manual and the handover toggle round-trips', function (): void {
     $admin = User::factory()->create();
     $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($admin);
@@ -136,21 +134,18 @@ test('shift automation defaults to manual and the auto-open toggle round-trips',
     // blocked from opening a shift by a workflow nobody asked for.
     $this->getJson('/api/v1/settings')
         ->assertOk()
-        ->assertJsonPath('data.shifts.auto_open_enabled', false)
         ->assertJsonPath('data.shifts.require_handover_to_open', false);
 
     $this->putJson('/api/v1/settings', [
         'shifts' => [
-            'auto_open_enabled' => true,
             'require_handover_to_open' => true,
         ],
     ])->assertOk();
 
-    // The gym can switch the automation back on — this is a default, not a removal.
+    // The gym can switch the control back on — this is a default, not a removal.
     $this->getJson('/api/v1/settings')
         ->assertOk()
-        ->assertJsonPath('data.shifts.auto_open_enabled', true)
         ->assertJsonPath('data.shifts.require_handover_to_open', true);
 
-    expect(App\Models\Setting::query()->where('key', 'shifts.auto_open_enabled')->exists())->toBeTrue();
+    expect(App\Models\Setting::query()->where('key', 'shifts.require_handover_to_open')->exists())->toBeTrue();
 });

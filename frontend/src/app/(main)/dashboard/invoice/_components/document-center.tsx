@@ -61,7 +61,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                 <TableRow>
                   <TableHead>{t("employee")}</TableHead>
                   <TableHead>{t("month")}</TableHead>
-                  <TableHead>{t("attendanceDeductions")}</TableHead>
+                  <TableHead>{t("deductions")}</TableHead>
                   <TableHead>{t("netSalary")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead className="text-end">{t("download")}</TableHead>
@@ -77,7 +77,7 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                       <div className="text-muted-foreground text-xs">{row.employee.role ?? t("staff")}</div>
                     </TableCell>
                     <TableCell>{row.month}</TableCell>
-                    <TableCell>{money(row.attendance_deductions)}</TableCell>
+                    <TableCell>{money(row.deductions)}</TableCell>
                     <TableCell className="font-medium">{money(row.net_salary)}</TableCell>
                     <TableCell>
                       <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{cleanLabel(row.status)}</Badge>
@@ -228,9 +228,8 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                   <TableHead>{t("employee")}</TableHead>
                   <TableHead>{t("month")}</TableHead>
                   <TableHead>{t("present")}</TableHead>
-                  <TableHead>{t("late")}</TableHead>
                   <TableHead>{t("absent")}</TableHead>
-                  <TableHead>{t("lateMinutes")}</TableHead>
+                  <TableHead>{t("stillIn")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -242,13 +241,12 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                     </TableCell>
                     <TableCell>{row.month}</TableCell>
                     <TableCell>{row.present_count}</TableCell>
-                    <TableCell>{row.late_count}</TableCell>
                     <TableCell>{row.absent_count}</TableCell>
-                    <TableCell>{row.late_minutes}</TableCell>
+                    <TableCell>{row.open_count}</TableCell>
                   </TableRow>
                 ))}
                 {data.attendance.summary.length === 0 ? (
-                  <EmptyRow colSpan={6} label={t("noAttendanceSummaries")} />
+                  <EmptyRow colSpan={5} label={t("noAttendanceSummaries")} />
                 ) : null}
               </TableBody>
             </Table>

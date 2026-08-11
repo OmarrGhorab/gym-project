@@ -6,6 +6,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionFreeze;
 use App\Models\User;
+use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -71,6 +72,75 @@ test('freeze subscription rejects when cumulative freeze exceeds plan cap', func
         'freeze_end' => '2026-06-12',
         'reason' => 'travel',
     ], $user))->toThrow(ValidationException::class);
+});
+
+test('freeze subscription on an approval-only plan is blocked without the approval permission', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_CASHIER);
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'max_freeze_days' => 10,
+        'freeze_requires_approval' => true,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-30',
+    ]);
+
+    expect(fn () => app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+    ], $user))->toThrow(ValidationException::class)
+        ->and(SubscriptionFreeze::count())->toBe(0);
+});
+
+test('freeze subscription on an approval-only plan records the approver', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_MANAGER);
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'max_freeze_days' => 10,
+        'freeze_requires_approval' => true,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-30',
+    ]);
+
+    $frozen = app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+    ], $user);
+
+    $freeze = SubscriptionFreeze::firstOrFail();
+
+    expect($frozen->status)->toBe('frozen')
+        ->and($freeze->approved_by)->toBe($user->id)
+        ->and($freeze->approved_at)->not->toBeNull();
+});
+
+test('freeze subscription leaves the approver empty when the plan needs no approval', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_MANAGER);
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'max_freeze_days' => 10,
+        'freeze_requires_approval' => false,
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'end_date' => '2026-06-30',
+    ]);
+
+    app(FreezeSubscription::class)->handle($subscription, [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+    ], $user);
+
+    expect(SubscriptionFreeze::firstOrFail()->approved_by)->toBeNull();
 });
 
 test('freeze subscription rejects invalid status', function (): void {

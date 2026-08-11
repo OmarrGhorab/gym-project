@@ -36,8 +36,8 @@ test('admin can retrieve payslip as JSON', function (): void {
                 'commissions',
                 'bonuses',
                 'deductions',
-                'attendance_deductions',
-                'attendance_snapshot',
+                'manual_bonus_reason',
+                'manual_deduction_reason',
                 'net_salary',
             ],
         ]);
@@ -84,7 +84,7 @@ test('linked employee cannot retrieve another employee payslip', function (): vo
         ->assertForbidden();
 });
 
-test('payslip violation table includes manual payroll adjustments', function (): void {
+test('payslip adjustments table lists the bonus and deduction an admin entered', function (): void {
     $adminUser = User::factory()->create();
     $adminUser->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($adminUser);
@@ -93,21 +93,23 @@ test('payslip violation table includes manual payroll adjustments', function ():
         'month' => '2026-07',
         'bonuses' => '300.00',
         'deductions' => '1000.00',
-        'attendance_deductions' => '0.00',
+        'manual_bonus_reason' => 'Covered a colleague',
+        'manual_deduction_reason' => 'Salary advance',
         'net_salary' => '7100.00',
     ]);
 
     $this->get("/api/v1/payroll/{$payroll->id}/payslip")
         ->assertStatus(200)
-        ->assertSee('السلف / الخصم اليدوي', false)
+        ->assertSee('التعديلات اليدوية', false)
+        ->assertSee('السلف / الخصم', false)
         ->assertSee('بونص / مكافآت', false)
-        ->assertSee('مسجل من الإدارة', false)
-        ->assertSee('إضافة للراتب', false)
+        ->assertSee('Covered a colleague', false)
+        ->assertSee('Salary advance', false)
         ->assertSee('1,000.00', false)
         ->assertSee('300.00', false);
 });
 
-test('payslip itemizes membership commissions and explains automatic coach bonus', function (): void {
+test('payslip itemizes membership commissions and the manual bonus', function (): void {
     $this->travelTo(Carbon::parse('2026-07-15 12:00:00'));
 
     $adminUser = User::factory()->create();
@@ -158,6 +160,7 @@ test('payslip itemizes membership commissions and explains automatic coach bonus
         'base_salary' => '7500.00',
         'commissions_total' => '300.00',
         'bonuses' => '225.00',
+        'manual_bonus_reason' => 'Coaching performance this month',
         'net_salary' => '8025.00',
     ]);
 
@@ -168,15 +171,15 @@ test('payslip itemizes membership commissions and explains automatic coach bonus
         ->assertSee('Fitness Studio', false)
         ->assertSee('Membership coaching', false)
         ->assertSee('5%', false)
-        ->assertSee('Coach performance bonus', false)
-        ->assertSee('3% of base salary', false)
+        ->assertSee('Coaching performance this month', false)
         ->assertSee('225.00', false);
 
     $this->getJson("/api/v1/payroll/{$payroll->id}/payslip")
         ->assertOk()
         ->assertJsonPath('data.commission_breakdown.0.member_name', 'Mona Hassan')
         ->assertJsonPath('data.commission_breakdown.0.amount', '300.00')
-        ->assertJsonPath('data.bonus_breakdown.0.type', 'Coach performance bonus')
+        ->assertJsonPath('data.bonus_breakdown.0.type', 'Management bonus')
+        ->assertJsonPath('data.bonus_breakdown.0.details', 'Coaching performance this month')
         ->assertJsonPath('data.bonus_breakdown.0.amount', '225.00');
 
     expect($addon->exists)->toBeTrue();

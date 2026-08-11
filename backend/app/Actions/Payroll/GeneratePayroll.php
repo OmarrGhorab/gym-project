@@ -8,11 +8,6 @@ use App\Models\Payroll;
 
 final class GeneratePayroll
 {
-    public function __construct(
-        private readonly ApplyAttendanceDeductions $attendanceDeductions,
-        private readonly ApplyAttendanceBonuses $attendanceBonuses,
-    ) {}
-
     /**
      * Generate payroll for all active employees for the target month.
      *
@@ -70,19 +65,13 @@ final class GeneratePayroll
                 'month' => $month,
                 'base_salary' => $employee->base_salary,
                 'commissions_total' => $commissionsTotal,
+                // Bonuses and deductions always start at zero; an admin adds them by hand.
                 'bonuses' => '0.00',
-                'deductions' => 0.00,
-                'attendance_deductions' => 0.00,
+                'deductions' => '0.00',
                 'net_salary' => $netSalary,
                 'status' => 'pending',
             ]);
 
-            $payroll = $this->attendanceDeductions->execute($payroll);
-            $payroll->net_salary = bcsub((string) $payroll->net_salary, (string) $payroll->attendance_deductions, 2);
-            $payroll = $this->attendanceBonuses->execute($payroll);
-            $payroll->save();
-            $this->attendanceDeductions->execute($payroll);
-            $this->attendanceBonuses->execute($payroll);
             $payroll->save();
 
             $generated[] = $payroll;
@@ -112,13 +101,19 @@ final class GeneratePayroll
         }
 
         $payroll->commissions_total = $this->commissionTotal($payroll->employee_id, $payroll->month);
-        $payroll = $this->attendanceDeductions->execute($payroll);
-        $payroll = $this->attendanceBonuses->execute($payroll);
+        $payroll->net_salary = $this->netSalary($payroll);
 
-        // ApplyAttendanceBonuses saves when bonuses/net change; always persist base/commission sync.
         if ($payroll->isDirty()) {
             $payroll->save();
         }
+    }
+
+    private function netSalary(Payroll $payroll): string
+    {
+        $net = bcadd((string) $payroll->base_salary, (string) $payroll->commissions_total, 2);
+        $net = bcadd($net, (string) $payroll->bonuses, 2);
+
+        return bcsub($net, (string) $payroll->deductions, 2);
     }
 
     private function commissionTotal(int $employeeId, string $month): string

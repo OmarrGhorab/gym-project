@@ -29,7 +29,6 @@ class DatabaseSeeder extends Seeder
 
         // Shifts (4 desk + flexible admin) + attendance rules + staff cashiers
         $this->call(EmployeeShiftSeeder::class);
-        $this->call(AttendanceRulesSeeder::class);
         $this->call(GymStaffSeeder::class);
 
         // Catalog + members — categories first; plans reference them by slug.

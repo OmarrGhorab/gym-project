@@ -25,9 +25,6 @@ class AttendanceResource extends JsonResource
             'shift' => $this->whenLoaded('shift', fn () => [
                 'id' => $this->shift?->id,
                 'name' => $this->shift?->name,
-                'starts_at' => $this->shift?->starts_at?->format('H:i'),
-                'ends_at' => $this->shift?->ends_at?->format('H:i'),
-                'grace_minutes' => $this->shift?->grace_minutes,
             ]),
             'date' => $this->date?->toDateString(),
             'check_in' => $this->check_in?->format('H:i'),
@@ -48,11 +45,6 @@ class AttendanceResource extends JsonResource
             ],
             'status' => $this->status,
             'scan_method' => $this->scan_method,
-            'schedule_status' => $this->schedule_status,
-            'approval_status' => $this->approval_status,
-            'late_minutes' => (int) $this->late_minutes,
-            'early_leave_minutes' => (int) $this->early_leave_minutes,
-            'off_day_bonus_amount' => number_format((float) $this->off_day_bonus_amount, 2, '.', ''),
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

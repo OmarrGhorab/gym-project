@@ -469,10 +469,9 @@ class FinanceOverviewSeeder extends Seeder
                     ->where('status', 'paid')
                     ->sum('amount');
 
-                $attendanceDeductions = round((float) $employee->base_salary * rand(0, 4) / 100, 2);
                 $bonuses = ($index + (int) $month->format('m')) % 4 === 0 ? rand(200, 800) : 0;
                 $manualDeductions = $index % 7 === 0 ? rand(80, 300) : 0;
-                $netSalary = round((float) $employee->base_salary + (float) $commissions + $bonuses - $manualDeductions - $attendanceDeductions, 2);
+                $netSalary = round((float) $employee->base_salary + (float) $commissions + $bonuses - $manualDeductions, 2);
 
                 $isOpenPayroll = $isCurrentMonth || ($isPreviousMonth && $index % 5 === 0);
 
@@ -483,12 +482,8 @@ class FinanceOverviewSeeder extends Seeder
                     'commissions_total' => $commissions,
                     'bonuses' => $bonuses,
                     'deductions' => $manualDeductions,
-                    'attendance_deductions' => $attendanceDeductions,
-                    'attendance_snapshot' => [
-                        'present_days' => rand(20, 26),
-                        'late_days' => rand(0, 4),
-                        'absence_days' => rand(0, 2),
-                    ],
+                    'manual_bonus_reason' => $bonuses > 0 ? 'Monthly performance bonus' : null,
+                    'manual_deduction_reason' => $manualDeductions > 0 ? 'Salary advance' : null,
                     'net_salary' => $netSalary,
                     'status' => $isOpenPayroll ? 'pending' : 'paid',
                     'paid_at' => $isOpenPayroll ? null : $month->copy()->endOfMonth()->subDays(rand(0, 3)),

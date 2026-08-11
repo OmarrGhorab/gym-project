@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\ShiftSessions\AssignShiftStaff;
-use App\Actions\ShiftSessions\AutoOpenScheduledShiftSessions;
 use App\Actions\ShiftSessions\CloseShiftSession;
 use App\Actions\ShiftSessions\ComputeShiftSessionTotals;
 use App\Actions\ShiftSessions\OpenShiftSession;
@@ -14,7 +13,6 @@ use App\Http\Resources\ShiftSessionResource;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\Expense;
-use App\Models\OvertimeShift;
 use App\Models\Payment;
 use App\Models\ShiftSession;
 use App\Support\FoundationPermissions;
@@ -96,15 +94,6 @@ class ShiftSessionController extends ApiController
         $data = $request->validate(['date' => ['nullable', 'date']]);
         $date = isset($data['date']) ? Carbon::parse($data['date'])->toDateString() : Carbon::today()->toDateString();
 
-        $coveringStaff = OvertimeShift::query()
-            ->activeClaim()
-            ->whereDate('date', $date)
-            ->whereNotNull('employee_shift_id')
-            ->with(['employee' => fn ($query) => $query->active()->select('id', 'name', 'role', 'shift_id')])
-            ->get()
-            ->filter(fn (OvertimeShift $overtime): bool => $overtime->employee !== null)
-            ->groupBy('employee_shift_id');
-
         $allEmployees = Employee::query()
             ->active()
             ->select('id', 'name', 'role', 'shift_id')
@@ -113,13 +102,12 @@ class ShiftSessionController extends ApiController
 
         $shifts = EmployeeShift::query()
             ->where('is_active', true)
-            // The picker includes every active employee. Assigned employees are
-            // sorted first, while the admin can still hand a live desk to anyone.
-            ->orderBy('starts_at')
+            // The picker includes every active employee. Those whose home shift
+            // this is sort first, but any of them can be put on the desk.
             ->orderBy('name')
             ->get();
 
-        $payload = $shifts->map(function (EmployeeShift $shift) use ($allEmployees, $coveringStaff, $request): array {
+        $payload = $shifts->map(function (EmployeeShift $shift) use ($allEmployees, $request): array {
             $row = (new EmployeeShiftResource($shift))->toArray($request);
             $row['employees'] = $allEmployees
                 ->sortBy(fn ($employee): string => sprintf(
@@ -127,13 +115,8 @@ class ShiftSessionController extends ApiController
                     (int) $employee->shift_id === (int) $shift->id ? 0 : 1,
                     mb_strtolower((string) $employee->name),
                 ))
-                ->concat($coveringStaff->get($shift->id, collect())->pluck('employee'))
                 ->unique('id')
-                // Everyone is listed by name, the signed-in employee included. The
-                // picker used to hide them behind a "Me" option, which showed the
-                // user's name while the rules ran against their employee record —
-                // so an admin whose employee is on no shift was offered a choice
-                // that could only ever fail.
+                // Everyone is listed by name, the signed-in employee included.
                 ->map(fn ($employee): array => [
                     'id' => $employee->id,
                     'name' => $employee->name,
@@ -151,19 +134,12 @@ class ShiftSessionController extends ApiController
         );
     }
 
-    public function current(
-        Request $request,
-        ComputeShiftSessionTotals $totals,
-        AutoOpenScheduledShiftSessions $autoOpen,
-    ): JsonResponse {
+    public function current(Request $request, ComputeShiftSessionTotals $totals): JsonResponse
+    {
         $this->authorizeFinanceView($request);
 
-        // The scheduler is the primary trigger. This idempotent catch-up keeps the desk
-        // correct when a local development server was started without schedule:work.
-        $autoOpen->handle();
-
-        // Scheduled sessions may have been opened by the scheduler; staff still close
-        // them manually and the closing employee is kept in the audit trail.
+        // Desks are opened and closed by hand, so the live one is simply the most
+        // recently opened session that nobody has closed yet.
         $session = ShiftSession::query()
             ->with(['shift', 'openedBy', 'closedBy', 'openedByEmployee', 'closedByEmployee'])
             ->where('status', ShiftSession::STATUS_OPEN)
@@ -197,7 +173,6 @@ class ShiftSessionController extends ApiController
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'business_date' => ['nullable', 'date'],
             'opening_float' => ['nullable', 'numeric', 'min:0'],
-            'force_open' => ['sometimes', 'boolean'],
         ]);
 
         $session = $action->handle($data, $request->user());

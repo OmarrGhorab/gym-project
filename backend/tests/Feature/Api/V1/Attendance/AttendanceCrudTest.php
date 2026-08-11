@@ -36,7 +36,13 @@ test('manager can view monthly attendance summary per employee', function (): vo
 
     $employee = Employee::factory()->create(['name' => 'Mona Ahmed', 'role' => 'manager']);
     Attendance::factory()->create(['employee_id' => $employee->id, 'date' => '2026-06-10', 'status' => 'present']);
-    Attendance::factory()->create(['employee_id' => $employee->id, 'date' => '2026-06-11', 'status' => 'late']);
+    Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-06-11',
+        'status' => 'present',
+        'check_in' => '09:00',
+        'check_out' => null,
+    ]);
     Attendance::factory()->create(['employee_id' => $employee->id, 'date' => '2026-07-01', 'status' => 'absent']);
 
     $this->getJson('/api/v1/attendance/summary?month=2026-06')
@@ -45,7 +51,7 @@ test('manager can view monthly attendance summary per employee', function (): vo
         ->assertJsonPath('data.0.name', 'Mona Ahmed')
         ->assertJsonPath('data.0.records_count', 2)
         ->assertJsonPath('data.0.present_count', 2)
-        ->assertJsonPath('data.0.late_count', 1);
+        ->assertJsonPath('data.0.open_count', 1);
 });
 
 test('manager can create update and delete attendance', function (): void {
@@ -60,12 +66,12 @@ test('manager can create update and delete attendance', function (): void {
         'date' => '2026-06-26',
         'check_in' => '09:15',
         'check_out' => '17:30',
-        'status' => 'late',
+        'status' => 'present',
         'notes' => 'Traffic delay',
     ])
         ->assertStatus(201)
         ->assertJsonPath('data.employee.name', 'Nour Salem')
-        ->assertJsonPath('data.status', 'late')
+        ->assertJsonPath('data.status', 'present')
         ->assertJsonPath('data.check_in', '09:15');
 
     $attendanceId = $response->json('data.id');

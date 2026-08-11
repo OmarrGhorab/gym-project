@@ -18,7 +18,10 @@ class SendDailyShiftSummary
     ) {}
 
     /**
-     * Sends one report after every active shift has reached its scheduled end.
+     * Sends one report for the business day.
+     *
+     * Shifts carry no times any more, so there is no "last shift has ended" to
+     * wait for — the scheduler decides when the day is over and fires this once.
      *
      * @return array{sent: bool, reason: string, business_date: string, sessions: int}
      */
@@ -30,20 +33,11 @@ class SendDailyShiftSummary
 
         $shifts = EmployeeShift::query()
             ->where('is_active', true)
-            ->orderBy('starts_at')
             ->orderBy('name')
             ->get();
 
         if ($shifts->isEmpty()) {
             return $this->result(false, 'no_active_shifts', $businessDate, 0);
-        }
-
-        $lastEnd = $shifts
-            ->map(fn (EmployeeShift $shift): Carbon => $this->scheduledEnd($shift, $businessDate))
-            ->max();
-
-        if (! $lastEnd instanceof Carbon || $now->lt($lastEnd)) {
-            return $this->result(false, 'shifts_not_finished', $businessDate, 0);
         }
 
         return DB::transaction(function () use ($businessDate, $shifts): array {
@@ -68,7 +62,7 @@ class SendDailyShiftSummary
                 ->orderBy('opened_at')
                 ->get();
 
-            $summary = $this->buildSummary($businessDate, $shifts, $sessions);
+            $summary = $this->buildSummary($shifts, $sessions);
 
             $this->notifier->dailyShiftSummary(
                 businessDate: $businessDate->toDateString(),
@@ -87,7 +81,7 @@ class SendDailyShiftSummary
      * @param  Collection<int, ShiftSession>  $sessions
      * @return array{shifts: array<int, array<string, mixed>>, totals: array<string, mixed>}
      */
-    private function buildSummary(Carbon $businessDate, Collection $shifts, Collection $sessions): array
+    private function buildSummary(Collection $shifts, Collection $sessions): array
     {
         $totals = [
             'sessions' => 0,
@@ -100,7 +94,7 @@ class SendDailyShiftSummary
 
         $grouped = $sessions->groupBy('employee_shift_id');
 
-        $shiftRows = $shifts->map(function (EmployeeShift $shift) use ($businessDate, $grouped, &$totals): array {
+        $shiftRows = $shifts->map(function (EmployeeShift $shift) use ($grouped, &$totals): array {
             /** @var Collection<int, ShiftSession> $shiftSessions */
             $shiftSessions = $grouped->get($shift->id, collect());
             $sessionRows = $shiftSessions->map(function (ShiftSession $session) use (&$totals): array {
@@ -153,26 +147,11 @@ class SendDailyShiftSummary
             return [
                 'shift_id' => $shift->id,
                 'shift_name' => $shift->name,
-                'scheduled_start' => $this->scheduledStart($shift, $businessDate)->toIso8601String(),
-                'scheduled_end' => $this->scheduledEnd($shift, $businessDate)->toIso8601String(),
                 'sessions' => $sessionRows,
             ];
         })->values()->all();
 
         return ['shifts' => $shiftRows, 'totals' => $totals];
-    }
-
-    private function scheduledStart(EmployeeShift $shift, Carbon $businessDate): Carbon
-    {
-        return $businessDate->copy()->setTimeFromTimeString($shift->starts_at?->format('H:i:s') ?? '00:00:00');
-    }
-
-    private function scheduledEnd(EmployeeShift $shift, Carbon $businessDate): Carbon
-    {
-        $start = $this->scheduledStart($shift, $businessDate);
-        $end = $businessDate->copy()->setTimeFromTimeString($shift->ends_at?->format('H:i:s') ?? '23:59:59');
-
-        return $end->lte($start) ? $end->addDay() : $end;
     }
 
     private function money(mixed $amount): ?string

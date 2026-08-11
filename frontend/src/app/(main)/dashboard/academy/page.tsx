@@ -122,7 +122,7 @@ export default async function Page({ searchParams }: PageProps) {
             <ClassSchedule shifts={data.shift_schedule} />
           </div>
           <div className="xl:col-span-7">
-            <AssignmentStatus warnings={data.warning_status} />
+            <AssignmentStatus exceptions={data.attendance_exceptions} />
           </div>
         </div>
       ) : null}

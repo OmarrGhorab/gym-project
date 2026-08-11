@@ -5,10 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
+/**
+ * A named block of the working day — "Morning", "Evening" — and nothing more.
+ *
+ * Shifts carry no times: staff clock in and out whenever they actually arrive
+ * and leave. The name exists so the cash desk can say which block a drawer
+ * belongs to and so attendance can be grouped by it.
+ */
 class EmployeeShift extends Model
 {
     use HasFactory;
@@ -16,21 +22,10 @@ class EmployeeShift extends Model
 
     protected $fillable = [
         'name',
-        'starts_at',
-        'ends_at',
-        'grace_minutes',
-        'off_days',
-        'off_day_bonus_enabled',
-        'off_day_bonus_amount',
         'is_active',
     ];
 
     protected $casts = [
-        'starts_at' => 'datetime:H:i',
-        'ends_at' => 'datetime:H:i',
-        'off_days' => 'array',
-        'off_day_bonus_enabled' => 'boolean',
-        'off_day_bonus_amount' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 
@@ -47,8 +42,8 @@ class EmployeeShift extends Model
         return $this->hasMany(Employee::class, 'shift_id');
     }
 
-    public function offRotation(): HasOne
+    public function sessions(): HasMany
     {
-        return $this->hasOne(ShiftOffRotation::class, 'employee_shift_id');
+        return $this->hasMany(ShiftSession::class, 'employee_shift_id');
     }
 }

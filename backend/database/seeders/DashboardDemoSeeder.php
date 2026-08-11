@@ -3,8 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Attendance;
-use App\Models\AttendanceViolation;
-use App\Models\AttendanceViolationRule;
 use App\Models\Commission;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
@@ -115,7 +113,6 @@ class DashboardDemoSeeder extends Seeder
 
         $demoEmployees = Employee::query()->where('phone', 'like', '+2015500%')->pluck('id');
         if ($demoEmployees->isNotEmpty()) {
-            AttendanceViolation::query()->whereIn('employee_id', $demoEmployees)->delete();
             Attendance::query()->whereIn('employee_id', $demoEmployees)->delete();
             Payroll::query()->whereIn('employee_id', $demoEmployees)->delete();
             Commission::query()->whereIn('employee_id', $demoEmployees)->delete();
@@ -155,10 +152,10 @@ class DashboardDemoSeeder extends Seeder
     private function seedShifts(): Collection
     {
         return collect([
-            ['name' => 'Demo: Morning 09-17', 'starts_at' => '09:00', 'ends_at' => '17:00', 'grace_minutes' => 15],
-            ['name' => 'Demo: Evening 14-22', 'starts_at' => '14:00', 'ends_at' => '22:00', 'grace_minutes' => 10],
-            ['name' => 'Demo: Night 22-06', 'starts_at' => '22:00', 'ends_at' => '06:00', 'grace_minutes' => 20],
-            ['name' => 'Demo: Weekend 10-18', 'starts_at' => '10:00', 'ends_at' => '18:00', 'grace_minutes' => 15],
+            ['name' => 'Demo: Morning'],
+            ['name' => 'Demo: Evening'],
+            ['name' => 'Demo: Night'],
+            ['name' => 'Demo: Weekend'],
         ])->map(fn (array $shift) => EmployeeShift::query()->updateOrCreate(
             ['name' => $shift['name']],
             $shift + ['is_active' => true],
@@ -574,7 +571,6 @@ class DashboardDemoSeeder extends Seeder
      */
     private function seedAttendance(Collection $employees, Collection $shifts, User $admin): void
     {
-        $rules = AttendanceViolationRule::query()->get()->keyBy('code');
         $activeEmployees = $employees->where('status', 'active')->values();
 
         for ($day = 0; $day < 38; $day++) {
@@ -583,20 +579,16 @@ class DashboardDemoSeeder extends Seeder
                 continue;
             }
 
-            $activeEmployees->each(function (Employee $employee, int $index) use ($date, $rules, $admin): void {
+            $activeEmployees->each(function (Employee $employee, int $index) use ($date): void {
                 $shift = $employee->shift ?: EmployeeShift::query()->first();
                 $statusRoll = ($date->day + $index) % 16;
                 $isAbsent = $statusRoll === 0;
-                $isLate = in_array($statusRoll, [3, 7, 11], true);
-                $isEarlyLeave = $statusRoll === 5;
-                $isOffShift = $statusRoll === 9;
-                $lateMinutes = $isLate ? [18, 35, 70][($date->day + $index) % 3] : 0;
-                $earlyLeaveMinutes = $isEarlyLeave ? rand(20, 55) : 0;
+                $isOffSite = $statusRoll === 9;
+                // Nobody clocks in at the same minute twice; the spread is the point.
+                $checkIn = $isAbsent ? null : $date->setTimeFromTimeString('09:00')->addMinutes(rand(-40, 90));
+                $checkOut = $isAbsent ? null : $date->setTimeFromTimeString('17:00')->addMinutes(rand(-60, 90));
 
-                $checkIn = $isAbsent ? null : $date->setTimeFromTimeString($shift->starts_at->format('H:i'))->addMinutes($lateMinutes)->addMinutes($isOffShift ? 90 : rand(-5, 8));
-                $checkOut = $isAbsent ? null : $date->setTimeFromTimeString($shift->ends_at->format('H:i'))->subMinutes($earlyLeaveMinutes)->addMinutes(rand(-8, 20));
-
-                $attendance = Attendance::create([
+                Attendance::create([
                     'employee_id' => $employee->id,
                     'shift_id' => $shift->id,
                     'date' => $date->toDateString(),
@@ -604,84 +596,20 @@ class DashboardDemoSeeder extends Seeder
                     'check_in_latitude' => $isAbsent ? null : self::GYM_LATITUDE + (rand(-12, 12) / 100000),
                     'check_in_longitude' => $isAbsent ? null : self::GYM_LONGITUDE + (rand(-12, 12) / 100000),
                     'check_in_accuracy_meters' => $isAbsent ? null : rand(8, 38),
-                    'check_in_distance_meters' => $isAbsent ? null : ($isOffShift ? rand(40, 160) : rand(2, 45)),
-                    'check_in_location_status' => $isAbsent ? null : ($isOffShift ? 'flagged' : 'inside'),
+                    'check_in_distance_meters' => $isAbsent ? null : ($isOffSite ? rand(400, 1600) : rand(2, 45)),
+                    'check_in_location_status' => $isAbsent ? null : ($isOffSite ? 'outside' : 'inside'),
                     'check_out' => $checkOut,
                     'check_out_latitude' => $isAbsent ? null : self::GYM_LATITUDE + (rand(-12, 12) / 100000),
                     'check_out_longitude' => $isAbsent ? null : self::GYM_LONGITUDE + (rand(-12, 12) / 100000),
                     'check_out_accuracy_meters' => $isAbsent ? null : rand(8, 40),
                     'check_out_distance_meters' => $isAbsent ? null : rand(2, 65),
                     'check_out_location_status' => $isAbsent ? null : 'inside',
-                    'status' => $isAbsent ? 'absent' : ($isLate ? 'late' : 'present'),
+                    'status' => $isAbsent ? 'absent' : 'present',
                     'scan_method' => $isAbsent ? 'manual' : 'qr',
-                    'schedule_status' => $isOffShift ? 'off_shift' : 'on_shift',
-                    'approval_status' => $isOffShift ? 'pending' : 'approved',
-                    'late_minutes' => $lateMinutes,
-                    'early_leave_minutes' => $earlyLeaveMinutes,
-                    'notes' => $isAbsent ? 'Demo: absent day for payroll warning.' : null,
+                    'notes' => $isAbsent ? 'Demo: absent day.' : null,
                 ]);
-
-                $this->maybeSeedAttendanceViolation($attendance, $employee, $rules, $admin);
             });
         }
-    }
-
-    /**
-     * @param  Collection<string, AttendanceViolationRule>  $rules
-     */
-    private function maybeSeedAttendanceViolation(Attendance $attendance, Employee $employee, Collection $rules, User $admin): void
-    {
-        $rule = null;
-        $type = null;
-        $minutes = null;
-
-        if ($attendance->status === 'absent') {
-            $rule = $rules->get('absence');
-            $type = 'absence';
-        } elseif ($attendance->late_minutes >= 60) {
-            $rule = $rules->get('late_60');
-            $type = 'late';
-            $minutes = $attendance->late_minutes;
-        } elseif ($attendance->late_minutes >= 30) {
-            $rule = $rules->get('late_30');
-            $type = 'late';
-            $minutes = $attendance->late_minutes;
-        } elseif ($attendance->late_minutes >= 15) {
-            $rule = $rules->get('late_15');
-            $type = 'late';
-            $minutes = $attendance->late_minutes;
-        } elseif ($attendance->early_leave_minutes > 0) {
-            $rule = $rules->get('early_leave');
-            $type = 'early_leave';
-            $minutes = $attendance->early_leave_minutes;
-        } elseif ($attendance->schedule_status === 'off_shift') {
-            $rule = $rules->get('off_shift');
-            $type = 'off_shift';
-        }
-
-        if (! $rule || ! $type) {
-            return;
-        }
-
-        $dailySalary = ((float) $employee->base_salary) / 30;
-        $deductionAmount = round($dailySalary * (float) $rule->deduction_days, 2);
-        $status = ['pending', 'approved', 'dismissed', 'auto_applied'][$attendance->id % 4];
-
-        AttendanceViolation::create([
-            'employee_id' => $employee->id,
-            'attendance_id' => $attendance->id,
-            'attendance_violation_rule_id' => $rule->id,
-            'payroll_id' => null,
-            'violation_date' => $attendance->date,
-            'type' => $type,
-            'minutes' => $minutes,
-            'deduction_days' => $rule->deduction_days,
-            'deduction_amount' => $deductionAmount,
-            'status' => $status,
-            'notes' => 'Demo: attendance rule sample.',
-            'reviewed_by' => in_array($status, ['approved', 'dismissed'], true) ? $admin->id : null,
-            'reviewed_at' => in_array($status, ['approved', 'dismissed'], true) ? now()->subDays(rand(0, 7)) : null,
-        ]);
     }
 
     /**
@@ -849,14 +777,9 @@ class DashboardDemoSeeder extends Seeder
                     ->where('employee_id', $employee->id)
                     ->where('month', $monthKey)
                     ->sum('amount');
-                $attendanceDeductions = AttendanceViolation::query()
-                    ->where('employee_id', $employee->id)
-                    ->whereIn('status', ['approved', 'auto_applied'])
-                    ->whereBetween('violation_date', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
-                    ->sum('deduction_amount');
                 $bonuses = ($index + (int) $month->format('m')) % 4 === 0 ? rand(200, 700) : 0;
                 $manualDeductions = $index % 5 === 0 ? rand(100, 350) : 0;
-                $netSalary = round((float) $employee->base_salary + (float) $commissions + $bonuses - $manualDeductions - (float) $attendanceDeductions, 2);
+                $netSalary = round((float) $employee->base_salary + (float) $commissions + $bonuses - $manualDeductions, 2);
 
                 Payroll::create([
                     'employee_id' => $employee->id,
@@ -865,12 +788,8 @@ class DashboardDemoSeeder extends Seeder
                     'commissions_total' => $commissions,
                     'bonuses' => $bonuses,
                     'deductions' => $manualDeductions,
-                    'attendance_deductions' => $attendanceDeductions,
-                    'attendance_snapshot' => [
-                        'present_days' => rand(19, 25),
-                        'late_days' => rand(0, 5),
-                        'absence_days' => rand(0, 2),
-                    ],
+                    'manual_bonus_reason' => $bonuses > 0 ? 'Demo: monthly performance bonus' : null,
+                    'manual_deduction_reason' => $manualDeductions > 0 ? 'Demo: salary advance' : null,
                     'net_salary' => $netSalary,
                     'status' => $isOpenPayroll ? 'pending' : 'paid',
                     'paid_at' => $isOpenPayroll ? null : $month->copy()->endOfMonth()->subDays(rand(0, 3)),

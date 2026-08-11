@@ -91,23 +91,6 @@ final class NotificationLink
     }
 
     /**
-     * Attendance day sheet with the warnings table filtered to one violation.
-     *
-     * @return array{page: string, entity_type: string|null, entity_id: int|string|null, url: string}
-     */
-    public static function attendanceViolation(?int $violationId, ?int $employeeId, ?string $date, ?string $type = null): array
-    {
-        return self::to('attendance', 'attendance_violation', $violationId, [
-            'date' => $date,
-            'employee' => $employeeId,
-            'violation' => $violationId,
-            'warning_employee_id' => $employeeId,
-            'warning_status' => 'all',
-            'warning_type' => $type,
-        ]);
-    }
-
-    /**
      * @return array{page: string, entity_type: string|null, entity_id: int|string|null, url: string}
      */
     public static function task(?int $taskId): array

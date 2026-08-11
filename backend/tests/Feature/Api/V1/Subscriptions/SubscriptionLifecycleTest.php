@@ -9,6 +9,7 @@ use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -16,6 +17,13 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
+    // The fixtures below use fixed mid-2026 dates; without pinning "now" the
+    // resumed period reads as already expired once the wall clock passes them.
+    Carbon::setTestNow('2026-06-10');
+});
+
+afterEach(function (): void {
+    Carbon::setTestNow();
 });
 
 function makeLifecycleSubscription(User $user, array $planOverrides = [], array $subscriptionOverrides = []): Subscription

@@ -18,7 +18,6 @@ class AssignShiftStaff
 {
     public function __construct(
         private readonly ResolveShiftStaff $staff,
-        private readonly TrackShiftOvertime $overtime,
     ) {}
 
     /**
@@ -41,20 +40,13 @@ class AssignShiftStaff
             $previous = $locked->openedByEmployee?->name;
 
             // Any logged-in operator may hand the live drawer to any active employee.
-            // The handoff itself creates a pending overtime record for admin review.
             $employee = $this->staff->handle(
                 $locked->shift,
                 $user,
                 $data['employee_id'] ?? null,
                 'employee_id',
-                $locked->business_date,
-                false,
                 true,
             );
-
-            if ((int) ($locked->opened_by_employee_id ?? 0) !== (int) $employee->id) {
-                $this->overtime->begin($locked, $employee->id, $locked->opened_by_employee_id, $user, now());
-            }
 
             $locked->update(['opened_by_employee_id' => $employee->id]);
 

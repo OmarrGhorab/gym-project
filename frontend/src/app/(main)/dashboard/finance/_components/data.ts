@@ -99,7 +99,6 @@ export type FinanceShiftSession = {
   id: number;
   business_date?: string | null;
   status: string;
-  opened_automatically?: boolean;
   opening_float: string;
   expected_cash: string | null;
   expected_card: string | null;
@@ -142,7 +141,7 @@ export type FinanceShiftSession = {
       expenses?: string;
     };
   } | null;
-  shift?: { id: number; name: string; starts_at?: string; ends_at?: string } | null;
+  shift?: { id: number; name: string } | null;
   previous_session_id?: number | null;
   opened_by?: { id: number; name: string } | null;
   closed_by?: { id: number; name: string } | null;

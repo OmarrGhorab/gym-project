@@ -53,8 +53,6 @@ class CleanOperationalDataSeeder extends Seeder
             'member_workout_plans',
             'member_progress_entries',
             'members',
-            'attendance_violations',
-            'attendance_violation_rules',
             'attendance',
             'employee_plan_commission_rules',
             'commissions',

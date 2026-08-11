@@ -56,6 +56,9 @@ final class MembershipPermissions
 
     public const PERM_SUBSCRIPTIONS_FREEZE = 'subscriptions.freeze';
 
+    /** Freeze a plan that is flagged `freeze_requires_approval` (manager/admin sign-off). */
+    public const PERM_SUBSCRIPTIONS_FREEZE_APPROVE = 'subscriptions.freeze_approve';
+
     public const PERM_SUBSCRIPTIONS_STOP = 'subscriptions.stop';
 
     /** Allow a refund after the plan cancellation grace period. */
@@ -103,6 +106,7 @@ final class MembershipPermissions
         self::PERM_SUBSCRIPTIONS_RENEW,
         self::PERM_SUBSCRIPTIONS_UPGRADE,
         self::PERM_SUBSCRIPTIONS_FREEZE,
+        self::PERM_SUBSCRIPTIONS_FREEZE_APPROVE,
         self::PERM_SUBSCRIPTIONS_STOP,
         self::PERM_SUBSCRIPTIONS_FORCE_REFUND,
         // Payments

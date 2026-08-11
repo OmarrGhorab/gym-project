@@ -15,12 +15,8 @@ beforeEach(function (): void {
     $this->seed(MembershipAccessSeeder::class);
 });
 
-test('employee check in after shift grace is marked late in gym local time', function (): void {
-    $shift = EmployeeShift::factory()->create([
-        'starts_at' => '06:00',
-        'ends_at' => '14:00',
-        'grace_minutes' => 10,
-    ]);
+test('employee check in records the arrival time in gym local time', function (): void {
+    $shift = EmployeeShift::factory()->create(['name' => 'Morning']);
     $employee = Employee::factory()->create([
         'shift_id' => $shift->id,
     ]);
@@ -31,8 +27,20 @@ test('employee check in after shift grace is marked late in gym local time', fun
         'check_in_at' => '2026-07-05 09:00:00',
     ], $user);
 
-    expect($attendance->status)->toBe('late')
-        ->and($attendance->schedule_status)->toBe('late')
-        ->and($attendance->late_minutes)->toBe(170)
+    // Arriving at any hour is simply arriving — there is no schedule to be late against.
+    expect($attendance->status)->toBe('present')
+        ->and($attendance->shift_id)->toBe($shift->id)
         ->and($attendance->check_in)->format('H:i')->toBe('09:00');
+});
+
+test('a check-in with no open desk session falls back to the employee home shift', function (): void {
+    $shift = EmployeeShift::factory()->create(['name' => 'Evening']);
+    $employee = Employee::factory()->create(['shift_id' => $shift->id]);
+
+    $attendance = app(CheckInEmployeeAttendance::class)->handle([
+        'qr_token' => "employee:{$employee->attendance_code}",
+        'check_in_at' => '2026-07-05 18:30:00',
+    ], User::factory()->create());
+
+    expect($attendance->shift_id)->toBe($shift->id);
 });

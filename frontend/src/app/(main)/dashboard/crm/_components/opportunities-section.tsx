@@ -70,10 +70,12 @@ const normalizedOpportunityFilter: FilterFn<MembershipPipelineRow> = (row, _colu
 
 export function OpportunitiesSection({
   canViewMoney,
+  canApproveFreeze,
   rows,
   reminderDays,
 }: {
   canViewMoney: boolean;
+  canApproveFreeze: boolean;
   rows: MembershipPipelineRow[];
   reminderDays: number[];
 }) {
@@ -89,8 +91,8 @@ export function OpportunitiesSection({
     pageSize: 10,
   });
   const columns = React.useMemo(
-    () => getOpportunitiesColumns(t, reminderDays, canViewMoney),
-    [canViewMoney, reminderDays, t],
+    () => getOpportunitiesColumns(t, reminderDays, canViewMoney, canApproveFreeze),
+    [canApproveFreeze, canViewMoney, reminderDays, t],
   );
 
   const table = useReactTable({

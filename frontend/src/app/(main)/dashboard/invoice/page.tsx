@@ -44,8 +44,8 @@ export default async function Page() {
         <SummaryCard icon={IdCard} label={t("memberQrCards")} value={numberFormatter.format(data.totals.members)} />
         <SummaryCard
           icon={FileArchive}
-          label={t("pendingWarnings")}
-          value={numberFormatter.format(data.totals.pendingViolations)}
+          label={t("pendingApprovals")}
+          value={numberFormatter.format(data.totals.pendingApprovals)}
         />
       </div>
 

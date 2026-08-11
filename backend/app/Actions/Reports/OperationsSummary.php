@@ -2,7 +2,7 @@
 
 namespace App\Actions\Reports;
 
-use App\Models\AttendanceViolation;
+use App\Models\Attendance;
 use App\Models\MemberVisit;
 use App\Models\OperationsCalendarEvent;
 use App\Models\Payment;
@@ -26,10 +26,13 @@ final class OperationsSummary
         $weekStart = $now->startOfWeek();
         $weekEnd = $now->endOfWeek();
 
-        $pendingViolations = AttendanceViolation::query()
+        // Nothing about a scan is judged any more, so the only attendance row
+        // that still needs a human is a day nobody closed.
+        $pendingAttendance = Attendance::query()
             ->with('employee:id,name,role')
-            ->where('status', 'pending')
-            ->orderBy('violation_date')
+            ->whereNotNull('check_in')
+            ->whereNull('check_out')
+            ->orderBy('date')
             ->get();
 
         $blockedVisits = MemberVisit::query()
@@ -61,7 +64,7 @@ final class OperationsSummary
             ->get();
 
         $dues = $this->outstandingDues();
-        $tasks = $this->tasks($pendingViolations, $blockedVisits, $expiringSubscriptions, $lowStockProducts, $pendingPayroll, $dues['rows']);
+        $tasks = $this->tasks($pendingAttendance, $blockedVisits, $expiringSubscriptions, $lowStockProducts, $pendingPayroll, $dues['rows']);
         $completedSignals = $this->completedSignals($weekStart, $weekEnd);
         $totalSignals = max($tasks->count() + $completedSignals, 1);
         $weeklyProgress = (int) round(($completedSignals / $totalSignals) * 100);
@@ -70,14 +73,14 @@ final class OperationsSummary
             'generated_at' => $now->toIso8601String(),
             'summary' => [
                 'today_action_count' => $tasks->whereIn('priority', ['high', 'medium'])->count(),
-                'pending_review_count' => $pendingViolations->count() + $blockedVisits->count(),
+                'pending_review_count' => $pendingAttendance->count() + $blockedVisits->count(),
                 'week_progress' => $weeklyProgress,
                 'focus_title' => $this->focusTitle($tasks),
                 'focus_description' => $this->focusDescription($tasks),
                 'focus_href' => $this->focusHref($tasks),
             ],
             'tasks' => $tasks->take(8)->values()->all(),
-            'workflows' => $this->workflows($pendingViolations, $pendingPayroll, $expiringSubscriptions, $dues, $lowStockProducts),
+            'workflows' => $this->workflows($pendingAttendance, $pendingPayroll, $expiringSubscriptions, $dues, $lowStockProducts),
             'quick_actions' => [
                 ['label' => 'Attendance Review', 'href' => '/dashboard/attendance'],
                 ['label' => 'Membership Follow-up', 'href' => '/dashboard/members'],
@@ -101,7 +104,7 @@ final class OperationsSummary
     }
 
     /**
-     * @param  Collection<int, AttendanceViolation>  $pendingViolations
+     * @param  Collection<int, Attendance>  $pendingAttendance
      * @param  Collection<int, MemberVisit>  $blockedVisits
      * @param  Collection<int, Subscription>  $expiringSubscriptions
      * @param  Collection<int, Product>  $lowStockProducts
@@ -110,7 +113,7 @@ final class OperationsSummary
      * @return Collection<int, array<string, mixed>>
      */
     private function tasks(
-        Collection $pendingViolations,
+        Collection $pendingAttendance,
         Collection $blockedVisits,
         Collection $expiringSubscriptions,
         Collection $lowStockProducts,
@@ -118,12 +121,12 @@ final class OperationsSummary
         Collection $dues,
     ): Collection {
         return collect()
-            ->merge($pendingViolations->map(fn (AttendanceViolation $violation): array => [
-                'id' => 'violation-'.$violation->id,
-                'title' => 'Review '.$violation->employee?->name.' attendance warning',
+            ->merge($pendingAttendance->map(fn (Attendance $attendance): array => [
+                'id' => 'attendance-'.$attendance->id,
+                'title' => 'Close out '.$attendance->employee?->name."'s attendance",
                 'tag' => 'Attendance',
                 'priority' => 'high',
-                'due_label' => $violation->violation_date?->format('M d') ?? 'Today',
+                'due_label' => $attendance->date?->format('M d') ?? 'Today',
                 'href' => '/dashboard/attendance',
             ]))
             ->merge($blockedVisits->map(fn (MemberVisit $visit): array => [
@@ -171,7 +174,7 @@ final class OperationsSummary
     }
 
     /**
-     * @param  Collection<int, AttendanceViolation>  $pendingViolations
+     * @param  Collection<int, Attendance>  $pendingAttendance
      * @param  Collection<int, Payroll>  $pendingPayroll
      * @param  Collection<int, Subscription>  $expiringSubscriptions
      * @param  array{total: float, count: int, rows: Collection<int, array<string, mixed>>}  $dues
@@ -179,7 +182,7 @@ final class OperationsSummary
      * @return array<int, array<string, mixed>>
      */
     private function workflows(
-        Collection $pendingViolations,
+        Collection $pendingAttendance,
         Collection $pendingPayroll,
         Collection $expiringSubscriptions,
         array $dues,
@@ -188,10 +191,10 @@ final class OperationsSummary
         return [
             [
                 'title' => 'Attendance Review',
-                'status' => $pendingViolations->isEmpty() ? 'Clear' : 'Needs Review',
-                'description' => $pendingViolations->count().' warnings waiting for admin decision.',
-                'progress' => $pendingViolations->isEmpty() ? 100 : max(10, 100 - ($pendingViolations->count() * 15)),
-                'footer' => 'Staff warnings and exceptions',
+                'status' => $pendingAttendance->isEmpty() ? 'Clear' : 'Needs Review',
+                'description' => $pendingAttendance->count().' staff have no check-out recorded.',
+                'progress' => $pendingAttendance->isEmpty() ? 100 : max(10, 100 - ($pendingAttendance->count() * 15)),
+                'footer' => 'Open staff attendance',
                 'href' => '/dashboard/attendance',
             ],
             [
@@ -199,7 +202,7 @@ final class OperationsSummary
                 'status' => $pendingPayroll->isEmpty() ? 'Paid' : 'Pending',
                 'description' => $pendingPayroll->count().' salary receipts pending payment.',
                 'progress' => $pendingPayroll->isEmpty() ? 100 : max(20, 100 - ($pendingPayroll->count() * 10)),
-                'footer' => 'Attendance deductions included',
+                'footer' => 'Bonuses and deductions added by hand',
                 'href' => '/dashboard/payroll',
             ],
             [

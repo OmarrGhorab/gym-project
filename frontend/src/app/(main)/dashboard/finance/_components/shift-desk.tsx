@@ -37,7 +37,6 @@ export type ShiftDeskSession = {
   id: number;
   business_date?: string | null;
   status: string;
-  opened_automatically?: boolean;
   opening_float: string;
   expected_cash: string | null;
   expected_card: string | null;
@@ -80,7 +79,7 @@ export type ShiftDeskSession = {
       expenses?: string;
     };
   } | null;
-  shift?: { id: number; name: string; starts_at?: string; ends_at?: string } | null;
+  shift?: { id: number; name: string } | null;
   previous_session_id?: number | null;
   opened_by?: { id: number; name: string } | null;
   closed_by?: { id: number; name: string } | null;
@@ -88,24 +87,6 @@ export type ShiftDeskSession = {
   closed_by_employee?: { id: number; name: string; role?: string | null } | null;
 };
 
-function formatScheduledEnd(endsAt?: string) {
-  if (!endsAt) {
-    return null;
-  }
-
-  const [endHStr, endMStr = "0"] = endsAt.split(":");
-  const endH = Number(endHStr);
-  const endM = Number(endMStr);
-
-  if (!Number.isFinite(endH)) {
-    return null;
-  }
-
-  const period = endH >= 12 ? "PM" : "AM";
-  const displayHour = endH % 12 || 12;
-
-  return `${displayHour}:${String(endM).padStart(2, "0")} ${period}`;
-}
 
 export function ShiftDesk({
   currentSession,
@@ -173,10 +154,8 @@ export function ShiftDesk({
     // The accountable employee of this shift — the acting user account is only the audit trail.
     const staffOnDuty = currentSession.staff_on_duty?.name ?? currentSession.opened_by?.name ?? t("automaticSystem");
     const openedByStaff =
-      currentSession.opened_by?.name ?? (currentSession.opened_automatically ? t("automaticSystem") : staffOnDuty);
+      currentSession.opened_by?.name ?? staffOnDuty;
     const hasMoney = paymentCount > 0 || expenseCount > 0 || Number(live?.expenses ?? 0) > 0;
-
-    const scheduledEnd = formatScheduledEnd(currentSession.shift?.ends_at);
 
     sessionBody = (
       <div className="grid gap-4 rounded-xl border bg-card/50 p-4 shadow-2xs">
@@ -190,7 +169,6 @@ export function ShiftDesk({
             </div>
             <p className="mt-1 text-muted-foreground text-xs">
               Staff on duty: <span className="font-medium text-foreground">{staffOnDuty}</span>
-              {currentSession.opened_automatically ? ` · ${t("openedAutomatically")}` : null}
               {currentSession.previous_session_id ? (
                 <>
                   {" "}
@@ -215,7 +193,7 @@ export function ShiftDesk({
                 {t("endShiftAndCountCash")}
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                {scheduledEnd ? t("endShiftHintScheduled", { time: scheduledEnd }) : t("endShiftHint")}
+                {t("endShiftHint")}
               </span>
             </div>
           ) : null}
@@ -523,7 +501,7 @@ function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
                 <td className="px-3 py-2">
                   {session.staff_on_duty?.name ??
                     session.opened_by?.name ??
-                    (session.opened_automatically ? t("automaticSystem") : "—")}
+                    "—"}
                 </td>
                 <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_net, "0.00")}</td>
                 <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_expenses, "0.00")}</td>

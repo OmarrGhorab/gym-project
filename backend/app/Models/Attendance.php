@@ -33,11 +33,6 @@ class Attendance extends Model
         'check_out_location_status',
         'status',
         'scan_method',
-        'schedule_status',
-        'approval_status',
-        'late_minutes',
-        'early_leave_minutes',
-        'off_day_bonus_amount',
         'notes',
     ];
 
@@ -45,7 +40,6 @@ class Attendance extends Model
         'date' => 'date',
         'check_in' => 'datetime:H:i',
         'check_out' => 'datetime:H:i',
-        'off_day_bonus_amount' => 'decimal:2',
     ];
 
     public function getActivitylogOptions(): LogOptions

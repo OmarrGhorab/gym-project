@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 
-import { getApprovedOvertimeBonuses, getPayrollPageData } from "./_components/data";
-import { OvertimeBonusCard } from "./_components/overtime-bonus-card";
+import { getPayrollPageData } from "./_components/data";
 import { PayrollAdjustmentForm, PayrollGenerateForm, PayrollPayForm } from "./_components/payroll-action-forms";
 import { PayrollMonthPicker } from "./_components/payroll-month-picker";
 
@@ -22,13 +21,10 @@ export default async function Page({ searchParams }: PageProps) {
   const t = await getTranslations("Dashboard.payroll");
   const params = await searchParams;
   const defaultMonth = normalizePayrollMonth(params.month);
-  const [rows, overtimeBonuses] = await Promise.all([
-    getPayrollPageData(defaultMonth),
-    getApprovedOvertimeBonuses(defaultMonth),
-  ]);
+  const rows = await getPayrollPageData(defaultMonth);
   const pending = rows.filter((row) => row.status === "pending");
   const totalPending = pending.reduce((sum, row) => sum + Number(row.net_salary), 0);
-  const attendanceDeductions = rows.reduce((sum, row) => sum + Number(row.attendance_deductions), 0);
+  const totalDeductions = rows.reduce((sum, row) => sum + Number(row.deductions), 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,12 +52,10 @@ export default async function Page({ searchParams }: PageProps) {
           value={formatCurrency(totalPending, { currency: "EGP", noDecimals: true })}
         />
         <Summary
-          label={t("attendanceDeductions")}
-          value={formatCurrency(attendanceDeductions, { currency: "EGP", noDecimals: true })}
+          label={t("totalDeductions")}
+          value={formatCurrency(totalDeductions, { currency: "EGP", noDecimals: true })}
         />
       </div>
-
-      <OvertimeBonusCard bonuses={overtimeBonuses} />
 
       <Card>
         <CardHeader>
@@ -69,7 +63,7 @@ export default async function Page({ searchParams }: PageProps) {
           <CardDescription>{t("salaryReceiptsDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table className="min-w-[1320px] table-fixed">
+          <Table className="min-w-[1200px] table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[16rem]">{t("employee")}</TableHead>
@@ -77,7 +71,6 @@ export default async function Page({ searchParams }: PageProps) {
                 <TableHead className="w-[7rem]">{t("payDay")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("base")}</TableHead>
                 <TableHead className="w-[7rem] text-end">{t("commissions")}</TableHead>
-                <TableHead className="w-[7rem] text-end">{t("attendance")}</TableHead>
                 <TableHead className="w-[30rem]">{t("adjustments")}</TableHead>
                 <TableHead className="w-[8rem] text-end">{t("net")}</TableHead>
                 <TableHead className="w-[7rem]">{t("status")}</TableHead>
@@ -106,17 +99,13 @@ export default async function Page({ searchParams }: PageProps) {
                   <TableCell className="text-end align-middle">
                     {formatCurrency(Number(row.commissions_total), { currency: "EGP", noDecimals: true })}
                   </TableCell>
-                  <TableCell className="text-end align-middle">
-                    {formatCurrency(Number(row.attendance_deductions), { currency: "EGP", noDecimals: true })}
-                  </TableCell>
                   <TableCell className="align-middle">
                     <PayrollAdjustmentForm
-                      attendanceDeductions={row.attendance_deductions}
                       bonuses={row.bonuses}
                       deductions={row.deductions}
                       id={row.id}
-                      manualBonusReason={row.attendance_snapshot?.manual_bonus_reason}
-                      manualDeductionReason={row.attendance_snapshot?.manual_deduction_reason}
+                      manualBonusReason={row.manual_bonus_reason ?? undefined}
+                      manualDeductionReason={row.manual_deduction_reason ?? undefined}
                     />
                   </TableCell>
                   <TableCell className="text-end align-middle font-medium">

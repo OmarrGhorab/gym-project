@@ -13,20 +13,15 @@ export type StaffAcademyKpi = {
 export type StaffAcademyShift = {
   id: number;
   name: string;
-  time: string;
   date: string;
   staff_count: number;
   staff_names: string[];
-  grace_minutes: number;
-  status: "completed" | "in_progress" | "upcoming";
 };
 
-export type StaffAcademyWarningStatus = {
+export type StaffAcademyAttendanceException = {
   label: string;
-  warning: number;
-  approved: number;
   pending: number;
-  auto_applied: number;
+  reviewed: number;
 };
 
 export type StaffAcademyPerformance = {
@@ -41,7 +36,7 @@ export type StaffAcademyPerformance = {
   coached_services_revenue?: string;
   pos_sales_volume?: string;
   subscriptions_sold?: number;
-  warnings_count: number;
+  exceptions_count: number;
 };
 
 export type StaffAcademyEvent = {
@@ -60,14 +55,13 @@ export type StaffAcademyData = {
   };
   kpis: StaffAcademyKpi[];
   shift_schedule: StaffAcademyShift[];
-  warning_status: StaffAcademyWarningStatus[];
+  attendance_exceptions: StaffAcademyAttendanceException[];
   performance_highlights: StaffAcademyPerformance[];
   upcoming_events: StaffAcademyEvent[];
   today: {
     checked_in: number;
-    late: number;
-    off_shift: number;
-    pending_approval: number;
+    absent: number;
+    still_in: number;
   };
 };
 
@@ -78,12 +72,11 @@ export const emptyStaffAcademyData: StaffAcademyData = {
   shift_schedule: [],
   today: {
     checked_in: 0,
-    late: 0,
-    off_shift: 0,
-    pending_approval: 0,
+    absent: 0,
+    still_in: 0,
   },
+  attendance_exceptions: [],
   upcoming_events: [],
-  warning_status: [],
 };
 
 export type PayrollSettings = {
@@ -122,8 +115,6 @@ export type AcademyEmployee = {
   shift?: {
     id: number;
     name: string;
-    starts_at: string;
-    ends_at: string;
   } | null;
   attendance_code?: string | null;
   attendance_qr?: string | null;
@@ -144,8 +135,6 @@ export type StaffAcademyPageData = {
 export type ShiftOption = {
   id: number;
   name: string;
-  starts_at: string;
-  ends_at: string;
 };
 
 export type UserOption = {
@@ -210,9 +199,7 @@ export async function getStaffManagementPageData(): Promise<{
     safeFetch<AcademyEmployee[] | PaginatedData<AcademyEmployee>>("/employees?per_page=100", []),
     safeFetch<DashboardSettings>("/settings", {
       attendance: {
-        default_grace_minutes: 15,
-        duplicate_scan_grace_minutes: 2,
-        gym_latitude: null,
+            gym_latitude: null,
         gym_longitude: null,
         gym_radius_meters: 150,
       },
@@ -226,17 +213,11 @@ export async function getStaffManagementPageData(): Promise<{
         name: "ATP Gym",
       },
       payroll: {
-        clean_attendance_bonus_enabled: true,
-        clean_attendance_bonus_percentage: 2,
-        coach_performance_bonus_enabled: true,
-        coach_performance_bonus_percentage: 3,
         default_pay_day: 30,
         schedule_mode: "fixed",
       },
       shifts: {
-        auto_open_enabled: false,
         require_cash_count: false,
-        enforce_schedule_window: false,
         handover_auto_accept: false,
         handover_auto_accept_on_match_only: true,
         require_handover_to_open: false,

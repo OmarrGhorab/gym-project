@@ -23,7 +23,6 @@ const payrollUpdateSchema = z.object({
   id: z.coerce.number().int().positive("Payroll record is required."),
   bonuses: z.coerce.number().min(0, "Bonus cannot be negative."),
   deductions: z.coerce.number().min(0, "Deduction cannot be negative."),
-  attendance_deductions: z.coerce.number().min(0, "Attendance deduction cannot be negative."),
   manual_bonus_reason: z.string().trim().max(500, "Bonus reason must be 500 characters or fewer."),
   manual_deduction_reason: z.string().trim().max(500, "Deduction reason must be 500 characters or fewer."),
 });
@@ -120,7 +119,6 @@ export async function updatePayroll(_state: PayrollActionState, input: FormData)
       body: JSON.stringify({
         bonuses: String(parsed.data.bonuses),
         deductions: String(parsed.data.deductions),
-        attendance_deductions: String(parsed.data.attendance_deductions),
         manual_bonus_reason: parsed.data.manual_bonus_reason,
         manual_deduction_reason: parsed.data.manual_deduction_reason,
       }),
@@ -191,7 +189,6 @@ function getPayrollValues(input: FormData) {
     id: String(input.get("id") || ""),
     bonuses: String(input.get("bonuses") || "0"),
     deductions: String(input.get("deductions") || "0"),
-    attendance_deductions: String(input.get("attendance_deductions") || "0"),
     manual_bonus_reason: String(input.get("manual_bonus_reason") || ""),
     manual_deduction_reason: String(input.get("manual_deduction_reason") || ""),
   };

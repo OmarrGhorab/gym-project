@@ -5,6 +5,7 @@ namespace App\Actions\Subscriptions;
 use App\Models\Subscription;
 use App\Models\SubscriptionFreeze;
 use App\Models\User;
+use App\Support\MembershipPermissions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -61,9 +62,15 @@ class FreezeSubscription
                 ]);
             }
 
-            if ($plan->freeze_requires_approval) {
+            // An approval-only plan is not un-freezable — it just needs sign-off from
+            // someone holding `subscriptions.freeze_approve` (admin/manager). Front-desk
+            // staff still get the block, and the approver is stamped on the freeze row.
+            $needsApproval = (bool) $plan->freeze_requires_approval;
+            $isApprover = $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE);
+
+            if ($needsApproval && ! $isApprover) {
                 throw ValidationException::withMessages([
-                    'subscription' => 'This plan requires admin approval before freezing.',
+                    'subscription' => 'This plan requires a manager or admin to approve the freeze. Ask an approver to freeze it for you.',
                 ]);
             }
 
@@ -75,6 +82,8 @@ class FreezeSubscription
                 'remaining_days_at_freeze' => $remainingDays,
                 'reason' => $data['reason'] ?? null,
                 'created_by' => $user->id,
+                'approved_by' => $needsApproval ? $user->id : null,
+                'approved_at' => $needsApproval ? now() : null,
             ]);
 
             $lockedSubscription->update([

@@ -216,13 +216,13 @@
 
 @php
     $attendance = $payroll->getRelation('monthAttendance') ?? collect();
-    $violations = $payroll->getRelation('attendanceViolations') ?? collect();
-    $snapshot = $payroll->attendance_snapshot ?? [];
+    $bonusReason = trim((string) ($payroll->manual_bonus_reason ?? ''));
+    $deductionReason = trim((string) ($payroll->manual_deduction_reason ?? ''));
     $commissionBreakdown = $payroll->getRelation('commissionBreakdown') ?? collect();
     $bonusBreakdown = $payroll->getRelation('bonusBreakdown') ?? collect();
     $ar = $pdfArabic ?? static fn (?string $text): string => $text ?? '';
     $grossSalary = (float) $payroll->base_salary + (float) $payroll->commissions_total + (float) $payroll->bonuses;
-    $totalDeductions = (float) $payroll->deductions + (float) $payroll->attendance_deductions;
+    $totalDeductions = (float) $payroll->deductions;
 @endphp
 
 <div class="page">
@@ -257,19 +257,13 @@
                         <td>{{ $ar('بونص / مكافآت') }}</td>
                         <td class="amount earning">{{ number_format((float) $payroll->bonuses, 2) }}</td>
                         <td>-</td>
-                        <td>{{ $ar($snapshot['manual_bonus_reason'] ?? 'مكافآت أو حضور يوم إجازة') }}</td>
+                        <td>{{ $ar($bonusReason !== '' ? $bonusReason : 'مكافأة إدارية') }}</td>
                     </tr>
                     <tr>
-                        <td>{{ $ar('السلف / الخصم اليدوي') }}</td>
+                        <td>{{ $ar('السلف / الخصم') }}</td>
                         <td>-</td>
                         <td class="amount deduction">{{ number_format((float) $payroll->deductions, 2) }}</td>
-                        <td>{{ $ar($snapshot['manual_deduction_reason'] ?? 'خصم يدوي') }}</td>
-                    </tr>
-                    <tr>
-                        <td>{{ $ar('الخصم طبقا للائحة') }}</td>
-                        <td>-</td>
-                        <td class="amount deduction">{{ number_format((float) $payroll->attendance_deductions, 2) }}</td>
-                        <td>{{ $ar('مخالفات الحضور') }}</td>
+                        <td>{{ $ar($deductionReason !== '' ? $deductionReason : 'خصم يدوي') }}</td>
                     </tr>
                     <tr class="totals">
                         <td>{{ $ar('الإجمالي قبل الصافي') }}</td>
@@ -284,54 +278,44 @@
                 </tbody>
             </table>
 
-            <h2>{{ $ar('لائحة المخالفات') }}</h2>
+            <h2>{{ $ar('التعديلات اليدوية') }}</h2>
             <table class="small-table">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>{{ $ar('نوع المخالفة') }}</th>
-                        <th>{{ $ar('الجزاء') }}</th>
-                        <th>{{ $ar('الحالة') }}</th>
+                        <th>{{ $ar('البند') }}</th>
+                        <th>{{ $ar('القيمة') }}</th>
+                        <th>{{ $ar('السبب') }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($violations as $violation)
-                        <tr>
-                            <td>{{ $loop->iteration }}</td>
-                            <td>{{ $ar($violation->rule?->description ?? $violation->rule?->name ?? $violation->type) }}</td>
-                            <td><span class="ltr">{{ number_format((float) $violation->deduction_days, 2) }}</span> {{ $ar('يوم') }} / <span class="ltr">{{ number_format((float) $violation->deduction_amount, 2) }}</span></td>
-                            <td>{{ $ar(match ($violation->status) {
-                                'approved' => 'معتمد',
-                                'dismissed' => 'مرفوض',
-                                'auto_applied' => 'مطبق تلقائيا',
-                                default => 'معلق',
-                            }) }}</td>
-                        </tr>
-                    @endforeach
+                    @php $adjustmentRow = 0; @endphp
                     @if((float) $payroll->deductions > 0)
+                        @php $adjustmentRow++; @endphp
                         <tr>
-                            <td>{{ $violations->count() + 1 }}</td>
-                            <td>{{ $ar('السلف / الخصم اليدوي') }}</td>
+                            <td>{{ $adjustmentRow }}</td>
+                            <td>{{ $ar('السلف / الخصم') }}</td>
                             <td><span class="ltr">{{ number_format((float) $payroll->deductions, 2) }}</span></td>
-                            <td>{{ $ar($snapshot['manual_deduction_reason'] ?? 'مسجل من الإدارة') }}</td>
+                            <td>{{ $ar($deductionReason !== '' ? $deductionReason : 'مسجل من الإدارة') }}</td>
                         </tr>
                     @endif
                     @if((float) $payroll->bonuses > 0)
+                        @php $adjustmentRow++; @endphp
                         <tr>
-                            <td>{{ $violations->count() + ((float) $payroll->deductions > 0 ? 2 : 1) }}</td>
+                            <td>{{ $adjustmentRow }}</td>
                             <td>{{ $ar('بونص / مكافآت') }}</td>
                             <td><span class="ltr">{{ number_format((float) $payroll->bonuses, 2) }}</span></td>
-                            <td>{{ $ar($snapshot['manual_bonus_reason'] ?? 'إضافة للراتب') }}</td>
+                            <td>{{ $ar($bonusReason !== '' ? $bonusReason : 'إضافة للراتب') }}</td>
                         </tr>
                     @endif
-                    @if($violations->isEmpty() && (float) $payroll->deductions <= 0 && (float) $payroll->bonuses <= 0)
+                    @if($adjustmentRow === 0)
                         <tr>
-                            <td colspan="4">{{ $ar('لا توجد مخالفات أو تعديلات مسجلة لهذا الشهر') }}</td>
+                            <td colspan="4">{{ $ar('لا توجد تعديلات مسجلة لهذا الشهر') }}</td>
                         </tr>
                     @endif
                     <tr class="totals">
                         <td colspan="2">{{ $ar('إجمالي الخصومات') }}</td>
-                        <td colspan="2">{{ number_format((float) $payroll->attendance_deductions + (float) $payroll->deductions, 2) }}</td>
+                        <td colspan="2">{{ number_format((float) $payroll->deductions, 2) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -355,16 +339,15 @@
             <div class="line"><span class="label">{{ $ar('العمولات :') }}</span><span class="value">{{ number_format((float) $payroll->commissions_total, 2) }}</span></div>
             <div class="line"><span class="label">{{ $ar('بونص :') }}</span><span class="value">{{ number_format((float) $payroll->bonuses, 2) }}</span></div>
             <div class="line"><span class="label">{{ $ar('أيام الغياب :') }}</span><span class="value">{{ $attendance->where('status', 'absent')->count() }}</span></div>
-            <div class="line"><span class="label">{{ $ar('السلف / الخصم اليدوي :') }}</span><span class="value">{{ number_format((float) $payroll->deductions, 2) }}</span></div>
-            <div class="line"><span class="label">{{ $ar('الخصم طبقا للائحة :') }}</span><span class="value">{{ number_format((float) $payroll->attendance_deductions, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('السلف / الخصم :') }}</span><span class="value">{{ number_format((float) $payroll->deductions, 2) }}</span></div>
             <div class="line highlight"><span class="label">{{ $ar('صافي الراتب :') }}</span><span class="value">{{ number_format((float) $payroll->net_salary, 2) }}</span></div>
-            <div class="line"><span class="label">{{ $ar('ملاحظات :') }}</span><span class="value">{{ $ar($snapshot['notes'] ?? '') }}</span></div>
+            <div class="line"><span class="label">{{ $ar('ملاحظات :') }}</span><span class="value"></span></div>
             <div class="notes">
                 <strong>{{ $ar('تنبيه:') }}</strong>
                 <ul>
-                    <li>{{ $ar('الخصم اليدوي منفصل عن خصم لائحة الحضور.') }}</li>
-                    <li>{{ $ar('صافي الراتب يحسب بعد إضافة البونص والعمولات وخصم السلف واللائحة.') }}</li>
-                    <li>{{ $ar('المخالفات المعتمدة تظهر في جدول التفاصيل.') }}</li>
+                    <li>{{ $ar('البونص والخصم يضافان يدويا من الإدارة ويبدآن من صفر.') }}</li>
+                    <li>{{ $ar('صافي الراتب يحسب بعد إضافة البونص والعمولات وخصم السلف.') }}</li>
+                    <li>{{ $ar('سبب كل تعديل يظهر في جدول التعديلات اليدوية.') }}</li>
                 </ul>
             </div>
         </div>

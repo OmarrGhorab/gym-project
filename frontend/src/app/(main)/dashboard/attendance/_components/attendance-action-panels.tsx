@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FormSelect } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -551,56 +550,11 @@ function ManualAttendanceCard({
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="present">{t("statuses.present")}</SelectItem>
-                  <SelectItem value="late">{t("statuses.late")}</SelectItem>
                   <SelectItem value="absent">{t("statuses.absent")}</SelectItem>
                   <SelectItem value="excused">{t("statuses.excused")}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
-          </FieldGroup>
-          <FieldGroup>
-            <FieldLabel htmlFor="manual-schedule-status" label={t("scheduleStatus")} meta={t("optionalField")} />
-            <Select name="schedule_status" defaultValue={correctionRecord?.schedule_status ?? ""}>
-              <SelectTrigger id="manual-schedule-status" className="w-full">
-                <SelectValue placeholder={t("scheduleStatus")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="on_shift">{t("scheduleStatuses.on_shift")}</SelectItem>
-                  <SelectItem value="late">{t("scheduleStatuses.late")}</SelectItem>
-                  <SelectItem value="off_shift">{t("scheduleStatuses.off_shift")}</SelectItem>
-                  <SelectItem value="unassigned">{t("scheduleStatuses.unassigned")}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FieldGroup>
-          <FieldGroup>
-            <FieldLabel htmlFor="manual-approval-status" label={t("approvalStatus")} meta={t("optionalField")} />
-            <Select name="approval_status" defaultValue={correctionRecord?.approval_status ?? ""}>
-              <SelectTrigger id="manual-approval-status" className="w-full">
-                <SelectValue placeholder={t("approvalStatus")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="approved">{t("approvalStatuses.approved")}</SelectItem>
-                  <SelectItem value="pending">{t("approvalStatuses.pending")}</SelectItem>
-                  <SelectItem value="dismissed">{t("approvalStatuses.dismissed")}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </FieldGroup>
-          <FieldGroup className="md:col-span-3">
-            <div className="flex items-start gap-2 rounded-md border bg-muted/20 p-3">
-              {/* Checked by default so a hand-entered late arrival is treated like a scan;
-                  clearing it records the time without any payroll penalty. */}
-              <Checkbox id="manual-apply-penalty" name="apply_penalty" defaultChecked />
-              <div className="grid gap-0.5">
-                <Label htmlFor="manual-apply-penalty" className="font-medium">
-                  {t("applyPenalty")}
-                </Label>
-                <p className="text-muted-foreground text-xs">{t("applyPenaltyHelp")}</p>
-              </div>
-            </div>
           </FieldGroup>
           <FieldGroup className="md:col-span-3">
             <FieldLabel htmlFor="manual-notes" label={t("notesLabel")} meta={t("optionalField")} />

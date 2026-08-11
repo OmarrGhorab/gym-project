@@ -1,8 +1,6 @@
 <?php
 
 use App\Models\Attendance;
-use App\Models\AttendanceViolation;
-use App\Models\AttendanceViolationRule;
 use App\Models\Employee;
 use App\Models\EmployeeShift;
 use App\Models\Member;
@@ -14,7 +12,6 @@ use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
 use App\Models\User;
 use App\Support\FoundationPermissions;
-use Database\Seeders\AttendanceRulesSeeder;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
@@ -27,7 +24,6 @@ beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(MembershipAccessSeeder::class);
     $this->seed(HrFinanceAccessSeeder::class);
-    $this->seed(AttendanceRulesSeeder::class);
 });
 
 afterEach(function (): void {
@@ -210,12 +206,9 @@ test('member visit outside geofence is flagged not blocked', function (): void {
         ->assertJsonPath('data.check_in_location.status', 'outside');
 });
 
-test('employee qr check in creates late attendance and pending violation', function (): void {
+test('employee qr check in records the arrival and notifies admins', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
-        'grace_minutes' => 15,
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-LATE',
@@ -227,21 +220,17 @@ test('employee qr check in creates late attendance and pending violation', funct
         'check_in_at' => '2026-06-26 09:45:00',
     ])
         ->assertCreated()
-        ->assertJsonPath('data.status', 'late')
-        ->assertJsonPath('data.late_minutes', 30)
-        ->assertJsonPath('data.schedule_status', 'late');
+        ->assertJsonPath('data.status', 'present')
+        ->assertJsonPath('data.check_in', '09:45');
 
-    expect(AttendanceViolation::where('employee_id', $employee->id)->first())
+    expect(Attendance::where('employee_id', $employee->id)->first())
         ->not->toBeNull()
-        ->status->toBe('pending');
+        ->status->toBe('present');
 });
 
 test('employee check in accepts raw printed attendance code', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
-        'grace_minutes' => 15,
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-RAW123',
@@ -255,7 +244,6 @@ test('employee check in accepts raw printed attendance code', function (): void 
         ->assertCreated()
         ->assertJsonPath('data.employee_id', $employee->id)
         ->assertJsonPath('data.status', 'present')
-        ->assertJsonPath('data.schedule_status', 'on_shift')
         ->assertJsonPath('data.scan_method', 'qr');
 });
 
@@ -263,9 +251,6 @@ test('employee check in can use selected attendance date', function (): void {
     Carbon::setTestNow('2026-07-09 10:30:00');
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
-        'grace_minutes' => 15,
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-HISTORY',
@@ -287,9 +272,6 @@ test('employee check in can use selected attendance date', function (): void {
 test('employee check in before shift start is recorded on shift', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '06:00',
-        'ends_at' => '14:00',
-        'grace_minutes' => 15,
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-EARLY',
@@ -302,20 +284,12 @@ test('employee check in before shift start is recorded on shift', function (): v
     ])
         ->assertCreated()
         ->assertJsonPath('data.employee_id', $employee->id)
-        ->assertJsonPath('data.status', 'present')
-        ->assertJsonPath('data.late_minutes', 0)
-        ->assertJsonPath('data.schedule_status', 'on_shift')
-        ->assertJsonPath('data.approval_status', 'approved');
+        ->assertJsonPath('data.status', 'present');
 });
 
-test('employee check in on configured off day is approved with shift bonus', function (): void {
+test('employee check in on any day is simply recorded', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
-        'off_days' => [5],
-        'off_day_bonus_enabled' => true,
-        'off_day_bonus_amount' => '150.00',
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-OFFDAY',
@@ -329,16 +303,13 @@ test('employee check in on configured off day is approved with shift bonus', fun
         ->assertCreated()
         ->assertJsonPath('data.employee_id', $employee->id)
         ->assertJsonPath('data.status', 'present')
-        ->assertJsonPath('data.schedule_status', 'off_day')
-        ->assertJsonPath('data.approval_status', 'approved')
-        ->assertJsonPath('data.off_day_bonus_amount', '150.00');
+        ->assertJsonMissingPath('data.schedule_status')
+        ->assertJsonMissingPath('data.approval_status');
 });
 
 test('employee cannot check in twice on the same day', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-DUPLICATE',
@@ -363,14 +334,9 @@ test('employee cannot check in twice on the same day', function (): void {
         ->and(Attendance::where('employee_id', $employee->id)->first()->check_in->format('H:i'))->toBe('09:00');
 });
 
-test('employee off day check in syncs bonus into existing pending payroll', function (): void {
+test('a check in leaves pending payroll untouched', function (): void {
     actingManager();
     $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
-        'off_days' => [5],
-        'off_day_bonus_enabled' => true,
-        'off_day_bonus_amount' => '700.00',
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-PAYROLL-BONUS',
@@ -384,7 +350,6 @@ test('employee off day check in syncs bonus into existing pending payroll', func
         'commissions_total' => '0.00',
         'bonuses' => '0.00',
         'deductions' => '0.00',
-        'attendance_deductions' => '0.00',
         'net_salary' => '3000.00',
         'status' => 'pending',
     ]);
@@ -392,59 +357,21 @@ test('employee off day check in syncs bonus into existing pending payroll', func
     $this->postJson('/api/v1/attendance/check-in', [
         'qr_token' => 'employee:E-PAYROLL-BONUS',
         'check_in_at' => '2026-06-26 10:00:00',
-    ])
-        ->assertCreated()
-        ->assertJsonPath('data.off_day_bonus_amount', '700.00');
+    ])->assertCreated();
 
+    // Working an off day is recorded, but no money moves without an admin.
     expect($payroll->fresh())
-        ->bonuses->toBe('700.00')
-        ->net_salary->toBe('3700.00');
+        ->bonuses->toBe('0.00')
+        ->net_salary->toBe('3000.00');
 });
 
-test('employee off shift check in requires approval violation', function (): void {
-    $manager = actingManager();
-    $shift = EmployeeShift::factory()->create([
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
-    ]);
-    $employee = Employee::factory()->create([
-        'attendance_code' => 'E-OFF',
-        'shift_id' => $shift->id,
-    ]);
-
-    $this->postJson('/api/v1/attendance/check-in', [
-        'qr_token' => 'employee:E-OFF',
-        'check_in_at' => '2026-06-26 23:00:00',
-    ])
-        ->assertCreated()
-        ->assertJsonPath('data.schedule_status', 'off_shift')
-        ->assertJsonPath('data.approval_status', 'pending');
-
-    expect(AttendanceViolation::where('employee_id', $employee->id)->where('type', 'off_shift')->exists())->toBeTrue();
-    expect(
-        $manager->notifications()
-            ->get()
-            ->contains(fn ($notification): bool => ($notification->data['category'] ?? null) === 'attendance.off_shift')
-    )->toBeTrue();
-    expect(
-        Activity::query()
-            ->where('event', 'off_shift')
-            ->where('subject_type', Attendance::class)
-            ->exists()
-    )->toBeTrue();
-});
-
-test('employee covering the live desk checks in against the covered shift without lateness penalties', function (): void {
+test('a check in is filed under the shift of the open desk session', function (): void {
     $manager = actingManager();
     $homeShift = EmployeeShift::factory()->create([
         'name' => 'Morning',
-        'starts_at' => '09:00',
-        'ends_at' => '17:00',
     ]);
     $coveredShift = EmployeeShift::factory()->create([
         'name' => 'Closing',
-        'starts_at' => '21:00',
-        'ends_at' => '23:59',
     ]);
     $employee = Employee::factory()->create([
         'attendance_code' => 'E-COVERING',
@@ -467,68 +394,7 @@ test('employee covering the live desk checks in against the covered shift withou
     ])
         ->assertCreated()
         ->assertJsonPath('data.shift.id', $coveredShift->id)
-        ->assertJsonPath('data.schedule_status', 'on_shift')
-        ->assertJsonPath('data.approval_status', 'approved')
-        ->assertJsonPath('data.late_minutes', 0);
-
-    expect(AttendanceViolation::query()->where('employee_id', $employee->id)->exists())->toBeFalse();
-});
-
-test('manager can edit attendance violation rule penalties', function (): void {
-    actingManager();
-    $rule = AttendanceViolationRule::query()->where('code', 'late_30')->firstOrFail();
-
-    $this->putJson("/api/v1/attendance/violation-rules/{$rule->id}", [
-        'threshold_minutes' => 35,
-        'deduction_days' => '0.75',
-        'requires_admin_approval' => true,
-        'auto_apply_if_unreviewed' => false,
-        'is_active' => true,
-    ])
-        ->assertOk()
-        ->assertJsonPath('data.threshold_minutes', 35)
-        ->assertJsonPath('data.deduction_days', '0.75')
-        ->assertJsonPath('data.auto_apply_if_unreviewed', false);
-
-    expect($rule->fresh())
-        ->threshold_minutes->toBe(35)
-        ->auto_apply_if_unreviewed->toBeFalse();
-});
-
-test('manager cannot rename attendance rule to a custom label', function (): void {
-    actingManager();
-    $rule = AttendanceViolationRule::query()->where('code', 'late_30')->firstOrFail();
-
-    $this->putJson("/api/v1/attendance/violation-rules/{$rule->id}", [
-        'name' => 'Random staff behavior penalty',
-        'threshold_minutes' => 35,
-        'deduction_days' => '0.75',
-    ])
-        ->assertUnprocessable();
-
-    expect($rule->fresh()->name)->toBe('Late more than 30 minutes');
-});
-
-test('reviewing violation without amount applies salary based estimate', function (): void {
-    actingManager();
-    $employee = Employee::factory()->create(['base_salary' => '9000.00']);
-    $rule = AttendanceViolationRule::query()->where('code', 'late_30')->firstOrFail();
-    $violation = AttendanceViolation::factory()->create([
-        'employee_id' => $employee->id,
-        'attendance_violation_rule_id' => $rule->id,
-        'status' => 'pending',
-        'deduction_days' => '0.50',
-        'deduction_amount' => '0.00',
-    ]);
-
-    $this->putJson("/api/v1/attendance/violations/{$violation->id}", [
-        'status' => 'approved',
-    ])
-        ->assertOk()
-        ->assertJsonPath('data.status', 'approved')
-        ->assertJsonPath('data.deduction_amount', '150.00');
-
-    expect($violation->fresh()->deduction_amount)->toBe('150.00');
+        ->assertJsonPath('data.status', 'present');
 });
 
 test('member check in automatically decrements sessions from active extra-on plan addon', function (): void {
@@ -644,7 +510,7 @@ test('the desk decides whether a second scan is a real visit or a double scan', 
         ->and(MemberVisit::where('member_id', $member->id)->where('status', 'allowed')->count())->toBe(2);
 });
 
-test('a repeat scan within the grace window is ignored instead of asking the desk', function (): void {
+test('a repeat scan seconds later still asks the desk instead of being swallowed', function (): void {
     Carbon::setTestNow('2026-06-26 10:00:00');
     actingManager();
 
@@ -659,23 +525,16 @@ test('a repeat scan within the grace window is ignored instead of asking the des
         ->assertCreated()
         ->assertJsonPath('data.status', 'allowed');
 
-    // The scanner fires again a few seconds later, or the member taps twice.
+    // The scanner fires again twenty seconds later. The machine cannot tell that
+    // from a member who really walked back in, so the desk is asked either way.
     Carbon::setTestNow('2026-06-26 10:00:20');
-    $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-FAST01'])
-        ->assertCreated()
-        ->assertJsonPath('data.status', 'allowed');
-
-    // No second row at all, so nothing to review and nothing to inflate the count.
-    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(1)
-        ->and(MemberVisit::where('member_id', $member->id)->where('status', 'pending_review')->count())->toBe(0);
-
-    // Past the window it becomes a real question again.
-    Carbon::setTestNow('2026-06-26 10:05:00');
     $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-FAST01'])
         ->assertCreated()
         ->assertJsonPath('data.status', 'pending_review');
 
-    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(2);
+    // The first visit keeps its session; the pending one has spent nothing yet.
+    expect(MemberVisit::where('member_id', $member->id)->count())->toBe(2)
+        ->and(Subscription::where('member_id', $member->id)->value('sessions_remaining'))->toBe(9);
 });
 
 test('a member cannot queue up more than one pending decision', function (): void {

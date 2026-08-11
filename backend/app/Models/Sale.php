@@ -78,4 +78,9 @@ class Sale extends Model
     {
         return $this->belongsTo(User::class, 'sold_by_user_id');
     }
+
+    public function shiftSession(): BelongsTo
+    {
+        return $this->belongsTo(ShiftSession::class);
+    }
 }

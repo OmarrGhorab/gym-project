@@ -135,15 +135,11 @@ export async function createManualAttendance(
 
   const attendanceId = nullableNumber(input.get("attendance_id"));
   const payload = {
-    // An unchecked box submits nothing, so absence means "waive the penalty".
-    apply_penalty: parsed.data.apply_penalty,
-    approval_status: parsed.data.approval_status,
     check_in: parsed.data.check_in,
     check_out: parsed.data.check_out,
     date: parsed.data.date,
     employee_id: parsed.data.employee_id,
     notes: parsed.data.notes,
-    schedule_status: parsed.data.schedule_status,
     shift_id: parsed.data.shift_id,
     status: parsed.data.status,
   };
@@ -153,94 +149,6 @@ export async function createManualAttendance(
   }
 
   return mutateScan("/attendance", payload, "Manual attendance record created.", "POST", values);
-}
-
-export async function reviewAttendanceViolation(
-  _previousState: AttendanceActionResult,
-  input: FormData,
-): Promise<AttendanceActionResult> {
-  const values = getFormValues(input);
-  const parsed = reviewWarningSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: parsed.error.issues[0]?.message ?? "Please review the highlighted fields.",
-      errors: parsed.error.flatten().fieldErrors,
-      values,
-    };
-  }
-
-  const id = Number(input.get("id"));
-  const payload = {
-    deduction_amount: parsed.data.deduction_amount,
-    deduction_days: parsed.data.deduction_days,
-    notes: parsed.data.notes,
-    status: parsed.data.status,
-  };
-
-  return mutateScan(`/attendance/violations/${id}`, payload, "Attendance warning reviewed.", "PUT", values);
-}
-
-export async function createOvertimeShift(
-  _previousState: AttendanceActionResult,
-  input: FormData,
-): Promise<AttendanceActionResult> {
-  const values = getFormValues(input);
-  const parsed = overtimeShiftSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: parsed.error.issues[0]?.message ?? "Please review the highlighted fields.",
-      errors: parsed.error.flatten().fieldErrors,
-      values,
-    };
-  }
-
-  const payload = {
-    covering_for_employee_id: parsed.data.covering_for_employee_id,
-    date: parsed.data.date,
-    employee_id: parsed.data.employee_id,
-    employee_shift_id: parsed.data.employee_shift_id,
-    notes: parsed.data.notes,
-  };
-
-  return mutateScan("/overtime-shifts", payload, "Overtime shift recorded.", "POST", values);
-}
-
-export async function reviewOvertimeShift(
-  _previousState: AttendanceActionResult,
-  input: FormData,
-): Promise<AttendanceActionResult> {
-  const values = getFormValues(input);
-  const parsed = reviewOvertimeSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: parsed.error.issues[0]?.message ?? "Please review the highlighted fields.",
-      errors: parsed.error.flatten().fieldErrors,
-      values,
-    };
-  }
-
-  const payload: Record<string, unknown> = {
-    decision: parsed.data.decision,
-    notes: parsed.data.notes,
-  };
-
-  if (parsed.data.decision === "approved") {
-    payload.bonus_amount = parsed.data.bonus_amount;
-  }
-
-  const messages = {
-    approved: "Overtime bonus approved. Add it to the salary in Payroll.",
-    rejected: "Overtime shift rejected.",
-    settled: "Overtime bonus marked as added to the salary.",
-  } as const;
-
-  return mutateScan(`/overtime-shifts/${parsed.data.id}`, payload, messages[parsed.data.decision], "PUT", values);
 }
 
 async function mutateScan(
@@ -254,8 +162,6 @@ async function mutateScan(
     ReturnType<
       typeof serverApiFetch<{
         id?: number | null;
-        schedule_status?: string | null;
-        approval_status?: string | null;
         status?: string | null;
         alert_reason?: string | null;
         plan_name?: string | null;
@@ -297,11 +203,7 @@ async function mutateScan(
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/payroll");
 
-  const apiMessage = typeof result.message === "string" && result.message.trim() ? result.message : successMessage;
-  const message =
-    result.data?.schedule_status === "off_shift"
-      ? "Recorded with warning: this scan is outside the assigned shift."
-      : apiMessage;
+  const message = typeof result.message === "string" && result.message.trim() ? result.message : successMessage;
 
   const visit = result.data;
   const review: PendingVisitReview | null =
@@ -419,12 +321,6 @@ const optionalFormNumber = z.preprocess((value) => {
 }, z.coerce.number().nullable());
 
 const manualAttendanceSchema = z.object({
-  // Checkbox: present in the form data only when ticked.
-  apply_penalty: z.preprocess((value) => value === "on" || value === "true" || value === true, z.boolean()),
-  approval_status: z.preprocess(
-    (value) => (String(value ?? "").trim() === "" ? null : value),
-    z.enum(["approved", "pending", "dismissed"]).nullable(),
-  ),
   check_in: z.preprocess(
     (value) => (String(value ?? "").trim() === "" ? null : value),
     z
@@ -442,45 +338,8 @@ const manualAttendanceSchema = z.object({
   date: z.string().date("Attendance date is required."),
   employee_id: z.coerce.number().int().min(1, "Employee is required."),
   notes: optionalFormString,
-  schedule_status: z.preprocess(
-    (value) => (String(value ?? "").trim() === "" ? null : value),
-    z.enum(["on_shift", "late", "off_shift", "unassigned"]).nullable(),
-  ),
   shift_id: optionalFormNumber,
-  status: z.enum(["present", "late", "absent", "excused"]),
-});
-
-const overtimeShiftSchema = z.object({
-  covering_for_employee_id: optionalFormNumber,
-  date: z.string().date("Overtime date is required."),
-  employee_id: z.coerce.number().int().min(1, "Select the employee taking the overtime shift."),
-  employee_shift_id: optionalFormNumber,
-  notes: optionalFormString,
-});
-
-const reviewOvertimeSchema = z
-  .object({
-    bonus_amount: optionalFormNumber,
-    decision: z.enum(["approved", "rejected", "settled"]),
-    id: z.coerce.number().int().min(1, "Overtime shift is required."),
-    notes: optionalFormString,
-  })
-  .superRefine((value, context) => {
-    if (value.decision === "approved" && (value.bonus_amount === null || value.bonus_amount < 0)) {
-      context.addIssue({
-        code: "custom",
-        message: "Enter the bonus amount to approve this overtime shift.",
-        path: ["bonus_amount"],
-      });
-    }
-  });
-
-const reviewWarningSchema = z.object({
-  deduction_amount: optionalFormNumber,
-  deduction_days: optionalFormNumber,
-  id: z.coerce.number().int().min(1, "Warning is required."),
-  notes: optionalFormString,
-  status: z.enum(["approved", "dismissed"]),
+  status: z.enum(["present", "absent", "excused"]),
 });
 
 function getFormValues(input: FormData): Record<string, string> {

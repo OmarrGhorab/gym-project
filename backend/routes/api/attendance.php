@@ -16,6 +16,9 @@ Route::prefix('attendance')->group(function (): void {
     Route::get('/summary', [AttendanceController::class, 'summary'])
         ->middleware('permission:attendance.view');
 
+    Route::get('/daily-report', [AttendanceController::class, 'dailyReport'])
+        ->middleware('permission:attendance.view');
+
     Route::get('/shifts', [AttendanceController::class, 'shifts'])
         ->middleware('permission:attendance.view');
 
@@ -33,33 +36,6 @@ Route::prefix('attendance')->group(function (): void {
 
     Route::delete('/shifts/{employeeShift}', [AttendanceController::class, 'deactivateShift'])
         ->middleware(['permission:settings.manage', 'throttle:api']);
-
-    Route::put('/shifts/{employeeShift}/off-rotation', [AttendanceController::class, 'upsertShiftOffRotation'])
-        ->middleware(['permission:settings.manage', 'throttle:api']);
-
-    Route::get('/shifts/{employeeShift}/off-rotation/preview', [AttendanceController::class, 'shiftOffRotationPreview'])
-        ->middleware('permission:settings.manage');
-
-    Route::post('/off-day-overrides', [AttendanceController::class, 'storeOffDayOverride'])
-        ->middleware(['permission:settings.manage', 'throttle:api']);
-
-    Route::delete('/off-day-overrides/{override}', [AttendanceController::class, 'destroyOffDayOverride'])
-        ->middleware(['permission:settings.manage', 'throttle:api']);
-
-    Route::get('/violations', [AttendanceController::class, 'violations'])
-        ->middleware('permission:attendance.view');
-
-    Route::put('/violations/{attendanceViolation}', [AttendanceController::class, 'reviewViolation'])
-        ->middleware(['permission:attendance.update', 'throttle:api']);
-
-    Route::get('/violation-rules', [AttendanceController::class, 'violationRules'])
-        ->middleware('permission:attendance.view');
-
-    Route::post('/violation-rules', [AttendanceController::class, 'storeViolationRule'])
-        ->middleware(['permission:attendance.update', 'throttle:api']);
-
-    Route::put('/violation-rules/{attendanceViolationRule}', [AttendanceController::class, 'updateViolationRule'])
-        ->middleware(['permission:attendance.update', 'throttle:api']);
 
     Route::post('/check-in', [AttendanceController::class, 'checkIn'])
         ->middleware(['permission:attendance.create', 'throttle:api']);

@@ -146,7 +146,6 @@ export async function openShiftSession(input: {
   employee_shift_id: number;
   employee_id?: number;
   opening_float?: string;
-  force_open?: boolean;
 }): Promise<FinanceActionResult> {
   return mutateFinance(
     "/shift-sessions",
@@ -160,7 +159,6 @@ export async function openShiftSession(input: {
       ...(input.opening_float !== undefined && input.opening_float !== ""
         ? { opening_float: input.opening_float }
         : {}),
-      force_open: input.force_open ?? false,
     },
     "Shift session opened.",
   );

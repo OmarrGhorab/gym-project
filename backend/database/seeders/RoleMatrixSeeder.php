@@ -44,7 +44,7 @@ class RoleMatrixSeeder extends Seeder
         $managerPermissions = [
             'members.view', 'members.create', 'members.update', 'members.delete',
             'plans.view', 'plans.create', 'plans.update', 'plans.delete',
-            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade', 'subscriptions.freeze', 'subscriptions.stop', 'subscriptions.force_refund',
+            'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade', 'subscriptions.freeze', 'subscriptions.freeze_approve', 'subscriptions.stop', 'subscriptions.force_refund',
             'payments.view', 'payments.create',
             'products.view', 'products.create', 'products.update', 'products.delete',
             'sales.view', 'sales.create', 'sales.void',
@@ -64,6 +64,7 @@ class RoleMatrixSeeder extends Seeder
         $cashierPermissions = [
             'members.view', 'members.create', 'members.update',
             'plans.view',
+            // No subscriptions.freeze_approve: approval-only plans are escalated to a manager.
             'subscriptions.view', 'subscriptions.create', 'subscriptions.renew', 'subscriptions.upgrade', 'subscriptions.freeze', 'subscriptions.stop', 'subscriptions.force_refund',
             'payments.view', 'payments.create',
             'products.view',

@@ -13,6 +13,8 @@ Schedule::command('subscriptions:enforce-lifecycle')->daily();
 Schedule::command('subscriptions:mark-expired')->daily();
 Schedule::command('subscriptions:expire')->daily();
 Schedule::command('member-visits:auto-close')->everyTenMinutes();
-Schedule::command('shifts:send-daily-summary')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('shifts:auto-open')->everyMinute()->withoutOverlapping();
+// Late enough that the day's check-outs and desk hand-overs are in, early enough
+// to still belong to the same day.
+Schedule::command('attendance:send-daily-report')->dailyAt('23:55')->timezone('Africa/Cairo')->withoutOverlapping();
+Schedule::command('shifts:send-daily-summary')->dailyAt('23:50')->timezone('Africa/Cairo')->withoutOverlapping();
 Schedule::command('exports:prune')->hourly();

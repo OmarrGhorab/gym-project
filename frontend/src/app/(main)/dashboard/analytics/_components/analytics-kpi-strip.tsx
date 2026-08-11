@@ -63,7 +63,7 @@ export function AnalyticsKpiStrip({ data }: { data: LiveAttendanceData }) {
     },
     late: {
       detail: data.today.peak_hour ? t("peakOccupancy", { time: data.today.peak_hour }) : t("noPeakHour"),
-      value: data.today.late_staff,
+      value: data.today.staff_still_in,
     },
   };
 

@@ -23,10 +23,6 @@ class AttendanceFactory extends Factory
             'check_out' => '17:00',
             'status' => 'present',
             'scan_method' => 'manual',
-            'schedule_status' => 'on_shift',
-            'approval_status' => 'approved',
-            'late_minutes' => 0,
-            'early_leave_minutes' => 0,
             'notes' => null,
         ];
     }

@@ -4,18 +4,18 @@ namespace App\Actions\ShiftSessions;
 
 use App\Models\Employee;
 use App\Models\EmployeeShift;
-use App\Models\OvertimeShift;
 use App\Models\User;
 use App\Support\FoundationPermissions;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Decides which employee is accountable for a shift session.
  *
- * A session is normally held by an employee assigned to that shift. Admins may
- * hand a live desk to any active employee (for example, when somebody leaves
- * early); the session still records the real employee on duty, never the admin.
+ * Shifts are only names now, so anybody active can be put on any desk — who is
+ * on duty is a decision the person opening the drawer makes, not something a
+ * schedule dictates. What still holds is that a non-admin can only put
+ * themselves on the hook: the session records the real employee handling the
+ * money, never the admin acting for them.
  */
 class ResolveShiftStaff
 {
@@ -24,12 +24,10 @@ class ResolveShiftStaff
         User $user,
         ?int $employeeId = null,
         string $field = 'employee_id',
-        Carbon|string|null $businessDate = null,
-        bool $allowAnyActiveEmployee = false,
         bool $allowNonAdminNomination = false,
     ): Employee {
         $actor = Employee::query()->where('user_id', $user->id)->first();
-        $isAdmin = method_exists($user, 'hasRole') && $user->hasRole(FoundationPermissions::ROLE_ADMIN);
+        $canNominate = $allowNonAdminNomination || $this->canNominate($user);
 
         if ($employeeId !== null) {
             $employee = Employee::query()->find($employeeId);
@@ -40,55 +38,36 @@ class ResolveShiftStaff
                 ]);
             }
 
-            // Only an admin may nominate somebody other than themselves.
-            if (! $isAdmin && ! $allowNonAdminNomination && (! $actor || (int) $actor->id !== (int) $employee->id)) {
+            if (! $canNominate && (! $actor || (int) $actor->id !== (int) $employee->id)) {
                 throw ValidationException::withMessages([
                     $field => 'You can only open or close a shift session as yourself.',
                 ]);
             }
 
-            return $this->assertEligible(
-                $employee,
-                $shift,
-                $field,
-                $businessDate,
-                ($isAdmin && $allowAnyActiveEmployee) || $allowNonAdminNomination,
-            );
+            return $this->assertActive($employee, $field);
         }
 
         if ($actor) {
-            return $this->assertEligible($actor, $shift, $field, $businessDate);
+            return $this->assertActive($actor, $field);
         }
 
         throw ValidationException::withMessages([
-            $field => $isAdmin
-                ? 'Select which employee of '.$shift->name.' is on duty.'
-                : 'Only employees assigned to '.$shift->name.' can open or close its session.',
+            $field => 'Select which employee is on duty for '.$shift->name.'.',
         ]);
     }
 
-    private function assertEligible(
-        Employee $employee,
-        EmployeeShift $shift,
-        string $field,
-        Carbon|string|null $businessDate,
-        bool $allowAnyActiveEmployee = false,
-    ): Employee {
-        $date = $businessDate ? Carbon::parse($businessDate)->toDateString() : Carbon::today()->toDateString();
-        $isAssigned = (int) $employee->shift_id === (int) $shift->id;
-        $isCovering = OvertimeShift::query()
-            ->activeClaim()
-            ->where('employee_id', $employee->id)
-            ->where('employee_shift_id', $shift->id)
-            ->whereDate('date', $date)
-            ->exists();
-
-        if (! $allowAnyActiveEmployee && ! $isAssigned && ! $isCovering) {
-            throw ValidationException::withMessages([
-                $field => $employee->name.' is not assigned to or scheduled to cover '.$shift->name.' on '.$date.'.',
-            ]);
+    private function canNominate(User $user): bool
+    {
+        if (! method_exists($user, 'hasRole')) {
+            return false;
         }
 
+        return $user->hasRole(FoundationPermissions::ROLE_ADMIN)
+            || $user->hasRole(FoundationPermissions::ROLE_MANAGER);
+    }
+
+    private function assertActive(Employee $employee, string $field): Employee
+    {
         if ($employee->status !== 'active') {
             throw ValidationException::withMessages([
                 $field => $employee->name.' is not an active employee.',
