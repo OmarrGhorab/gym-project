@@ -1280,7 +1280,10 @@
       "cancelWithRefundDescription": "إلغاء عضوية {name} ضمن فترة السماح (حتى {date}). المبلغ الافتراضي هو ما دُفع.",
       "refundAmount": "مبلغ الاسترداد",
       "reason": "السبب",
-      "optionalNote": "ملاحظة اختيارية"
+      "optionalNote": "ملاحظة اختيارية",
+      "changePlanBlockedNoPlans": "لا توجد خطط متاحة للبيع حاليًا.",
+      "changePlanBlockedNotActive": "تغيير الخطة متاح للاشتراك النشط فقط — هذا الاشتراك {status}. جدده بدلًا من ذلك.",
+      "changePlanBlockedNoPlanSelected": "اختر الخطة الجديدة أولًا."
     },
     "plans": {
       "title": "خطط الاشتراك",

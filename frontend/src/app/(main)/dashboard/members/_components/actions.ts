@@ -335,6 +335,7 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
 
   const parsed = subscriptionChangeSchema.safeParse({
     amount_due: input.get("amount_due") || input.get("payment_amount"),
+    coach_id: input.get("coach_id"),
     credit_mode: input.get("credit_mode") || "full_difference",
     discount: input.get("discount"),
     payment_amount: input.get("payment_amount"),
@@ -369,10 +370,23 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
     addons = [];
   }
 
+  // Coach picks for the services bundled into an offer package — posted by the
+  // same form, but never forwarded, so the package fell back to its defaults.
+  let includedAddons: unknown[] = [];
+  try {
+    const rawIncluded = input.get("included_addons");
+    if (typeof rawIncluded === "string" && rawIncluded) {
+      includedAddons = JSON.parse(rawIncluded);
+    }
+  } catch {
+    includedAddons = [];
+  }
+
   try {
     await serverApiFetch(`/subscriptions/${subscriptionId.data}/upgrade`, {
       body: JSON.stringify({
         plan_id: parsed.data.plan_id,
+        coach_id: parsed.data.coach_id ?? null,
         credit_mode: parsed.data.credit_mode,
         amount_due: safeAmountDue,
         discount: parsed.data.discount ?? "0",
@@ -381,6 +395,7 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
           method: parsed.data.payment_method,
         },
         addons,
+        included_addons: includedAddons,
       }),
       headers: {
         "Content-Type": "application/json",
@@ -588,6 +603,8 @@ const subscriptionInputSchema = z.object({
 
 const subscriptionChangeSchema = z.object({
   amount_due: optionalTextInput(),
+  /** Studio plans ask for a coach; the form posted it but it was never read. */
+  coach_id: optionalIdInput.optional(),
   credit_mode: z.enum(["full_difference", "day_proration"]).default("full_difference"),
   discount: optionalTextInput(),
   payment_amount: z.string().trim().min(1, "Payment amount is required."),

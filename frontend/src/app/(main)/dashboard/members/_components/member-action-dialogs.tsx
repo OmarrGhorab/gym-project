@@ -1046,6 +1046,35 @@ function SubscriptionFormContent({
   const endDate = kind === "create" ? (endDateOverride ?? autoEndDate) : "";
   const hasCustomEndDate = kind === "create" && endDateOverride !== null && endDateOverride !== autoEndDate;
   const endDateBeforeStart = Boolean(endDate && startDate && endDate < startDate);
+
+  /**
+   * Why submit is blocked, or null when it is fine.
+   *
+   * A disabled button with nothing next to it left staff guessing — the common
+   * case is a stopped membership, which cannot be upgraded (the API rejects it
+   * too) and needs renewing instead.
+   */
+  const submitBlockedReason = React.useMemo(() => {
+    // Guarding on basePlans blocked studio-only selections even when a studio
+    // plan was picked; what matters is whether anything is sellable at all.
+    if (sellablePlans.length === 0) {
+      return t("changePlanBlockedNoPlans");
+    }
+
+    if (endDateBeforeStart) {
+      return t("endDateBeforeStart");
+    }
+
+    if (kind === "change" && currentSubscription?.status !== "active") {
+      return t("changePlanBlockedNotActive", { status: currentSubscription?.status ?? "-" });
+    }
+
+    if (kind === "change" && !selectedPlanId) {
+      return t("changePlanBlockedNoPlanSelected");
+    }
+
+    return null;
+  }, [currentSubscription?.status, endDateBeforeStart, kind, selectedPlanId, sellablePlans.length, t]);
   const normalizedDiscount = selectedPlan
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
     : "0";
@@ -1678,20 +1707,16 @@ function SubscriptionFormContent({
             </Button>
           </div>
         </div>
+        {submitBlockedReason ? (
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300">
+            {submitBlockedReason}
+          </p>
+        ) : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             {t("cancel")}
           </Button>
-          <Button
-            type="submit"
-            disabled={
-              pending ||
-              basePlans.length === 0 ||
-              endDateBeforeStart ||
-              (kind === "change" && currentSubscription?.status !== "active") ||
-              (kind === "change" && !selectedPlanId)
-            }
-          >
+          <Button type="submit" disabled={pending || submitBlockedReason !== null}>
             {pending ? t("saving") : submitLabel}
           </Button>
         </DialogFooter>

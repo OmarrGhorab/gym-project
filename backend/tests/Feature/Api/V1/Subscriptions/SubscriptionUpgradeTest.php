@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Employee;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\Plan;
@@ -511,4 +512,100 @@ test('cashier without upgrade permission cannot upgrade', function (): void {
             'method' => 'cash',
         ],
     ])->assertStatus(403);
+});
+
+test('upgrade assigns the coach picked for the new studio plan', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $coach = Employee::factory()->create(['role' => 'coach']);
+    $oldPlan = Plan::factory()->active()->create(['price' => '70.00']);
+    $studioPlan = Plan::factory()->active()->create([
+        'price' => '350.00',
+        'type' => 'fitness_studio',
+        'category' => 'calisthenics',
+    ]);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldPlan->id,
+        'price_paid' => '70.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $studioPlan->id,
+        'coach_id' => $coach->id,
+        'amount_due' => '280.00',
+        'payment' => ['amount' => '280.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    $upgraded = Subscription::query()->where('upgraded_from_subscription_id', $subscription->id)->firstOrFail();
+
+    expect($upgraded->coach_id)->toBe($coach->id);
+});
+
+test('upgrade keeps the existing coach when the plan change does not name one', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $coach = Employee::factory()->create(['role' => 'coach']);
+    $oldPlan = Plan::factory()->active()->create(['price' => '70.00']);
+    $newPlan = Plan::factory()->active()->create(['price' => '350.00']);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldPlan->id,
+        'coach_id' => $coach->id,
+        'price_paid' => '70.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $newPlan->id,
+        'amount_due' => '280.00',
+        'payment' => ['amount' => '280.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    $upgraded = Subscription::query()->where('upgraded_from_subscription_id', $subscription->id)->firstOrFail();
+
+    expect($upgraded->coach_id)->toBe($coach->id);
+});
+
+test('upgrade keeps the extra services selected during a plan change', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $coach = Employee::factory()->create(['role' => 'coach']);
+    $oldPlan = Plan::factory()->active()->create(['price' => '70.00']);
+    $newPlan = Plan::factory()->active()->create(['price' => '350.00']);
+    $extraPlan = Plan::factory()->active()->create(['price' => '500.00', 'category' => 'personal_training']);
+    App\Models\EmployeePlanCommissionRule::create([
+        'employee_id' => $coach->id, 'plan_id' => $extraPlan->id,
+        'calculation_type' => 'percentage', 'value' => '10.0000', 'is_active' => true,
+    ]);
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id, 'plan_id' => $oldPlan->id, 'price_paid' => '70.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $newPlan->id,
+        'amount_due' => '280.00',
+        'payment' => ['amount' => '280.00', 'method' => 'cash'],
+        'addons' => [[
+            'plan_id' => $extraPlan->id,
+            'coach_id' => $coach->id,
+            'discount' => '0',
+            'payment' => ['amount' => '500.00', 'method' => 'cash'],
+        ]],
+    ])->assertStatus(201);
+
+    $upgraded = Subscription::query()->where('upgraded_from_subscription_id', $subscription->id)->firstOrFail();
+
+    expect($upgraded->addons()->count())->toBe(1);
 });

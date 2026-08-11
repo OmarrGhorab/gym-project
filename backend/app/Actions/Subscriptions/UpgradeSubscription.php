@@ -124,6 +124,9 @@ class UpgradeSubscription
             $newSubscription = $this->createSubscription->handle([
                 'member_id' => $lockedSubscription->member_id,
                 'plan_id' => $newPlan->id,
+                // Fall back to the coach already on the membership so a plan change
+                // that does not ask for one does not silently unassign the member.
+                'coach_id' => $data['coach_id'] ?? $lockedSubscription->coach_id,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $newPlan->endDateFrom($startDate)->toDateString(),
                 'discount' => $extraDiscount,
@@ -133,6 +136,7 @@ class UpgradeSubscription
                     'paid_at' => $data['payment']['paid_at'] ?? null,
                 ],
                 'addons' => $data['addons'] ?? [],
+                'included_addons' => $data['included_addons'] ?? [],
             ], $seller);
 
             if ($appliedCredit > 0) {

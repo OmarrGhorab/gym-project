@@ -1280,7 +1280,10 @@
       "cancelWithRefundDescription": "Cancel {name}'s membership within grace (until {date}). Default refund is the amount paid.",
       "refundAmount": "Refund amount",
       "reason": "Reason",
-      "optionalNote": "Optional note"
+      "optionalNote": "Optional note",
+      "changePlanBlockedNoPlans": "No sellable plans are available right now.",
+      "changePlanBlockedNotActive": "Only an active membership can change plan — this one is {status}. Renew it instead.",
+      "changePlanBlockedNoPlanSelected": "Choose the new plan first."
     },
     "plans": {
       "title": "Membership Plans",
