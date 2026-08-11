@@ -38,6 +38,8 @@ export const membershipPipelineSchema = z.object({
       durationDays: z.number(),
       durationMonths: z.number().nullable(),
       category: z.string(),
+      /** Distinct from category — `fitness_studio` here is what marks a studio plan. */
+      type: z.string(),
       kind: z.enum(["main", "extra"]),
       sessionsCount: z.number().nullable().optional(),
       isUnlimitedSessions: z.boolean().optional(),

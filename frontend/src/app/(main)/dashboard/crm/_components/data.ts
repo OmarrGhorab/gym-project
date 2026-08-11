@@ -471,6 +471,10 @@ function mapSubscriptionToPipeline(
         durationMonths:
           plan.duration_months === null || plan.duration_months === undefined ? null : Number(plan.duration_months),
         category,
+        // Carried separately from category: a studio plan is identified by `type`
+        // (e.g. type=fitness_studio, category=calisthenics), so collapsing the two
+        // hides the studio coach picker on the change-plan dialog.
+        type: plan.type ?? category,
         kind: category === "gym_access" ? ("main" as const) : ("extra" as const),
         sessionsCount: plan.sessions_count ?? null,
         isUnlimitedSessions: Boolean(plan.is_unlimited_sessions),

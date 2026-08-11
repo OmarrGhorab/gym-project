@@ -416,8 +416,22 @@ function SubscriptionActions({
         duration_months: p.durationMonths,
         sessions_count: p.sessionsCount ?? null,
         is_unlimited_sessions: p.isUnlimitedSessions ?? true,
-        type: p.category,
+        // `type` decides whether the dialog treats this as a studio plan and asks
+        // for a coach; substituting category here made every studio plan look like
+        // a plain one, so the coach picker never appeared.
+        type: p.type,
         category: p.category,
+        // Without the assignment rules the dialog falls back to listing every
+        // coach in the gym instead of the ones actually assigned to this plan.
+        employee_commission_rules: p.coaches.map((coach) => ({
+          id: coach.id,
+          employee_id: coach.id,
+          plan_id: p.id,
+          calculation_type: "percentage" as const,
+          value: "0",
+          is_active: true,
+          employee: { id: coach.id, name: coach.name, role: coach.role },
+        })),
         is_active: true,
         is_sellable: true,
         valid_from: null,
@@ -430,7 +444,6 @@ function SubscriptionActions({
         min_freeze_days: 0,
         freeze_requires_approval: false,
         created_at: null,
-        is_studio: p.category === "fitness_studio" || p.name.toLowerCase().includes("studio"),
         status: "active",
       })),
     [subscription.planOptions],
