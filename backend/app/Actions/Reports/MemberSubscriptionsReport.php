@@ -631,6 +631,9 @@ final class MemberSubscriptionsReport
             'truncated' => $matched > $shown,
             'subscriptions_count' => count($all),
             'active_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'active')),
+            // Sold in advance and not started yet. Counted apart from active so
+            // the two never silently add up to a number nobody can reconcile.
+            'scheduled_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'scheduled')),
             'expired_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'expired')),
             'frozen_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'frozen')),
             'stopped_count' => count(array_filter($all, fn (array $row): bool => $row['status'] === 'stopped')),
@@ -662,7 +665,17 @@ final class MemberSubscriptionsReport
      */
     private function effectiveStatus(Subscription $subscription): string
     {
-        if (! $subscription->end_date || $subscription->status !== 'active') {
+        if ($subscription->status !== 'active') {
+            return $subscription->status;
+        }
+
+        // Sold in advance: not running yet, and check-in refuses it until the
+        // start date arrives.
+        if ($subscription->start_date && $subscription->start_date->gt(Carbon::today())) {
+            return 'scheduled';
+        }
+
+        if (! $subscription->end_date) {
             return $subscription->status;
         }
 

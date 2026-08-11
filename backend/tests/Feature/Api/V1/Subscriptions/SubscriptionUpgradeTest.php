@@ -609,3 +609,112 @@ test('upgrade keeps the extra services selected during a plan change', function 
 
     expect($upgraded->addons()->count())->toBe(1);
 });
+
+test('a plan change can be sold in advance with a custom start date', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $oldPlan = Plan::factory()->active()->create([
+        'price' => '300.00',
+        'duration_days' => 30,
+        'category' => 'gym_access',
+    ]);
+    $newPlan = Plan::factory()->active()->create([
+        'price' => '800.00',
+        'duration_days' => 30,
+        'category' => 'gym_access',
+    ]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldPlan->id,
+        'price_paid' => '300.00',
+    ]);
+
+    $startDate = Carbon::today()->addWeek()->toDateString();
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $newPlan->id,
+        'start_date' => $startDate,
+        'payment' => ['amount' => '800.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.start_date', $startDate)
+        ->assertJsonPath('data.end_date', Carbon::today()->addWeek()->addDays(30)->toDateString());
+
+    // The member's current period still closes now, as staff chose.
+    expect($subscription->fresh()->status)->toBe('stopped');
+});
+
+test('a plan change accepts a custom end date alongside the start date', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $oldPlan = Plan::factory()->active()->create(['price' => '300.00', 'duration_days' => 30]);
+    $newPlan = Plan::factory()->active()->create(['price' => '800.00', 'duration_days' => 30]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldPlan->id,
+        'price_paid' => '300.00',
+    ]);
+
+    $startDate = Carbon::today()->addDays(3)->toDateString();
+    $endDate = Carbon::today()->addDays(90)->toDateString();
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $newPlan->id,
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'payment' => ['amount' => '800.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.start_date', $startDate)
+        ->assertJsonPath('data.end_date', $endDate);
+});
+
+test('a plan change rejects an end date before the start date', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $oldPlan = Plan::factory()->active()->create(['price' => '300.00', 'duration_days' => 30]);
+    $newPlan = Plan::factory()->active()->create(['price' => '800.00', 'duration_days' => 30]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldPlan->id,
+        'price_paid' => '300.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $newPlan->id,
+        'start_date' => Carbon::today()->addDays(10)->toDateString(),
+        'end_date' => Carbon::today()->addDays(2)->toDateString(),
+        'payment' => ['amount' => '800.00', 'method' => 'cash'],
+    ])->assertStatus(422);
+});
+
+test('a plan change still starts today when no start date is given', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $oldPlan = Plan::factory()->active()->create(['price' => '300.00', 'duration_days' => 30]);
+    $newPlan = Plan::factory()->active()->create(['price' => '800.00', 'duration_days' => 30]);
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $oldPlan->id,
+        'price_paid' => '300.00',
+    ]);
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/upgrade", [
+        'plan_id' => $newPlan->id,
+        'payment' => ['amount' => '800.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.start_date', Carbon::today()->toDateString());
+});

@@ -2161,7 +2161,7 @@ function MemberSubscriptionsView({
         <ReportMetric
           title="Subscriptions"
           value={String(totals.subscriptions_count ?? 0)}
-          detail={`${String(totals.active_count ?? 0)} active · ${String(totals.expired_count ?? 0)} expired`}
+          detail={`${String(totals.active_count ?? 0)} active · ${String(totals.scheduled_count ?? 0)} scheduled · ${String(totals.expired_count ?? 0)} expired`}
         />
         <ReportMetric
           title="Collected"

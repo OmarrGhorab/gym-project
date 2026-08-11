@@ -57,6 +57,8 @@ export const membershipPipelineSchema = z.object({
   status: z.string(),
   billingStatus: z.string(),
   daysLeft: z.number().nullable(),
+  /** Set only while an advance sale is still waiting for its start date. */
+  startsInDays: z.number().nullable(),
   health: z.string(),
   healthReason: z.string(),
   paidTotal: z.number(),

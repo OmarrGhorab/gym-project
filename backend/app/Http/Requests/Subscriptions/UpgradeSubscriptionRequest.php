@@ -22,6 +22,10 @@ class UpgradeSubscriptionRequest extends FormRequest
             // dropped and the new period was created unassigned.
             'coach_id' => ['nullable', 'integer', 'exists:employees,id'],
             'credit_mode' => ['nullable', 'string', 'in:full_difference,day_proration'],
+            // Staff sell the next period ahead of time — the member pays now and
+            // starts next week. Omitted, the new period still begins today.
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'discount' => ['nullable', 'numeric', 'min:0'],
             'amount_due' => ['nullable', 'numeric', 'min:0'],
             'payment.amount' => ['required', 'numeric', 'min:0'],

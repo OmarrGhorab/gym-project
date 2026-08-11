@@ -46,7 +46,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryDialog } from "@/hooks/use-query-dialog";
 import { canAccess } from "@/lib/authorization";
-import { formatCurrency } from "@/lib/utils";
+import { getGymTodayString } from "@/lib/timezone";
+import { cn, formatCurrency } from "@/lib/utils";
 
 import { recordMembershipPayment } from "../../crm/_components/actions";
 import type { PlanRow } from "../../plans/_components/data";
@@ -1017,7 +1018,10 @@ function SubscriptionFormContent({
   }, [basePlans, currentPlanId, kind, planCategoryTab, sellablePlans, studioPlans]);
 
   const initialPlan = availablePlans[0] ?? basePlans[0];
-  const defaultStartDate = React.useMemo(() => formatDateOnly(new Date()), []);
+  // The gym's calendar, not the runtime's: this component is server-rendered
+  // first, and a UTC server still reads yesterday until 03:00 in Cairo — which
+  // would default the whole night shift's sales to the wrong start date.
+  const defaultStartDate = React.useMemo(() => getGymTodayString(), []);
   const [state, submit, pending] = useActionState(action, initialMemberFormState);
   const [selectedPlanId, setSelectedPlanId] = React.useState(initialPlan ? String(initialPlan.id) : "");
   const [selectedCoachId, setSelectedCoachId] = React.useState<string>("");
@@ -1041,40 +1045,14 @@ function SubscriptionFormContent({
   const [includedAddons, setIncludedAddons] = React.useState<Array<{ coach_id: string; plan_id: string }>>([]);
   const selectedPlan = plans.find((plan) => String(plan.id) === selectedPlanId) ?? availablePlans[0];
   const isStudioPlan = selectedPlan ? isStudioPlanItem(selectedPlan) : false;
-  const autoEndDate =
-    kind === "create" && selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
-  const endDate = kind === "create" ? (endDateOverride ?? autoEndDate) : "";
-  const hasCustomEndDate = kind === "create" && endDateOverride !== null && endDateOverride !== autoEndDate;
+  // A plan change picks its own dates too — staff sell the next period ahead of
+  // time and the member starts on the agreed day, not the day they paid.
+  const autoEndDate = selectedPlan && startDate ? calculatePlanEndDate(startDate, selectedPlan) : "";
+  const endDate = endDateOverride ?? autoEndDate;
+  const hasCustomEndDate = endDateOverride !== null && endDateOverride !== autoEndDate;
   const endDateBeforeStart = Boolean(endDate && startDate && endDate < startDate);
+  const startsInFuture = Boolean(startDate && startDate > defaultStartDate);
 
-  /**
-   * Why submit is blocked, or null when it is fine.
-   *
-   * A disabled button with nothing next to it left staff guessing — the common
-   * case is a stopped membership, which cannot be upgraded (the API rejects it
-   * too) and needs renewing instead.
-   */
-  const submitBlockedReason = React.useMemo(() => {
-    // Guarding on basePlans blocked studio-only selections even when a studio
-    // plan was picked; what matters is whether anything is sellable at all.
-    if (sellablePlans.length === 0) {
-      return t("changePlanBlockedNoPlans");
-    }
-
-    if (endDateBeforeStart) {
-      return t("endDateBeforeStart");
-    }
-
-    if (kind === "change" && currentSubscription?.status !== "active") {
-      return t("changePlanBlockedNotActive", { status: currentSubscription?.status ?? "-" });
-    }
-
-    if (kind === "change" && !selectedPlanId) {
-      return t("changePlanBlockedNoPlanSelected");
-    }
-
-    return null;
-  }, [currentSubscription?.status, endDateBeforeStart, kind, selectedPlanId, sellablePlans.length, t]);
   const normalizedDiscount = selectedPlan
     ? calculateDiscountAmount(selectedPlan.price, discountValue, discountType)
     : "0";
@@ -1094,6 +1072,64 @@ function SubscriptionFormContent({
     }
   }
   const paymentAmount = paymentAmountOverride ?? (suggestedPaymentAmount !== "" ? suggestedPaymentAmount : "0.00");
+
+  // What the member still owes after handing over `paymentAmount` today. Staff
+  // take a deposit and collect the rest later, so the amount they type is not
+  // required to cover the plan — only never to exceed it.
+  const amountOwedNow = kind === "change" ? Math.max(0, priceDifference) : Number(suggestedPaymentAmount || "0");
+  const paidNow = Number.parseFloat(paymentAmount);
+  const hasValidPaidNow = !Number.isNaN(paidNow) && paidNow >= 0;
+  const balanceDue = hasValidPaidNow ? Math.max(0, amountOwedNow - paidNow) : 0;
+  const paymentExceedsPrice = hasValidPaidNow && paidNow > amountOwedNow;
+  const paymentIsPartial = hasValidPaidNow && balanceDue > 0;
+
+  /**
+   * Why submit is blocked, or null when it is fine.
+   *
+   * A disabled button with nothing next to it left staff guessing — the common
+   * case is a stopped membership, which cannot be upgraded (the API rejects it
+   * too) and needs renewing instead.
+   */
+  const submitBlockedReason = React.useMemo(() => {
+    // Guarding on basePlans blocked studio-only selections even when a studio
+    // plan was picked; what matters is whether anything is sellable at all.
+    if (sellablePlans.length === 0) {
+      return t("changePlanBlockedNoPlans");
+    }
+
+    if (endDateBeforeStart) {
+      return t("endDateBeforeStart");
+    }
+
+    // The amount is free text now that staff can part-pay, and anything over
+    // the price silently extends the membership on the API side.
+    if (kind === "create" && paymentExceedsPrice) {
+      return t("paymentAbovePrice");
+    }
+
+    if (kind === "create" && !hasValidPaidNow) {
+      return t("paymentAmountInvalid");
+    }
+
+    if (kind === "change" && currentSubscription?.status !== "active") {
+      return t("changePlanBlockedNotActive", { status: currentSubscription?.status ?? "-" });
+    }
+
+    if (kind === "change" && !selectedPlanId) {
+      return t("changePlanBlockedNoPlanSelected");
+    }
+
+    return null;
+  }, [
+    currentSubscription?.status,
+    endDateBeforeStart,
+    hasValidPaidNow,
+    kind,
+    paymentExceedsPrice,
+    selectedPlanId,
+    sellablePlans.length,
+    t,
+  ]);
 
   React.useEffect(() => {
     if (selectedPlan) {
@@ -1344,48 +1380,49 @@ function SubscriptionFormContent({
                 </p>
               </div>
             ) : null}
-            {kind === "create" ? (
-              <div className="grid gap-2">
-                <Label htmlFor="start_date">{t("startDate")}</Label>
-                <FormDatePicker
-                  key={`${member.id}-${kind}-${open ? "open" : "closed"}-${startDate}`}
-                  id="start_date"
-                  name="start_date"
-                  defaultValue={startDate}
-                  placeholder={t("selectDate")}
-                  required
-                  error={fieldError(state, "start_date")}
-                  onValueChange={setStartDate}
-                />
-              </div>
-            ) : null}
-            {kind === "create" ? (
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="end_date">{t("endDate")}</Label>
-                  {hasCustomEndDate ? (
-                    <button
-                      type="button"
-                      className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
-                      onClick={() => setEndDateOverride(null)}
-                    >
-                      {t("endDateReset")}
-                    </button>
-                  ) : null}
-                </div>
-                <FormDatePicker
-                  id="end_date"
-                  name="end_date"
-                  value={endDate}
-                  placeholder={t("selectDate")}
-                  error={fieldError(state, "end_date") ?? (endDateBeforeStart ? t("endDateBeforeStart") : undefined)}
-                  onValueChange={(value) => setEndDateOverride(value === autoEndDate ? null : value)}
-                />
+            <div className="grid gap-2">
+              <Label htmlFor="start_date">{t("startDate")}</Label>
+              <FormDatePicker
+                key={`${member.id}-${kind}-${open ? "open" : "closed"}-${startDate}`}
+                id="start_date"
+                name="start_date"
+                defaultValue={startDate}
+                placeholder={t("selectDate")}
+                required
+                error={fieldError(state, "start_date")}
+                onValueChange={setStartDate}
+              />
+              {startsInFuture ? (
                 <p className="text-muted-foreground text-xs">
-                  {hasCustomEndDate ? t("endDateCustomHint", { date: autoEndDate }) : t("endDateAutoHint")}
+                  {kind === "change" ? t("startDateFutureChangeHint") : t("startDateFutureHint")}
                 </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="end_date">{t("endDate")}</Label>
+                {hasCustomEndDate ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
+                    onClick={() => setEndDateOverride(null)}
+                  >
+                    {t("endDateReset")}
+                  </button>
+                ) : null}
               </div>
-            ) : null}
+              <FormDatePicker
+                id="end_date"
+                name="end_date"
+                value={endDate}
+                placeholder={t("selectDate")}
+                error={fieldError(state, "end_date") ?? (endDateBeforeStart ? t("endDateBeforeStart") : undefined)}
+                onValueChange={(value) => setEndDateOverride(value === autoEndDate ? null : value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                {hasCustomEndDate ? t("endDateCustomHint", { date: autoEndDate }) : t("endDateAutoHint")}
+              </p>
+            </div>
             {kind === "change" ? (
               <div className="grid gap-2 sm:col-span-2">
                 <input type="hidden" name="credit_mode" value="full_difference" />
@@ -1424,27 +1461,76 @@ function SubscriptionFormContent({
               </div>
             ) : null}
             <div className="grid gap-2">
-              <Label htmlFor="payment_amount">{t("paymentAmount")}</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="payment_amount">
+                  {kind === "change" ? t("paymentAmount") : t("paymentAmountPaidNow")}
+                </Label>
+                {kind === "create" && paymentAmountOverride !== null ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
+                    onClick={() => setPaymentAmountOverride(null)}
+                  >
+                    {t("paymentAmountReset")}
+                  </button>
+                ) : null}
+              </div>
               <input type="hidden" name="amount_due" value={paymentAmount} />
               <Input
                 id="payment_amount"
                 name="payment_amount"
                 type="text"
+                inputMode="decimal"
                 required
                 value={paymentAmount}
-                readOnly={kind === "create"}
-                onChange={
-                  kind === "change" ? (event) => setPaymentAmountOverride(event.currentTarget.value) : undefined
-                }
-                aria-invalid={Boolean(fieldError(state, "payment_amount"))}
+                onChange={(event) => setPaymentAmountOverride(event.currentTarget.value)}
+                aria-invalid={Boolean(fieldError(state, "payment_amount")) || paymentExceedsPrice}
               />
               {kind === "change" ? (
                 <p className="text-muted-foreground text-xs">
                   Enter price difference (+ for extra payment, - for refund).
                 </p>
-              ) : null}
+              ) : (
+                <p className="text-muted-foreground text-xs">{t("paymentAmountPartialHint")}</p>
+              )}
               <FieldError errors={state.errors.payment_amount} />
             </div>
+            {kind === "create" && selectedPlan ? (
+              <div className="grid gap-2 sm:col-span-2">
+                <div
+                  className={cn(
+                    "rounded-lg border p-3 text-sm",
+                    paymentExceedsPrice ? "border-destructive/40 bg-destructive/10" : "border-border bg-muted/30",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">{t("totalDue")}</span>
+                    <span className="font-medium tabular-nums">{amountOwedNow.toFixed(2)} EGP</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">{t("paidNow")}</span>
+                    <span className="font-medium tabular-nums">{hasValidPaidNow ? paidNow.toFixed(2) : "—"} EGP</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 border-t pt-2">
+                    <span className="font-semibold">{t("balanceDue")}</span>
+                    <span
+                      className={cn(
+                        "font-bold text-base tabular-nums",
+                        paymentIsPartial ? "text-amber-600 dark:text-amber-400" : "",
+                      )}
+                    >
+                      {balanceDue.toFixed(2)} EGP
+                    </span>
+                  </div>
+                  {paymentExceedsPrice ? (
+                    <p className="mt-2 text-destructive text-xs">{t("paymentAbovePrice")}</p>
+                  ) : null}
+                  {paymentIsPartial ? (
+                    <p className="mt-2 text-muted-foreground text-xs">{t("balanceDueHint")}</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             <div className="grid gap-2">
               <Label htmlFor="payment_method">{t("paymentMethod")}</Label>
               <FormSelect

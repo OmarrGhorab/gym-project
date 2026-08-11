@@ -21,14 +21,17 @@ class StoreSubscriptionRequest extends FormRequest
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'discount' => ['nullable', 'numeric', 'min:0'],
-            'payment.amount' => ['required', 'numeric', 'gt:0'],
+            // Zero is a real answer, not a mistake: the member is taking the
+            // membership now and settling all or part of it later. What was
+            // handed over becomes a payment, the rest stays a balance due.
+            'payment.amount' => ['required', 'numeric', 'min:0'],
             'payment.method' => ['required', 'string', 'in:cash,card,bank_transfer'],
             'payment.paid_at' => ['nullable', 'date'],
             'addons' => ['sometimes', 'array'],
             'addons.*.plan_id' => ['required', 'integer', 'exists:plans,id'],
             'addons.*.coach_id' => ['required', 'integer', 'exists:employees,id'],
             'addons.*.discount' => ['nullable', 'numeric', 'min:0'],
-            'addons.*.payment.amount' => ['required', 'numeric', 'gt:0'],
+            'addons.*.payment.amount' => ['required', 'numeric', 'min:0'],
             'addons.*.payment.method' => ['required', 'string', 'in:cash,card,bank_transfer'],
             'addons.*.payment.paid_at' => ['nullable', 'date'],
             'included_addons' => ['sometimes', 'array'],

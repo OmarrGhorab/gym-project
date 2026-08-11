@@ -114,6 +114,10 @@ function getStatusBadgeClassName(status: string) {
   switch (status) {
     case "active":
       return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
+    // Paid for, but not running yet — distinct from active so staff do not read
+    // it as access the member already has.
+    case "scheduled":
+      return "border-blue-500/35 bg-blue-500/10 text-blue-700 dark:text-blue-300";
     case "expired":
     case "stopped":
       return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
@@ -326,7 +330,9 @@ export function getOpportunitiesColumns(
                 ? wasRefunded
                   ? t("periodClosedRefunded")
                   : t("periodClosed")
-                : formatDaysLeft(row.original.daysLeft, t)}
+                : // Counting down to the end date reads as access the member does
+                  // not have yet; until it starts, the wait is the useful number.
+                  (formatDaysUntilStart(row.original.startsInDays, t) ?? formatDaysLeft(row.original.daysLeft, t))}
             </span>
           </div>
         );
@@ -958,7 +964,10 @@ function SubscriptionActions({
               />
               <DetailRow label={t("starts")} value={subscription.startDate ?? t("noStartDate")} />
               <DetailRow label={t("ends")} value={subscription.endDate ?? t("noEndDate")} />
-              <DetailRow label={t("daysLeft")} value={formatDaysLeft(subscription.daysLeft, t)} />
+              <DetailRow
+                label={t("daysLeft")}
+                value={formatDaysUntilStart(subscription.startsInDays, t) ?? formatDaysLeft(subscription.daysLeft, t)}
+              />
               <DetailRow
                 label={t("paidTotal")}
                 value={formatCurrency(subscription.paidTotal, { currency: "EGP", noDecimals: true })}
@@ -1913,7 +1922,14 @@ export function translateHealth(value: string, t: CrmT) {
 }
 
 export function translateStatus(value: string, t: CrmT) {
-  if (value === "active" || value === "frozen" || value === "expired" || value === "stopped" || value === "pending") {
+  if (
+    value === "active" ||
+    value === "scheduled" ||
+    value === "frozen" ||
+    value === "expired" ||
+    value === "stopped" ||
+    value === "pending"
+  ) {
     return t(`statuses.${value}`);
   }
 
@@ -1974,6 +1990,9 @@ function translateHealthReason(subscription: MembershipPipelineRow, t: CrmT) {
 function getBackendActions(status: string): SubscriptionAction[] {
   switch (status) {
     case "active":
+    // An advance sale is still a live membership on the API side, so keep the
+    // same actions — staff must be able to stop one the member no longer wants.
+    case "scheduled":
       return ["renew", "freeze", "stop"];
     case "frozen":
       return ["unfreeze", "stop"];
@@ -1991,6 +2010,15 @@ function formatSubscriptionPeriod(startDate: string | null, endDate: string | nu
   }
 
   return `${startDate ?? t("noStartDate")} - ${endDate ?? t("noEndDate")}`;
+}
+
+/** Null unless the membership is still waiting for its start date. */
+function formatDaysUntilStart(startsInDays: number | null, t: CrmT) {
+  if (startsInDays === null || startsInDays <= 0) {
+    return null;
+  }
+
+  return t("startsInDays", { count: startsInDays });
 }
 
 function formatDaysLeft(daysLeft: number | null, t: CrmT) {

@@ -338,6 +338,8 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
     coach_id: input.get("coach_id"),
     credit_mode: input.get("credit_mode") || "full_difference",
     discount: input.get("discount"),
+    start_date: input.get("start_date"),
+    end_date: input.get("end_date"),
     payment_amount: input.get("payment_amount"),
     payment_method: input.get("payment_method") || "cash",
     plan_id: input.get("plan_id"),
@@ -388,6 +390,8 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
         plan_id: parsed.data.plan_id,
         coach_id: parsed.data.coach_id ?? null,
         credit_mode: parsed.data.credit_mode,
+        start_date: parsed.data.start_date,
+        end_date: parsed.data.end_date,
         amount_due: safeAmountDue,
         discount: parsed.data.discount ?? "0",
         payment: {
@@ -607,6 +611,9 @@ const subscriptionChangeSchema = z.object({
   coach_id: optionalIdInput.optional(),
   credit_mode: z.enum(["full_difference", "day_proration"]).default("full_difference"),
   discount: optionalTextInput(),
+  /** Both optional: left blank the new period starts today, as it always has. */
+  start_date: optionalDateInput,
+  end_date: optionalDateInput,
   payment_amount: z.string().trim().min(1, "Payment amount is required."),
   payment_method: z.enum(["cash", "card", "bank_transfer"]),
   plan_id: z.coerce.number().int().min(1, "Plan is required."),

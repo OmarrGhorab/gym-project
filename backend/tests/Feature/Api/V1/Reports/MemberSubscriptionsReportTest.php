@@ -505,7 +505,10 @@ test('totals cover every subscription in the period, not just each member latest
         // …but the money and counts span all three periods.
         ->assertJsonPath('data.totals.subscriptions_count', 3)
         ->assertJsonPath('data.totals.total_collected', '1500.00')
-        ->assertJsonPath('data.totals.active_count', 1)
+        // The newest period starts tomorrow, so it counts as sold-in-advance
+        // rather than active — nobody can check in on it today.
+        ->assertJsonPath('data.totals.active_count', 0)
+        ->assertJsonPath('data.totals.scheduled_count', 1)
         ->assertJsonPath('data.totals.stopped_count', 2);
 
     expect($response->json('data.members.0.latest.package_paid_total'))->toBe('500.00');

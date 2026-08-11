@@ -614,3 +614,209 @@ test('user without subscriptions create permission receives 403', function (): v
     ])->assertStatus(403)
         ->assertJsonPath('error.code', 'forbidden');
 });
+
+test('a partial payment leaves the remainder as a balance due', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '1000.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => [
+            'amount' => '500.00',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.price_paid', '1000.00')
+        ->assertJsonPath('data.paid_total', '500.00')
+        ->assertJsonPath('data.balance', '500.00')
+        ->assertJsonPath('data.billing_status', 'pending');
+
+    $payment = Payment::query()->where('payable_id', Subscription::query()->value('id'))->firstOrFail();
+
+    expect($payment->status)->toBe('partial')
+        ->and($payment->due_date)->not->toBeNull();
+});
+
+test('a subscription can be taken with nothing paid up front and the whole price stays due', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '1000.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => [
+            'amount' => '0',
+            'method' => 'cash',
+        ],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.balance', '1000.00')
+        ->assertJsonPath('data.billing_status', 'pending');
+
+    // Nothing was handed over, so there is no payment row to report as revenue.
+    expect(Payment::count())->toBe(0);
+});
+
+test('the balance from a partial payment can be settled later', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '1000.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => ['amount' => '500.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    $subscription = Subscription::query()->firstOrFail();
+
+    $this->postJson('/api/v1/payments', [
+        'subscription_id' => $subscription->id,
+        'amount' => '500.00',
+        'method' => 'cash',
+    ])->assertStatus(201);
+
+    $this->getJson("/api/v1/subscriptions/{$subscription->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.balance', '0.00')
+        ->assertJsonPath('data.billing_status', 'paid');
+});
+
+test('an advance sale can start on a future date', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '1000.00',
+        'duration_days' => 30,
+    ]);
+
+    $startDate = now()->addWeek()->toDateString();
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => $startDate,
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.start_date', $startDate)
+        ->assertJsonPath('data.end_date', now()->addWeek()->addDays(30)->toDateString());
+});
+
+test('an advance sale reads as scheduled until its start date arrives', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create([
+        'price' => '1000.00',
+        'duration_days' => 30,
+    ]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->addDays(4)->toDateString(),
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.status', 'scheduled')
+        ->assertJsonPath('data.starts_in_days', 4);
+
+    // The row itself stays active — nothing has to run for it to start.
+    expect(Subscription::query()->value('status'))->toBe('active');
+});
+
+test('a scheduled subscription reads as active once its start date arrives', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '1000.00', 'duration_days' => 30]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->addDays(4)->toDateString(),
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    $subscription = Subscription::query()->firstOrFail();
+
+    $this->travel(4)->days();
+
+    $this->getJson("/api/v1/subscriptions/{$subscription->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.starts_in_days', null);
+
+    $this->travelBack();
+});
+
+test('a subscription starting today is active, not scheduled', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '1000.00', 'duration_days' => 30]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])
+        ->assertStatus(201)
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.starts_in_days', null);
+});
+
+test('a member cannot check in before an advance sale starts', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '1000.00', 'duration_days' => 30]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->addDays(4)->toDateString(),
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    $this->postJson('/api/v1/member-visits', ['member_id' => $member->id])
+        ->assertStatus(422);
+});

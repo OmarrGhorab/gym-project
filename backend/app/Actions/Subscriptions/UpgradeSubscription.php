@@ -120,7 +120,16 @@ class UpgradeSubscription
                 ]);
             }
 
-            $startDate = Carbon::today();
+            // A plan change sold in advance starts on the date staff picked, not
+            // the day it was rung up. The old period still stops now, so the
+            // member has no access between the two — that is what "starts on the
+            // 19th" means, and check-in already enforces it.
+            $startDate = isset($data['start_date']) && $data['start_date'] !== ''
+                ? Carbon::parse($data['start_date'])->startOfDay()
+                : Carbon::today();
+            $endDate = isset($data['end_date']) && $data['end_date'] !== ''
+                ? Carbon::parse($data['end_date'])->startOfDay()
+                : $newPlan->endDateFrom($startDate);
             $newSubscription = $this->createSubscription->handle([
                 'member_id' => $lockedSubscription->member_id,
                 'plan_id' => $newPlan->id,
@@ -128,7 +137,7 @@ class UpgradeSubscription
                 // that does not ask for one does not silently unassign the member.
                 'coach_id' => $data['coach_id'] ?? $lockedSubscription->coach_id,
                 'start_date' => $startDate->toDateString(),
-                'end_date' => $newPlan->endDateFrom($startDate)->toDateString(),
+                'end_date' => $endDate->toDateString(),
                 'discount' => $extraDiscount,
                 'payment' => [
                     'amount' => number_format($cashPaymentAmount, 2, '.', ''),

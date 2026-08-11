@@ -26,7 +26,9 @@ class SubscriptionResource extends JsonResource
         $cancellationGraceEndsOn = $this->cancellationGraceEndsOn($cancellationGraceDays);
         // Default refund is money collected for the entire package (before any refund rows), not net after refunds.
         $defaultRefundAmount = $this->packageCollectedPaidTotal();
-        $canCancelWithRefund = in_array($status, ['active', 'frozen'], true)
+        // A membership sold for next week can still be cancelled inside the
+        // grace window — it has not started, so there is more reason to allow it.
+        $canCancelWithRefund = in_array($status, ['active', 'frozen', 'scheduled'], true)
             && Carbon::today()->lte($cancellationGraceEndsOn)
             && $this->refundsLoadedEmpty();
         $billingStatus = $this->billingStatus($packagePaidTotal, $packageBalance, $refundTotal);
@@ -51,6 +53,7 @@ class SubscriptionResource extends JsonResource
             'can_cancel_with_refund' => $canCancelWithRefund,
             'default_refund_amount' => $defaultRefundAmount,
             'days_left' => $daysLeft,
+            'starts_in_days' => $this->startsInDays(),
             'renewal_health' => $this->renewalHealth($status, $daysLeft, $packageBalance, $refundTotal),
             'renewal_health_reason' => $this->renewalHealthReason($status, $daysLeft, $packageBalance, $refundTotal),
             'discount' => $this->discount,
@@ -268,7 +271,18 @@ class SubscriptionResource extends JsonResource
 
     private function effectiveStatus(): string
     {
-        if (! $this->end_date || $this->status !== 'active') {
+        if ($this->status !== 'active') {
+            return $this->status;
+        }
+
+        // Sold in advance. The member has paid but cannot check in yet, so this
+        // must not sit in the same column as memberships that are running —
+        // check-in already refuses it, and staff need to see why.
+        if ($this->start_date && $this->start_date->gt(Carbon::today())) {
+            return 'scheduled';
+        }
+
+        if (! $this->end_date) {
             return $this->status;
         }
 
@@ -282,9 +296,23 @@ class SubscriptionResource extends JsonResource
         return $this->status;
     }
 
+    /**
+     * Days until an advance sale begins, or null once it has started.
+     */
+    private function startsInDays(): ?int
+    {
+        if ($this->status !== 'active' || ! $this->start_date) {
+            return null;
+        }
+
+        $days = (int) Carbon::today()->diffInDays($this->start_date, false);
+
+        return $days > 0 ? $days : null;
+    }
+
     private function renewalHealth(string $status, ?int $daysLeft, string $balance, string $refundTotal): string
     {
-        if ($status === 'active' && $this->start_date && Carbon::today()->diffInDays($this->start_date, false) > 0) {
+        if ($status === 'scheduled') {
             return 'renewed';
         }
 
@@ -305,7 +333,7 @@ class SubscriptionResource extends JsonResource
 
     private function renewalHealthReason(string $status, ?int $daysLeft, string $balance, string $refundTotal): string
     {
-        if ($status === 'active' && $this->start_date && Carbon::today()->diffInDays($this->start_date, false) > 0) {
+        if ($status === 'scheduled') {
             return 'next_period_starts';
         }
 

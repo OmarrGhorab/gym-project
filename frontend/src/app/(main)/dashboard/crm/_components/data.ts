@@ -95,6 +95,8 @@ type SubscriptionResource = {
   cancellation_grace_ends_on?: string | null;
   renewal_health?: string | null;
   renewal_health_reason?: string | null;
+  /** Set only while an advance sale is still waiting for its start date. */
+  starts_in_days?: number | null;
   /** Both null on an unlimited plan; otherwise total = sessions_count x cycles, remaining counts down per visit. */
   sessions_total?: number | null;
   sessions_remaining?: number | null;
@@ -496,6 +498,7 @@ function mapSubscriptionToPipeline(
     status: subscription.status,
     billingStatus: subscription.billing_status ?? "pending",
     daysLeft,
+    startsInDays: subscription.starts_in_days ?? null,
     health: subscription.renewal_health ?? "active",
     healthReason: subscription.renewal_health_reason ?? "active_no_balance",
     paidTotal,
