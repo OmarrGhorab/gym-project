@@ -347,6 +347,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     attendance_qr: member.attendance_qr ?? null,
     birth_date: member.birth_date ?? null,
     plan: subscription?.plan_name ?? null,
+    planStartsAt: subscription?.start_date ?? null,
     planEndsAt: subscription?.end_date ?? null,
     status: member.status === "inactive" ? "inactive" : (member.membership_status ?? member.status ?? null),
     billing: member.billing_status ?? "unknown",

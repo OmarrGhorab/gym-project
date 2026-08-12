@@ -272,6 +272,7 @@
         "contactMissing": "لا توجد بيانات تواصل",
         "dateMissing": "لا يوجد تاريخ انضمام",
         "endsAt": "ينتهي {date}",
+        "startsAt": "يبدأ {date}",
         "noPlan": "بدون خطة",
         "paidAmount": "المبلغ المدفوع: {amount}",
         "actionViewDetails": "عرض التفاصيل",

@@ -11,6 +11,7 @@ export const recentCustomersSchema = z.object({
   attendance_qr: z.string().nullable().optional(),
   birth_date: z.string().nullable().optional(),
   plan: z.string().nullable(),
+  planStartsAt: z.string().nullable(),
   planEndsAt: z.string().nullable(),
   status: z.string().nullable(),
   billing: z.string(),

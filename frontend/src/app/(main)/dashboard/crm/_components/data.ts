@@ -540,7 +540,8 @@ function mapSubscriptionToPipeline(
   };
 }
 
-function dedupeLatestSubscriptions(subscriptions: SubscriptionResource[]) {
+/** Exported for tests — picks the one row per member the pipeline shows. */
+export function dedupeLatestSubscriptions(subscriptions: SubscriptionResource[]) {
   const latest = new Map<string, SubscriptionResource>();
 
   for (const subscription of subscriptions) {
@@ -576,7 +577,12 @@ function compareSubscriptionFreshness(left: SubscriptionResource, right: Subscri
 
 function getSubscriptionStatusPriority(status: string) {
   switch (status) {
+    // A membership sold for next week outranks anything already finished, and
+    // ties with a running one so the later end date decides. Falling through to
+    // the default here ranked it below `stopped`, which made the pipeline show a
+    // member's cancelled subscription instead of the one they just bought.
     case "active":
+    case "scheduled":
       return 5;
     case "frozen":
       return 4;

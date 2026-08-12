@@ -18,6 +18,7 @@ type RecentCustomersColumnLabels = {
   contactMissing: string;
   dateMissing: string;
   endsAt: (values: { date: string }) => string;
+  startsAt: (values: { date: string }) => string;
   joined: string;
   member: string;
   noPlan: string;
@@ -189,6 +190,11 @@ export function createRecentCustomersColumns({
                 + {addon.plan?.name ?? "Extra"}: {addon.paid_total ?? addon.price_paid ?? "0.00"} EGP
               </span>
             ))}
+            {row.original.planStartsAt ? (
+              <span className="text-muted-foreground text-xs">
+                {labels.startsAt({ date: compactDateFormatter.format(parseISO(row.original.planStartsAt)) })}
+              </span>
+            ) : null}
             {row.original.planEndsAt ? (
               <span className="text-muted-foreground text-xs">
                 {labels.endsAt({ date: compactDateFormatter.format(parseISO(row.original.planEndsAt)) })}

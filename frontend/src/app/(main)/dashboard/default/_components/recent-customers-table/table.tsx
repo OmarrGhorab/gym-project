@@ -164,6 +164,7 @@ export function RecentCustomersTable({
           contactMissing: t("contactMissing"),
           dateMissing: t("dateMissing"),
           endsAt: (values) => t("endsAt", values),
+          startsAt: (values) => t("startsAt", values),
           joined: t("joined"),
           member: t("member"),
           noPlan: t("noPlan"),

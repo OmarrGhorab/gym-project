@@ -272,6 +272,7 @@
         "contactMissing": "No contact saved",
         "dateMissing": "No join date",
         "endsAt": "Ends {date}",
+        "startsAt": "Starts {date}",
         "noPlan": "No plan",
         "paidAmount": "Paid amount: {amount}",
         "actionViewDetails": "View details",
