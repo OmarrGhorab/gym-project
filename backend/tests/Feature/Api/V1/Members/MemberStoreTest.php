@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\MembershipAccessSeeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Laravel\Sanctum\Sanctum;
 
@@ -241,6 +242,11 @@ test('null email does not conflict with another null email', function (): void {
 });
 
 test('admin can create a member with initial subscription atomically', function (): void {
+    // The fixture dates below are fixed, so sit inside them — the API reports
+    // what a membership is right now, and a period that ended months ago reads
+    // as expired no matter what the status column says.
+    $this->travelTo(Carbon::parse('2026-06-15 12:00:00'));
+
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);
     Sanctum::actingAs($user);

@@ -820,3 +820,47 @@ test('a member cannot check in before an advance sale starts', function (): void
     $this->postJson('/api/v1/member-visits', ['member_id' => $member->id])
         ->assertStatus(422);
 });
+
+test('the member payload reports an advance sale as scheduled, not active', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '1000.00', 'duration_days' => 30]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->addDays(4)->toDateString(),
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    // The members screen is where staff sell the membership, so it is the first
+    // place they look afterwards — it has to agree with the subscription itself.
+    $this->getJson("/api/v1/members/{$member->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.membership_status', 'scheduled')
+        ->assertJsonPath('data.latest_subscription.status', 'scheduled');
+});
+
+test('the member payload reports a started subscription as active', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create(['price' => '1000.00', 'duration_days' => 30]);
+
+    $this->postJson('/api/v1/subscriptions', [
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'start_date' => now()->toDateString(),
+        'payment' => ['amount' => '1000.00', 'method' => 'cash'],
+    ])->assertStatus(201);
+
+    $this->getJson("/api/v1/members/{$member->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.membership_status', 'active')
+        ->assertJsonPath('data.latest_subscription.status', 'active');
+});

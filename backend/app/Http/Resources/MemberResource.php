@@ -37,7 +37,12 @@ final class MemberResource extends JsonResource
             'join_date' => $this->join_date?->toDateString(),
             'expiry_date' => $latestSubscription?->end_date?->toDateString(),
             'status' => $this->status,
-            'membership_status' => $latestSubscription?->status,
+            // The subscription resource already works out what the membership
+            // really is right now — scheduled before its start date, expired
+            // once the grace period has run out. Reading the raw column here
+            // instead made a membership sold for next week show as "active" on
+            // every screen built from the member payload.
+            'membership_status' => $latestSubscriptionData['status'] ?? null,
             'billing_status' => $this->billingStatus(),
             'notes' => $this->notes,
             'goals' => $this->goals,
@@ -59,7 +64,7 @@ final class MemberResource extends JsonResource
                 'plan_name' => $latestSubscription->plan?->name,
                 'start_date' => $latestSubscription->start_date?->toDateString(),
                 'end_date' => $latestSubscription->end_date?->toDateString(),
-                'status' => $latestSubscription->status,
+                'status' => $latestSubscriptionData['status'] ?? $latestSubscription->status,
                 'price_paid' => $latestSubscriptionData['price_paid'] ?? '0.00',
                 'paid_total' => $latestSubscriptionData['paid_total'] ?? '0.00',
                 'balance' => $latestSubscriptionData['balance'] ?? '0.00',

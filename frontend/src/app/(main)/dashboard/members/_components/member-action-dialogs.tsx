@@ -333,8 +333,12 @@ export function MemberActionsMenu({
     };
   }, [detailsOpen, member.id, resolvedLabels]);
 
-  const hasActiveSubscription = member.latest_subscription?.status === "active";
-  const hasCurrentSubscription = hasActiveSubscription || member.latest_subscription?.status === "frozen";
+  // An advance sale is a membership the member already owns, it just has not
+  // started yet — so it can be changed or refunded, and offering to add another
+  // one on top of it would sell the same member two overlapping periods.
+  const subscriptionStatus = member.latest_subscription?.status;
+  const hasActiveSubscription = subscriptionStatus === "active" || subscriptionStatus === "scheduled";
+  const hasCurrentSubscription = hasActiveSubscription || subscriptionStatus === "frozen";
 
   return (
     <>
@@ -1062,8 +1066,13 @@ function SubscriptionFormContent({
 
   if (selectedPlan) {
     if (kind === "change") {
+      // A membership that has not started yet still credits what was paid for
+      // it — otherwise switching an advance sale to another plan would charge
+      // the member the full price a second time.
       oldPlanPrice =
-        currentSubscription?.status === "active" ? getMainPlanPaidTotal(currentSubscription, currentPlan) : 0;
+        currentSubscription?.status === "active" || currentSubscription?.status === "scheduled"
+          ? getMainPlanPaidTotal(currentSubscription, currentPlan)
+          : 0;
       const discountedPlanPrice = Math.max(0, Number(selectedPlan.price) - Number(normalizedDiscount));
       priceDifference = discountedPlanPrice - oldPlanPrice;
       suggestedPaymentAmount = priceDifference.toFixed(2);
@@ -1111,7 +1120,7 @@ function SubscriptionFormContent({
       return t("paymentAmountInvalid");
     }
 
-    if (kind === "change" && currentSubscription?.status !== "active") {
+    if (kind === "change" && currentSubscription?.status !== "active" && currentSubscription?.status !== "scheduled") {
       return t("changePlanBlockedNotActive", { status: currentSubscription?.status ?? "-" });
     }
 

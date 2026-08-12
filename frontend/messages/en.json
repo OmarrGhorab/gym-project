@@ -329,7 +329,8 @@
           "stopped": "Stopped",
           "inactive": "Inactive",
           "none": "No subscription",
-          "unknown": "Not set"
+          "unknown": "Not set",
+          "scheduled": "Scheduled"
         },
         "billingStatuses": {
           "paid": "Paid",
@@ -1296,7 +1297,17 @@
       "optionalNote": "Optional note",
       "changePlanBlockedNoPlans": "No sellable plans are available right now.",
       "changePlanBlockedNotActive": "Only an active membership can change plan — this one is {status}. Renew it instead.",
-      "changePlanBlockedNoPlanSelected": "Choose the new plan first."
+      "changePlanBlockedNoPlanSelected": "Choose the new plan first.",
+      "subscriptionStatuses": {
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "frozen": "Frozen",
+        "expired": "Expired",
+        "stopped": "Stopped",
+        "cancelled": "Cancelled",
+        "inactive": "Inactive",
+        "pending": "Pending"
+      }
     },
     "plans": {
       "title": "Membership Plans",

@@ -48,6 +48,8 @@ function statusBadgeClassName(status: string | null) {
   switch (status) {
     case "active":
       return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
+    case "scheduled":
+      return "border-blue-500/35 bg-blue-500/10 text-blue-700 dark:text-blue-300";
     case "expired":
     case "stopped":
       return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";

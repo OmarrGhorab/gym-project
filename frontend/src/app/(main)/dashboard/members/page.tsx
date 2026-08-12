@@ -103,7 +103,7 @@ export default async function Page({
                     <TableCell>
                       <div className="font-medium">{subscription?.plan_name ?? t("noSubscription")}</div>
                       <div className="text-muted-foreground text-xs">
-                        {subscription?.status ?? t("none")} · {member.expiry_date ?? t("noExpiry")}
+                        {subscriptionStatusLabel(subscription?.status, t)} · {member.expiry_date ?? t("noExpiry")}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -224,6 +224,24 @@ function formatSessions(remaining?: number | null, total?: number | null, unlimi
   }
 
   return String(remaining);
+}
+
+/**
+ * The status column is a free string, and the API adds computed ones on top of
+ * it (`scheduled`, `expired`), so fall back to the raw value rather than let an
+ * unrecognised status blow up the whole row.
+ */
+function subscriptionStatusLabel(
+  status: string | null | undefined,
+  t: Awaited<ReturnType<typeof getTranslations<"Dashboard.membersPage">>>,
+): string {
+  if (!status) {
+    return t("none");
+  }
+
+  const key = `subscriptionStatuses.${status}`;
+
+  return t.has(key as never) ? t(key as never) : status;
 }
 
 function normalizeQuery(params: Record<string, string | string[] | undefined>) {

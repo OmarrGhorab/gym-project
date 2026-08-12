@@ -41,6 +41,9 @@ import { createRecentCustomersColumns } from "./columns";
 import type { RecentCustomerRow } from "./schema";
 
 const statusValues = ["all", "active", "expired", "frozen", "stopped", "inactive", "none"] as const;
+// `scheduled` is computed by the API rather than stored, so it can be shown on a
+// row but not filtered on — the filter goes back to the database column.
+const statusLabelValues = [...statusValues.filter((value) => value !== "all"), "scheduled"] as const;
 const billingValues = ["all", "paid", "pending", "overdue", "trial"] as const;
 const joinedDateValues = ["all", "30", "90"] as const;
 const sortValues = ["newest", "oldest", "name-asc", "name-desc"] as const;
@@ -169,9 +172,7 @@ export function RecentCustomersTable({
           selectAll: t("selectAll"),
           selectMember: (values) => t("selectMember", values),
           status: t("status"),
-          statuses: Object.fromEntries(
-            statusValues.filter((value) => value !== "all").map((value) => [value, t(`statuses.${value}`)]),
-          ),
+          statuses: Object.fromEntries(statusLabelValues.map((value) => [value, t(`statuses.${value}`)])),
         },
         locale,
         renderActions: (row) => (

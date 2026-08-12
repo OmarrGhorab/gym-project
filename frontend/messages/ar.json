@@ -329,7 +329,8 @@
           "stopped": "متوقف",
           "inactive": "غير نشط",
           "none": "بدون اشتراك",
-          "unknown": "غير محدد"
+          "unknown": "غير محدد",
+          "scheduled": "مجدول"
         },
         "billingStatuses": {
           "paid": "مدفوع",
@@ -1296,7 +1297,17 @@
       "optionalNote": "ملاحظة اختيارية",
       "changePlanBlockedNoPlans": "لا توجد خطط متاحة للبيع حاليًا.",
       "changePlanBlockedNotActive": "تغيير الخطة متاح للاشتراك النشط فقط — هذا الاشتراك {status}. جدده بدلًا من ذلك.",
-      "changePlanBlockedNoPlanSelected": "اختر الخطة الجديدة أولًا."
+      "changePlanBlockedNoPlanSelected": "اختر الخطة الجديدة أولًا.",
+      "subscriptionStatuses": {
+        "active": "نشط",
+        "scheduled": "مجدول",
+        "frozen": "مجمد",
+        "expired": "منتهي",
+        "stopped": "متوقف",
+        "cancelled": "ملغي",
+        "inactive": "غير نشط",
+        "pending": "معلق"
+      }
     },
     "plans": {
       "title": "خطط الاشتراك",
