@@ -9,13 +9,19 @@ import { useRouter } from "next/navigation";
 import {
   Ban,
   Camera,
+  CircleStop,
   CreditCard,
   Eye,
   ImageUp,
+  MessageCircle,
   MoreHorizontal,
   Pencil,
+  Play,
   PlusCircle,
   Receipt,
+  RefreshCw,
+  Snowflake,
+  SquarePen,
   UserPlus,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -48,8 +54,16 @@ import { useQueryDialog } from "@/hooks/use-query-dialog";
 import { canAccess } from "@/lib/authorization";
 import { getGymTodayString } from "@/lib/timezone";
 import { cn, formatCurrency } from "@/lib/utils";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
-import { recordMembershipPayment } from "../../crm/_components/actions";
+import {
+  correctMembershipSubscription,
+  freezeMembershipSubscription,
+  recordMembershipPayment,
+  renewMembershipSubscription,
+  stopMembershipSubscription,
+  unfreezeMembershipSubscription,
+} from "../../crm/_components/actions";
 import type { PlanRow } from "../../plans/_components/data";
 import {
   cancelMemberSubscription,
@@ -289,6 +303,8 @@ export function MemberActionsMenu({
   const [changePlanOpen, setChangePlanOpen] = React.useState(false);
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [paymentOpen, setPaymentOpen] = React.useState(false);
+  const [lifecycleAction, setLifecycleAction] = React.useState<SubscriptionLifecycleAction | null>(null);
+  const [editMembershipOpen, setEditMembershipOpen] = React.useState(false);
   const [history, setHistory] = React.useState<MemberPaymentHistory | null>(null);
   const [payments, setPayments] = React.useState<MemberPaymentRow[]>([]);
   const [report, setReport] = React.useState<MemberReportData | null>(null);
@@ -339,6 +355,15 @@ export function MemberActionsMenu({
   const subscriptionStatus = member.latest_subscription?.status;
   const hasActiveSubscription = subscriptionStatus === "active" || subscriptionStatus === "scheduled";
   const hasCurrentSubscription = hasActiveSubscription || subscriptionStatus === "frozen";
+  // Same lifecycle rules the memberships pipeline applies, so the two menus
+  // never offer a different set of actions for the same membership.
+  const subscriptionId = member.latest_subscription?.id ?? null;
+  const lifecycleActions = getSubscriptionLifecycleActions(subscriptionStatus).filter((action) => {
+    if (action === "renew") return canAccess(currentUser, "subscriptions.renew");
+    if (action === "stop") return canCancelSubscription;
+
+    return canAccess(currentUser, "subscriptions.freeze");
+  });
 
   return (
     <>
@@ -369,6 +394,23 @@ export function MemberActionsMenu({
                   </DropdownMenuItem>
                 </>
               ) : null}
+              {member.phone ? (
+                <DropdownMenuItem
+                  onClick={() => {
+                    const url = buildWhatsAppUrl(member.phone, t("whatsAppGreeting", { name: member.name }));
+
+                    if (!url) {
+                      toast.error(t("whatsAppNumberMissing"));
+                      return;
+                    }
+
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  <MessageCircle className="mr-2 size-4 text-green-600 dark:text-green-400" />
+                  {t("sendWhatsApp")}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
@@ -376,6 +418,12 @@ export function MemberActionsMenu({
                 <DropdownMenuItem onClick={() => setChangePlanOpen(true)}>
                   <CreditCard className="mr-2 size-4 text-blue-600 dark:text-blue-400" />
                   {resolvedLabels.changePlan}
+                </DropdownMenuItem>
+              ) : null}
+              {canChangePlan && subscriptionId ? (
+                <DropdownMenuItem onClick={() => setEditMembershipOpen(true)}>
+                  <SquarePen className="mr-2 size-4 text-blue-600 dark:text-blue-400" />
+                  {t("editMembership")}
                 </DropdownMenuItem>
               ) : null}
               {canAddSubscription && !hasCurrentSubscription ? (
@@ -396,6 +444,18 @@ export function MemberActionsMenu({
                   {t("cancelWithRefund")}
                 </DropdownMenuItem>
               ) : null}
+              {subscriptionId
+                ? lifecycleActions.map((action) => (
+                    <DropdownMenuItem
+                      key={action}
+                      variant={action === "stop" ? "destructive" : "default"}
+                      onClick={() => setLifecycleAction(action)}
+                    >
+                      {getLifecycleIcon(action)}
+                      {t(`lifecycle.${action}`)}
+                    </DropdownMenuItem>
+                  ))
+                : null}
             </DropdownMenuGroup>
             {canDeleteMember ? (
               <>
@@ -448,7 +508,383 @@ export function MemberActionsMenu({
         onOpenChange={setPaymentOpen}
         labels={resolvedLabels}
       />
+      {subscriptionId ? (
+        <MemberEditMembershipDialog member={member} open={editMembershipOpen} onOpenChange={setEditMembershipOpen} />
+      ) : null}
+      {subscriptionId ? (
+        <MemberLifecycleDialog
+          action={lifecycleAction}
+          member={member}
+          onOpenChange={(next) => {
+            if (!next) {
+              setLifecycleAction(null);
+            }
+          }}
+          plans={plans}
+          subscriptionId={subscriptionId}
+        />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * Corrects a membership that was rung up wrong: the wrong dates, or the wrong
+ * price for this member. This is the member's own membership, not the plan in
+ * the catalogue — changing the plan's price here would reprice everyone on it.
+ *
+ * Money already collected is deliberately not editable. It counted toward a
+ * day's revenue and a cashier's shift, so it is settled through Add payment
+ * rather than rewritten; correcting the price is what moves the balance.
+ */
+export function MemberEditMembershipDialog({
+  member,
+  onOpenChange,
+  open,
+}: {
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const subscription = member.latest_subscription;
+  const [startDate, setStartDate] = React.useState(subscription?.start_date ?? "");
+  const [endDate, setEndDate] = React.useState(subscription?.end_date ?? "");
+  const [price, setPrice] = React.useState(String(subscription?.price_paid ?? "0"));
+
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    // Always reopen showing what is actually stored, never a half-finished edit
+    // from the last time it was opened and dismissed.
+    setStartDate(subscription?.start_date ?? "");
+    setEndDate(subscription?.end_date ?? "");
+    setPrice(String(subscription?.price_paid ?? "0"));
+  }, [open, subscription?.start_date, subscription?.end_date, subscription?.price_paid]);
+
+  const paidSoFar = Number(subscription?.paid_total ?? 0);
+  const nextPrice = Number(price);
+  const hasValidPrice = Number.isFinite(nextPrice) && nextPrice >= 0;
+  const nextBalance = hasValidPrice ? Math.max(0, nextPrice - paidSoFar) : 0;
+  const endsBeforeStart = Boolean(startDate && endDate && endDate < startDate);
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!subscription?.id || !hasValidPrice || endsBeforeStart) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await correctMembershipSubscription(subscription.id, {
+        start_date: startDate,
+        end_date: endDate,
+        price_paid: price,
+      });
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(result.message);
+      onOpenChange(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("editMembership")}</DialogTitle>
+          <DialogDescription>
+            {t("editMembershipDescription", { plan: subscription?.plan_name ?? t("noActivePlan") })}
+          </DialogDescription>
+        </DialogHeader>
+        <form className="grid gap-4" onSubmit={submit}>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-membership-start">{t("startDate")}</Label>
+            <FormDatePicker
+              id="edit-membership-start"
+              name="start_date"
+              value={startDate}
+              onValueChange={setStartDate}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-membership-end">{t("endDate")}</Label>
+            <FormDatePicker
+              id="edit-membership-end"
+              name="end_date"
+              value={endDate}
+              onValueChange={setEndDate}
+              error={endsBeforeStart ? t("endBeforeStart") : undefined}
+            />
+          </div>
+          <Field
+            label={t("membershipPrice")}
+            name="price_paid"
+            type="number"
+            required
+            value={price}
+            onChange={(event) => setPrice(event.currentTarget.value)}
+          />
+          <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t("paidSoFar")}</span>
+              <span className="font-medium">{formatCurrency(paidSoFar, { currency: "EGP" })}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{t("balanceDue")}</span>
+              <span className={cn("font-medium", nextBalance > 0 && "text-amber-600 dark:text-amber-400")}>
+                {formatCurrency(nextBalance, { currency: "EGP" })}
+              </span>
+            </div>
+            <p className="text-muted-foreground text-xs">{t("editMembershipPaymentsHint")}</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("cancel")}
+            </Button>
+            <Button type="submit" disabled={pending || !hasValidPrice || endsBeforeStart}>
+              {pending ? t("working") : t("saveChanges")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type SubscriptionLifecycleAction = "renew" | "freeze" | "unfreeze" | "stop";
+
+/**
+ * Mirrors getBackendActions() in the memberships pipeline. An advance sale is a
+ * live membership on the API side, so it offers the same actions as a running
+ * one — staff must be able to stop a period the member no longer wants.
+ */
+function getSubscriptionLifecycleActions(status: string | null | undefined): SubscriptionLifecycleAction[] {
+  switch (status) {
+    case "active":
+    case "scheduled":
+      return ["renew", "freeze", "stop"];
+    case "frozen":
+      return ["unfreeze", "stop"];
+    case "expired":
+    case "stopped":
+      return ["renew"];
+    default:
+      return [];
+  }
+}
+
+function getLifecycleIcon(action: SubscriptionLifecycleAction) {
+  if (action === "renew") {
+    return <RefreshCw className="mr-2 size-4 text-emerald-600 dark:text-emerald-400" />;
+  }
+
+  if (action === "freeze") {
+    return <Snowflake className="mr-2 size-4 text-sky-600 dark:text-sky-400" />;
+  }
+
+  if (action === "unfreeze") {
+    return <Play className="mr-2 size-4 text-sky-600 dark:text-sky-400" />;
+  }
+
+  return <CircleStop className="mr-2 size-4 text-rose-600 dark:text-rose-400" />;
+}
+
+/**
+ * Renew / freeze / unfreeze / stop, driven from the members and overview tables.
+ * The memberships pipeline runs the same server actions; this is the same work
+ * without the pipeline row, so it reprices renewals from the plan catalogue
+ * rather than from a column the member payload does not carry.
+ */
+function MemberLifecycleDialog({
+  action,
+  member,
+  onOpenChange,
+  plans,
+  subscriptionId,
+}: {
+  action: SubscriptionLifecycleAction | null;
+  member: MemberRow;
+  onOpenChange: (open: boolean) => void;
+  plans: PlanRow[];
+  subscriptionId: number;
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const today = React.useMemo(() => getGymTodayString(), []);
+  const currentPlan = plans.find((plan) => plan.id === member.latest_subscription?.plan_id);
+  const [amount, setAmount] = React.useState("0");
+  const [discount, setDiscount] = React.useState("0");
+  const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card" | "bank_transfer">("cash");
+  const [freezeStart, setFreezeStart] = React.useState(today);
+  const [freezeEnd, setFreezeEnd] = React.useState(today);
+  const [resumeOn, setResumeOn] = React.useState(today);
+  const [reason, setReason] = React.useState("");
+
+  React.useEffect(() => {
+    if (action === null) {
+      return;
+    }
+
+    // Reprice every time it opens — a stale amount left over from a previous
+    // attempt would quietly under- or over-charge the new period.
+    setAmount(currentPlan?.price ? String(currentPlan.price) : "0");
+    setDiscount("0");
+    setPaymentMethod("cash");
+    setFreezeStart(today);
+    setFreezeEnd(today);
+    setResumeOn(today);
+    setReason("");
+  }, [action, currentPlan?.price, today]);
+
+  function finish(result: { ok: boolean; message: string }) {
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+    onOpenChange(false);
+    router.refresh();
+  }
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    startTransition(async () => {
+      if (action === "renew") {
+        finish(
+          await renewMembershipSubscription(subscriptionId, {
+            discount,
+            payment: { amount, method: paymentMethod },
+          }),
+        );
+        return;
+      }
+
+      if (action === "freeze") {
+        finish(
+          await freezeMembershipSubscription(subscriptionId, {
+            freeze_start: freezeStart,
+            freeze_end: freezeEnd,
+            ...(reason ? { reason } : {}),
+          }),
+        );
+        return;
+      }
+
+      if (action === "unfreeze") {
+        finish(await unfreezeMembershipSubscription(subscriptionId, { resume_on: resumeOn }));
+        return;
+      }
+
+      finish(await stopMembershipSubscription(subscriptionId));
+    });
+  }
+
+  const actionLabel = action ? t(`lifecycle.${action}`) : "";
+
+  return (
+    <Dialog open={action !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{actionLabel}</DialogTitle>
+          <DialogDescription>
+            {action ? t(`lifecycleDescription.${action}`, { name: member.name }) : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <form className="grid gap-4" onSubmit={submit}>
+          {action === "renew" ? (
+            <>
+              <Field
+                label={t("paymentAmount")}
+                name="renew_amount"
+                type="number"
+                required
+                value={amount}
+                onChange={(event) => setAmount(event.currentTarget.value)}
+              />
+              <Field
+                label={t("discount")}
+                name="renew_discount"
+                type="number"
+                value={discount}
+                onChange={(event) => setDiscount(event.currentTarget.value)}
+              />
+              <div className="grid gap-2">
+                <Label htmlFor="member-renew-method">{t("paymentMethod")}</Label>
+                <FormSelect
+                  id="member-renew-method"
+                  name="renew_method"
+                  value={paymentMethod}
+                  onValueChange={(value) => setPaymentMethod((value as "cash" | "card" | "bank_transfer") || "cash")}
+                  options={[
+                    { value: "cash", label: t("cash") },
+                    { value: "card", label: t("card") },
+                    { value: "bank_transfer", label: t("bankTransfer") },
+                  ]}
+                />
+              </div>
+            </>
+          ) : null}
+          {action === "freeze" ? (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="member-freeze-start">{t("freezeStart")}</Label>
+                <FormDatePicker
+                  id="member-freeze-start"
+                  name="freeze_start"
+                  value={freezeStart}
+                  onValueChange={setFreezeStart}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="member-freeze-end">{t("freezeEnd")}</Label>
+                <FormDatePicker
+                  id="member-freeze-end"
+                  name="freeze_end"
+                  value={freezeEnd}
+                  onValueChange={setFreezeEnd}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="member-freeze-reason">{t("optionalNote")}</Label>
+                <Textarea
+                  id="member-freeze-reason"
+                  name="reason"
+                  value={reason}
+                  onChange={(event) => setReason(event.currentTarget.value)}
+                />
+              </div>
+            </>
+          ) : null}
+          {action === "unfreeze" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="member-resume-on">{t("resumeOn")}</Label>
+              <FormDatePicker id="member-resume-on" name="resume_on" value={resumeOn} onValueChange={setResumeOn} />
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t("cancel")}
+            </Button>
+            <Button type="submit" disabled={pending} variant={action === "stop" ? "destructive" : "default"}>
+              {pending ? t("working") : actionLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -705,7 +1141,7 @@ function MemberCancelSubscriptionDialog({
   );
 }
 
-function EditMemberControlledDialog({
+export function EditMemberControlledDialog({
   member,
   onOpenChange,
   open,
@@ -730,7 +1166,7 @@ function EditMemberControlledDialog({
   );
 }
 
-function MemberPhotoControlledDialog({
+export function MemberPhotoControlledDialog({
   member,
   onOpenChange,
   open,
@@ -771,7 +1207,7 @@ function MemberPhotoControlledDialog({
   );
 }
 
-function MemberSubscriptionDialog({
+export function MemberSubscriptionDialog({
   member,
   onOpenChange,
   open,
@@ -2003,7 +2439,7 @@ function PhotoDialogContent({
   );
 }
 
-function DeactivateMemberItem({ member }: { member: MemberRow }) {
+export function DeactivateMemberItem({ member }: { member: MemberRow }) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();

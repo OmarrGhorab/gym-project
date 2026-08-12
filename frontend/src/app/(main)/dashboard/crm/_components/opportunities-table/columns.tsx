@@ -13,7 +13,14 @@ import { useLocale } from "next-intl";
 import { toast } from "sonner";
 
 import type { MemberRow, StaffOption } from "@/app/(main)/dashboard/members/_components/data";
-import { MemberChangePlanDialog } from "@/app/(main)/dashboard/members/_components/member-action-dialogs";
+import {
+  DeactivateMemberItem,
+  EditMemberControlledDialog,
+  MemberChangePlanDialog,
+  MemberEditMembershipDialog,
+  MemberPhotoControlledDialog,
+  MemberSubscriptionDialog,
+} from "@/app/(main)/dashboard/members/_components/member-action-dialogs";
 import type { PlanRow } from "@/app/(main)/dashboard/plans/_components/data";
 import {
   AlertDialog,
@@ -147,11 +154,19 @@ function getBillingBadgeClassName(status: string) {
   }
 }
 
+/** Whether the signed-in user may run the member-level actions in the row menu. */
+export type MemberActionPermissions = {
+  canUpdateMember: boolean;
+  canDeleteMember: boolean;
+  canAddSubscription: boolean;
+};
+
 export function getOpportunitiesColumns(
   t: CrmT,
   reminderDays: number[],
   canViewMoney: boolean,
   canApproveFreeze: boolean,
+  memberPermissions: MemberActionPermissions,
 ): ColumnDef<MembershipPipelineRow>[] {
   const moneyColumns: ColumnDef<MembershipPipelineRow>[] = canViewMoney
     ? [
@@ -373,6 +388,7 @@ export function getOpportunitiesColumns(
             t={t}
             reminderDays={reminderDays}
             canApproveFreeze={canApproveFreeze}
+            memberPermissions={memberPermissions}
           />
         </div>
       ),
@@ -388,16 +404,27 @@ function SubscriptionActions({
   t,
   reminderDays,
   canApproveFreeze,
+  memberPermissions,
 }: {
   subscription: MembershipPipelineRow;
   t: CrmT;
   reminderDays: number[];
   canApproveFreeze: boolean;
+  memberPermissions: MemberActionPermissions;
 }) {
   const router = useRouter();
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const [changePlanDialogOpen, setChangePlanDialogOpen] = React.useState(false);
+  // Member-level dialogs, shared with the members and overview tables so the
+  // same row offers the same actions wherever staff happen to be standing.
+  const [editMemberOpen, setEditMemberOpen] = React.useState(false);
+  const [photoOpen, setPhotoOpen] = React.useState(false);
+  const [addSubscriptionOpen, setAddSubscriptionOpen] = React.useState(false);
+  const [editMembershipOpen, setEditMembershipOpen] = React.useState(false);
+  // Only a finished membership can be replaced with a new one — offering it
+  // while one is running (or waiting to start) would sell overlapping periods.
+  const isClosedMembership = subscription.status === "stopped" || subscription.status === "expired";
   const [confirmAction, setConfirmAction] = React.useState<"stop" | null>(null);
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
   const [dialogMode, setDialogMode] = React.useState<DialogMode>("details");
@@ -866,6 +893,12 @@ function SubscriptionActions({
           >
             {t("viewDetails")}
           </DropdownMenuItem>
+          {subscription.memberId && memberPermissions.canUpdateMember ? (
+            <>
+              <DropdownMenuItem onClick={() => setEditMemberOpen(true)}>{t("editMember")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPhotoOpen(true)}>{t("uploadPhoto")}</DropdownMenuItem>
+            </>
+          ) : null}
           <DropdownMenuItem onClick={handleOpenWhatsApp}>{t("sendWhatsApp")}</DropdownMenuItem>
           {showRenewalReminderAction ? (
             <DropdownMenuItem onClick={handleOpenRenewalReminderWhatsApp}>{t("sendRenewalWhatsApp")}</DropdownMenuItem>
@@ -886,7 +919,9 @@ function SubscriptionActions({
               {pendingAction === "payment" ? t("working") : t("addPayment")}
             </DropdownMenuItem>
           ) : null}
-          {subscription.status === "active" || subscription.status === "frozen" ? (
+          {subscription.status === "active" ||
+          subscription.status === "frozen" ||
+          subscription.status === "scheduled" ? (
             <DropdownMenuItem
               data-disabled={pendingAction !== null ? "" : undefined}
               onClick={() => {
@@ -902,6 +937,12 @@ function SubscriptionActions({
           ) : null}
           {subscription.memberId ? (
             <DropdownMenuItem onClick={() => setChangePlanDialogOpen(true)}>{t("changePlan")}</DropdownMenuItem>
+          ) : null}
+          {subscription.memberId ? (
+            <DropdownMenuItem onClick={() => setEditMembershipOpen(true)}>{t("editMembership")}</DropdownMenuItem>
+          ) : null}
+          {subscription.memberId && isClosedMembership && memberPermissions.canAddSubscription ? (
+            <DropdownMenuItem onClick={() => setAddSubscriptionOpen(true)}>{t("addSubscription")}</DropdownMenuItem>
           ) : null}
           {backendActions.map((action) => {
             const disabledReason = action === "freeze" ? freezeDisabledReason : null;
@@ -927,6 +968,12 @@ function SubscriptionActions({
               </DropdownMenuItem>
             );
           })}
+          {subscription.memberId && memberPermissions.canDeleteMember ? (
+            <>
+              <DropdownMenuSeparator />
+              <DeactivateMemberItem member={memberRow} />
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -1533,13 +1580,29 @@ function SubscriptionActions({
       </AlertDialog>
 
       {subscription.memberId ? (
-        <MemberChangePlanDialog
-          member={memberRow}
-          open={changePlanDialogOpen}
-          onOpenChange={setChangePlanDialogOpen}
-          plans={dialogPlans}
-          staff={dialogStaff}
-        />
+        <>
+          <MemberChangePlanDialog
+            member={memberRow}
+            open={changePlanDialogOpen}
+            onOpenChange={setChangePlanDialogOpen}
+            plans={dialogPlans}
+            staff={dialogStaff}
+          />
+          <MemberSubscriptionDialog
+            member={memberRow}
+            open={addSubscriptionOpen}
+            onOpenChange={setAddSubscriptionOpen}
+            plans={dialogPlans}
+            staff={dialogStaff}
+          />
+          <MemberEditMembershipDialog
+            member={memberRow}
+            open={editMembershipOpen}
+            onOpenChange={setEditMembershipOpen}
+          />
+          <EditMemberControlledDialog member={memberRow} open={editMemberOpen} onOpenChange={setEditMemberOpen} />
+          <MemberPhotoControlledDialog member={memberRow} open={photoOpen} onOpenChange={setPhotoOpen} />
+        </>
       ) : null}
     </>
   );

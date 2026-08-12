@@ -17,6 +17,11 @@ Route::prefix('subscriptions')->group(function (): void {
     Route::get('/{subscription}', [SubscriptionController::class, 'show'])
         ->middleware('permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_VIEW);
 
+    // Corrects a membership rung up wrong — dates and price only, never the
+    // payments already collected against it.
+    Route::patch('/{subscription}', [SubscriptionController::class, 'update'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_UPGRADE]);
+
     Route::post('/{subscription}/renew', [SubscriptionController::class, 'renew'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_RENEW]);
 

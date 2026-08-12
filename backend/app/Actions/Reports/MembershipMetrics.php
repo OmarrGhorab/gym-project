@@ -132,17 +132,23 @@ final class MembershipMetrics
      */
     public function duesQuery()
     {
+        // Settlement, not collections. Credit carried over from a plan change is
+        // not new cash — that is why it stays out of revenue — but it does pay
+        // the membership off, and a member who owes nothing must not appear on a
+        // list of people to chase. Refund rows hold negative amounts, so summing
+        // settlements nets them out. SubscriptionResource::balanceDue() answers
+        // this same question the same way; the two have to agree.
         $subscriptionPaidTotals = Payment::query()
             ->selectRaw('payable_id, SUM(amount) as paid_total')
             ->where('payable_type', Subscription::class)
-            ->whereIn('status', Payment::COLLECTED_STATUSES)
+            ->whereIn('status', Payment::SETTLEMENT_STATUSES)
             ->groupBy('payable_id');
 
         $addonPaidTotals = Payment::query()
             ->join('subscription_addons', 'subscription_addons.id', '=', 'payments.payable_id')
             ->selectRaw('subscription_addons.subscription_id, SUM(payments.amount) as paid_total')
             ->where('payments.payable_type', SubscriptionAddon::class)
-            ->whereIn('payments.status', Payment::COLLECTED_STATUSES)
+            ->whereIn('payments.status', Payment::SETTLEMENT_STATUSES)
             ->groupBy('subscription_addons.subscription_id');
 
         $addonPriceTotals = SubscriptionAddon::query()

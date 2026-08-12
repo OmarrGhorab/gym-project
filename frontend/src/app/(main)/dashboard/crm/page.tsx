@@ -13,6 +13,13 @@ export default async function Page() {
     ? canAccess(user, ["reports.view", "payroll.view", "expenses.view", "export.reports"])
     : false;
   const canApproveFreeze = user ? canAccess(user, "subscriptions.freeze_approve") : false;
+  // The row menu now offers the same member-level actions as the members and
+  // overview tables, so it has to respect the same permissions they do.
+  const memberPermissions = {
+    canUpdateMember: user ? canAccess(user, "members.update") : false,
+    canDeleteMember: user ? canAccess(user, "members.delete") : false,
+    canAddSubscription: user ? canAccess(user, "subscriptions.create") : false,
+  };
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -24,6 +31,7 @@ export default async function Page() {
         reminderDays={data.reminderDays}
         canViewMoney={canViewMoney}
         canApproveFreeze={canApproveFreeze}
+        memberPermissions={memberPermissions}
       />
     </div>
   );

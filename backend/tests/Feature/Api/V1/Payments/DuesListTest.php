@@ -179,3 +179,103 @@ test('payment index rejects invalid status filter', function (): void {
         ->assertStatus(422)
         ->assertJsonPath('error.code', 'validation_failed');
 });
+
+test('credit carried from a plan change settles the balance and leaves the dues list', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '570.00',
+    ]);
+
+    // What staff actually handed over at the till on the plan change...
+    Payment::factory()->partial()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '120.00',
+    ]);
+
+    // ...and what the member had already paid toward the plan they left. It is
+    // not new cash, so it stays out of revenue, but the membership is settled:
+    // 120 + 450 = 570. Chasing this member for 450 would be chasing their own
+    // money twice.
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '450.00',
+        'status' => Payment::STATUS_CREDIT,
+        'method' => 'credit',
+    ]);
+
+    $this->getJson('/api/v1/payments/dues')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.outstanding_dues_count', 0)
+        ->assertJsonPath('meta.outstanding_dues_total', '0.00')
+        ->assertJsonCount(0, 'data');
+});
+
+test('a partly paid membership with no credit still shows its real balance', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '2000.00',
+    ]);
+
+    Payment::factory()->partial()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '1000.00',
+    ]);
+
+    $this->getJson('/api/v1/payments/dues')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.outstanding_dues_count', 1)
+        ->assertJsonPath('meta.outstanding_dues_total', '1000.00')
+        ->assertJsonPath('data.0.balance', '1000.00');
+});
+
+test('a refund reopens the balance it gave back', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->active()->create();
+    $plan = Plan::factory()->active()->create();
+
+    $subscription = Subscription::factory()->active()->create([
+        'member_id' => $member->id,
+        'plan_id' => $plan->id,
+        'price_paid' => '500.00',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '500.00',
+    ]);
+
+    // Refund rows carry negative amounts, so settlement nets down to 300 paid.
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '-200.00',
+        'status' => 'refunded',
+    ]);
+
+    $this->getJson('/api/v1/payments/dues')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.outstanding_dues_total', '200.00');
+});

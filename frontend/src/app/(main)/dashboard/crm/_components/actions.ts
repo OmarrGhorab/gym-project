@@ -81,6 +81,51 @@ export async function stopMembershipSubscription(id: number): Promise<Membership
   return mutateSubscription(`/subscriptions/${id}/stop`, "Subscription stopped.");
 }
 
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date.");
+const correctionMoneySchema = z
+  .string()
+  .trim()
+  .refine((value) => value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0, {
+    error: "Amount cannot be negative.",
+  });
+const correctionSchema = z
+  .object({
+    start_date: dateOnlySchema,
+    end_date: dateOnlySchema,
+    price_paid: correctionMoneySchema,
+    discount: correctionMoneySchema.optional(),
+  })
+  .refine((value) => value.end_date >= value.start_date, {
+    message: "End date cannot be before the start date.",
+    path: ["end_date"],
+  });
+
+export type CorrectMembershipSubscriptionInput = {
+  start_date: string;
+  end_date: string;
+  price_paid: string;
+  discount?: string;
+};
+
+/**
+ * Fixes a membership that was rung up wrong — the wrong dates, or the wrong
+ * price for this member. Never the plan in the catalogue, and never the money
+ * already collected: what changed hands has counted toward a day's revenue and
+ * a cashier's shift, so it is settled through payments, not rewritten here.
+ */
+export async function correctMembershipSubscription(
+  id: number,
+  input: CorrectMembershipSubscriptionInput,
+): Promise<MembershipActionResult> {
+  const parsedId = subscriptionIdSchema.safeParse(id);
+  const parsedInput = correctionSchema.safeParse(input);
+
+  if (!parsedId.success) return invalidResult("Subscription is required.", parsedId.error);
+  if (!parsedInput.success) return invalidResult("Please fix the highlighted fields.", parsedInput.error);
+
+  return mutateSubscription(`/subscriptions/${parsedId.data}`, "Membership updated.", parsedInput.data, "PATCH");
+}
+
 export type CancelMembershipSubscriptionInput = {
   refund_amount?: string;
   refund_scope?: "full_package" | "main_plan";
@@ -216,10 +261,11 @@ async function mutateSubscription(
   path: string,
   successMessage: string,
   body?: Record<string, unknown>,
+  method: "POST" | "PATCH" = "POST",
 ): Promise<MembershipActionResult> {
   try {
     await serverApiFetch(path, {
-      method: "POST",
+      method,
       headers: {
         "Content-Type": "application/json",
       },

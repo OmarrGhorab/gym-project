@@ -469,6 +469,9 @@
       "addPaymentDescription": "Collect the remaining {balance} for this subscription.",
       "addPaymentDialogDescription": "Record a partial or final payment against this subscription balance.",
       "changePlan": "Change plan",
+      "editMember": "Edit member",
+      "uploadPhoto": "Upload photo",
+      "addSubscription": "Add subscription",
       "changePlanDescription": "Choose whether you are changing the main membership or adding an extra service.",
       "changeMainPlanDescription": "Change only the main gym membership. Extra services stay separate.",
       "addExtraPlanDescription": "Add a service plan (PT, classes, nutrition, recovery) on top of the main membership.",
@@ -596,7 +599,8 @@
         "expired": "Expired",
         "stopped": "Stopped",
         "pending": "Pending"
-      }
+      },
+      "editMembership": "Edit membership"
     },
     "attendance": {
       "title": "Attendance",
@@ -1308,7 +1312,30 @@
         "cancelled": "Cancelled",
         "inactive": "Inactive",
         "pending": "Pending"
-      }
+      },
+      "freezeStart": "Freeze start",
+      "freezeEnd": "Freeze end",
+      "resumeOn": "Resume on",
+      "whatsAppGreeting": "Hello {name}, this is ATP Gym.",
+      "lifecycle": {
+        "renew": "Renew",
+        "freeze": "Freeze",
+        "unfreeze": "Unfreeze",
+        "stop": "Stop"
+      },
+      "lifecycleDescription": {
+        "renew": "Open a new period for {name} on their current plan.",
+        "freeze": "Pause {name}'s membership. Frozen days are added back to the end date.",
+        "unfreeze": "Resume {name}'s membership from the date you pick.",
+        "stop": "End {name}'s membership now. This cannot be undone."
+      },
+      "whatsAppNumberMissing": "This member has no WhatsApp number on file.",
+      "editMembership": "Edit membership",
+      "editMembershipDescription": "Correct the dates or price of this member's {plan} membership. This changes only this member, not the plan itself.",
+      "editMembershipPaymentsHint": "Money already collected is not changed here — use Add payment to record more.",
+      "membershipPrice": "Membership price",
+      "paidSoFar": "Paid so far",
+      "endBeforeStart": "End date cannot be before the start date."
     },
     "plans": {
       "title": "Membership Plans",

@@ -469,6 +469,9 @@
       "addPaymentDescription": "حصّل المبلغ المتبقي {balance} لهذا الاشتراك.",
       "addPaymentDialogDescription": "سجل دفعة جزئية أو نهائية على رصيد هذا الاشتراك.",
       "changePlan": "تغيير الخطة",
+      "editMember": "تعديل العضو",
+      "uploadPhoto": "رفع صورة",
+      "addSubscription": "إضافة اشتراك",
       "changePlanDescription": "اختر إن كنت تغيّر الاشتراك الأساسي أم تضيف خدمة إضافية.",
       "changeMainPlanDescription": "تغيير عضوية الصالة الأساسية فقط. الخدمات الإضافية منفصلة.",
       "addExtraPlanDescription": "أضف خدمة (تدريب شخصي، حصص، تغذية، استشفاء) فوق الاشتراك الأساسي.",
@@ -596,7 +599,8 @@
         "expired": "منتهي",
         "stopped": "متوقف",
         "pending": "معلق"
-      }
+      },
+      "editMembership": "تعديل الاشتراك"
     },
     "attendance": {
       "title": "الحضور",
@@ -1308,7 +1312,30 @@
         "cancelled": "ملغي",
         "inactive": "غير نشط",
         "pending": "معلق"
-      }
+      },
+      "freezeStart": "بداية التجميد",
+      "freezeEnd": "نهاية التجميد",
+      "resumeOn": "الاستئناف في",
+      "whatsAppGreeting": "مرحبا {name}، معك ATP Gym.",
+      "lifecycle": {
+        "renew": "تجديد",
+        "freeze": "تجميد",
+        "unfreeze": "إلغاء التجميد",
+        "stop": "إيقاف"
+      },
+      "lifecycleDescription": {
+        "renew": "بدء فترة جديدة لـ {name} على نفس الخطة.",
+        "freeze": "إيقاف اشتراك {name} مؤقتا. تضاف أيام التجميد إلى تاريخ الانتهاء.",
+        "unfreeze": "استئناف اشتراك {name} من التاريخ الذي تختاره.",
+        "stop": "إنهاء اشتراك {name} الآن. لا يمكن التراجع عن ذلك."
+      },
+      "whatsAppNumberMissing": "لا يوجد رقم واتساب مسجل لهذا العضو.",
+      "editMembership": "تعديل الاشتراك",
+      "editMembershipDescription": "تصحيح تواريخ أو سعر اشتراك {plan} لهذا العضو. هذا يغير هذا العضو فقط وليس الخطة نفسها.",
+      "editMembershipPaymentsHint": "المبالغ المحصلة لا تتغير هنا — استخدم إضافة دفعة لتسجيل المزيد.",
+      "membershipPrice": "سعر الاشتراك",
+      "paidSoFar": "المدفوع حتى الآن",
+      "endBeforeStart": "لا يمكن أن يكون تاريخ الانتهاء قبل تاريخ البداية."
     },
     "plans": {
       "title": "خطط الاشتراك",

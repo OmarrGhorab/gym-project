@@ -41,6 +41,7 @@ import { includesNormalizedSearch } from "@/lib/arabic-search";
 
 import {
   getOpportunitiesColumns,
+  type MemberActionPermissions,
   translateBillingStatus,
   translateHealth,
   translateStatus,
@@ -71,11 +72,13 @@ const normalizedOpportunityFilter: FilterFn<MembershipPipelineRow> = (row, _colu
 export function OpportunitiesSection({
   canViewMoney,
   canApproveFreeze,
+  memberPermissions,
   rows,
   reminderDays,
 }: {
   canViewMoney: boolean;
   canApproveFreeze: boolean;
+  memberPermissions: MemberActionPermissions;
   rows: MembershipPipelineRow[];
   reminderDays: number[];
 }) {
@@ -91,8 +94,8 @@ export function OpportunitiesSection({
     pageSize: 10,
   });
   const columns = React.useMemo(
-    () => getOpportunitiesColumns(t, reminderDays, canViewMoney, canApproveFreeze),
-    [canApproveFreeze, canViewMoney, reminderDays, t],
+    () => getOpportunitiesColumns(t, reminderDays, canViewMoney, canApproveFreeze, memberPermissions),
+    [canApproveFreeze, canViewMoney, memberPermissions, reminderDays, t],
   );
 
   const table = useReactTable({
