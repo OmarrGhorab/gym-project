@@ -477,7 +477,6 @@ export function MemberActionsMenu({
         report={report}
         requestReportShareLink={createMemberReportShareLink}
         visits={visits}
-        staff={staff}
       />
       <EditMemberControlledDialog member={member} open={editOpen} onOpenChange={setEditOpen} />
       <MemberPhotoControlledDialog member={member} open={photoOpen} onOpenChange={setPhotoOpen} />

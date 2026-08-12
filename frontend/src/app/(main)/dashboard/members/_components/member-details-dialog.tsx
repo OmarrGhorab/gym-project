@@ -13,15 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { formatCurrency } from "@/lib/utils";
 import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 
-import type {
-  MemberPaymentHistory,
-  MemberPaymentRow,
-  MemberReportData,
-  MemberRow,
-  MemberVisitRow,
-  StaffOption,
-} from "./data";
-import { MemberReportControls } from "./member-report-controls";
+import type { MemberPaymentHistory, MemberPaymentRow, MemberReportData, MemberRow, MemberVisitRow } from "./data";
 
 export function MemberDetailsDialog({
   history,
@@ -32,7 +24,6 @@ export function MemberDetailsDialog({
   report,
   requestReportShareLink,
   visits,
-  staff,
 }: {
   history: MemberPaymentHistory | null | undefined;
   member: MemberRow;
@@ -42,7 +33,6 @@ export function MemberDetailsDialog({
   report: MemberReportData | null | undefined;
   requestReportShareLink: (memberId: number, locale: string) => Promise<{ expires_at: string; url: string }>;
   visits: MemberVisitRow[];
-  staff: StaffOption[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const locale = useLocale();
@@ -161,7 +151,6 @@ export function MemberDetailsDialog({
               </Button>
             </div>
           </div>
-          <MemberReportControls memberId={member.id} staff={staff} />
         </div>
 
         <QrPanel payload={badgeCode} />
