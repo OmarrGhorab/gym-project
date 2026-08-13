@@ -1,0 +1,4 @@
+# macOS Finder metadata. Committed once already — it reaches the server through
+# the deploy checkout and shows up as noise in every diff.
+.DS_Store
+**/.DS_Store
