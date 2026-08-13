@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect } from "react";
 
-import { format, parseISO } from "date-fns";
 import { TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -18,7 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
-import { type AttendanceActionResult, type PendingVisitReview, reviewMemberVisit } from "./actions";
+import { type AttendanceActionResult, type PendingVisitReview, reviewMemberVisit, type ScanOutcome } from "./actions";
+import { formatVisitDate, VisitDetailRow } from "./visit-panel-parts";
 
 const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
 
@@ -34,7 +34,7 @@ export function DuplicateVisitDialog({
   onResolved,
   review,
 }: {
-  onResolved: () => void;
+  onResolved: (outcome: ScanOutcome | null) => void;
   review: PendingVisitReview | null;
 }) {
   const t = useTranslations("Dashboard.attendance");
@@ -45,11 +45,21 @@ export function DuplicateVisitDialog({
       return;
     }
 
-    (state.ok ? toast.success : toast.error)(state.message);
+    // The decision has its own answer — what the member is now on, or why the
+    // approval could not go through — and that is shown as the outcome panel
+    // this hands back. A toast is only for a failure that carries nothing.
+    if (state.outcome) {
+      onResolved(state.outcome);
+      return;
+    }
 
     if (state.ok) {
-      onResolved();
+      toast.success(state.message);
+      onResolved(null);
+      return;
     }
+
+    toast.error(state.message);
   }, [state, onResolved]);
 
   return (
@@ -60,7 +70,7 @@ export function DuplicateVisitDialog({
       open={review !== null}
       onOpenChange={(next) => {
         if (!next) {
-          onResolved();
+          onResolved(null);
         }
       }}
     >
@@ -77,10 +87,13 @@ export function DuplicateVisitDialog({
         </AlertDialogHeader>
 
         <dl className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
-          <Row label={t("duplicateScanMember")} value={review?.memberName ?? t("duplicateScanUnknownMember")} />
-          {review?.planName ? <Row label={t("duplicateScanPlan")} value={review.planName} /> : null}
+          <VisitDetailRow
+            label={t("duplicateScanMember")}
+            value={review?.memberName ?? t("duplicateScanUnknownMember")}
+          />
+          {review?.planName ? <VisitDetailRow label={t("duplicateScanPlan")} value={review.planName} /> : null}
           {typeof review?.sessionsRemaining === "number" ? (
-            <Row
+            <VisitDetailRow
               label={t("duplicateScanSessionsRemaining")}
               // Paired with the total so "9" reads as 9 of 10 rather than 9 used.
               value={
@@ -91,10 +104,10 @@ export function DuplicateVisitDialog({
             />
           ) : null}
           {typeof review?.visitsThisMonth === "number" ? (
-            <Row label={t("duplicateScanVisitsThisMonth")} value={String(review.visitsThisMonth)} />
+            <VisitDetailRow label={t("duplicateScanVisitsThisMonth")} value={String(review.visitsThisMonth)} />
           ) : null}
           {review?.planEndDate ? (
-            <Row label={t("duplicateScanPlanEnds")} value={formatDate(review.planEndDate)} />
+            <VisitDetailRow label={t("duplicateScanPlanEnds")} value={formatVisitDate(review.planEndDate)} />
           ) : null}
         </dl>
 
@@ -114,23 +127,5 @@ export function DuplicateVisitDialog({
         </form>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-function formatDate(value: string) {
-  const parsed = parseISO(value);
-
-  // A malformed date must not blank the row the operator is deciding from.
-  return Number.isNaN(parsed.getTime()) ? value : format(parsed, "d MMM yyyy");
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    // minmax(0,1fr) lets the value column shrink instead of forcing the label
-    // into a sliver; break-words handles names that are one long unbroken token.
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-4">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="break-words text-right font-medium">{value}</dd>
-    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 use App\Exceptions\EmailNotVerifiedException;
 use App\Exceptions\InvalidCredentialsException;
+use App\Exceptions\MemberCheckInDeniedException;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -154,6 +155,22 @@ return Application::configure(basePath: dirname(__DIR__))
                         'details' => (object) [],
                     ],
                 ], 404);
+            }
+        });
+
+        // A refused check-in is a validation failure with the membership attached:
+        // same 422, same details shape, plus the plan the desk needs to explain the
+        // refusal to the member at the door.
+        $exceptions->render(function (MemberCheckInDeniedException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'check_in_denied',
+                        'message' => $e->reason,
+                        'details' => [$e->field => [$e->reason]],
+                        'context' => $e->membership,
+                    ],
+                ], 422);
             }
         });
 

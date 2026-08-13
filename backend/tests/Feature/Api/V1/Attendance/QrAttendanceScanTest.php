@@ -6,6 +6,7 @@ use App\Models\EmployeeShift;
 use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\Payroll;
+use App\Models\Plan;
 use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\Subscription;
@@ -160,6 +161,213 @@ test('member phone lookup rejects check-in for invalid subscription', function (
         ->assertUnprocessable();
 
     expect(MemberVisit::count())->toBe(0);
+});
+
+test('a refused check-in answers with the membership behind the refusal', function (): void {
+    actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-NOSESS', 'name' => 'Nour Said']);
+    $plan = Plan::factory()->active()->create([
+        'name' => 'Gold',
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+        'access_starts_at' => null,
+        'access_ends_at' => null,
+    ]);
+    Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 0,
+    ]);
+    // Counted so the refusal panel and the day sheet agree on the same tally.
+    MemberVisit::factory()->for($member)->create([
+        'check_in_at' => '2026-06-10 09:00:00',
+        'check_out_at' => '2026-06-10 10:00:00',
+        'status' => 'allowed',
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-NOSESS',
+        'check_in_at' => '2026-06-26 10:00:00',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'check_in_denied')
+        // The reason still reads exactly where a validation failure would put it.
+        ->assertJsonPath('error.details.member_id.0', 'Membership has no sessions remaining.')
+        ->assertJsonPath('error.message', 'Membership has no sessions remaining.')
+        ->assertJsonPath('error.context.member.name', 'Nour Said')
+        ->assertJsonPath('error.context.member.visits_this_month', 1)
+        ->assertJsonPath('error.context.plan_name', 'Gold')
+        ->assertJsonPath('error.context.plan_status', 'active')
+        ->assertJsonPath('error.context.plan_start_date', '2026-06-01')
+        ->assertJsonPath('error.context.plan_end_date', '2026-06-30')
+        ->assertJsonPath('error.context.sessions_remaining', 0)
+        ->assertJsonPath('error.context.sessions_total', 8);
+
+    expect(MemberVisit::where('status', 'allowed')->count())->toBe(1);
+});
+
+test('an expired membership is refused with the date it ran out', function (): void {
+    actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-EXPIRED']);
+    $plan = Plan::factory()->active()->create(['name' => 'Silver']);
+    Subscription::factory()->for($member)->for($plan)->expired()->create([
+        'start_date' => '2026-05-01',
+        'end_date' => '2026-05-31',
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-EXPIRED',
+        'check_in_at' => '2026-06-26 10:00:00',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'check_in_denied')
+        ->assertJsonPath('error.context.plan_name', 'Silver')
+        ->assertJsonPath('error.context.plan_end_date', '2026-05-31');
+});
+
+test('an allowed check-in reports the plan window and what is left on it', function (): void {
+    actingManager();
+    $member = Member::factory()->create(['attendance_code' => 'M-PANEL01']);
+    $plan = Plan::factory()->active()->create([
+        'name' => 'Gold',
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+        'access_starts_at' => null,
+        'access_ends_at' => null,
+    ]);
+    Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 4,
+    ]);
+
+    $this->postJson('/api/v1/member-visits/check-in', [
+        'qr_token' => 'member:M-PANEL01',
+        'check_in_at' => '2026-06-26 10:00:00',
+    ])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'allowed')
+        ->assertJsonPath('data.plan_name', 'Gold')
+        ->assertJsonPath('data.plan_start_date', '2026-06-01')
+        ->assertJsonPath('data.plan_end_date', '2026-06-30')
+        ->assertJsonPath('data.subscription.start_date', '2026-06-01')
+        ->assertJsonPath('data.subscription.sessions_remaining', 3)
+        ->assertJsonPath('data.subscription.sessions_total', 8);
+});
+
+test('deciding on a held scan answers with the membership as it now stands', function (): void {
+    Carbon::setTestNow('2026-06-26 10:07:00');
+    actingManager();
+
+    $member = Member::factory()->create(['attendance_code' => 'M-DECIDE1']);
+    $plan = Plan::factory()->active()->create([
+        'name' => 'Gold',
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+        'access_starts_at' => null,
+        'access_ends_at' => null,
+    ]);
+    $subscription = Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 5,
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'subscription_id' => $subscription->id,
+        'check_in_at' => '2026-06-26 09:53:00',
+        'check_out_at' => null,
+        'status' => 'allowed',
+    ]);
+
+    $held = $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-DECIDE1'])
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending_review')
+        ->json('data.id');
+
+    $this->postJson("/api/v1/member-visits/{$held}/review", ['decision' => 'approved'])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'allowed')
+        ->assertJsonPath('data.plan_name', 'Gold')
+        ->assertJsonPath('data.plan_start_date', '2026-06-01')
+        ->assertJsonPath('data.plan_end_date', '2026-06-30')
+        // The session the approval just spent is already reflected.
+        ->assertJsonPath('data.subscription.sessions_remaining', 4)
+        ->assertJsonPath('data.member.visits_this_month', 2);
+});
+
+test('dismissing a held scan says the membership was left alone', function (): void {
+    Carbon::setTestNow('2026-06-26 10:07:00');
+    actingManager();
+
+    $member = Member::factory()->create(['attendance_code' => 'M-DECIDE2']);
+    $plan = Plan::factory()->active()->create(['name' => 'Gold']);
+    $subscription = Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 5,
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'subscription_id' => $subscription->id,
+        'check_in_at' => '2026-06-26 09:53:00',
+        'check_out_at' => null,
+        'status' => 'allowed',
+    ]);
+
+    $held = $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-DECIDE2'])
+        ->json('data.id');
+
+    $this->postJson("/api/v1/member-visits/{$held}/review", ['decision' => 'dismissed'])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'blocked')
+        ->assertJsonPath('message', 'Duplicate scan dismissed. The membership was not charged.')
+        // Still names the plan, so the panel after the decision is not blank.
+        ->assertJsonPath('data.plan_name', 'Gold')
+        ->assertJsonPath('data.subscription.sessions_remaining', 5);
+});
+
+test('an approval the membership can no longer pay for is refused with the reason', function (): void {
+    Carbon::setTestNow('2026-06-26 10:07:00');
+    actingManager();
+
+    $member = Member::factory()->create(['attendance_code' => 'M-DECIDE3']);
+    $plan = Plan::factory()->active()->create([
+        'name' => 'Gold',
+        'is_unlimited_sessions' => false,
+        'sessions_count' => 8,
+        'access_starts_at' => null,
+        'access_ends_at' => null,
+    ]);
+    $subscription = Subscription::factory()->for($member)->for($plan)->active()->create([
+        'start_date' => '2026-06-01',
+        'end_date' => '2026-06-30',
+        'sessions_total' => 8,
+        'sessions_remaining' => 1,
+    ]);
+    MemberVisit::factory()->for($member)->create([
+        'subscription_id' => $subscription->id,
+        'check_in_at' => '2026-06-26 09:53:00',
+        'check_out_at' => null,
+        'status' => 'allowed',
+    ]);
+
+    $held = $this->postJson('/api/v1/member-visits/check-in', ['qr_token' => 'member:M-DECIDE3'])
+        ->json('data.id');
+
+    // The last session goes elsewhere while the scan waits for a decision.
+    $subscription->update(['sessions_remaining' => 0]);
+
+    $this->postJson("/api/v1/member-visits/{$held}/review", ['decision' => 'approved'])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'check_in_denied')
+        ->assertJsonPath('error.details.member_id.0', 'Membership has no sessions remaining.')
+        ->assertJsonPath('error.context.plan_name', 'Gold')
+        ->assertJsonPath('error.context.sessions_remaining', 0);
+
+    expect(MemberVisit::find($held)->status)->toBe('pending_review');
 });
 
 test('member selector lookup does not record the scan as qr', function (): void {

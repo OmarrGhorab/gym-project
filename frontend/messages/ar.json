@@ -751,6 +751,24 @@
       "duplicateScanVisitsThisMonth": "عدد الزيارات هذا الشهر",
       "duplicateScanPlanEnds": "ينتهي الاشتراك في",
       "duplicateScanUnknownMember": "عضو غير معروف",
+      "planStartDate": "يبدأ الاشتراك في",
+      "scanOutcome": {
+        "allowedTitle": "تم تسجيل الدخول",
+        "flaggedTitle": "تم تسجيل الدخول — تنبيه الموقع",
+        "deniedTitle": "تم رفض تسجيل الدخول",
+        "dismissedTitle": "تم رفض المسح المكرر",
+        "close": "تم"
+      },
+      "subscriptionStatuses": {
+        "active": "نشط",
+        "scheduled": "مجدول",
+        "frozen": "مجمد",
+        "expired": "منتهي",
+        "stopped": "متوقف",
+        "cancelled": "ملغي",
+        "inactive": "غير نشط",
+        "pending": "معلق"
+      },
       "overtimeTitle": "الورديات الإضافية",
       "overtimeDescription": "يتم تسجيل تسليمات الشيفت تلقائيًا. تراجع الإدارة الوقت الإضافي وتضيف المكافأة المعتمدة إلى المرتبات.",
       "overtimeSelectCover": "الموظف الذي سيغطي الوردية",

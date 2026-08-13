@@ -31,12 +31,20 @@ class MemberVisitResource extends JsonResource
             // subscription of its own, so fall back to the member's latest one — the day
             // sheet still needs to show which membership the person is on.
             'plan_name' => $this->planSummary()?->plan?->name,
+            'plan_status' => $this->planSummary()?->status,
+            'plan_start_date' => $this->planSummary()?->start_date?->toDateString(),
             'plan_end_date' => $this->planSummary()?->end_date?->toDateString(),
+            // Null means unlimited, so these have to come from the same summary the
+            // plan name does: read off a visit with no subscription of its own, a
+            // missing number is indistinguishable from an unlimited plan.
+            'plan_sessions_remaining' => $this->planSummary()?->sessions_remaining,
+            'plan_sessions_total' => $this->planSummary()?->sessions_total,
             'subscription_id' => $this->subscription_id,
             'subscription' => $this->whenLoaded('subscription', fn () => [
                 'id' => $this->subscription?->id,
                 'plan_name' => $this->subscription?->plan?->name,
                 'status' => $this->subscription?->status,
+                'start_date' => $this->subscription?->start_date?->toDateString(),
                 'end_date' => $this->subscription?->end_date?->toDateString(),
                 'sessions_total' => $this->subscription?->sessions_total,
                 'sessions_remaining' => $this->subscription?->sessions_remaining,

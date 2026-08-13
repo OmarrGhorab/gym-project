@@ -2,6 +2,7 @@
 
 namespace App\Actions\MemberVisits;
 
+use App\Exceptions\MemberCheckInDeniedException;
 use App\Models\MemberVisit;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ReviewMemberVisit
 {
-    public function __construct(private readonly ResolveMemberVisitSubscription $subscriptions) {}
+    public function __construct(
+        private readonly ResolveMemberVisitSubscription $subscriptions,
+        private readonly SummarizeMemberMembership $membership,
+    ) {}
 
     public function handle(MemberVisit $visit, string $decision, User $user): MemberVisit
     {
@@ -52,10 +56,21 @@ class ReviewMemberVisit
 
         $previous?->update(['check_out_at' => $visit->check_in_at]);
 
-        $subscription = $this->subscriptions->consume($visit->member, $visit->check_in_at);
-        $addon = $visit->subscription_addon_id
-            ? $this->subscriptions->consumeAddon($visit->member, $visit->check_in_at, $visit->subscription_addon_id)
-            : $this->subscriptions->autoConsumeActiveAddon($visit->member, $visit->check_in_at, $subscription);
+        // Approving charges the membership, so it can be refused for the same
+        // reasons a fresh scan can — the plan ran out while the scan sat waiting,
+        // say. The desk is answered the same way either way: the reason, plus the
+        // membership it was judged against.
+        try {
+            $subscription = $this->subscriptions->consume($visit->member, $visit->check_in_at);
+            $addon = $visit->subscription_addon_id
+                ? $this->subscriptions->consumeAddon($visit->member, $visit->check_in_at, $visit->subscription_addon_id)
+                : $this->subscriptions->autoConsumeActiveAddon($visit->member, $visit->check_in_at, $subscription);
+        } catch (ValidationException $exception) {
+            throw MemberCheckInDeniedException::from(
+                $exception,
+                $this->membership->handle($visit->member, $visit->check_in_at),
+            );
+        }
 
         $visit->update([
             'subscription_id' => $subscription->id,

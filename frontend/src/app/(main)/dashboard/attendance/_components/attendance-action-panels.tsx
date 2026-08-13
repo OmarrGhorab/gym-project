@@ -33,11 +33,13 @@ import {
   type AttendanceActionResult,
   createManualAttendance,
   type PendingVisitReview,
+  type ScanOutcome,
   scanMemberVisit,
   scanStaffAttendance,
 } from "./actions";
 import type { AttendanceRecord, EmployeeOption, EmployeeShift, MemberLookupOption } from "./data";
 import { DuplicateVisitDialog } from "./duplicate-visit-dialog";
+import { VisitOutcomeDialog } from "./visit-outcome-dialog";
 
 const initialState: AttendanceActionResult = { ok: true, message: "", errors: {}, values: {} };
 const fixedTopSelectCollision = {
@@ -84,7 +86,20 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   // Mirrored into local state so resolving the dialog can dismiss it; the action
   // result itself only changes on the next scan.
   const [pendingReview, setPendingReview] = useState<PendingVisitReview | null>(null);
-  const clearPendingReview = useCallback(() => setPendingReview(null), []);
+  const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
+  const clearOutcome = useCallback(() => setOutcome(null), []);
+  const resolvePendingReview = useCallback((decided: ScanOutcome | null) => {
+    setPendingReview(null);
+
+    if (!decided) {
+      return;
+    }
+
+    // Opened only once the duplicate dialog has finished closing: two modals
+    // mounted in the same commit fight over the page's focus trap, and the
+    // survivor can leave the desk clicking on a screen that no longer responds.
+    window.setTimeout(() => setOutcome(decided), 150);
+  }, []);
   const selectMember = useCallback(
     (member: MemberLookupOption | null, source: "member_id" | "phone" | "name" | null) => {
       setSelectedMember(member);
@@ -115,16 +130,25 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
   const membershipSessions = selectedMember?.latest_subscription?.sessions_remaining;
 
   useEffect(() => {
-    if (state.ok && state.message) {
+    if (!state.message) {
+      return;
+    }
+
+    // Only a scan that went through clears the station — a refused one leaves the
+    // lookup as it was, so the desk can fix the reason and try again.
+    if (state.ok) {
       setQrToken("");
       setSelectedMember(null);
       setMemberLookupSource(null);
       setSelectedAddonId("none");
-      setPendingReview(state.review ?? null);
       if (formRef.current) {
         formRef.current.reset();
       }
     }
+
+    setPendingReview(state.review ?? null);
+    // A held scan asks its question first; its outcome panel follows the answer.
+    setOutcome(state.review ? null : (state.outcome ?? null));
   }, [state]);
 
   return (
@@ -297,7 +321,8 @@ function MemberScanCard({ members }: { members: MemberLookupOption[] }) {
           <PanelFooter pending={pending} label={t("submitMemberScan")} />
         </form>
       </CardContent>
-      <DuplicateVisitDialog review={pendingReview} onResolved={clearPendingReview} />
+      <DuplicateVisitDialog review={pendingReview} onResolved={resolvePendingReview} />
+      <VisitOutcomeDialog outcome={outcome} onClose={clearOutcome} />
     </Card>
   );
 }
@@ -1302,10 +1327,14 @@ function useAttendanceActionToast(
     }
 
     // A scan awaiting approval raises a dialog that says the same thing and asks
-    // for a decision. A success toast and chime next to it would read as "done".
+    // for a decision. A success chime next to it would read as "done".
     if (state.review) {
       return;
     }
+
+    // The outcome panel already states the result and stays until it is read; a
+    // toast beside it is the same sentence twice, and the quieter of the two.
+    const shownAsPanel = Boolean(state.outcome);
 
     if (state.ok) {
       if (playSuccessSound) {
@@ -1317,11 +1346,16 @@ function useAttendanceActionToast(
         });
       }
 
-      toast.success(state.message);
+      if (!shownAsPanel) {
+        toast.success(state.message);
+      }
+
       return;
     }
 
-    toast.error(state.message);
+    if (!shownAsPanel) {
+      toast.error(state.message);
+    }
   }, [playSuccessSound, state]);
 }
 

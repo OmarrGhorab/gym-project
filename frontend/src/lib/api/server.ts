@@ -15,11 +15,18 @@ type ApiErrorDetails = Record<string, string[] | string | undefined>;
 
 export class ServerApiError extends Error {
   details?: ApiErrorDetails;
+  /**
+   * Structured payload some failures carry alongside the reason — a refused
+   * check-in returns the membership it was judged against, so the desk can be
+   * shown why rather than only that it failed.
+   */
+  context?: unknown;
 
-  constructor(message: string, details?: ApiErrorDetails) {
+  constructor(message: string, details?: ApiErrorDetails, context?: unknown) {
     super(message);
     this.name = "ServerApiError";
     this.details = details;
+    this.context = context;
   }
 }
 
@@ -36,6 +43,9 @@ const apiPayloadSchema = z
     error: z
       .object({
         code: z.string().optional(),
+        // Kept out of details on purpose: details is a field → messages map, and a
+        // nested object in there would be read as another error message.
+        context: z.unknown().optional(),
         // Object map, empty object, or rarely an array — keep loose so we never mask the real message.
         details: z.unknown().optional(),
         message: z.string().optional(),
@@ -106,6 +116,7 @@ export async function serverApiFetch<T>(path: string, init: RequestInit = {}): P
     throw new ServerApiError(
       getApiErrorMessage(payload.error?.message ?? payload.message ?? response.statusText, details),
       details,
+      payload.error?.context,
     );
   }
 

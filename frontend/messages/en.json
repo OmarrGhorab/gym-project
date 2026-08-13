@@ -751,6 +751,24 @@
       "duplicateScanVisitsThisMonth": "Visits this month",
       "duplicateScanPlanEnds": "Plan ends",
       "duplicateScanUnknownMember": "Unknown member",
+      "planStartDate": "Plan starts",
+      "scanOutcome": {
+        "allowedTitle": "Checked in",
+        "flaggedTitle": "Checked in — location alert",
+        "deniedTitle": "Check-in refused",
+        "dismissedTitle": "Duplicate scan dismissed",
+        "close": "Done"
+      },
+      "subscriptionStatuses": {
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "frozen": "Frozen",
+        "expired": "Expired",
+        "stopped": "Stopped",
+        "cancelled": "Cancelled",
+        "inactive": "Inactive",
+        "pending": "Pending"
+      },
       "overtimeTitle": "Overtime shifts",
       "overtimeDescription": "Shift handoffs are recorded automatically. Admin reviews the overtime and adds the approved bonus in Payroll.",
       "overtimeSelectCover": "Employee taking the shift",

@@ -3,11 +3,14 @@
 namespace App\Actions\MemberVisits;
 
 use App\Actions\Attendance\ResolveAttendanceIdentity;
+use App\Exceptions\MemberCheckInDeniedException;
+use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\User;
 use App\Support\Geofence;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class CheckInMemberVisit
 {
@@ -17,6 +20,7 @@ final class CheckInMemberVisit
         private readonly ResolveAttendanceIdentity $identity,
         private readonly Geofence $geofence,
         private readonly ResolveMemberVisitSubscription $visitSubscription,
+        private readonly SummarizeMemberMembership $membership,
     ) {}
 
     public function handle(array $data, User $user): MemberVisit
@@ -66,17 +70,25 @@ final class CheckInMemberVisit
                 ]);
             }
 
-            $this->ensureMemberCanCheckIn->handle($member);
-
             // Hard-deny outside membership access window / no sessions / expired / inactive.
-            $subscription = $this->visitSubscription->consume($member, $checkIn);
+            // Refusals are re-thrown carrying the membership behind them: the scan
+            // produces no visit record, so the reason is all the desk would otherwise
+            // get, and "no sessions remaining" on its own does not say which plan ran
+            // out or when it ends.
+            try {
+                $this->ensureMemberCanCheckIn->handle($member);
 
-            $addonId = isset($data['subscription_addon_id']) ? (int) $data['subscription_addon_id'] : 0;
-            $addon = null;
-            if ($addonId > 0) {
-                $addon = $this->visitSubscription->consumeAddon($member, $checkIn, $addonId);
-            } else {
-                $addon = $this->visitSubscription->autoConsumeActiveAddon($member, $checkIn, $subscription);
+                $subscription = $this->visitSubscription->consume($member, $checkIn);
+
+                $addonId = isset($data['subscription_addon_id']) ? (int) $data['subscription_addon_id'] : 0;
+                $addon = null;
+                if ($addonId > 0) {
+                    $addon = $this->visitSubscription->consumeAddon($member, $checkIn, $addonId);
+                } else {
+                    $addon = $this->visitSubscription->autoConsumeActiveAddon($member, $checkIn, $subscription);
+                }
+            } catch (ValidationException $exception) {
+                throw $this->denied($exception, $member, $checkIn);
             }
 
             $status = $location['location_status'] === 'outside' ? 'flagged' : 'allowed';
@@ -107,6 +119,11 @@ final class CheckInMemberVisit
             'subscriptionAddon.plan',
             'creator',
         ]);
+    }
+
+    private function denied(ValidationException $exception, Member $member, Carbon $checkIn): MemberCheckInDeniedException
+    {
+        return MemberCheckInDeniedException::from($exception, $this->membership->handle($member, $checkIn));
     }
 
     private function scanMethod(array $data): string

@@ -109,7 +109,10 @@ final class MemberVisitController extends ApiController
         // Counted the same way the day sheet counts it, so the desk is never shown
         // two different "visits this month" for the same member.
         $visit->load([
-            'member' => fn ($query) => $query->withCount([
+            // latestSubscription rides along because a visit that never resolved to a
+            // subscription of its own — held for review, or blocked — still has to name
+            // the plan it was read against.
+            'member' => fn ($query) => $query->with('latestSubscription.plan')->withCount([
                 'visits as visits_this_month' => fn ($visitQuery) => $visitQuery
                     ->whereBetween('check_in_at', [$monthStart, $monthEnd])
                     ->whereIn('status', ['allowed', 'flagged']),
@@ -174,8 +177,14 @@ final class MemberVisitController extends ApiController
 
         $reviewed = $action->handle($memberVisit, $decision, $request->user());
 
-        return (new MemberVisitResource($reviewed->fresh(['member.latestSubscription.plan', 'subscription.plan', 'creator'])))
-            ->withMessage('Member visit reviewed')
+        // Loaded exactly like a scan response: the desk is shown the outcome of its
+        // decision — plan, dates, sessions left — in the same panel a scan produces.
+        $visit = $this->loadForScanResponse($reviewed->fresh() ?? $reviewed);
+
+        return (new MemberVisitResource($visit))
+            ->withMessage($decision === 'approved'
+                ? $this->successMessage($visit)
+                : 'Duplicate scan dismissed. The membership was not charged.')
             ->response();
     }
 
