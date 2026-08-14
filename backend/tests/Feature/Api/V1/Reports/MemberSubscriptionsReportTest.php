@@ -278,6 +278,97 @@ test('date range keeps memberships whose period overlaps the window', function (
         ->assertJsonPath('data.members.0.member_name', 'Overlapping');
 });
 
+test('activity totals use payment refund and visit dates and default to today', function (): void {
+    Carbon::setTestNow('2026-07-20 12:00:00');
+    $viewer = actAsReportViewer();
+
+    $member = Member::factory()->create();
+    $subscription = Subscription::factory()->create([
+        'member_id' => $member->id,
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+        'price_paid' => '1000.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '600.00',
+        'status' => 'partial',
+        'paid_at' => '2026-07-05 10:00:00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '200.00',
+        'status' => 'partial',
+        'paid_at' => '2026-07-20 10:00:00',
+    ]);
+
+    $addon = SubscriptionAddon::query()->create([
+        'subscription_id' => $subscription->id,
+        'member_id' => $member->id,
+        'plan_id' => Plan::factory()->create()->id,
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+        'status' => 'active',
+        'price_paid' => '300.00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '100.00',
+        'status' => 'partial',
+        'paid_at' => '2026-07-05 11:00:00',
+    ]);
+    Payment::factory()->create([
+        'payable_type' => SubscriptionAddon::class,
+        'payable_id' => $addon->id,
+        'amount' => '75.00',
+        'status' => 'partial',
+        'paid_at' => '2026-07-20 11:00:00',
+    ]);
+
+    foreach ([['2026-07-05 12:00:00', '40.00'], ['2026-07-20 12:00:00', '25.00']] as [$refundedAt, $amount]) {
+        SubscriptionRefund::query()->create([
+            'subscription_id' => $subscription->id,
+            'amount' => $amount,
+            'method' => 'cash',
+            'refunded_at' => $refundedAt,
+            'created_by' => $viewer->id,
+        ]);
+    }
+    foreach ([['2026-07-05 13:00:00', '-30.00'], ['2026-07-20 13:00:00', '-15.00']] as [$paidAt, $amount]) {
+        Payment::factory()->create([
+            'payable_type' => SubscriptionAddon::class,
+            'payable_id' => $addon->id,
+            'amount' => $amount,
+            'status' => Payment::STATUS_REFUNDED,
+            'paid_at' => $paidAt,
+        ]);
+    }
+
+    foreach ([['2026-07-05 14:00:00', 'allowed'], ['2026-07-20 14:00:00', 'allowed'], ['2026-07-20 15:00:00', 'blocked']] as [$checkInAt, $status]) {
+        MemberVisit::query()->create([
+            'member_id' => $member->id,
+            'subscription_id' => $subscription->id,
+            'check_in_at' => $checkInAt,
+            'status' => $status,
+        ]);
+    }
+
+    $this->getJson('/api/v1/reports/member-subscriptions')
+        ->assertOk()
+        ->assertJsonPath('data.totals.total_collected', '275.00')
+        ->assertJsonPath('data.totals.total_refunded', '40.00')
+        ->assertJsonPath('data.totals.total_visits', 1);
+
+    $this->getJson('/api/v1/reports/member-subscriptions?from=2026-07-01&to=2026-07-20')
+        ->assertOk()
+        ->assertJsonPath('data.totals.total_collected', '975.00')
+        ->assertJsonPath('data.totals.total_refunded', '110.00')
+        ->assertJsonPath('data.totals.total_visits', 2);
+});
+
 test('member_id returns the full subscription history newest first', function (): void {
     Carbon::setTestNow('2026-07-20 12:00:00');
     actAsReportViewer();

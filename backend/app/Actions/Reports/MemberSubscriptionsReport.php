@@ -7,6 +7,7 @@ use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionRefund;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -604,21 +605,28 @@ final class MemberSubscriptionsReport
             ->values()
             ->all();
 
-        $collected = array_reduce(
-            $all,
-            fn (string $carry, array $row): string => bcadd($carry, $row['package_paid_total'], 2),
-            '0.00',
-        );
+        $subscriptionIds = array_map('intval', array_column($all, 'id'));
+        $addonIds = $subscriptionIds === []
+            ? []
+            : SubscriptionAddon::query()->whereIn('subscription_id', $subscriptionIds)->pluck('id')->map(
+                fn ($id): int => (int) $id,
+            )->all();
+        [$activityFrom, $activityTo] = $this->activityRange($params);
+
+        $collected = $this->collectedInRange($subscriptionIds, $addonIds, $activityFrom, $activityTo);
         $outstanding = array_reduce(
             $all,
             fn (string $carry, array $row): string => bcadd($carry, $row['package_balance'], 2),
             '0.00',
         );
-        $refunded = array_reduce(
-            $all,
-            fn (string $carry, array $row): string => bcadd($carry, $row['refund_total'], 2),
-            '0.00',
-        );
+        $refunded = $this->refundedInRange($subscriptionIds, $addonIds, $activityFrom, $activityTo);
+        $visits = $subscriptionIds === []
+            ? 0
+            : MemberVisit::query()
+                ->whereIn('subscription_id', $subscriptionIds)
+                ->whereNotIn('status', self::NON_ATTENDED_VISIT_STATUSES)
+                ->whereBetween('check_in_at', [$activityFrom, $activityTo])
+                ->count();
 
         $rated = array_values(array_filter(
             array_column($all, 'attendance_rate'),
@@ -640,9 +648,83 @@ final class MemberSubscriptionsReport
             'total_collected' => $collected,
             'total_outstanding' => $outstanding,
             'total_refunded' => $refunded,
-            'total_visits' => array_sum(array_column($all, 'visits_count')),
+            'total_visits' => $visits,
             'avg_attendance_rate' => $rated === [] ? null : round(array_sum($rated) / count($rated), 1),
         ];
+    }
+
+    /**
+     * Activity cards are transaction-based. With no explicit range they report
+     * today, while the member table remains a membership-period snapshot.
+     *
+     * @param  array<string, mixed>  $params
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function activityRange(array $params): array
+    {
+        $default = Carbon::today()->toDateString();
+        $from = Carbon::parse($params['from'] ?? $params['to'] ?? $default)->startOfDay();
+        $to = Carbon::parse($params['to'] ?? $params['from'] ?? $default)->endOfDay();
+
+        return [$from, $to];
+    }
+
+    /**
+     * @param  list<int>  $subscriptionIds
+     * @param  list<int>  $addonIds
+     */
+    private function collectedInRange(array $subscriptionIds, array $addonIds, Carbon $from, Carbon $to): string
+    {
+        if ($subscriptionIds === [] && $addonIds === []) {
+            return '0.00';
+        }
+
+        $amount = Payment::query()
+            ->collected()
+            ->whereBetween('paid_at', [$from, $to])
+            ->where(function ($query) use ($subscriptionIds, $addonIds): void {
+                $query
+                    ->where(function ($subscriptions) use ($subscriptionIds): void {
+                        $subscriptions
+                            ->where('payable_type', Subscription::class)
+                            ->whereIn('payable_id', $subscriptionIds);
+                    })
+                    ->orWhere(function ($addons) use ($addonIds): void {
+                        $addons
+                            ->where('payable_type', SubscriptionAddon::class)
+                            ->whereIn('payable_id', $addonIds);
+                    });
+            })
+            ->sum('amount');
+
+        return $this->money($amount);
+    }
+
+    /**
+     * Main-package refunds have a SubscriptionRefund ledger row. Add-on-only
+     * refunds are represented by a negative refunded Payment row.
+     *
+     * @param  list<int>  $subscriptionIds
+     * @param  list<int>  $addonIds
+     */
+    private function refundedInRange(array $subscriptionIds, array $addonIds, Carbon $from, Carbon $to): string
+    {
+        $mainRefunds = $subscriptionIds === []
+            ? 0
+            : SubscriptionRefund::query()
+                ->whereIn('subscription_id', $subscriptionIds)
+                ->whereBetween('refunded_at', [$from, $to])
+                ->sum('amount');
+        $addonRefunds = $addonIds === []
+            ? 0
+            : Payment::query()
+                ->where('payable_type', SubscriptionAddon::class)
+                ->whereIn('payable_id', $addonIds)
+                ->where('status', Payment::STATUS_REFUNDED)
+                ->whereBetween('paid_at', [$from, $to])
+                ->sum('amount');
+
+        return $this->money((float) $mainRefunds + abs((float) $addonRefunds));
     }
 
     /**

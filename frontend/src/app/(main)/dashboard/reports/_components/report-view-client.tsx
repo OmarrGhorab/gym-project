@@ -2278,28 +2278,26 @@ function MemberSubscriptionsView({
           detail={`${String(totals.active_count ?? 0)} active · ${String(totals.scheduled_count ?? 0)} scheduled · ${String(totals.expired_count ?? 0)} expired`}
         />
         <ReportMetric
-          title="Collected"
+          title="Collected in range"
           value={currency(totals.total_collected)}
-          detail="All subscriptions + add-ons in range"
+          detail="Membership and add-on payments received in the selected dates"
         />
         <ReportMetric
-          title="Refunded"
+          title="Refunded in range"
           value={currency(totals.total_refunded)}
-          detail="Returned to members"
+          detail="Refunds issued during the selected dates"
           destructive={Number(totals.total_refunded ?? 0) > 0}
         />
         <ReportMetric
-          title="Outstanding"
+          title="Current outstanding"
           value={currency(totals.total_outstanding)}
-          detail="Balance still due"
+          detail="Current balance for the memberships shown"
           destructive={Number(totals.total_outstanding ?? 0) > 0}
         />
         <ReportMetric
-          title="Check-ins"
+          title="Check-ins in range"
           value={String(totals.total_visits ?? 0)}
-          detail={`${String(totals.frozen_count ?? 0)} frozen · ${String(totals.stopped_count ?? 0)} stopped · ${
-            totals.avg_attendance_rate === null ? "—" : `${String(totals.avg_attendance_rate ?? 0)}%`
-          } sessions used`}
+          detail="Member visits recorded during the selected dates"
         />
       </div>
 
