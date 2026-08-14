@@ -21,19 +21,28 @@ final class ProductsFinanceReport
         $search = $params['search'] ?? null;
         $paymentMethod = $params['payment_method'] ?? null;
         $productId = isset($params['product_id']) ? (int) $params['product_id'] : null;
+        $categories = Product::query()
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->values()
+            ->all();
 
         $productsQuery = Product::query()
             ->when($category, fn ($q) => $q->where('category', $category))
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"));
+            ->when($search, fn ($q) => $q->search($search));
 
         $products = $productsQuery->get();
+        $productIds = $products->pluck('id');
 
         $productStats = SaleItem::query()
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.status', 'completed')
             ->whereBetween('sales.created_at', [$from, $to])
             ->when($paymentMethod, fn ($q) => $q->where('sales.payment_method', $paymentMethod))
-            ->whereIn('sale_items.product_id', $products->pluck('id'))
+            ->whereIn('sale_items.product_id', $productIds)
             ->groupBy('sale_items.product_id')
             ->selectRaw('sale_items.product_id as product_id, SUM(sale_items.quantity) as units, SUM(sale_items.total) as revenue, COALESCE(SUM(sale_items.total - (sales.discount * sale_items.total / NULLIF(sales.subtotal, 0))), 0) as net_revenue')
             ->get()
@@ -69,36 +78,37 @@ final class ProductsFinanceReport
         $salesQuery = Sale::query()
             ->with(['items.product', 'member:id,name', 'soldBy:id,name'])
             ->completed()
-            ->when(isset($params['from']) && isset($params['to']), fn ($q) => $q->whereBetween('created_at', [$from, $to]))
+            ->whereBetween('created_at', [$from, $to])
             ->when($paymentMethod, fn ($q) => $q->where('payment_method', $paymentMethod))
+            ->whereIn('id', SaleItem::query()->whereIn('product_id', $productIds)->select('sale_id'))
             ->latest();
 
-        if ($salesQuery->count() === 0 && ! $paymentMethod && ! isset($params['from'], $params['to'])) {
-            $salesQuery = Sale::query()
-                ->with(['items.product', 'member:id,name', 'soldBy:id,name'])
-                ->completed()
-                ->latest();
-        }
-
-        $totalRevenue = (float) (clone $salesQuery)->sum('total');
+        $totalRevenue = (float) $productStats->sum('net_revenue');
         $totalOrders = (clone $salesQuery)->count();
-        $totalUnitsSold = (int) SaleItem::query()
-            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
-            ->where('sales.status', 'completed')
-            ->whereBetween('sales.created_at', [$from, $to])
-            ->sum('sale_items.quantity');
+        $totalUnitsSold = (int) $productStats->sum('units');
+        $lowStockCount = $products->filter(
+            fn (Product $product): bool => $product->stock_quantity <= $product->low_stock_threshold
+        )->count();
+        $filteredProductIds = $productIds->map(fn ($id): int => (int) $id)->all();
 
-        $lowStockCount = Product::query()->lowStock()->count();
+        $transactions = $salesQuery->limit(100)->get()->map(function (Sale $sale) use ($filteredProductIds): array {
+            $items = $sale->items->whereIn('product_id', $filteredProductIds);
+            $matchingSubtotal = (float) $items->sum('total');
+            $saleSubtotal = (float) $sale->subtotal;
+            $discountShare = $saleSubtotal > 0
+                ? (float) $sale->discount * ($matchingSubtotal / $saleSubtotal)
+                : 0;
 
-        $transactions = $salesQuery->limit(100)->get()->map(fn (Sale $sale): array => [
-            'id' => '#'.$sale->id,
-            'customer_name' => $sale->member?->name ?? 'Walk-in Customer',
-            'seller_name' => $sale->soldBy?->name ?? 'Unknown Staff',
-            'payment_method' => $sale->payment_method,
-            'items_count' => $sale->items->sum('quantity'),
-            'total_amount' => number_format((float) $sale->total, 2, '.', ''),
-            'created_at' => $sale->created_at?->toIso8601String(),
-        ])->values()->all();
+            return [
+                'id' => '#'.$sale->id,
+                'customer_name' => $sale->member?->name ?? 'Walk-in Customer',
+                'seller_name' => $sale->soldBy?->name ?? 'Unknown Staff',
+                'payment_method' => $sale->payment_method,
+                'items_count' => $items->sum('quantity'),
+                'total_amount' => number_format(max(0, $matchingSubtotal - $discountShare), 2, '.', ''),
+                'created_at' => $sale->created_at?->toIso8601String(),
+            ];
+        })->values()->all();
 
         return [
             'totals' => [
@@ -108,6 +118,7 @@ final class ProductsFinanceReport
                 'low_stock_products_count' => $lowStockCount,
             ],
             'products_summary' => $productsTable,
+            'categories' => $categories,
             'product_sales' => $productId
                 ? $this->productSales($productId, $from, $to, $paymentMethod)
                 : [],

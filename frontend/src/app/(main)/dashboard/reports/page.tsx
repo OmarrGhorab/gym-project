@@ -1,5 +1,6 @@
 import { serverApiFetch } from "@/lib/api/server";
 import { canAccess } from "@/lib/authorization";
+import { normalizeReportDateRange } from "@/lib/report-filters";
 import { getCurrentUser } from "@/lib/session";
 import { getGymTodayString } from "@/lib/timezone";
 
@@ -25,11 +26,13 @@ export default async function ReportsPage({
   const hasFullReports = user ? canAccess(user, "reports.view") : false;
   const todayOnly = Boolean(user && !hasFullReports && canAccess(user, "reports.view_today"));
   const today = getGymTodayString();
-  const from = todayOnly ? today : (query.from ?? "");
-  const to = todayOnly ? today : (query.to ?? "");
-  const effectiveQuery = todayOnly ? { type: activeType, from, to } : query;
+  const normalizedRange = normalizeReportDateRange(query, today);
+  const from = todayOnly ? today : normalizedRange.from;
+  const to = todayOnly ? today : normalizedRange.to;
+  const effectiveQuery = todayOnly ? { type: activeType, from, to } : { ...query, type: activeType, from, to };
 
   let initialData: Record<string, unknown> = {};
+  let initialError: string | null = null;
 
   try {
     const params = new URLSearchParams();
@@ -40,8 +43,7 @@ export default async function ReportsPage({
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/overview?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "employees") {
-      const res = await serverApiFetch<Record<string, unknown>>(`/reports/employees?${params.toString()}`);
-      initialData = { employees: res.data };
+      initialData = { employees: await fetchAllEmployeeReportRows(params) };
     } else if (activeType === "captains") {
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/coach-extra-plans?${params.toString()}`);
       initialData = res.data;
@@ -69,8 +71,9 @@ export default async function ReportsPage({
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/income-outcome?${params.toString()}`);
       initialData = res.data;
     }
-  } catch {
+  } catch (error) {
     initialData = {};
+    initialError = error instanceof Error ? error.message : "Unknown report error";
   }
 
   return (
@@ -86,9 +89,34 @@ export default async function ReportsPage({
         initialType={activeType}
         initialQuery={effectiveQuery}
         initialData={initialData}
+        initialError={initialError}
         todayOnly={todayOnly}
         today={today}
       />
     </div>
   );
+}
+
+async function fetchAllEmployeeReportRows(params: URLSearchParams): Promise<Record<string, unknown>[]> {
+  const rows: Record<string, unknown>[] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+
+  do {
+    const pageParams = new URLSearchParams(params);
+    if (cursor) pageParams.set("cursor", cursor);
+
+    const response = await serverApiFetch<Record<string, unknown>[]>(`/reports/employees?${pageParams.toString()}`);
+    rows.push(...response.data);
+
+    const nextCursor = response.meta?.next_cursor;
+    cursor = typeof nextCursor === "string" && nextCursor ? nextCursor : undefined;
+
+    if (cursor) {
+      if (seenCursors.has(cursor)) break;
+      seenCursors.add(cursor);
+    }
+  } while (cursor);
+
+  return rows;
 }

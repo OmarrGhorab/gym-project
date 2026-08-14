@@ -1643,6 +1643,19 @@
     },
     "reports": {
       "todayOnlyAccess": "صلاحية اليوم فقط · {date}",
+      "filters": {
+        "loadError": "تعذر تحميل التقرير",
+        "loadErrorDescription": "تعذر تحميل التقرير: {message}",
+        "allCategories": "كل الفئات",
+        "allPaymentMethods": "كل طرق الدفع",
+        "cash": "نقدي",
+        "card": "بطاقة",
+        "bankTransfer": "تحويل بنكي",
+        "pos": "جهاز نقطة البيع",
+        "daily": "يومي",
+        "monthly": "شهري",
+        "groupBy": "التجميع حسب"
+      },
       "employeePerformance": {
         "title": "مبيعات الموظفين وسجل العمولات",
         "description": "يتم فصل نشاط البيع عن حركات العمولة حتى لا تظهر استردادات العمولة كمبيعات جديدة.",

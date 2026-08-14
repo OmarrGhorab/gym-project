@@ -268,7 +268,14 @@ final class ReportController extends ApiController
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'plan_id' => ['nullable', 'integer', 'exists:plans,id'],
-            'status' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', Rule::in([
+                'active',
+                'ending_soon',
+                'low_sessions',
+                'expiring_soon',
+                'expired',
+                'stopped',
+            ])],
         ]);
 
         return $this->success(
@@ -282,9 +289,9 @@ final class ReportController extends ApiController
         $validated = $request->validate([
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
-            'category' => ['nullable', 'string'],
-            'search' => ['nullable', 'string'],
-            'payment_method' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'search' => ['nullable', 'string', 'max:150'],
+            'payment_method' => ['nullable', 'string', Rule::in(['pos', 'cash', 'card', 'bank_transfer'])],
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
         ]);
 
@@ -300,7 +307,14 @@ final class ReportController extends ApiController
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'created_by' => ['nullable', 'integer'],
-            'status' => ['nullable', 'string'],
+            'status' => ['nullable', 'string', Rule::in([
+                'open',
+                'pending_handover',
+                'pending_admin',
+                'accepted',
+                'disputed',
+                'auto_accepted',
+            ])],
         ]);
 
         return $this->success(

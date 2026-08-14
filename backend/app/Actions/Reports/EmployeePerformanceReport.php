@@ -36,6 +36,7 @@ class EmployeePerformanceReport
             ->leftJoinSub(
                 DB::table('sales')
                     ->select('sold_by_user_id', DB::raw('COUNT(*) as sales_count'), DB::raw('SUM(total) as sales_volume'))
+                    ->where('status', 'completed')
                     ->whereBetween('created_at', [$startDate, $endDate])
                     ->groupBy('sold_by_user_id'),
                 's',
@@ -103,6 +104,7 @@ class EmployeePerformanceReport
             ->leftJoinSub(
                 DB::table('sales')
                     ->select('sold_by_user_id', DB::raw('COUNT(*) as previous_sales_count'), DB::raw('SUM(total) as previous_sales_volume'))
+                    ->where('status', 'completed')
                     ->whereBetween('created_at', [$previousStart->toDateTimeString(), $previousEnd->toDateTimeString()])
                     ->groupBy('sold_by_user_id'),
                 'ps',

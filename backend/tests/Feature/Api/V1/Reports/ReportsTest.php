@@ -106,6 +106,116 @@ test('products finance report returns itemized sales details for a product', fun
         ]);
 });
 
+test('products finance totals and transactions honor all selected filters', function (): void {
+    $user = User::factory()->create(['name' => 'Cashier']);
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $drink = Product::factory()->lowStock()->create([
+        'category' => 'drinks',
+        'cost' => '10.00',
+        'name' => 'Filtered Water',
+    ]);
+    $supplement = Product::factory()->create([
+        'category' => 'supplements',
+        'name' => 'Protein Tub',
+        'stock_quantity' => 50,
+    ]);
+
+    $cashDrinkSale = Sale::factory()->create([
+        'created_at' => '2026-06-15 12:00:00',
+        'discount' => '20.00',
+        'payment_method' => 'cash',
+        'sold_by_user_id' => $user->id,
+        'subtotal' => '100.00',
+        'total' => '80.00',
+    ]);
+    SaleItem::factory()->create([
+        'product_id' => $drink->id,
+        'quantity' => 2,
+        'sale_id' => $cashDrinkSale->id,
+        'total' => '100.00',
+        'unit_price' => '50.00',
+    ]);
+
+    $cardDrinkSale = Sale::factory()->create([
+        'created_at' => '2026-06-16 12:00:00',
+        'discount' => '0.00',
+        'payment_method' => 'card',
+        'sold_by_user_id' => $user->id,
+        'subtotal' => '150.00',
+        'total' => '150.00',
+    ]);
+    SaleItem::factory()->create([
+        'product_id' => $drink->id,
+        'quantity' => 3,
+        'sale_id' => $cardDrinkSale->id,
+        'total' => '150.00',
+        'unit_price' => '50.00',
+    ]);
+
+    $cashSupplementSale = Sale::factory()->create([
+        'created_at' => '2026-06-17 12:00:00',
+        'discount' => '0.00',
+        'payment_method' => 'cash',
+        'sold_by_user_id' => $user->id,
+        'subtotal' => '50.00',
+        'total' => '50.00',
+    ]);
+    SaleItem::factory()->create([
+        'product_id' => $supplement->id,
+        'quantity' => 1,
+        'sale_id' => $cashSupplementSale->id,
+        'total' => '50.00',
+        'unit_price' => '50.00',
+    ]);
+
+    $voidedDrinkSale = Sale::factory()->voided()->create([
+        'created_at' => '2026-06-18 12:00:00',
+        'discount' => '0.00',
+        'payment_method' => 'cash',
+        'sold_by_user_id' => $user->id,
+        'subtotal' => '75.00',
+        'total' => '75.00',
+    ]);
+    SaleItem::factory()->create([
+        'product_id' => $drink->id,
+        'quantity' => 1,
+        'sale_id' => $voidedDrinkSale->id,
+        'total' => '75.00',
+        'unit_price' => '75.00',
+    ]);
+
+    $response = $this->getJson(
+        '/api/v1/reports/products-finance?from=2026-06-01&to=2026-06-30&category=drinks&search=Filtered&payment_method=cash'
+    )->assertOk();
+
+    $response
+        ->assertJsonPath('data.totals.total_pos_revenue', '80.00')
+        ->assertJsonPath('data.totals.total_orders', 1)
+        ->assertJsonPath('data.totals.total_units_sold', 2)
+        ->assertJsonPath('data.totals.low_stock_products_count', 1)
+        ->assertJsonPath('data.products_summary.0.id', $drink->id)
+        ->assertJsonPath('data.products_summary.0.units_sold_period', 2)
+        ->assertJsonPath('data.transactions.0.items_count', 2)
+        ->assertJsonPath('data.transactions.0.total_amount', '80.00');
+
+    expect($response->json('data.categories'))->toContain('drinks', 'supplements')
+        ->and($response->json('data.products_summary'))->toHaveCount(1)
+        ->and($response->json('data.transactions'))->toHaveCount(1);
+});
+
+test('report-specific filters reject unsupported values', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);
+    Sanctum::actingAs($user);
+
+    $this->getJson('/api/v1/reports/classes-plans?status=unknown')->assertUnprocessable();
+    $this->getJson('/api/v1/reports/products-finance?payment_method=crypto')->assertUnprocessable();
+    $this->getJson('/api/v1/reports/subs-shifts?status=pending_review')->assertUnprocessable();
+    $this->getJson('/api/v1/reports/subs-shifts?status=pending_handover')->assertOk();
+});
+
 test('admin can access subs shifts report', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ACCOUNTANT);

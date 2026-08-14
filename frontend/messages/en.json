@@ -1643,6 +1643,19 @@
     },
     "reports": {
       "todayOnlyAccess": "Today-only access · {date}",
+      "filters": {
+        "loadError": "Could not load report",
+        "loadErrorDescription": "The report could not be loaded: {message}",
+        "allCategories": "All categories",
+        "allPaymentMethods": "All payment methods",
+        "cash": "Cash",
+        "card": "Card",
+        "bankTransfer": "Bank transfer",
+        "pos": "POS terminal",
+        "daily": "Daily",
+        "monthly": "Monthly",
+        "groupBy": "Group by"
+      },
       "employeePerformance": {
         "title": "Employee sales and commission ledger",
         "description": "Seller activity and commission events are separated so refund reversals do not look like new sales.",

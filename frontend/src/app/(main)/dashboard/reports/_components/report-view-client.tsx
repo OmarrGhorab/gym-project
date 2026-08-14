@@ -9,6 +9,7 @@ import {
   Banknote,
   BarChart3,
   Calendar,
+  CircleAlert,
   Download,
   FileText,
   History,
@@ -22,6 +23,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
 
 import { DateRangePicker } from "@/components/date-range-picker";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +40,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
+import {
+  buildReportTabParams,
+  getQuickReportDateRange,
+  REPORT_SCOPED_FILTER_KEYS,
+  type ReportQuickDate,
+} from "@/lib/report-filters";
 
 import { getEmployeeSubscriptionDetails, getProductSaleDetails } from "./employee-subscription-actions";
 import { getMemberSubscriptionHistory, getSubscriptionDetail } from "./member-subscriptions-actions";
@@ -46,6 +54,7 @@ type ReportViewClientProps = {
   initialType: string;
   initialQuery: Record<string, string | undefined>;
   initialData: Record<string, unknown>;
+  initialError: string | null;
   today: string;
   todayOnly: boolean;
 };
@@ -55,7 +64,14 @@ type ReportViewClientProps = {
 const reportTabTriggerClass =
   "h-auto min-w-0 flex-col gap-1 whitespace-normal px-2 py-1.5 text-center text-xs leading-tight sm:flex-row sm:gap-2 sm:text-sm";
 
-export function ReportViewClient({ initialType, initialQuery, initialData, today, todayOnly }: ReportViewClientProps) {
+export function ReportViewClient({
+  initialType,
+  initialQuery,
+  initialData,
+  initialError,
+  today,
+  todayOnly,
+}: ReportViewClientProps) {
   const reportsT = useTranslations("Dashboard.reports");
   const router = useRouter();
   const pathname = usePathname();
@@ -63,11 +79,13 @@ export function ReportViewClient({ initialType, initialQuery, initialData, today
   const [isPending, startTransition] = useTransition();
 
   const activeTab = searchParams.get("type") ?? initialType;
-  const fromDate = todayOnly ? today : (searchParams.get("from") ?? initialQuery.from ?? "");
-  const toDate = todayOnly ? today : (searchParams.get("to") ?? initialQuery.to ?? "");
+  const fromDate = todayOnly ? today : searchParams.get("from") || initialQuery.from || today;
+  const toDate = todayOnly ? today : searchParams.get("to") || initialQuery.to || today;
   const statusFilter = todayOnly ? "" : (searchParams.get("status") ?? "");
   const categoryFilter = todayOnly ? "" : (searchParams.get("category") ?? "");
   const searchFilter = todayOnly ? "" : (searchParams.get("search") ?? "");
+  const paymentMethodFilter = todayOnly ? "" : (searchParams.get("payment_method") ?? "");
+  const groupByFilter = todayOnly ? "day" : (searchParams.get("group_by") ?? "day");
   const dateRange = useMemo<DateRange | undefined>(() => {
     const from = parseReportDate(fromDate);
     const to = parseReportDate(toDate);
@@ -109,26 +127,20 @@ export function ReportViewClient({ initialType, initialQuery, initialData, today
     });
   }
 
-  function handleQuickDate(days: number | "this_month" | "last_month" | "ytd") {
-    const today = new Date();
-    let from = new Date();
-    let to = new Date();
+  function handleQuickDate(preset: ReportQuickDate) {
+    updateParams(getQuickReportDateRange(today, preset));
+  }
 
-    if (typeof days === "number") {
-      from.setDate(today.getDate() - days);
-    } else if (days === "this_month") {
-      from = new Date(today.getFullYear(), today.getMonth(), 1);
-    } else if (days === "last_month") {
-      from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      to = new Date(today.getFullYear(), today.getMonth(), 0);
-    } else if (days === "ytd") {
-      from = new Date(today.getFullYear(), 0, 1);
-    }
+  function handleTabChange(type: string) {
+    const range = {
+      from: fromDate || today,
+      to: toDate || today,
+    };
+    const params = buildReportTabParams(searchParams, type, range);
 
-    const fromStr = format(from, "yyyy-MM-dd");
-    const toStr = format(to, "yyyy-MM-dd");
-
-    updateParams({ from: fromStr, to: toStr });
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   }
 
   function exportCSV(filename: string, headers: string[], rows: (string | number)[][]) {
@@ -146,17 +158,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData, today
   return (
     <div className="space-y-6">
       {/* Top Report Type Selection Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(val) =>
-          updateParams({
-            type: val,
-            from: fromDate || (dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null),
-            to: toDate || (dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null),
-          })
-        }
-        className="w-full"
-      >
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         {/* The list wraps to 2 rows on phones, so the primitive's fixed h-8 has to
             go — otherwise every row is squashed into 32px total. */}
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 group-data-horizontal/tabs:h-auto md:grid-cols-4 xl:grid-cols-8">
@@ -238,11 +240,23 @@ export function ReportViewClient({ initialType, initialQuery, initialData, today
                     })
                   }
                 />
-                {(fromDate || toDate || statusFilter || categoryFilter || searchFilter) && (
+                {(statusFilter ||
+                  categoryFilter ||
+                  searchFilter ||
+                  paymentMethodFilter ||
+                  groupByFilter !== "day" ||
+                  fromDate !== today ||
+                  toDate !== today) && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => updateParams({ from: null, to: null, status: null, category: null, search: null })}
+                    onClick={() =>
+                      updateParams({
+                        from: today,
+                        to: today,
+                        ...Object.fromEntries(REPORT_SCOPED_FILTER_KEYS.map((key) => [key, null])),
+                      })
+                    }
                   >
                     Clear Filters
                   </Button>
@@ -254,64 +268,83 @@ export function ReportViewClient({ initialType, initialQuery, initialData, today
       )}
 
       {/* Render Active Report View */}
-      {activeTab === "overview" && <ReportsOverviewView data={initialData} />}
+      {initialError ? (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertTitle>{reportsT("filters.loadError")}</AlertTitle>
+          <AlertDescription>{reportsT("filters.loadErrorDescription", { message: initialError })}</AlertDescription>
+        </Alert>
+      ) : (
+        <>
+          {activeTab === "overview" && <ReportsOverviewView data={initialData} />}
 
-      {activeTab === "employees" && <EmployeesReportView data={initialData} from={fromDate} to={toDate} />}
+          {activeTab === "employees" && <EmployeesReportView data={initialData} from={fromDate} to={toDate} />}
 
-      {activeTab === "captains" && <CaptainsReportView data={initialData} from={fromDate} to={toDate} />}
+          {activeTab === "captains" && <CaptainsReportView data={initialData} from={fromDate} to={toDate} />}
 
-      {activeTab === "classes_plans" && (
-        <ClassesPlansView
-          data={initialData}
-          statusFilter={statusFilter}
-          onStatusChange={(val) => updateParams({ status: val })}
-          onExport={exportCSV}
-          isPending={isPending}
-          canFilter={!todayOnly}
-        />
-      )}
+          {activeTab === "classes_plans" && (
+            <ClassesPlansView
+              data={initialData}
+              statusFilter={statusFilter}
+              onStatusChange={(val) => updateParams({ status: val })}
+              onExport={exportCSV}
+              isPending={isPending}
+              canFilter={!todayOnly}
+            />
+          )}
 
-      {activeTab === "products_finance" && (
-        <ProductsFinanceView
-          data={initialData}
-          categoryFilter={categoryFilter}
-          from={fromDate}
-          searchFilter={searchFilter}
-          to={toDate}
-          onCategoryChange={(val) => updateParams({ category: val })}
-          onSearchChange={(val) => updateParams({ search: val })}
-          onExport={exportCSV}
-          isPending={isPending}
-          canFilter={!todayOnly}
-        />
-      )}
+          {activeTab === "products_finance" && (
+            <ProductsFinanceView
+              data={initialData}
+              categoryFilter={categoryFilter}
+              paymentMethodFilter={paymentMethodFilter}
+              from={fromDate}
+              searchFilter={searchFilter}
+              to={toDate}
+              onCategoryChange={(val) => updateParams({ category: val })}
+              onPaymentMethodChange={(val) => updateParams({ payment_method: val })}
+              onSearchChange={(val) => updateParams({ search: val })}
+              onExport={exportCSV}
+              isPending={isPending}
+              canFilter={!todayOnly}
+            />
+          )}
 
-      {activeTab === "member_subscriptions" && (
-        <MemberSubscriptionsView
-          data={initialData}
-          statusFilter={statusFilter}
-          searchFilter={searchFilter}
-          onStatusChange={(val) => updateParams({ status: val })}
-          onSearchChange={(val) => updateParams({ search: val })}
-          onExport={exportCSV}
-          isPending={isPending}
-          canFilter={!todayOnly}
-        />
-      )}
+          {activeTab === "member_subscriptions" && (
+            <MemberSubscriptionsView
+              data={initialData}
+              statusFilter={statusFilter}
+              searchFilter={searchFilter}
+              onStatusChange={(val) => updateParams({ status: val })}
+              onSearchChange={(val) => updateParams({ search: val })}
+              onExport={exportCSV}
+              isPending={isPending}
+              canFilter={!todayOnly}
+            />
+          )}
 
-      {activeTab === "subs_shifts" && (
-        <SubsShiftsView
-          data={initialData}
-          statusFilter={statusFilter}
-          onStatusChange={(val) => updateParams({ status: val })}
-          onExport={exportCSV}
-          isPending={isPending}
-          canFilter={!todayOnly}
-        />
-      )}
+          {activeTab === "subs_shifts" && (
+            <SubsShiftsView
+              data={initialData}
+              statusFilter={statusFilter}
+              onStatusChange={(val) => updateParams({ status: val })}
+              onExport={exportCSV}
+              isPending={isPending}
+              canFilter={!todayOnly}
+            />
+          )}
 
-      {activeTab === "income_outcome" && (
-        <IncomeOutcomeView data={initialData} onExport={exportCSV} isPending={isPending} canFilter={!todayOnly} />
+          {activeTab === "income_outcome" && (
+            <IncomeOutcomeView
+              data={initialData}
+              groupByFilter={groupByFilter}
+              onGroupByChange={(val) => updateParams({ group_by: val === "day" ? null : val })}
+              onExport={exportCSV}
+              isPending={isPending}
+              canFilter={!todayOnly}
+            />
+          )}
+        </>
       )}
     </div>
   );
@@ -1213,7 +1246,7 @@ function ClassesPlansView({
 
       {/* Dedicated Members Ending Soon or Low Sessions Table */}
       <Card className="border-amber-500/30 bg-amber-500/5">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-amber-700 text-lg dark:text-amber-300">
               Members Finishing Plan or Low Sessions
@@ -1221,7 +1254,7 @@ function ClassesPlansView({
             <CardDescription>Members whose plan ends within 7 days or have ≤ 3 remaining sessions</CardDescription>
           </div>
           {canFilter ? (
-            <Button size="sm" variant="outline" onClick={handleExportEndingSoon}>
+            <Button size="sm" variant="outline" onClick={handleExportEndingSoon} disabled={isPending}>
               <Download className="me-1.5 size-4" /> Export Ending List
             </Button>
           ) : null}
@@ -1438,7 +1471,7 @@ function ClassesPlansView({
             <div className="flex items-center gap-2">
               <FormSelect
                 name="status"
-                defaultValue={statusFilter}
+                value={statusFilter}
                 placeholder="All Statuses"
                 options={[
                   { label: "All Statuses", value: "" },
@@ -1451,7 +1484,7 @@ function ClassesPlansView({
                 ]}
                 onValueChange={(val) => onStatusChange(val)}
               />
-              <Button size="sm" variant="outline" onClick={handleExport}>
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
                 <Download className="me-1.5 size-4" /> Export CSV
               </Button>
             </div>
@@ -1552,10 +1585,12 @@ function ClassesPlansView({
 function ProductSaleDetailsDialog({
   product,
   from,
+  paymentMethod,
   to,
 }: {
   product: Record<string, unknown>;
   from: string;
+  paymentMethod: string;
   to: string;
 }) {
   const [details, setDetails] = useState<Record<string, unknown> | null>(null);
@@ -1575,7 +1610,7 @@ function ProductSaleDetailsDialog({
     setError(null);
     startTransition(async () => {
       try {
-        setDetails(await getProductSaleDetails(productId, from, to));
+        setDetails(await getProductSaleDetails(productId, from, to, paymentMethod));
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Could not load product sales.");
       }
@@ -1662,10 +1697,12 @@ function ProductSaleDetailsDialog({
 function ProductsFinanceView({
   data,
   categoryFilter,
+  paymentMethodFilter,
   from,
   searchFilter,
   to,
   onCategoryChange,
+  onPaymentMethodChange,
   onSearchChange,
   onExport,
   isPending,
@@ -1673,16 +1710,20 @@ function ProductsFinanceView({
 }: {
   data: Record<string, unknown>;
   categoryFilter: string;
+  paymentMethodFilter: string;
   from: string;
   searchFilter: string;
   to: string;
   onCategoryChange: (val: string) => void;
+  onPaymentMethodChange: (val: string) => void;
   onSearchChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
   canFilter: boolean;
 }) {
+  const filtersT = useTranslations("Dashboard.reports.filters");
   const totals = (data.totals as Record<string, unknown>) ?? {};
+  const categories = asStringArray(data.categories);
   const productsSummary = (data.products_summary as Record<string, unknown>[]) ?? [];
   const transactions = (data.transactions as Record<string, unknown>[]) ?? [];
   const productPagination = useTablePagination(productsSummary);
@@ -1750,16 +1791,40 @@ function ProductsFinanceView({
 
       {/* Products Summary Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-lg">Products & Inventory Performance</CardTitle>
             <CardDescription>Sales volume and revenue per product</CardDescription>
           </div>
           {canFilter ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <FormSelect
+                name="category"
+                value={categoryFilter}
+                placeholder={filtersT("allCategories")}
+                options={[
+                  { label: filtersT("allCategories"), value: "" },
+                  ...categories.map((category) => ({ label: category, value: category })),
+                ]}
+                onValueChange={onCategoryChange}
+              />
+              <FormSelect
+                name="payment_method"
+                value={paymentMethodFilter}
+                placeholder={filtersT("allPaymentMethods")}
+                options={[
+                  { label: filtersT("allPaymentMethods"), value: "" },
+                  { label: filtersT("cash"), value: "cash" },
+                  { label: filtersT("card"), value: "card" },
+                  { label: filtersT("bankTransfer"), value: "bank_transfer" },
+                  { label: filtersT("pos"), value: "pos" },
+                ]}
+                onValueChange={onPaymentMethodChange}
+              />
               <div className="relative w-48">
                 <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
                 <Input
+                  key={searchFilter}
                   type="text"
                   placeholder="Search product..."
                   defaultValue={searchFilter}
@@ -1767,7 +1832,7 @@ function ProductsFinanceView({
                   className="h-9 ps-8 text-xs"
                 />
               </div>
-              <Button size="sm" variant="outline" onClick={handleExport}>
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
                 <Download className="me-1.5 size-4" /> Export CSV
               </Button>
             </div>
@@ -1820,9 +1885,10 @@ function ProductsFinanceView({
                   </TableCell>
                   <TableCell className="text-right">
                     <ProductSaleDetailsDialog
-                      key={`${String(prod.id)}-${from}-${to}`}
+                      key={`${String(prod.id)}-${from}-${to}-${paymentMethodFilter}`}
                       product={prod}
                       from={from}
+                      paymentMethod={paymentMethodFilter}
                       to={to}
                     />
                   </TableCell>
@@ -2024,17 +2090,20 @@ function SubsShiftsView({
             <div className="flex items-center gap-2">
               <FormSelect
                 name="status"
-                defaultValue={statusFilter}
+                value={statusFilter}
                 placeholder="All Statuses"
                 options={[
                   { label: "All Statuses", value: "" },
                   { label: "Open", value: "open" },
-                  { label: "Pending Review", value: "pending_review" },
+                  { label: "Pending Handover", value: "pending_handover" },
+                  { label: "Pending Admin", value: "pending_admin" },
                   { label: "Accepted", value: "accepted" },
+                  { label: "Disputed", value: "disputed" },
+                  { label: "Auto Accepted", value: "auto_accepted" },
                 ]}
                 onValueChange={(val) => onStatusChange(val)}
               />
-              <Button size="sm" variant="outline" onClick={handleExport}>
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
                 <Download className="me-1.5 size-4" /> Export CSV
               </Button>
             </div>
@@ -2248,6 +2317,7 @@ function MemberSubscriptionsView({
               <div className="relative w-64 lg:w-80">
                 <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
                 <Input
+                  key={searchFilter}
                   type="text"
                   placeholder="Search by name, phone or QR code..."
                   defaultValue={searchFilter}
@@ -2257,7 +2327,7 @@ function MemberSubscriptionsView({
               </div>
               <FormSelect
                 name="status"
-                defaultValue={statusFilter}
+                value={statusFilter}
                 placeholder="All Statuses"
                 options={[
                   { label: "All Statuses", value: "" },
@@ -2903,15 +2973,20 @@ function formatDuration(minutes: unknown) {
 // ---------------------------------------------------------------------------
 function IncomeOutcomeView({
   data,
+  groupByFilter,
+  onGroupByChange,
   onExport,
   isPending,
   canFilter,
 }: {
   data: Record<string, unknown>;
+  groupByFilter: string;
+  onGroupByChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
   canFilter: boolean;
 }) {
+  const filtersT = useTranslations("Dashboard.reports.filters");
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const timeline = (data.timeline as Record<string, unknown>[]) ?? [];
   const timelinePagination = useTablePagination(timeline);
@@ -2990,9 +3065,21 @@ function IncomeOutcomeView({
             <CardDescription>Detailed income sources vs expense/payroll outcomes</CardDescription>
           </div>
           {canFilter ? (
-            <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="me-1.5 size-4" /> Export CSV
-            </Button>
+            <div className="flex items-center gap-2">
+              <FormSelect
+                name="group_by"
+                value={groupByFilter}
+                placeholder={filtersT("groupBy")}
+                options={[
+                  { label: filtersT("daily"), value: "day" },
+                  { label: filtersT("monthly"), value: "month" },
+                ]}
+                onValueChange={onGroupByChange}
+              />
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
+                <Download className="me-1.5 size-4" /> Export CSV
+              </Button>
+            </div>
           ) : null}
         </CardHeader>
         <CardContent>

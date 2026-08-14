@@ -136,6 +136,40 @@ test('employee performance reports are accurate and attributed correctly', funct
     expect($jackData['commissions_earned'])->toBe('35.00');
 });
 
+test('employee performance excludes voided sales from current and comparison totals', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $employeeUser = User::factory()->create(['name' => 'Sales Employee']);
+    $employee = Employee::factory()->create(['user_id' => $employeeUser->id]);
+
+    Sale::factory()->create([
+        'created_at' => '2026-06-15 12:00:00',
+        'sold_by_user_id' => $employeeUser->id,
+        'total' => '100.00',
+    ]);
+    Sale::factory()->voided()->create([
+        'created_at' => '2026-06-16 12:00:00',
+        'sold_by_user_id' => $employeeUser->id,
+        'total' => '250.00',
+    ]);
+    Sale::factory()->voided()->create([
+        'created_at' => '2026-05-15 12:00:00',
+        'sold_by_user_id' => $employeeUser->id,
+        'total' => '75.00',
+    ]);
+
+    $response = $this->getJson('/api/v1/reports/employees?from=2026-06-01&to=2026-06-30')->assertOk();
+    $row = collect($response->json('data'))->firstWhere('employee_id', $employee->id);
+
+    expect($row)->not->toBeNull()
+        ->and($row['sales_count'])->toBe(1)
+        ->and($row['sales_volume'])->toBe('100.00')
+        ->and($row['previous_sales_count'])->toBe(0)
+        ->and($row['previous_sales_volume'])->toBe('0.00');
+});
+
 test('can view single employee performance report', function (): void {
     $admin = User::factory()->create();
     $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
