@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Export\BuildExport;
 use App\Http\Requests\Export\ExportRequest;
+use App\Support\ReportAccess;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +19,10 @@ class ExportController extends ApiController
         $format = strtolower($request->validated('format'));
         $locale = strtolower($request->validated('locale') ?? 'en');
         $filters = $request->input('filter', []);
+
+        if ($resource === 'reports' && ReportAccess::isTodayOnly($request->user())) {
+            throw new AuthorizationException('Exports require full reports access.');
+        }
 
         $result = $action->handle($resource, $format, $filters, $request->user(), $locale);
 

@@ -88,30 +88,50 @@ const correctionMoneySchema = z
   .refine((value) => value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0, {
     error: "Amount cannot be negative.",
   });
+const correctionSessionSchema = z.number().int().min(0).max(100000).nullable();
 const correctionSchema = z
   .object({
-    start_date: dateOnlySchema,
+    cancellation_grace_days: z.number().int().min(0).max(3650),
+    discount: correctionMoneySchema,
     end_date: dateOnlySchema,
     price_paid: correctionMoneySchema,
-    discount: correctionMoneySchema.optional(),
+    sessions_remaining: correctionSessionSchema,
+    sessions_total: correctionSessionSchema,
+    start_date: dateOnlySchema,
   })
   .refine((value) => value.end_date >= value.start_date, {
     message: "End date cannot be before the start date.",
     path: ["end_date"],
-  });
+  })
+  .refine((value) => (value.sessions_total === null) === (value.sessions_remaining === null), {
+    message: "Total and remaining sessions must both be blank for unlimited access.",
+    path: ["sessions_remaining"],
+  })
+  .refine(
+    (value) =>
+      value.sessions_total === null ||
+      value.sessions_remaining === null ||
+      value.sessions_remaining <= value.sessions_total,
+    {
+      message: "Sessions remaining cannot be greater than total sessions.",
+      path: ["sessions_remaining"],
+    },
+  );
 
 export type CorrectMembershipSubscriptionInput = {
-  start_date: string;
+  cancellation_grace_days: number;
+  discount: string;
   end_date: string;
   price_paid: string;
-  discount?: string;
+  sessions_remaining: number | null;
+  sessions_total: number | null;
+  start_date: string;
 };
 
 /**
- * Fixes a membership that was rung up wrong — the wrong dates, or the wrong
- * price for this member. Never the plan in the catalogue, and never the money
- * already collected: what changed hands has counted toward a day's revenue and
- * a cashier's shift, so it is settled through payments, not rewritten here.
+ * Fixes the member-specific values captured when this membership was sold.
+ * Never the catalogue plan, lifecycle history, or money already collected:
+ * those have dedicated workflows and audit consequences.
  */
 export async function correctMembershipSubscription(
   id: number,

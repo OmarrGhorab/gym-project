@@ -34,7 +34,7 @@ Route::prefix('employees')->group(function (): void {
         ->middleware('permission:commissions.view');
 
     Route::get('/{employee}/performance', [EmployeeController::class, 'performance'])
-        ->middleware('permission:reports.view');
+        ->middleware('permission:reports.view|reports.view_today');
 
     Route::post('/{employee}/plan-commission-rules', [EmployeePlanCommissionRuleController::class, 'store'])
         ->middleware(['permission:employees.update', 'throttle:api']);

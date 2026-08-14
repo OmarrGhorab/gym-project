@@ -11,6 +11,7 @@ use App\Http\Requests\Reports\EmployeePerformanceRequest;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\ReportAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -138,9 +139,9 @@ final class EmployeeController extends ApiController
 
     public function performance(EmployeePerformanceRequest $request, Employee $employee, EmployeePerformanceReport $action): JsonResponse
     {
-        $request->user()->can('reports.view') || abort(403);
+        ReportAccess::canView($request->user()) || abort(403);
 
-        $params = $request->validated();
+        $params = ReportAccess::scopeFilters($request->user(), $request->validated());
         $params['employee_id'] = $employee->id;
 
         $report = $action->execute($params);

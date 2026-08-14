@@ -316,6 +316,12 @@ class SubscriptionResource extends JsonResource
             return 'renewed';
         }
 
+        $sessionTimingStatus = $this->sessionTimingStatus($status);
+
+        if ($sessionTimingStatus !== null) {
+            return $sessionTimingStatus;
+        }
+
         if ($status === 'expired' || bccomp($balance, '0.00', 2) === 1) {
             return 'needs_action';
         }
@@ -335,6 +341,12 @@ class SubscriptionResource extends JsonResource
     {
         if ($status === 'scheduled') {
             return 'next_period_starts';
+        }
+
+        $sessionTimingStatus = $this->sessionTimingStatus($status);
+
+        if ($sessionTimingStatus !== null) {
+            return $sessionTimingStatus;
         }
 
         if ($status === 'expired') {
@@ -362,5 +374,31 @@ class SubscriptionResource extends JsonResource
         }
 
         return 'active_no_balance';
+    }
+
+    /**
+     * Highlight session-based memberships whose session allowance and access
+     * period finished at different times. These remain manual decisions: staff
+     * can renew the member or correct their dates/session balance afterward.
+     */
+    private function sessionTimingStatus(string $status): ?string
+    {
+        if ($this->sessions_total === null || $this->sessions_remaining === null || ! $this->end_date) {
+            return null;
+        }
+
+        if ($status === 'active'
+            && (int) $this->sessions_remaining <= 0
+            && $this->end_date->gt(Carbon::today())) {
+            return 'sessions_exhausted';
+        }
+
+        if (in_array($status, ['active', 'expired'], true)
+            && (int) $this->sessions_remaining > 0
+            && $this->end_date->lt(Carbon::today())) {
+            return 'period_ended_sessions_left';
+        }
+
+        return null;
     }
 }

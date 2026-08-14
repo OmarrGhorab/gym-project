@@ -51,10 +51,18 @@ type MemberResource = {
   updated_at?: string | null;
   latest_subscription?: {
     id?: number;
+    plan_id?: number | null;
     plan_name?: string | null;
     start_date?: string | null;
     status?: string | null;
     end_date?: string | null;
+    days_left?: number | null;
+    renewal_health?: string | null;
+    renewal_health_reason?: string | null;
+    sessions_total?: number | null;
+    sessions_remaining?: number | null;
+    cancellation_grace_days?: number | null;
+    discount?: string | null;
     package_paid_total?: string | null;
     package_price_paid?: string | null;
     package_balance?: string | null;
@@ -125,11 +133,14 @@ export type MemberBillingFilter = "paid" | "pending" | "overdue" | "trial";
 
 export type MemberStatusFilter = "active" | "expired" | "frozen" | "stopped" | "inactive" | "none";
 
+export type MemberRenewalAttentionFilter = "sessions_exhausted" | "period_ended_sessions_left";
+
 export type MembersQuery = {
   page?: number;
   perPage?: number;
   search?: string;
   status?: MemberStatusFilter;
+  renewalAttention?: MemberRenewalAttentionFilter;
   billing?: MemberBillingFilter;
   joinedWindow?: "30" | "90";
   sort?: MemberSort;
@@ -281,6 +292,10 @@ function buildMemberParams(options: MembersQuery) {
     params.set("filter[subscription_status]", options.status);
   }
 
+  if (options.renewalAttention) {
+    params.set("filter[renewal_attention]", options.renewalAttention);
+  }
+
   if (options.billing) {
     params.set("filter[billing]", options.billing);
   }
@@ -359,10 +374,18 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     latest_subscription: subscription?.id
       ? {
           id: subscription.id,
+          plan_id: subscription.plan_id ?? null,
           plan_name: subscription.plan_name ?? null,
           start_date: subscription.start_date ?? null,
           end_date: subscription.end_date ?? null,
           status: subscription.status ?? "unknown",
+          days_left: subscription.days_left ?? null,
+          renewal_health: subscription.renewal_health ?? null,
+          renewal_health_reason: subscription.renewal_health_reason ?? null,
+          sessions_total: subscription.sessions_total ?? null,
+          sessions_remaining: subscription.sessions_remaining ?? null,
+          cancellation_grace_days: subscription.cancellation_grace_days ?? null,
+          discount: subscription.discount ?? null,
           package_paid_total: subscription.package_paid_total ?? null,
           package_price_paid: subscription.package_price_paid ?? null,
           package_balance: subscription.package_balance ?? null,

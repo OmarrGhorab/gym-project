@@ -202,9 +202,11 @@ export async function getFinanceDashboardData(
   groupBy: string,
   access: {
     canCollectDue: boolean;
+    canUseShiftDesk: boolean;
     canViewExpenses: boolean;
     canViewPayments: boolean;
     canViewReports: boolean;
+    todayOnly: boolean;
   },
 ): Promise<FinancePageData> {
   const summaryParams = new URLSearchParams({
@@ -233,46 +235,44 @@ export async function getFinanceDashboardData(
     access.canViewReports
       ? safeFetch<FinanceChartPoint[]>(`/reports/financial?from=${from}&to=${to}&group_by=${groupBy}`, [])
       : { data: [] },
-    access.canViewPayments
+    access.canViewPayments && !access.todayOnly
       ? safeFetch<FinancePayment[] | PaginatedData<FinancePayment>>("/payments?page=1&per_page=15", [])
       : { data: [] },
-    access.canViewPayments || access.canCollectDue
+    (access.canViewPayments || access.canCollectDue) && !access.todayOnly
       ? safeFetch<FinanceDue[] | PaginatedData<FinanceDue>>("/payments/dues", [])
       : { data: [] },
-    access.canViewExpenses
+    access.canViewExpenses && !access.todayOnly
       ? safeFetch<FinanceExpense[] | PaginatedData<FinanceExpense>>("/expenses?sort=-date&page=1&per_page=15", [])
       : { data: [] },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
-      ? safeFetch<FinanceShiftSession | null>("/shift-sessions/current", null)
-      : { data: null },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+    access.canUseShiftDesk ? safeFetch<FinanceShiftSession | null>("/shift-sessions/current", null) : { data: null },
+    access.canUseShiftDesk
       ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
           "/shift-sessions?status=pending_admin&per_page=10",
           [],
         )
       : { data: [] },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+    access.canUseShiftDesk
       ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
           "/shift-sessions?status=pending_handover&per_page=10",
           [],
         )
       : { data: [] },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+    access.canUseShiftDesk
       ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
           "/shift-sessions?status=disputed&per_page=10",
           [],
         )
       : { data: [] },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+    access.canUseShiftDesk
       ? safeFetch<FinanceShiftSession[] | PaginatedData<FinanceShiftSession>>(
           `/shift-sessions?from=${from}&to=${to}&per_page=100`,
           [],
         )
       : { data: [] },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+    access.canUseShiftDesk
       ? safeFetch<ShiftOptionPayload[] | PaginatedData<ShiftOptionPayload>>("/shift-sessions/options", [])
       : { data: [] },
-    access.canViewExpenses || access.canViewPayments || access.canCollectDue
+    access.canUseShiftDesk
       ? safeFetch<{
           shifts?: {
             require_handover_to_open?: boolean;

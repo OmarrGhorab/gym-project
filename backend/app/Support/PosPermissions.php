@@ -25,6 +25,8 @@ final class PosPermissions
 
     public const PERM_REPORTS_VIEW = 'reports.view';
 
+    public const PERM_REPORTS_VIEW_TODAY = 'reports.view_today';
+
     /** All Phase 2 POS permissions in seeding order. */
     public const ALL_PERMISSIONS = [
         self::PERM_PRODUCTS_VIEW,
@@ -36,5 +38,6 @@ final class PosPermissions
         self::PERM_SALES_VOID,
         self::PERM_INVENTORY_ADJUST,
         self::PERM_REPORTS_VIEW,
+        self::PERM_REPORTS_VIEW_TODAY,
     ];
 }

@@ -8,8 +8,8 @@ use Illuminate\Support\Carbon;
 class UpdateSubscription
 {
     /**
-     * Corrects a membership that was entered wrong: the wrong dates, or the
-     * wrong price for this member.
+     * Corrects the member-specific values captured when a membership was sold:
+     * its dates, price, discount, session allowance, or cancellation window.
      *
      * Payments are deliberately untouched. What the member handed over is a
      * historical fact that already counted toward a day's revenue and a
@@ -42,6 +42,22 @@ class UpdateSubscription
 
         if (array_key_exists('discount', $data)) {
             $changes['discount'] = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
+        }
+
+        if (array_key_exists('cancellation_grace_days', $data)) {
+            $changes['cancellation_grace_days'] = (int) $data['cancellation_grace_days'];
+        }
+
+        if (array_key_exists('sessions_total', $data)) {
+            $changes['sessions_total'] = $data['sessions_total'] === null
+                ? null
+                : (int) $data['sessions_total'];
+        }
+
+        if (array_key_exists('sessions_remaining', $data)) {
+            $changes['sessions_remaining'] = $data['sessions_remaining'] === null
+                ? null
+                : (int) $data['sessions_remaining'];
         }
 
         if ($changes !== []) {

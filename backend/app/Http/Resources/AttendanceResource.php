@@ -46,6 +46,8 @@ class AttendanceResource extends JsonResource
             'status' => $this->status,
             'scan_method' => $this->scan_method,
             'notes' => $this->notes,
+            'absence_reason' => $this->absence_reason,
+            'absence_deduction_amount' => number_format((float) $this->absence_deduction_amount, 2, '.', ''),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

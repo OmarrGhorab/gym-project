@@ -23,10 +23,18 @@ export const recentCustomersSchema = z.object({
   latest_subscription: z
     .object({
       id: z.number(),
+      plan_id: z.number().nullable().optional(),
       plan_name: z.string().nullable(),
       start_date: z.string().nullable(),
       end_date: z.string().nullable(),
       status: z.string(),
+      days_left: z.number().nullable().optional(),
+      renewal_health: z.string().nullable().optional(),
+      renewal_health_reason: z.string().nullable().optional(),
+      sessions_total: z.number().nullable().optional(),
+      sessions_remaining: z.number().nullable().optional(),
+      cancellation_grace_days: z.number().nullable().optional(),
+      discount: z.string().nullable().optional(),
       package_paid_total: z.string().nullable().optional(),
       package_price_paid: z.string().nullable().optional(),
       package_balance: z.string().nullable().optional(),

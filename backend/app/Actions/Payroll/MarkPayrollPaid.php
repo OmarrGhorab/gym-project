@@ -15,6 +15,7 @@ final class MarkPayrollPaid
 {
     public function __construct(
         private readonly OperationalNotifier $notifier,
+        private readonly BuildAbsenceBreakdown $absenceBreakdown,
     ) {}
 
     /**
@@ -50,14 +51,19 @@ final class MarkPayrollPaid
                 static fn (string $carry, Commission $commission): string => bcadd($carry, (string) $commission->amount, 2),
                 '0.00',
             );
+            $absences = $this->absenceBreakdown->execute($payroll->employee_id, $payroll->month);
 
             $netSalary = bcsub(
-                bcadd(
-                    bcadd((string) $payroll->base_salary, $commissionsTotal, 2),
-                    (string) $payroll->bonuses,
+                bcsub(
+                    bcadd(
+                        bcadd((string) $payroll->base_salary, $commissionsTotal, 2),
+                        (string) $payroll->bonuses,
+                        2,
+                    ),
+                    (string) $payroll->deductions,
                     2,
                 ),
-                (string) $payroll->deductions,
+                $absences['deductions'],
                 2,
             );
 
@@ -69,6 +75,8 @@ final class MarkPayrollPaid
 
             $payroll->update([
                 'commissions_total' => $commissionsTotal,
+                'absence_deductions' => $absences['deductions'],
+                'absence_snapshot' => $absences['rows'],
                 'net_salary' => $netSalary,
                 'status' => 'paid',
                 'paid_at' => now(),

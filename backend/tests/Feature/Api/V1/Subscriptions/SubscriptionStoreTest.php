@@ -363,6 +363,40 @@ test('subscription list includes payment balance and renewal health fields', fun
         ->assertJsonPath('data.0.renewal_health_reason', 'has_balance');
 });
 
+test('subscription renewal health distinguishes session and period timing mismatches', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $sessionsFinishedMember = Member::factory()->active()->create();
+    Subscription::factory()->for($sessionsFinishedMember)->active()->create([
+        'start_date' => now()->subDay()->toDateString(),
+        'end_date' => now()->addDays(29)->toDateString(),
+        'sessions_total' => 10,
+        'sessions_remaining' => 0,
+    ]);
+
+    $this->getJson("/api/v1/subscriptions?filter[member_id]={$sessionsFinishedMember->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.days_left', 29)
+        ->assertJsonPath('data.0.renewal_health', 'sessions_exhausted')
+        ->assertJsonPath('data.0.renewal_health_reason', 'sessions_exhausted');
+
+    $periodEndedMember = Member::factory()->active()->create();
+    Subscription::factory()->for($periodEndedMember)->active()->create([
+        'start_date' => now()->subDays(31)->toDateString(),
+        'end_date' => now()->subDay()->toDateString(),
+        'sessions_total' => 10,
+        'sessions_remaining' => 3,
+    ]);
+
+    $this->getJson("/api/v1/subscriptions?filter[member_id]={$periodEndedMember->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.status', 'expired')
+        ->assertJsonPath('data.0.renewal_health', 'period_ended_sessions_left')
+        ->assertJsonPath('data.0.renewal_health_reason', 'period_ended_sessions_left');
+});
+
 test('subscription list marks active subscriptions past end date as expired', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

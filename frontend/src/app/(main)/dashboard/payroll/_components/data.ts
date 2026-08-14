@@ -15,6 +15,16 @@ export type PayrollRow = {
   commissions_total: string;
   bonuses: string;
   deductions: string;
+  absence_deductions: string;
+  total_deductions: string;
+  absence_count: number;
+  absence_breakdown: Array<{
+    attendance_id: number;
+    date: string;
+    reason: string;
+    deduction_amount: string;
+    recorded_by: string | null;
+  }>;
   manual_bonus_reason: string | null;
   manual_deduction_reason: string | null;
   net_salary: string;
@@ -33,4 +43,3 @@ export async function getPayrollPageData(month: string) {
     return [];
   }
 }
-

@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Reports;
 
-use App\Support\PosPermissions;
+use App\Support\ReportAccess;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -11,7 +11,7 @@ class FinancialReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can(PosPermissions::PERM_REPORTS_VIEW);
+        return ReportAccess::canView($this->user());
     }
 
     /**

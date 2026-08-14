@@ -215,14 +215,14 @@
 <body>
 
 @php
-    $attendance = $payroll->getRelation('monthAttendance') ?? collect();
     $bonusReason = trim((string) ($payroll->manual_bonus_reason ?? ''));
     $deductionReason = trim((string) ($payroll->manual_deduction_reason ?? ''));
     $commissionBreakdown = $payroll->getRelation('commissionBreakdown') ?? collect();
     $bonusBreakdown = $payroll->getRelation('bonusBreakdown') ?? collect();
+    $absenceBreakdown = $payroll->getRelation('absenceBreakdown') ?? collect();
     $ar = $pdfArabic ?? static fn (?string $text): string => $text ?? '';
     $grossSalary = (float) $payroll->base_salary + (float) $payroll->commissions_total + (float) $payroll->bonuses;
-    $totalDeductions = (float) $payroll->deductions;
+    $totalDeductions = (float) $payroll->deductions + (float) $payroll->absence_deductions;
 @endphp
 
 <div class="page">
@@ -258,6 +258,12 @@
                         <td class="amount earning">{{ number_format((float) $payroll->bonuses, 2) }}</td>
                         <td>-</td>
                         <td>{{ $ar($bonusReason !== '' ? $bonusReason : 'مكافأة إدارية') }}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ $ar('خصم الغياب') }}</td>
+                        <td>-</td>
+                        <td class="amount deduction">{{ number_format((float) $payroll->absence_deductions, 2) }}</td>
+                        <td>{{ $ar('عدد أيام الغياب') }}: {{ $absenceBreakdown->count() }}</td>
                     </tr>
                     <tr>
                         <td>{{ $ar('السلف / الخصم') }}</td>
@@ -314,7 +320,7 @@
                         </tr>
                     @endif
                     <tr class="totals">
-                        <td colspan="2">{{ $ar('إجمالي الخصومات') }}</td>
+                        <td colspan="2">{{ $ar('إجمالي الخصومات اليدوية') }}</td>
                         <td colspan="2">{{ number_format((float) $payroll->deductions, 2) }}</td>
                     </tr>
                 </tbody>
@@ -338,16 +344,17 @@
             <div class="line"><span class="label">{{ $ar('أساسي المرتب :') }}</span><span class="value">{{ number_format((float) $payroll->base_salary, 2) }}</span></div>
             <div class="line"><span class="label">{{ $ar('العمولات :') }}</span><span class="value">{{ number_format((float) $payroll->commissions_total, 2) }}</span></div>
             <div class="line"><span class="label">{{ $ar('بونص :') }}</span><span class="value">{{ number_format((float) $payroll->bonuses, 2) }}</span></div>
-            <div class="line"><span class="label">{{ $ar('أيام الغياب :') }}</span><span class="value">{{ $attendance->where('status', 'absent')->count() }}</span></div>
-            <div class="line"><span class="label">{{ $ar('السلف / الخصم :') }}</span><span class="value">{{ number_format((float) $payroll->deductions, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('أيام الغياب :') }}</span><span class="value">{{ $absenceBreakdown->count() }}</span></div>
+            <div class="line"><span class="label">{{ $ar('خصم الغياب :') }}</span><span class="value">{{ number_format((float) $payroll->absence_deductions, 2) }}</span></div>
+            <div class="line"><span class="label">{{ $ar('إجمالي الخصومات :') }}</span><span class="value">{{ number_format($totalDeductions, 2) }}</span></div>
             <div class="line highlight"><span class="label">{{ $ar('صافي الراتب :') }}</span><span class="value">{{ number_format((float) $payroll->net_salary, 2) }}</span></div>
             <div class="line"><span class="label">{{ $ar('ملاحظات :') }}</span><span class="value"></span></div>
             <div class="notes">
                 <strong>{{ $ar('تنبيه:') }}</strong>
                 <ul>
-                    <li>{{ $ar('البونص والخصم يضافان يدويا من الإدارة ويبدآن من صفر.') }}</li>
-                    <li>{{ $ar('صافي الراتب يحسب بعد إضافة البونص والعمولات وخصم السلف.') }}</li>
-                    <li>{{ $ar('سبب كل تعديل يظهر في جدول التعديلات اليدوية.') }}</li>
+                    <li>{{ $ar('البونص والخصم والغياب يسجلون يدويا من الإدارة.') }}</li>
+                    <li>{{ $ar('صافي الراتب يحسب بعد إضافة البونص والعمولات وخصم السلف والغياب.') }}</li>
+                    <li>{{ $ar('سبب وتاريخ وخصم كل يوم غياب يظهر في صفحة التفاصيل.') }}</li>
                 </ul>
             </div>
         </div>
@@ -358,7 +365,7 @@
     <div class="watermark">ATP GYM</div>
     <div class="details-header">
         <div class="details-header-cell">
-            <h1>{{ $ar('تفاصيل العمولات والمكافآت') }}</h1>
+            <h1>{{ $ar('تفاصيل العمولات والغياب والمكافآت') }}</h1>
             <div>{{ $ar('الموظف') }}: {{ $ar($payroll->employee?->name) }} - <span class="ltr">{{ $payroll->month }}</span></div>
         </div>
         <div class="details-header-cell details-brand">ATP GYM</div>
@@ -401,6 +408,39 @@
             <tr class="details-total">
                 <td colspan="6">{{ $ar('إجمالي العمولات') }}</td>
                 <td><span class="ltr">{{ number_format((float) $payroll->commissions_total, 2) }}</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>{{ $ar('تفاصيل أيام الغياب') }} / Absence details</h2>
+    <div class="section-note">
+        {{ $ar('كل صف يوضح تاريخ الغياب والسبب والخصم الذي أدخلته الإدارة، ويمكن تسجيل يوم غياب بدون خصم.') }}
+    </div>
+    <table class="details-table">
+        <thead>
+            <tr>
+                <th style="width: 6%">#</th>
+                <th style="width: 18%">{{ $ar('التاريخ') }} / Date</th>
+                <th style="width: 51%">{{ $ar('السبب') }} / Reason</th>
+                <th style="width: 25%">{{ $ar('قيمة الخصم') }} / Deduction</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($absenceBreakdown as $row)
+                <tr>
+                    <td>{{ $loop->iteration }}</td>
+                    <td><span class="ltr">{{ $row['date'] }}</span></td>
+                    <td class="description">{{ $ar($row['reason'] !== '' ? $row['reason'] : 'لم يسجل سبب') }}</td>
+                    <td class="amount deduction"><span class="ltr">{{ number_format((float) $row['deduction_amount'], 2) }}</span></td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="4" class="empty-row">{{ $ar('لا توجد أيام غياب مسجلة لهذا الشهر') }}</td>
+                </tr>
+            @endforelse
+            <tr class="details-total">
+                <td colspan="3">{{ $ar('إجمالي خصم الغياب') }}</td>
+                <td><span class="ltr">{{ number_format((float) $payroll->absence_deductions, 2) }}</span></td>
             </tr>
         </tbody>
     </table>

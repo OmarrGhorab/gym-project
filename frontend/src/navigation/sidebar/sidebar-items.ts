@@ -1,6 +1,7 @@
 import {
   Banknote,
   Calendar,
+  CalendarX2,
   ChartBar,
   CheckSquare,
   ClipboardList,
@@ -135,6 +136,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Attendance",
         url: "/dashboard/attendance",
         icon: MapPinned,
+      },
+      {
+        id: "absences",
+        title: "Absences",
+        url: "/dashboard/absences",
+        icon: CalendarX2,
       },
       {
         id: "badges",

@@ -17,6 +17,7 @@ final class FinanceDashboardSummary
      */
     public function execute(array $params = []): array
     {
+        $todayOnly = ($params['_today_only'] ?? false) === true;
         $from = Carbon::parse($params['from'] ?? now()->startOfMonth()->toDateString())->startOfDay();
         $to = Carbon::parse($params['to'] ?? now()->toDateString())->endOfDay();
         $groupBy = $params['group_by'] ?? 'month';
@@ -26,13 +27,15 @@ final class FinanceDashboardSummary
         $chartStart = $groupBy === 'day' ? $from->copy() : $from->copy()->startOfMonth();
 
         $monthRevenue = $this->paidPaymentsTotal($from, $to);
-        $previousMonthRevenue = $this->paidPaymentsTotal($previousFrom, $previousTo);
+        $previousMonthRevenue = $todayOnly ? 0.0 : $this->paidPaymentsTotal($previousFrom, $previousTo);
         $monthExpenses = $this->expensesTotal($from, $to);
-        $previousMonthExpenses = $this->expensesTotal($previousFrom, $previousTo);
-        $pendingPayroll = (float) Payroll::query()
-            ->where('status', 'pending')
-            ->sum('net_salary');
-        $outstandingDues = $this->outstandingDues();
+        $previousMonthExpenses = $todayOnly ? 0.0 : $this->expensesTotal($previousFrom, $previousTo);
+        $pendingPayroll = $todayOnly
+            ? 0.0
+            : (float) Payroll::query()->where('status', 'pending')->sum('net_salary');
+        $outstandingDues = $todayOnly
+            ? ['total' => 0.0, 'count' => 0, 'rows' => collect()]
+            : $this->outstandingDues();
         $netProfit = $monthRevenue - $monthExpenses - $pendingPayroll;
         $profitMargin = $monthRevenue > 0 ? ($netProfit / $monthRevenue) * 100 : 0.0;
 
@@ -47,27 +50,29 @@ final class FinanceDashboardSummary
                 'outstanding_dues_count' => $outstandingDues['count'],
                 'net_profit_mtd' => $this->money($netProfit),
                 'profit_margin' => number_format($profitMargin, 2, '.', ''),
-                'revenue_growth_rate' => $this->growthRate($monthRevenue, $previousMonthRevenue),
-                'expense_growth_rate' => $this->growthRate($monthExpenses, $previousMonthExpenses),
+                'revenue_growth_rate' => $todayOnly ? '0.00' : $this->growthRate($monthRevenue, $previousMonthRevenue),
+                'expense_growth_rate' => $todayOnly ? '0.00' : $this->growthRate($monthExpenses, $previousMonthExpenses),
             ],
             'revenue_sources' => $this->revenueSources($from, $to),
             'payment_methods' => $this->paymentMethods($from, $to),
             'chart' => $this->monthlyChart($chartStart, $to, $groupBy),
             'upcoming' => [
                 'dues' => $outstandingDues['rows'],
-                'pending_payroll' => Payroll::query()
-                    ->with('employee')
-                    ->where('status', 'pending')
-                    ->latest()
-                    ->limit(3)
-                    ->get()
-                    ->map(fn (Payroll $payroll): array => [
-                        'id' => $payroll->id,
-                        'title' => ($payroll->employee?->name ?? 'Employee').' payroll',
-                        'description' => $payroll->month,
-                        'amount' => $this->money((float) $payroll->net_salary),
-                    ])
-                    ->values(),
+                'pending_payroll' => $todayOnly
+                    ? collect()
+                    : Payroll::query()
+                        ->with('employee')
+                        ->where('status', 'pending')
+                        ->latest()
+                        ->limit(3)
+                        ->get()
+                        ->map(fn (Payroll $payroll): array => [
+                            'id' => $payroll->id,
+                            'title' => ($payroll->employee?->name ?? 'Employee').' payroll',
+                            'description' => $payroll->month,
+                            'amount' => $this->money((float) $payroll->net_salary),
+                        ])
+                        ->values(),
                 'recent_expenses' => Expense::query()
                     ->whereBetween('date', [$from->copy()->startOfDay()->toDateTimeString(), $to->copy()->endOfDay()->toDateTimeString()])
                     ->latest('date')

@@ -34,12 +34,16 @@ class Attendance extends Model
         'status',
         'scan_method',
         'notes',
+        'absence_reason',
+        'absence_deduction_amount',
+        'absence_recorded_by',
     ];
 
     protected $casts = [
         'date' => 'date',
         'check_in' => 'datetime:H:i',
         'check_out' => 'datetime:H:i',
+        'absence_deduction_amount' => 'decimal:2',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -58,5 +62,10 @@ class Attendance extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(EmployeeShift::class, 'shift_id');
+    }
+
+    public function absenceRecorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'absence_recorded_by');
     }
 }

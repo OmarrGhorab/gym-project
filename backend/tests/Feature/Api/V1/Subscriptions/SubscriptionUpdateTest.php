@@ -73,6 +73,99 @@ test('correcting the price moves the balance without touching what was collected
     expect(Payment::query()->where('payable_id', $subscription->id)->value('amount'))->toBe('1000.00');
 });
 
+test('admin can correct limited session totals and the remaining balance', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = subscriptionForCorrection([
+        'sessions_total' => 12,
+        'sessions_remaining' => 4,
+    ]);
+
+    $this->patchJson("/api/v1/subscriptions/{$subscription->id}", [
+        'sessions_total' => 16,
+        'sessions_remaining' => 8,
+    ])
+        ->assertStatus(200)
+        ->assertJsonPath('data.sessions_total', 16)
+        ->assertJsonPath('data.sessions_remaining', 8);
+
+    expect($subscription->fresh()->sessions_total)->toBe(16)
+        ->and($subscription->fresh()->sessions_remaining)->toBe(8);
+});
+
+test('admin can switch a membership between limited and unlimited sessions', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = subscriptionForCorrection([
+        'sessions_total' => 12,
+        'sessions_remaining' => 4,
+    ]);
+
+    $this->patchJson("/api/v1/subscriptions/{$subscription->id}", [
+        'sessions_total' => null,
+        'sessions_remaining' => null,
+    ])
+        ->assertStatus(200)
+        ->assertJsonPath('data.sessions_total', null)
+        ->assertJsonPath('data.sessions_remaining', null);
+
+    $this->patchJson("/api/v1/subscriptions/{$subscription->id}", [
+        'sessions_total' => 20,
+        'sessions_remaining' => 20,
+    ])
+        ->assertStatus(200)
+        ->assertJsonPath('data.sessions_total', 20)
+        ->assertJsonPath('data.sessions_remaining', 20);
+});
+
+test('a correction rejects an invalid session balance', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = subscriptionForCorrection([
+        'sessions_total' => 12,
+        'sessions_remaining' => 4,
+    ]);
+
+    $this->patchJson("/api/v1/subscriptions/{$subscription->id}", [
+        'sessions_total' => 8,
+        'sessions_remaining' => 9,
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('error.details.sessions_remaining.0', 'Sessions remaining cannot be greater than total sessions.');
+
+    $this->patchJson("/api/v1/subscriptions/{$subscription->id}", [
+        'sessions_total' => null,
+        'sessions_remaining' => 4,
+    ])
+        ->assertStatus(422)
+        ->assertJsonStructure(['error' => ['details' => ['sessions_remaining']]]);
+});
+
+test('admin can correct the recorded discount and cancellation grace window', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $subscription = subscriptionForCorrection([
+        'discount' => '0.00',
+        'cancellation_grace_days' => 2,
+    ]);
+
+    $this->patchJson("/api/v1/subscriptions/{$subscription->id}", [
+        'discount' => '250.00',
+        'cancellation_grace_days' => 5,
+    ])
+        ->assertStatus(200)
+        ->assertJsonPath('data.discount', '250.00')
+        ->assertJsonPath('data.cancellation_grace_days', 5);
+});
+
 test('a correction that moves the start into the future makes the membership scheduled', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

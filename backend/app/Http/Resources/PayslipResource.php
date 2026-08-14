@@ -29,7 +29,11 @@ class PayslipResource extends JsonResource
             'attendance' => [
                 'records_count' => $this->whenLoaded('monthAttendance', fn () => $this->monthAttendance->count(), 0),
                 'late_count' => $this->whenLoaded('monthAttendance', fn () => $this->monthAttendance->where('status', 'late')->count(), 0),
-                'absent_count' => $this->whenLoaded('monthAttendance', fn () => $this->monthAttendance->where('status', 'absent')->count(), 0),
+                'absent_count' => $this->whenLoaded(
+                    'absenceBreakdown',
+                    fn () => $this->absenceBreakdown->count(),
+                    0,
+                ),
             ],
             'bonuses' => number_format((float) $this->bonuses, 2, '.', ''),
             'bonus_breakdown' => $this->whenLoaded(
@@ -38,6 +42,18 @@ class PayslipResource extends JsonResource
                 [],
             ),
             'deductions' => number_format((float) $this->deductions, 2, '.', ''),
+            'absence_deductions' => number_format((float) $this->absence_deductions, 2, '.', ''),
+            'total_deductions' => number_format(
+                (float) $this->deductions + (float) $this->absence_deductions,
+                2,
+                '.',
+                '',
+            ),
+            'absence_breakdown' => $this->whenLoaded(
+                'absenceBreakdown',
+                fn () => $this->absenceBreakdown->values()->all(),
+                [],
+            ),
             'manual_bonus_reason' => $this->manual_bonus_reason,
             'manual_deduction_reason' => $this->manual_deduction_reason,
             'net_salary' => number_format((float) $this->net_salary, 2, '.', ''),

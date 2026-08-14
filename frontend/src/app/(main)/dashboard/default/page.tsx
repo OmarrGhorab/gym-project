@@ -9,7 +9,13 @@ import { getCurrentUser, requireAuth } from "@/lib/session";
 
 import { DashboardChartStyleSwitcher } from "./_components/dashboard-chart-style-switcher";
 import { DashboardShortcuts } from "./_components/dashboard-shortcuts";
-import type { MemberBillingFilter, MemberSort, MemberStatusFilter, MembersQuery } from "./_components/data";
+import type {
+  MemberBillingFilter,
+  MemberRenewalAttentionFilter,
+  MemberSort,
+  MemberStatusFilter,
+  MembersQuery,
+} from "./_components/data";
 import { getDefaultDashboardData } from "./_components/data";
 import { MetricCards } from "./_components/metric-cards";
 import { SubscriberOverview } from "./_components/subscriber-overview";
@@ -32,6 +38,7 @@ export default async function Page({
     members_per_page?: string;
     members_search?: string;
     members_status?: string;
+    members_renewal?: string;
     members_billing?: string;
     members_joined?: string;
     members_sort?: string;
@@ -98,6 +105,7 @@ function parseMembersQuery(params: {
   members_per_page?: string;
   members_search?: string;
   members_status?: string;
+  members_renewal?: string;
   members_billing?: string;
   members_joined?: string;
   members_sort?: string;
@@ -107,6 +115,7 @@ function parseMembersQuery(params: {
     perPage: parsePageSize(params.members_per_page),
     search: params.members_search ? params.members_search : undefined,
     status: parseMemberStatus(params.members_status),
+    renewalAttention: parseMemberRenewalAttention(params.members_renewal),
     billing: parseMemberBilling(params.members_billing),
     joinedWindow: params.members_joined === "30" || params.members_joined === "90" ? params.members_joined : undefined,
     sort: parseMemberSort(params.members_sort),
@@ -133,6 +142,12 @@ function parseMemberStatus(value: string | undefined): MemberStatusFilter | unde
 
 function parseMemberBilling(value: string | undefined): MemberBillingFilter | undefined {
   const statuses: MemberBillingFilter[] = ["paid", "pending", "overdue", "trial"];
+
+  return statuses.find((status) => status === value);
+}
+
+function parseMemberRenewalAttention(value: string | undefined): MemberRenewalAttentionFilter | undefined {
+  const statuses: MemberRenewalAttentionFilter[] = ["sessions_exhausted", "period_ended_sessions_left"];
 
   return statuses.find((status) => status === value);
 }

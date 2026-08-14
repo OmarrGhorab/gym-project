@@ -29,7 +29,9 @@ use App\Models\OperationsCalendarEvent;
 use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\Subscription;
+use App\Support\ReportAccess;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -40,7 +42,7 @@ final class ReportController extends ApiController
 {
     public function financial(FinancialReportRequest $request, FinancialReport $action): JsonResponse
     {
-        $report = $action->execute($request->validated());
+        $report = $action->execute(ReportAccess::scopeFilters($request->user(), $request->validated()));
 
         return $this->success(
             data: $report['data'],
@@ -51,12 +53,14 @@ final class ReportController extends ApiController
 
     public function financeSummary(Request $request, FinanceDashboardSummary $action): JsonResponse
     {
+        $filters = $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'group_by' => ['nullable', 'string', Rule::in(['day', 'month'])],
+        ]);
+
         return $this->success(
-            data: $action->execute($request->validate([
-                'from' => ['nullable', 'date_format:Y-m-d'],
-                'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-                'group_by' => ['nullable', 'string', Rule::in(['day', 'month'])],
-            ])),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $filters)),
             message: 'Finance dashboard summary retrieved',
         );
     }
@@ -119,18 +123,20 @@ final class ReportController extends ApiController
         ]);
 
         return $this->success(
-            data: $action->execute($validated),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $validated)),
             message: 'Coach extra plans report retrieved',
         );
     }
 
     public function overview(Request $request, ReportsOverview $action): JsonResponse
     {
+        $filters = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
         return $this->success(
-            data: $action->execute($request->validate([
-                'from' => ['nullable', 'date'],
-                'to' => ['nullable', 'date', 'after_or_equal:from'],
-            ])),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $filters)),
             message: 'Reports overview retrieved',
         );
     }
@@ -243,7 +249,7 @@ final class ReportController extends ApiController
 
     public function employees(EmployeePerformanceRequest $request, EmployeePerformanceReport $action): JsonResponse
     {
-        $report = $action->execute($request->validated());
+        $report = $action->execute(ReportAccess::scopeFilters($request->user(), $request->validated()));
 
         return $this->success(
             data: $report->items(),
@@ -266,7 +272,7 @@ final class ReportController extends ApiController
         ]);
 
         return $this->success(
-            data: $action->execute($validated),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $validated)),
             message: 'Classes and plans report retrieved',
         );
     }
@@ -283,7 +289,7 @@ final class ReportController extends ApiController
         ]);
 
         return $this->success(
-            data: $action->execute($validated),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $validated)),
             message: 'Products finance report retrieved',
         );
     }
@@ -298,7 +304,7 @@ final class ReportController extends ApiController
         ]);
 
         return $this->success(
-            data: $action->execute($validated),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $validated)),
             message: 'Subscriptions and shifts report retrieved',
         );
     }
@@ -311,8 +317,15 @@ final class ReportController extends ApiController
         MemberSubscriptionsReportRequest $request,
         MemberSubscriptionsReport $action,
     ): JsonResponse {
+        $filters = $request->validated();
+
+        if (ReportAccess::isTodayOnly($request->user())
+            && (isset($filters['member_id']) || isset($filters['subscription_id']))) {
+            throw new AuthorizationException('Subscription history requires full reports access.');
+        }
+
         return $this->success(
-            data: $action->execute($request->validated()),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $filters)),
             message: 'Member subscriptions report retrieved',
         );
     }
@@ -326,7 +339,7 @@ final class ReportController extends ApiController
         ]);
 
         return $this->success(
-            data: $action->execute($validated),
+            data: $action->execute(ReportAccess::scopeFilters($request->user(), $validated)),
             message: 'Income vs outcome report retrieved',
         );
     }

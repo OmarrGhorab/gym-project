@@ -23,6 +23,7 @@ test('admin user can access permissions catalog', function (): void {
             ->has('data')
             ->has('data.system')
             ->has('data.members')
+            ->where('data.reports', fn ($permissions): bool => $permissions->contains('reports.view_today'))
             ->has('meta')
             ->has('message')
         );

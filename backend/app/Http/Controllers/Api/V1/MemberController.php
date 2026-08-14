@@ -101,6 +101,33 @@ final class MemberController extends ApiController
                         $q->where('status', $value);
                     });
                 }),
+                AllowedFilter::callback('renewal_attention', function ($query, string $value): void {
+                    if ($value === 'sessions_exhausted') {
+                        $query->whereHas('latestSubscription', function ($subscription): void {
+                            $subscription
+                                ->where('status', 'active')
+                                ->whereNotNull('sessions_total')
+                                ->where('sessions_remaining', '<=', 0)
+                                ->whereDate('end_date', '>', Carbon::today())
+                                ->where(function ($dates): void {
+                                    $dates->whereNull('start_date')
+                                        ->orWhereDate('start_date', '<=', Carbon::today());
+                                });
+                        });
+
+                        return;
+                    }
+
+                    if ($value === 'period_ended_sessions_left') {
+                        $query->whereHas('latestSubscription', function ($subscription): void {
+                            $subscription
+                                ->whereIn('status', ['active', 'expired'])
+                                ->whereNotNull('sessions_total')
+                                ->where('sessions_remaining', '>', 0)
+                                ->whereDate('end_date', '<', Carbon::today());
+                        });
+                    }
+                }),
                 AllowedFilter::callback('billing', function ($query, string $value): void {
                     $value = strtolower($value);
 

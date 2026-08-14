@@ -19,6 +19,7 @@ class EmployeePerformanceReport
      */
     public function execute(array $params): mixed
     {
+        $todayOnly = ($params['_today_only'] ?? false) === true;
         $from = $params['from'] ?? Carbon::now()->startOfMonth()->toDateString();
         $to = $params['to'] ?? Carbon::now()->endOfMonth()->toDateString();
 
@@ -165,7 +166,7 @@ class EmployeePerformanceReport
         if (isset($params['employee_id'])) {
             $row = $query->where('employees.id', $params['employee_id'])->first();
             if ($row) {
-                $this->formatRow($row);
+                $this->formatRow($row, $todayOnly);
                 $row->subscriptions = $this->subscriptionDetails((int) $row->user_id, $startDate, $endDate);
                 $row->commissions = $this->commissionDetails((int) $row->employee_id, $startDate, $endDate);
             }
@@ -174,14 +175,14 @@ class EmployeePerformanceReport
         }
 
         return $query->orderBy('employee_id', 'asc')
-            ->cursorPaginate(15)->through(function ($item) {
-                $this->formatRow($item);
+            ->cursorPaginate(15)->through(function ($item) use ($todayOnly) {
+                $this->formatRow($item, $todayOnly);
 
                 return $item;
             });
     }
 
-    private function formatRow(object $row): void
+    private function formatRow(object $row, bool $todayOnly = false): void
     {
         $row->commissions_earned = number_format((float) $row->commissions_earned, 2, '.', '');
         $row->commissions_positive = number_format((float) $row->commissions_positive, 2, '.', '');
@@ -199,13 +200,23 @@ class EmployeePerformanceReport
         $row->previous_sales_count = (int) $row->previous_sales_count;
         $row->previous_subscriptions_count = (int) $row->previous_subscriptions_count;
         $row->previous_coached_services_count = (int) $row->previous_coached_services_count;
+
+        if ($todayOnly) {
+            $row->previous_sales_count = 0;
+            $row->previous_sales_volume = '0.00';
+            $row->previous_subscriptions_count = 0;
+            $row->previous_coached_services_count = 0;
+            $row->previous_coached_services_revenue = '0.00';
+            $row->previous_commissions_earned = '0.00';
+        }
+
         $row->comparison = [
-            'sales_count_delta' => $row->sales_count - $row->previous_sales_count,
-            'subscriptions_count_delta' => $row->subscriptions_count - $row->previous_subscriptions_count,
-            'coached_services_count_delta' => $row->coached_services_count - $row->previous_coached_services_count,
-            'commissions_delta' => number_format((float) $row->commissions_earned - (float) $row->previous_commissions_earned, 2, '.', ''),
-            'sales_volume_delta' => number_format((float) $row->sales_volume - (float) $row->previous_sales_volume, 2, '.', ''),
-            'coached_services_revenue_delta' => number_format((float) $row->coached_services_revenue - (float) $row->previous_coached_services_revenue, 2, '.', ''),
+            'sales_count_delta' => $todayOnly ? null : $row->sales_count - $row->previous_sales_count,
+            'subscriptions_count_delta' => $todayOnly ? null : $row->subscriptions_count - $row->previous_subscriptions_count,
+            'coached_services_count_delta' => $todayOnly ? null : $row->coached_services_count - $row->previous_coached_services_count,
+            'commissions_delta' => $todayOnly ? null : number_format((float) $row->commissions_earned - (float) $row->previous_commissions_earned, 2, '.', ''),
+            'sales_volume_delta' => $todayOnly ? null : number_format((float) $row->sales_volume - (float) $row->previous_sales_volume, 2, '.', ''),
+            'coached_services_revenue_delta' => $todayOnly ? null : number_format((float) $row->coached_services_revenue - (float) $row->previous_coached_services_revenue, 2, '.', ''),
         ];
     }
 

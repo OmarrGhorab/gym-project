@@ -48,6 +48,7 @@ final class UpdatePayroll
         $net = bcadd((string) $payroll->base_salary, (string) $payroll->commissions_total, 2);
         $net = bcadd($net, $bonuses, 2);
         $net = bcsub($net, $deductions, 2);
+        $net = bcsub($net, (string) $payroll->absence_deductions, 2);
 
         if (bccomp($net, '0.00', 2) === -1) {
             throw ValidationException::withMessages([

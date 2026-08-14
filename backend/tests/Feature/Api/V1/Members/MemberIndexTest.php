@@ -130,6 +130,51 @@ test('member list exposes backend membership and billing statuses', function ():
         ->and($members['Overdue Subscription Member']['billing_status'])->toBe('overdue');
 });
 
+test('member list filters session timing renewal attention on the latest subscription', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $sessionsFinishedMember = Member::factory()->create(['name' => 'Sessions Finished Early']);
+    Subscription::factory()->for($sessionsFinishedMember)->active()->create([
+        'start_date' => now()->subDay()->toDateString(),
+        'end_date' => now()->addDays(29)->toDateString(),
+        'sessions_total' => 10,
+        'sessions_remaining' => 0,
+    ]);
+
+    $periodEndedMember = Member::factory()->create(['name' => 'Period Ended With Sessions']);
+    Subscription::factory()->for($periodEndedMember)->active()->create([
+        'start_date' => now()->subDays(31)->toDateString(),
+        'end_date' => now()->subDay()->toDateString(),
+        'sessions_total' => 10,
+        'sessions_remaining' => 3,
+    ]);
+
+    $onTrackMember = Member::factory()->create(['name' => 'Sessions On Track']);
+    Subscription::factory()->for($onTrackMember)->active()->create([
+        'start_date' => now()->subDay()->toDateString(),
+        'end_date' => now()->addDays(29)->toDateString(),
+        'sessions_total' => 10,
+        'sessions_remaining' => 6,
+    ]);
+
+    $this->getJson('/api/v1/members?filter[renewal_attention]=sessions_exhausted')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.name', 'Sessions Finished Early')
+        ->assertJsonPath('data.0.latest_subscription.days_left', 29)
+        ->assertJsonPath('data.0.latest_subscription.sessions_remaining', 0)
+        ->assertJsonPath('data.0.latest_subscription.renewal_health', 'sessions_exhausted');
+
+    $this->getJson('/api/v1/members?filter[renewal_attention]=period_ended_sessions_left')
+        ->assertStatus(200)
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.name', 'Period Ended With Sessions')
+        ->assertJsonPath('data.0.latest_subscription.sessions_remaining', 3)
+        ->assertJsonPath('data.0.latest_subscription.renewal_health', 'period_ended_sessions_left');
+});
+
 test('member list honors requested per page size', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

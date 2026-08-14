@@ -8,6 +8,8 @@ use App\Models\Payroll;
 
 final class GeneratePayroll
 {
+    public function __construct(private readonly BuildAbsenceBreakdown $absenceBreakdown) {}
+
     /**
      * Generate payroll for all active employees for the target month.
      *
@@ -58,7 +60,12 @@ final class GeneratePayroll
             }
 
             $commissionsTotal = $commissionTotals->get($employee->id, '0.00');
-            $netSalary = bcadd((string) $employee->base_salary, (string) $commissionsTotal, 2);
+            $absences = $this->absenceBreakdown->execute($employee->id, $month);
+            $netSalary = bcsub(
+                bcadd((string) $employee->base_salary, (string) $commissionsTotal, 2),
+                $absences['deductions'],
+                2,
+            );
 
             $payroll = new Payroll([
                 'employee_id' => $employee->id,
@@ -68,6 +75,8 @@ final class GeneratePayroll
                 // Bonuses and deductions always start at zero; an admin adds them by hand.
                 'bonuses' => '0.00',
                 'deductions' => '0.00',
+                'absence_deductions' => $absences['deductions'],
+                'absence_snapshot' => $absences['rows'],
                 'net_salary' => $netSalary,
                 'status' => 'pending',
             ]);
@@ -101,6 +110,9 @@ final class GeneratePayroll
         }
 
         $payroll->commissions_total = $this->commissionTotal($payroll->employee_id, $payroll->month);
+        $absences = $this->absenceBreakdown->execute($payroll->employee_id, $payroll->month);
+        $payroll->absence_deductions = $absences['deductions'];
+        $payroll->absence_snapshot = $absences['rows'];
         $payroll->net_salary = $this->netSalary($payroll);
 
         if ($payroll->isDirty()) {
@@ -113,7 +125,9 @@ final class GeneratePayroll
         $net = bcadd((string) $payroll->base_salary, (string) $payroll->commissions_total, 2);
         $net = bcadd($net, (string) $payroll->bonuses, 2);
 
-        return bcsub($net, (string) $payroll->deductions, 2);
+        $net = bcsub($net, (string) $payroll->deductions, 2);
+
+        return bcsub($net, (string) $payroll->absence_deductions, 2);
     }
 
     private function commissionTotal(int $employeeId, string $month): string

@@ -380,7 +380,7 @@ function PermissionSets({ permissionGroups }: { permissionGroups: PermissionGrou
                 <div className="flex flex-wrap gap-1">
                   {group.permissions.map((permission) => (
                     <Badge key={permission.name} variant="outline">
-                      {permissionActionLabel(permission.name)}
+                      {permissionActionLabel(permission.name, t)}
                     </Badge>
                   ))}
                 </div>
@@ -460,7 +460,7 @@ function PermissionPicker({
                     disabled={disabled}
                     onClick={() => togglePermission(permission.name, !isChecked)}
                   >
-                    {permissionActionLabel(permission.name)}
+                    {permissionActionLabel(permission.name, t)}
                   </button>
                 </div>
               );
@@ -497,7 +497,7 @@ function permissionLabel(permission: string) {
   return groupLabel(permission.split(".").at(0) ?? permission);
 }
 
-function permissionActionLabel(permission: string) {
+function permissionActionLabel(permission: string, t: ReturnType<typeof useTranslations<"Dashboard.roles">>) {
   const permissionLabels: Record<string, string> = {
     "roles.manage": "Manage roles",
     "settings.manage": "Manage settings",
@@ -511,6 +511,7 @@ function permissionActionLabel(permission: string) {
     "export.attendance": "Export attendance",
     "export.member-visits": "Export member visits",
     "commissions.earn_sales": "Earn sales commission",
+    "reports.view_today": t("viewTodayReports"),
   };
 
   if (permissionLabels[permission]) {

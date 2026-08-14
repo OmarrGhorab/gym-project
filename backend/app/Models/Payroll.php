@@ -22,6 +22,8 @@ class Payroll extends Model
         'commissions_total',
         'bonuses',
         'deductions',
+        'absence_deductions',
+        'absence_snapshot',
         'manual_bonus_reason',
         'manual_deduction_reason',
         'net_salary',
@@ -34,6 +36,8 @@ class Payroll extends Model
         'commissions_total' => 'decimal:2',
         'bonuses' => 'decimal:2',
         'deductions' => 'decimal:2',
+        'absence_deductions' => 'decimal:2',
+        'absence_snapshot' => 'array',
         'net_salary' => 'decimal:2',
         'paid_at' => 'datetime',
     ];

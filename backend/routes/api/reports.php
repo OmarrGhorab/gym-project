@@ -10,14 +10,16 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('reports')->group(function (): void {
+    $viewReports = 'permission:reports.view|reports.view_today';
+
     Route::get('/overview', [ReportController::class, 'overview'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/financial', [ReportController::class, 'financial'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/finance-summary', [ReportController::class, 'financeSummary'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/live-attendance', [ReportController::class, 'liveAttendance'])
         ->middleware('permission:reports.view');
@@ -32,7 +34,7 @@ Route::prefix('reports')->group(function (): void {
         ->middleware('permission:reports.view');
 
     Route::get('/coach-extra-plans', [ReportController::class, 'coachExtraPlans'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/inventory-logistics', [ReportController::class, 'inventoryLogistics'])
         ->middleware('permission:reports.view');
@@ -53,20 +55,20 @@ Route::prefix('reports')->group(function (): void {
         ->middleware('permission:reports.view');
 
     Route::get('/employees', [ReportController::class, 'employees'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/classes-plans', [ReportController::class, 'classesPlans'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/products-finance', [ReportController::class, 'productsFinance'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/subs-shifts', [ReportController::class, 'subsShifts'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/income-outcome', [ReportController::class, 'incomeOutcome'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 
     Route::get('/member-subscriptions', [ReportController::class, 'memberSubscriptions'])
-        ->middleware('permission:reports.view');
+        ->middleware($viewReports);
 });

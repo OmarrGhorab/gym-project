@@ -93,6 +93,8 @@ function getHealthScore(health: MembershipPipelineRow["health"]) {
     case "renew_soon":
       return 11;
     case "needs_action":
+    case "sessions_exhausted":
+    case "period_ended_sessions_left":
       return 7;
     case "paused":
       return 4;
@@ -109,6 +111,8 @@ function getHealthColorClassName(health: MembershipPipelineRow["health"]) {
     case "renew_soon":
       return "bg-amber-500/85";
     case "needs_action":
+    case "sessions_exhausted":
+    case "period_ended_sessions_left":
       return "bg-red-500/85";
     case "paused":
       return "bg-slate-500/85";
@@ -1976,6 +1980,8 @@ export function translateHealth(value: string, t: CrmT) {
     value === "renewed" ||
     value === "renew_soon" ||
     value === "needs_action" ||
+    value === "sessions_exhausted" ||
+    value === "period_ended_sessions_left" ||
     value === "paused"
   ) {
     return t(`healthLabels.${value}`);
@@ -2025,6 +2031,14 @@ function translateHealthReason(subscription: MembershipPipelineRow, t: CrmT) {
 
   if (subscription.healthReason === "expired") {
     return t("healthReasons.expired");
+  }
+
+  if (subscription.healthReason === "sessions_exhausted") {
+    return t("healthReasons.sessionsExhausted", { count: subscription.daysLeft ?? 0 });
+  }
+
+  if (subscription.healthReason === "period_ended_sessions_left") {
+    return t("healthReasons.periodEndedSessionsLeft", { count: subscription.sessionsRemaining ?? 0 });
   }
 
   if (subscription.healthReason === "frozen") {

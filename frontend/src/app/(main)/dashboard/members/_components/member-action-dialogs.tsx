@@ -28,6 +28,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -528,13 +529,10 @@ export function MemberActionsMenu({
 }
 
 /**
- * Corrects a membership that was rung up wrong: the wrong dates, or the wrong
- * price for this member. This is the member's own membership, not the plan in
- * the catalogue — changing the plan's price here would reprice everyone on it.
- *
- * Money already collected is deliberately not editable. It counted toward a
- * day's revenue and a cashier's shift, so it is settled through Add payment
- * rather than rewritten; correcting the price is what moves the balance.
+ * Corrects the member-specific snapshot captured at checkout: schedule,
+ * session allowance, price/discount, and cancellation window. Plan identity,
+ * lifecycle transitions, and collected money keep their dedicated audited
+ * workflows instead of being silently rewritten by this form.
  */
 export function MemberEditMembershipDialog({
   member,
@@ -551,7 +549,23 @@ export function MemberEditMembershipDialog({
   const subscription = member.latest_subscription;
   const [startDate, setStartDate] = React.useState(subscription?.start_date ?? "");
   const [endDate, setEndDate] = React.useState(subscription?.end_date ?? "");
+  const [durationDays, setDurationDays] = React.useState(
+    String(calculateMembershipDurationDays(subscription?.start_date, subscription?.end_date) ?? ""),
+  );
   const [price, setPrice] = React.useState(String(subscription?.price_paid ?? "0"));
+  const [discount, setDiscount] = React.useState(String(subscription?.discount ?? "0"));
+  const [cancellationGraceDays, setCancellationGraceDays] = React.useState(
+    String(subscription?.cancellation_grace_days ?? 2),
+  );
+  const [unlimitedSessions, setUnlimitedSessions] = React.useState(
+    subscription?.sessions_total == null && subscription?.sessions_remaining == null,
+  );
+  const [sessionsTotal, setSessionsTotal] = React.useState(
+    subscription?.sessions_total == null ? "" : String(subscription.sessions_total),
+  );
+  const [sessionsRemaining, setSessionsRemaining] = React.useState(
+    subscription?.sessions_remaining == null ? "" : String(subscription.sessions_remaining),
+  );
 
   React.useEffect(() => {
     if (!open) {
@@ -562,27 +576,114 @@ export function MemberEditMembershipDialog({
     // from the last time it was opened and dismissed.
     setStartDate(subscription?.start_date ?? "");
     setEndDate(subscription?.end_date ?? "");
+    setDurationDays(String(calculateMembershipDurationDays(subscription?.start_date, subscription?.end_date) ?? ""));
     setPrice(String(subscription?.price_paid ?? "0"));
-  }, [open, subscription?.start_date, subscription?.end_date, subscription?.price_paid]);
+    setDiscount(String(subscription?.discount ?? "0"));
+    setCancellationGraceDays(String(subscription?.cancellation_grace_days ?? 2));
+    setUnlimitedSessions(subscription?.sessions_total == null && subscription?.sessions_remaining == null);
+    setSessionsTotal(subscription?.sessions_total == null ? "" : String(subscription.sessions_total));
+    setSessionsRemaining(subscription?.sessions_remaining == null ? "" : String(subscription.sessions_remaining));
+  }, [
+    open,
+    subscription?.cancellation_grace_days,
+    subscription?.discount,
+    subscription?.end_date,
+    subscription?.price_paid,
+    subscription?.sessions_remaining,
+    subscription?.sessions_total,
+    subscription?.start_date,
+  ]);
 
   const paidSoFar = Number(subscription?.paid_total ?? 0);
   const nextPrice = Number(price);
-  const hasValidPrice = Number.isFinite(nextPrice) && nextPrice >= 0;
+  const nextDiscount = Number(discount);
+  const hasValidPrice = price.trim() !== "" && Number.isFinite(nextPrice) && nextPrice >= 0;
+  const hasValidDiscount = discount.trim() !== "" && Number.isFinite(nextDiscount) && nextDiscount >= 0;
   const nextBalance = hasValidPrice ? Math.max(0, nextPrice - paidSoFar) : 0;
+  const parsedDurationDays = parseNonNegativeInteger(durationDays);
+  const parsedCancellationGraceDays = parseNonNegativeInteger(cancellationGraceDays);
+  const parsedSessionsTotal = parseNonNegativeInteger(sessionsTotal);
+  const parsedSessionsRemaining = parseNonNegativeInteger(sessionsRemaining);
+  const hasValidSessions =
+    unlimitedSessions ||
+    (parsedSessionsTotal !== null &&
+      parsedSessionsRemaining !== null &&
+      parsedSessionsRemaining <= parsedSessionsTotal);
+  const sessionsRemainingExceedsTotal =
+    !unlimitedSessions &&
+    parsedSessionsTotal !== null &&
+    parsedSessionsRemaining !== null &&
+    parsedSessionsRemaining > parsedSessionsTotal;
+  const sessionsUsed =
+    !unlimitedSessions && parsedSessionsTotal !== null && parsedSessionsRemaining !== null
+      ? Math.max(0, parsedSessionsTotal - parsedSessionsRemaining)
+      : null;
   const endsBeforeStart = Boolean(startDate && endDate && endDate < startDate);
+  const hasValidSchedule = Boolean(startDate && endDate && parsedDurationDays !== null && !endsBeforeStart);
+  const canSubmit =
+    Boolean(subscription?.id) &&
+    hasValidSchedule &&
+    hasValidPrice &&
+    hasValidDiscount &&
+    parsedCancellationGraceDays !== null &&
+    hasValidSessions;
+  let endDateError: string | undefined;
+  let sessionsRemainingError: string | undefined;
+
+  if (!endDate) {
+    endDateError = t("dateRequired");
+  } else if (endsBeforeStart) {
+    endDateError = t("endBeforeStart");
+  }
+
+  if (parsedSessionsRemaining === null) {
+    sessionsRemainingError = t("wholeNumberRequired");
+  } else if (sessionsRemainingExceedsTotal) {
+    sessionsRemainingError = t("sessionsRemainingExceedsTotal");
+  }
+
+  function changeStartDate(value: string) {
+    setStartDate(value);
+
+    const parsedStart = parseDateOnly(value);
+
+    if (parsedStart && parsedDurationDays !== null) {
+      setEndDate(formatDateOnly(addDays(parsedStart, parsedDurationDays)));
+    }
+  }
+
+  function changeEndDate(value: string) {
+    setEndDate(value);
+    const nextDuration = calculateMembershipDurationDays(startDate, value);
+    setDurationDays(nextDuration === null ? "" : String(nextDuration));
+  }
+
+  function changeDurationDays(value: string) {
+    setDurationDays(value);
+    const nextDuration = parseNonNegativeInteger(value);
+    const parsedStart = parseDateOnly(startDate);
+
+    if (parsedStart && nextDuration !== null) {
+      setEndDate(formatDateOnly(addDays(parsedStart, nextDuration)));
+    }
+  }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!subscription?.id || !hasValidPrice || endsBeforeStart) {
+    if (!subscription?.id || !canSubmit || parsedCancellationGraceDays === null) {
       return;
     }
 
     startTransition(async () => {
       const result = await correctMembershipSubscription(subscription.id, {
-        start_date: startDate,
+        cancellation_grace_days: parsedCancellationGraceDays,
+        discount,
         end_date: endDate,
         price_paid: price,
+        sessions_remaining: unlimitedSessions ? null : parsedSessionsRemaining,
+        sessions_total: unlimitedSessions ? null : parsedSessionsTotal,
+        start_date: startDate,
       });
 
       if (!result.ok) {
@@ -598,59 +699,177 @@ export function MemberEditMembershipDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("editMembership")}</DialogTitle>
           <DialogDescription>
             {t("editMembershipDescription", { plan: subscription?.plan_name ?? t("noActivePlan") })}
           </DialogDescription>
         </DialogHeader>
-        <form className="grid gap-4" onSubmit={submit}>
-          <div className="grid gap-2">
-            <Label htmlFor="edit-membership-start">{t("startDate")}</Label>
-            <FormDatePicker
-              id="edit-membership-start"
-              name="start_date"
-              value={startDate}
-              onValueChange={setStartDate}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="edit-membership-end">{t("endDate")}</Label>
-            <FormDatePicker
-              id="edit-membership-end"
-              name="end_date"
-              value={endDate}
-              onValueChange={setEndDate}
-              error={endsBeforeStart ? t("endBeforeStart") : undefined}
-            />
-          </div>
-          <Field
-            label={t("membershipPrice")}
-            name="price_paid"
-            type="number"
-            required
-            value={price}
-            onChange={(event) => setPrice(event.currentTarget.value)}
-          />
-          <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{t("paidSoFar")}</span>
-              <span className="font-medium">{formatCurrency(paidSoFar, { currency: "EGP" })}</span>
+        <form className="flex min-h-0 flex-1 flex-col gap-4" onSubmit={submit}>
+          <div className="-mx-4 grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4">
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="font-medium text-sm">{subscription?.plan_name ?? t("noActivePlan")}</p>
+              <p className="mt-1 text-muted-foreground text-xs">{t("editMembershipPlanHint")}</p>
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{t("balanceDue")}</span>
-              <span className={cn("font-medium", nextBalance > 0 && "text-amber-600 dark:text-amber-400")}>
-                {formatCurrency(nextBalance, { currency: "EGP" })}
-              </span>
+
+            <div className="grid gap-3 rounded-lg border p-4">
+              <div>
+                <p className="font-medium text-sm">{t("membershipSchedule")}</p>
+                <p className="text-muted-foreground text-xs">{t("membershipScheduleHelp")}</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-membership-start">{t("startDate")}</Label>
+                  <FormDatePicker
+                    id="edit-membership-start"
+                    name="start_date"
+                    value={startDate}
+                    onValueChange={changeStartDate}
+                    error={!startDate ? t("dateRequired") : undefined}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-membership-end">{t("endDate")}</Label>
+                  <FormDatePicker
+                    id="edit-membership-end"
+                    name="end_date"
+                    value={endDate}
+                    onValueChange={changeEndDate}
+                    error={endDateError}
+                  />
+                </div>
+                <Field
+                  error={parsedDurationDays === null ? t("wholeNumberRequired") : undefined}
+                  help={t("durationDaysHelp")}
+                  label={t("durationDays")}
+                  min="0"
+                  name="duration_days"
+                  onChange={(event) => changeDurationDays(event.currentTarget.value)}
+                  required
+                  step="1"
+                  type="number"
+                  value={durationDays}
+                />
+              </div>
             </div>
-            <p className="text-muted-foreground text-xs">{t("editMembershipPaymentsHint")}</p>
+
+            <div className="grid gap-3 rounded-lg border p-4">
+              <div>
+                <p className="font-medium text-sm">{t("sessionAccess")}</p>
+                <p className="text-muted-foreground text-xs">{t("sessionAccessHelp")}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-membership-unlimited"
+                  checked={unlimitedSessions}
+                  onCheckedChange={(checked) => setUnlimitedSessions(checked === true)}
+                />
+                <Label htmlFor="edit-membership-unlimited">{t("unlimitedSessionAccess")}</Label>
+              </div>
+              {!unlimitedSessions ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    error={parsedSessionsTotal === null ? t("wholeNumberRequired") : undefined}
+                    label={t("sessionsTotal")}
+                    min="0"
+                    name="sessions_total"
+                    onChange={(event) => setSessionsTotal(event.currentTarget.value)}
+                    required
+                    step="1"
+                    type="number"
+                    value={sessionsTotal}
+                  />
+                  <Field
+                    error={sessionsRemainingError}
+                    label={t("sessionsRemainingEdit")}
+                    min="0"
+                    name="sessions_remaining"
+                    onChange={(event) => setSessionsRemaining(event.currentTarget.value)}
+                    required
+                    step="1"
+                    type="number"
+                    value={sessionsRemaining}
+                  />
+                  {sessionsUsed !== null ? (
+                    <p className="text-muted-foreground text-xs sm:col-span-2">
+                      {t("sessionsUsedSummary", { count: sessionsUsed })}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 rounded-lg border p-4">
+              <div>
+                <p className="font-medium text-sm">{t("membershipBilling")}</p>
+                <p className="text-muted-foreground text-xs">{t("membershipBillingHelp")}</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  error={!hasValidPrice ? t("nonNegativeAmountRequired") : undefined}
+                  label={t("membershipPrice")}
+                  min="0"
+                  name="price_paid"
+                  onChange={(event) => setPrice(event.currentTarget.value)}
+                  required
+                  step="0.01"
+                  type="number"
+                  value={price}
+                />
+                <Field
+                  error={!hasValidDiscount ? t("nonNegativeAmountRequired") : undefined}
+                  help={t("recordedDiscountHelp")}
+                  label={t("recordedDiscount")}
+                  min="0"
+                  name="discount"
+                  onChange={(event) => setDiscount(event.currentTarget.value)}
+                  required
+                  step="0.01"
+                  type="number"
+                  value={discount}
+                />
+              </div>
+              <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">{t("paidSoFar")}</span>
+                  <span className="font-medium">{formatCurrency(paidSoFar, { currency: "EGP" })}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">{t("balanceDue")}</span>
+                  <span className={cn("font-medium", nextBalance > 0 && "text-amber-600 dark:text-amber-400")}>
+                    {formatCurrency(nextBalance, { currency: "EGP" })}
+                  </span>
+                </div>
+                <p className="text-muted-foreground text-xs">{t("editMembershipPaymentsHint")}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 rounded-lg border p-4">
+              <div>
+                <p className="font-medium text-sm">{t("membershipRules")}</p>
+                <p className="text-muted-foreground text-xs">{t("membershipRulesHelp")}</p>
+              </div>
+              <Field
+                error={parsedCancellationGraceDays === null ? t("wholeNumberRequired") : undefined}
+                help={t("cancellationGraceDaysEditHelp")}
+                label={t("cancellationGraceDaysEdit")}
+                max="3650"
+                min="0"
+                name="cancellation_grace_days"
+                onChange={(event) => setCancellationGraceDays(event.currentTarget.value)}
+                required
+                step="1"
+                type="number"
+                value={cancellationGraceDays}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("cancel")}
             </Button>
-            <Button type="submit" disabled={pending || !hasValidPrice || endsBeforeStart}>
+            <Button type="submit" disabled={pending || !canSubmit}>
               {pending ? t("working") : t("saveChanges")}
             </Button>
           </DialogFooter>
@@ -2636,6 +2855,36 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
+function calculateMembershipDurationDays(startDate?: string | null, endDate?: string | null) {
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  const start = startDate.split("-").map(Number);
+  const end = endDate.split("-").map(Number);
+
+  if (start.length !== 3 || end.length !== 3 || start.some(Number.isNaN) || end.some(Number.isNaN)) {
+    return null;
+  }
+
+  const startUtc = Date.UTC(start[0], start[1] - 1, start[2]);
+  const endUtc = Date.UTC(end[0], end[1] - 1, end[2]);
+
+  return Math.round((endUtc - startUtc) / 86_400_000);
+}
+
+function parseNonNegativeInteger(value: string) {
+  const normalized = value.trim();
+
+  if (!/^\d+$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function addMonthsNoOverflow(date: Date, months: number) {
   const targetMonth = date.getMonth() + months;
   const lastDay = new Date(date.getFullYear(), targetMonth + 1, 0).getDate();
@@ -2868,21 +3117,29 @@ function mergeMemberFormValues(member: MemberRow | undefined, values: Record<str
 function Field({
   defaultValue,
   error,
+  help,
   label,
+  max,
+  min,
   name,
   onChange,
   readOnly = false,
   required = false,
+  step,
   type = "text",
   value,
 }: {
   defaultValue?: string | null;
   error?: string;
+  help?: string;
   label: string;
+  max?: string;
+  min?: string;
   name: string;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
   readOnly?: boolean;
   required?: boolean;
+  step?: string;
   type?: string;
   value?: string;
 }) {
@@ -2894,12 +3151,16 @@ function Field({
         name={name}
         type={type}
         defaultValue={value === undefined ? (defaultValue ?? "") : undefined}
+        max={max}
+        min={min}
+        step={step}
         value={value}
         onChange={onChange}
         readOnly={readOnly}
         required={required}
         aria-invalid={Boolean(error)}
       />
+      {help ? <p className="text-muted-foreground text-xs">{help}</p> : null}
       <FieldError errors={error ? [{ message: error }] : undefined} />
     </div>
   );

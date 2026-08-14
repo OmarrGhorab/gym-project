@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 
-import { format as formatDateFns, subDays } from "date-fns";
+import { format as formatDateFns, parseISO, subDays } from "date-fns";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { canAccess } from "@/lib/authorization";
 import { getCurrentUser } from "@/lib/session";
-import { GYM_TIME_ZONE } from "@/lib/timezone";
+import { GYM_TIME_ZONE, getGymTodayString } from "@/lib/timezone";
 
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
 import { getFinanceDashboardData } from "./_components/data";
@@ -22,12 +22,12 @@ import { TransactionsOverviewCard } from "./_components/transactions-overview-ca
 import { UpcomingTransactions } from "./_components/upcoming-transactions";
 import { Wallet } from "./_components/wallet";
 
-function defaultFrom() {
-  return formatDateFns(subDays(new Date(), 364), "yyyy-MM-dd");
+function defaultFrom(today: string) {
+  return formatDateFns(subDays(parseISO(today), 364), "yyyy-MM-dd");
 }
 
 function defaultTo() {
-  return formatDateFns(new Date(), "yyyy-MM-dd");
+  return getGymTodayString();
 }
 
 export default async function Page({
@@ -39,28 +39,44 @@ export default async function Page({
   const locale = await getLocale();
   const user = await getCurrentUser();
   const { from, to, group_by, tab } = await searchParams;
-  const resolvedFrom = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : defaultFrom();
-  const resolvedTo = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : defaultTo();
-  const groupBy = group_by === "day" ? "day" : "month";
-  const canExportReports = user ? canAccess(user, "export.reports") : false;
+  const today = defaultTo();
+  const hasFullReports = user ? canAccess(user, "reports.view") : false;
+  const todayOnly = Boolean(user && !hasFullReports && canAccess(user, "reports.view_today"));
+  const requestedFrom = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : defaultFrom(today);
+  const requestedTo = to && /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : today;
+  const resolvedFrom = todayOnly ? today : requestedFrom;
+  const resolvedTo = todayOnly ? today : requestedTo;
+  const groupBy = todayOnly || group_by === "day" ? "day" : "month";
+  const canExportReports = !todayOnly && Boolean(user && canAccess(user, "export.reports"));
   const canRecordExpense = user ? canAccess(user, "expenses.create") : false;
+  const canCollectDue = user ? canAccess(user, "payments.create") : false;
+  const canViewExpenses = user ? canAccess(user, "expenses.view") : false;
+  const canViewPayments = user ? canAccess(user, "payments.view") : false;
+  const canUseShiftDesk = canRecordExpense || canCollectDue || canViewExpenses || canViewPayments;
   const quickActionPermissions = {
-    canCollectDue: user ? canAccess(user, "payments.create") : false,
+    canCollectDue: !todayOnly && canCollectDue,
     canExport: canExportReports,
     canRecordExpense,
-    canDeleteExpense: user ? canAccess(user, "expenses.delete") : false,
-    canUpdateExpense: user ? canAccess(user, "expenses.update") : false,
-    canViewExpenses: user ? canAccess(user, "expenses.view") : false,
-    canViewPayments: user ? canAccess(user, "payments.view") : false,
-    canViewPayroll: user ? canAccess(user, "payroll.view") : false,
-    canViewReports: user ? canAccess(user, "reports.view") : false,
+    canDeleteExpense: !todayOnly && Boolean(user && canAccess(user, "expenses.delete")),
+    canUpdateExpense: !todayOnly && Boolean(user && canAccess(user, "expenses.update")),
+    canViewExpenses: !todayOnly && canViewExpenses,
+    canViewPayments: !todayOnly && canViewPayments,
+    canViewPayroll: !todayOnly && Boolean(user && canAccess(user, "payroll.view")),
+    canViewReports: hasFullReports || todayOnly,
   };
-  const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy, quickActionPermissions);
+  const data = await getFinanceDashboardData(resolvedFrom, resolvedTo, groupBy, {
+    ...quickActionPermissions,
+    canCollectDue,
+    canUseShiftDesk,
+    canViewExpenses,
+    canViewPayments,
+    todayOnly,
+  });
   const canViewLedger =
     quickActionPermissions.canViewPayments ||
     quickActionPermissions.canCollectDue ||
     quickActionPermissions.canViewExpenses;
-  const canOperateShiftDesk = quickActionPermissions.canRecordExpense || quickActionPermissions.canCollectDue;
+  const canOperateShiftDesk = canRecordExpense || canCollectDue;
   const canReviewShiftDesk =
     quickActionPermissions.canUpdateExpense || (user ? canAccess(user, "settings.manage") : false);
   const formattedDate = new Intl.DateTimeFormat(locale, { dateStyle: "full", timeZone: GYM_TIME_ZONE }).format(
@@ -73,21 +89,17 @@ export default async function Page({
         <p className="text-muted-foreground text-sm">{formattedDate}</p>
       </div>
 
-      {quickActionPermissions.canViewExpenses ||
-      quickActionPermissions.canViewPayments ||
-      quickActionPermissions.canCollectDue ? (
-        <>
-          <ShiftDesk
-            currentSession={data.shiftDesk.current}
-            historySessions={data.shiftDesk.history}
-            pendingSessions={data.shiftDesk.pending}
-            shifts={data.shiftDesk.shifts}
-            requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
-            requireCashCount={data.shiftDesk.requireCashCount}
-            canOperate={canOperateShiftDesk}
-            canReview={canReviewShiftDesk}
-          />
-        </>
+      {canUseShiftDesk ? (
+        <ShiftDesk
+          currentSession={data.shiftDesk.current}
+          historySessions={data.shiftDesk.history}
+          pendingSessions={data.shiftDesk.pending}
+          shifts={data.shiftDesk.shifts}
+          requireHandoverToOpen={data.shiftDesk.requireHandoverToOpen}
+          requireCashCount={data.shiftDesk.requireCashCount}
+          canOperate={canOperateShiftDesk}
+          canReview={canReviewShiftDesk}
+        />
       ) : null}
 
       <Tabs defaultValue={tab === "ledger" && canViewLedger ? "ledger" : "30-days"} className="flex flex-col gap-4">
@@ -98,14 +110,20 @@ export default async function Page({
           </TabsList>
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-            <Suspense>
-              <FinanceFilters
-                defaults={{
-                  from: resolvedFrom,
-                  to: resolvedTo,
-                }}
-              />
-            </Suspense>
+            {todayOnly ? (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-muted-foreground text-sm">
+                {t("todayOnlyAccess")}
+              </div>
+            ) : (
+              <Suspense>
+                <FinanceFilters
+                  defaults={{
+                    from: resolvedFrom,
+                    to: resolvedTo,
+                  }}
+                />
+              </Suspense>
+            )}
             <Suspense>
               <FinanceToolbarActions
                 canExport={canExportReports}

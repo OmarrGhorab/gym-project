@@ -25,12 +25,16 @@ const initialPayrollState: PayrollActionState = {
 };
 
 export function PayrollAdjustmentForm({
+  absenceCount,
+  absenceDeductions,
   bonuses,
   deductions,
   id,
   manualBonusReason,
   manualDeductionReason,
 }: {
+  absenceCount: number;
+  absenceDeductions: string;
   bonuses: string;
   deductions: string;
   id: number;
@@ -138,6 +142,10 @@ export function PayrollAdjustmentForm({
         />
         <FieldError errors={state.errors.manual_deduction_reason} />
       </label>
+      <div className="col-span-2 flex items-center justify-between rounded-md border bg-muted/30 px-2 py-1.5 text-xs">
+        <span className="text-muted-foreground">{t("absenceDaysCount", { count: absenceCount })}</span>
+        <span className="font-medium tabular-nums">{t("absenceDeductionValue", { value: absenceDeductions })}</span>
+      </div>
       <div className="flex items-end">
         <Button className="w-full" type="submit" size="sm" variant="outline" disabled={pending}>
           {pending ? t("saving") : t("save")}

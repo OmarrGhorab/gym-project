@@ -247,7 +247,7 @@ class FinanceDetailedExportData
                 'base_salary' => (float) $row->base_salary,
                 'commissions_total' => (float) $row->commissions_total,
                 'bonuses' => (float) $row->bonuses,
-                'deductions' => (float) $row->deductions,
+                'deductions' => (float) $row->deductions + (float) $row->absence_deductions,
                 'net_salary' => (float) $row->net_salary,
                 'status' => $this->normalizeLabel($row->status, $locale),
                 'paid_at' => $this->dateTime($row->paid_at),

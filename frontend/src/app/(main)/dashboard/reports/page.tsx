@@ -1,4 +1,7 @@
 import { serverApiFetch } from "@/lib/api/server";
+import { canAccess } from "@/lib/authorization";
+import { getCurrentUser } from "@/lib/session";
+import { getGymTodayString } from "@/lib/timezone";
 
 import { ReportViewClient } from "./_components/report-view-client";
 
@@ -18,8 +21,13 @@ export default async function ReportsPage({
 }) {
   const query = await searchParams;
   const activeType = query.type ?? "overview";
-  const from = query.from ?? "";
-  const to = query.to ?? "";
+  const user = await getCurrentUser();
+  const hasFullReports = user ? canAccess(user, "reports.view") : false;
+  const todayOnly = Boolean(user && !hasFullReports && canAccess(user, "reports.view_today"));
+  const today = getGymTodayString();
+  const from = todayOnly ? today : (query.from ?? "");
+  const to = todayOnly ? today : (query.to ?? "");
+  const effectiveQuery = todayOnly ? { type: activeType, from, to } : query;
 
   let initialData: Record<string, unknown> = {};
 
@@ -38,26 +46,26 @@ export default async function ReportsPage({
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/coach-extra-plans?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "classes_plans") {
-      if (query.status) params.set("status", query.status);
+      if (!todayOnly && query.status) params.set("status", query.status);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/classes-plans?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "products_finance") {
-      if (query.category) params.set("category", query.category);
-      if (query.search) params.set("search", query.search);
-      if (query.payment_method) params.set("payment_method", query.payment_method);
+      if (!todayOnly && query.category) params.set("category", query.category);
+      if (!todayOnly && query.search) params.set("search", query.search);
+      if (!todayOnly && query.payment_method) params.set("payment_method", query.payment_method);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/products-finance?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "member_subscriptions") {
-      if (query.status) params.set("status", query.status);
-      if (query.search) params.set("search", query.search);
+      if (!todayOnly && query.status) params.set("status", query.status);
+      if (!todayOnly && query.search) params.set("search", query.search);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/member-subscriptions?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "subs_shifts") {
-      if (query.status) params.set("status", query.status);
+      if (!todayOnly && query.status) params.set("status", query.status);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/subs-shifts?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "income_outcome") {
-      if (query.group_by) params.set("group_by", query.group_by);
+      if (!todayOnly && query.group_by) params.set("group_by", query.group_by);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/income-outcome?${params.toString()}`);
       initialData = res.data;
     }
@@ -74,7 +82,13 @@ export default async function ReportsPage({
         </p>
       </div>
 
-      <ReportViewClient initialType={activeType} initialQuery={query} initialData={initialData} />
+      <ReportViewClient
+        initialType={activeType}
+        initialQuery={effectiveQuery}
+        initialData={initialData}
+        todayOnly={todayOnly}
+        today={today}
+      />
     </div>
   );
 }

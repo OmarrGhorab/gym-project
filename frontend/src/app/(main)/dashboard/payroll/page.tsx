@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { format } from "date-fns";
-import { Banknote, ReceiptText } from "lucide-react";
+import { Banknote, CalendarX2, ReceiptText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +26,7 @@ export default async function Page({ searchParams }: PageProps) {
   const rows = await getPayrollPageData(defaultMonth);
   const pending = rows.filter((row) => row.status === "pending");
   const totalPending = pending.reduce((sum, row) => sum + Number(row.net_salary), 0);
-  const totalDeductions = rows.reduce((sum, row) => sum + Number(row.deductions), 0);
+  const totalDeductions = rows.reduce((sum, row) => sum + Number(row.total_deductions), 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -33,16 +35,26 @@ export default async function Page({ searchParams }: PageProps) {
           <h1 className="text-3xl tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <PayrollGenerateForm>
-          <div className="space-y-1">
-            <Label htmlFor="month">{t("payrollMonth")}</Label>
-            <PayrollMonthPicker defaultMonth={defaultMonth} />
-          </div>
-          <Button type="submit">
-            <Banknote />
-            {t("generate")}
+        <div className="flex flex-wrap items-end gap-2">
+          <Button
+            nativeButton={false}
+            render={<Link href={`/dashboard/absences?month=${defaultMonth}`} />}
+            variant="outline"
+          >
+            <CalendarX2 />
+            {t("manageAbsences")}
           </Button>
-        </PayrollGenerateForm>
+          <PayrollGenerateForm>
+            <div className="space-y-1">
+              <Label htmlFor="month">{t("payrollMonth")}</Label>
+              <PayrollMonthPicker defaultMonth={defaultMonth} />
+            </div>
+            <Button type="submit">
+              <Banknote />
+              {t("generate")}
+            </Button>
+          </PayrollGenerateForm>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -103,6 +115,8 @@ export default async function Page({ searchParams }: PageProps) {
                     <PayrollAdjustmentForm
                       bonuses={row.bonuses}
                       deductions={row.deductions}
+                      absenceCount={row.absence_count}
+                      absenceDeductions={row.absence_deductions}
                       id={row.id}
                       manualBonusReason={row.manual_bonus_reason ?? undefined}
                       manualDeductionReason={row.manual_deduction_reason ?? undefined}

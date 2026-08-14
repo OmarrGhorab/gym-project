@@ -14,6 +14,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CreditCard,
+  ListFilter,
   Search,
   UsersRound,
 } from "lucide-react";
@@ -45,6 +46,8 @@ const statusValues = ["all", "active", "expired", "frozen", "stopped", "inactive
 // row but not filtered on — the filter goes back to the database column.
 const statusLabelValues = [...statusValues.filter((value) => value !== "all"), "scheduled"] as const;
 const billingValues = ["all", "paid", "pending", "overdue", "trial"] as const;
+const renewalAttentionValues = ["sessions_exhausted", "period_ended_sessions_left"] as const;
+const sessionTimingStatusValues = [...renewalAttentionValues, "on_track", "not_applicable"] as const;
 const joinedDateValues = ["all", "30", "90"] as const;
 const sortValues = ["newest", "oldest", "name-asc", "name-desc"] as const;
 
@@ -80,6 +83,7 @@ export function RecentCustomersTable({
     joinedWindow: false,
   });
   const statusFilter = query.status ?? "all";
+  const renewalAttentionFilter = query.renewalAttention ?? "all";
   const billingFilter = query.billing ?? "all";
   const joinedDateFilter = query.joinedWindow ?? "all";
   const sortValue = query.sort ?? "newest";
@@ -136,6 +140,13 @@ export function RecentCustomersTable({
       })),
     [t],
   );
+  const renewalAttentionOptions = React.useMemo(
+    () => [
+      { value: "all", label: t("filters.allSessionTiming") },
+      ...renewalAttentionValues.map((value) => ({ value, label: t(`filters.${value}`) })),
+    ],
+    [t],
+  );
   const joinedDateOptions = React.useMemo(
     () =>
       joinedDateValues.map((value) => ({
@@ -172,6 +183,14 @@ export function RecentCustomersTable({
           plan: t("plan"),
           selectAll: t("selectAll"),
           selectMember: (values) => t("selectMember", values),
+          sessionTiming: t("sessionTiming"),
+          sessionTimingDetails: {
+            sessions_exhausted: (count) => t("sessionTimingDetails.sessions_exhausted", { count }),
+            period_ended_sessions_left: (count) => t("sessionTimingDetails.period_ended_sessions_left", { count }),
+          },
+          sessionTimingStatuses: Object.fromEntries(
+            sessionTimingStatusValues.map((value) => [value, t(`sessionTimingStatuses.${value}`)]),
+          ),
           status: t("status"),
           statuses: Object.fromEntries(statusLabelValues.map((value) => [value, t(`statuses.${value}`)])),
         },
@@ -280,6 +299,26 @@ export function RecentCustomersTable({
                 {statusOptions.map((status) => (
                   <DropdownMenuRadioItem key={status.value} value={status.value} className="whitespace-nowrap">
                     {status.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <ListFilter />
+              {t("sessionTiming")}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64" align="start">
+              <DropdownMenuRadioGroup
+                value={renewalAttentionFilter}
+                onValueChange={(value) => {
+                  updateMembersQuery({ renewal: value });
+                }}
+              >
+                {renewalAttentionOptions.map((option) => (
+                  <DropdownMenuRadioItem key={option.value} value={option.value} className="whitespace-nowrap">
+                    {option.label}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>

@@ -73,7 +73,7 @@ final class ProductsFinanceReport
             ->when($paymentMethod, fn ($q) => $q->where('payment_method', $paymentMethod))
             ->latest();
 
-        if ($salesQuery->count() === 0 && ! $paymentMethod) {
+        if ($salesQuery->count() === 0 && ! $paymentMethod && ! isset($params['from'], $params['to'])) {
             $salesQuery = Sale::query()
                 ->with(['items.product', 'member:id,name', 'soldBy:id,name'])
                 ->completed()

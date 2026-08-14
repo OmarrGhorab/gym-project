@@ -15,7 +15,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 class GeneratePayslip
 {
-    public function __construct(private readonly BuildPayslipBreakdown $buildBreakdown) {}
+    public function __construct(
+        private readonly BuildPayslipBreakdown $buildBreakdown,
+        private readonly BuildAbsenceBreakdown $absenceBreakdown,
+        private readonly GeneratePayroll $payrollGenerator,
+    ) {}
 
     /**
      * Generate HTML, PDF, or JSON payslip for a payroll record.
@@ -24,6 +28,11 @@ class GeneratePayslip
     {
         try {
             $payroll->load(['employee.shift']);
+
+            if ($payroll->status === 'pending') {
+                $this->payrollGenerator->refreshPendingPayroll($payroll, $payroll->employee);
+                $payroll->refresh()->load(['employee.shift']);
+            }
 
             $monthCommissions = Commission::where('employee_id', $payroll->employee_id)
                 ->where('month', $payroll->month)
@@ -43,6 +52,14 @@ class GeneratePayslip
                 ])
                 ->get();
             $payroll->setRelation('monthAttendance', $attendanceRows);
+            $absenceRows = $payroll->absence_snapshot;
+
+            if ($absenceRows === null) {
+                $absenceRows = $this->absenceBreakdown
+                    ->execute($payroll->employee_id, $payroll->month)['rows'];
+            }
+
+            $payroll->setRelation('absenceBreakdown', collect($absenceRows));
             $breakdown = $this->buildBreakdown->execute(
                 $payroll,
                 $monthCommissions,

@@ -24,6 +24,9 @@ class AttendanceFactory extends Factory
             'status' => 'present',
             'scan_method' => 'manual',
             'notes' => null,
+            'absence_reason' => null,
+            'absence_deduction_amount' => '0.00',
+            'absence_recorded_by' => null,
         ];
     }
 

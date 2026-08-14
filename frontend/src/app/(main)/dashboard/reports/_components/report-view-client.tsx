@@ -46,6 +46,8 @@ type ReportViewClientProps = {
   initialType: string;
   initialQuery: Record<string, string | undefined>;
   initialData: Record<string, unknown>;
+  today: string;
+  todayOnly: boolean;
 };
 
 // Labels like "Member Subscriptions" cannot sit on one line in a narrow grid
@@ -53,18 +55,19 @@ type ReportViewClientProps = {
 const reportTabTriggerClass =
   "h-auto min-w-0 flex-col gap-1 whitespace-normal px-2 py-1.5 text-center text-xs leading-tight sm:flex-row sm:gap-2 sm:text-sm";
 
-export function ReportViewClient({ initialType, initialQuery, initialData }: ReportViewClientProps) {
+export function ReportViewClient({ initialType, initialQuery, initialData, today, todayOnly }: ReportViewClientProps) {
+  const reportsT = useTranslations("Dashboard.reports");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   const activeTab = searchParams.get("type") ?? initialType;
-  const fromDate = searchParams.get("from") ?? initialQuery.from ?? "";
-  const toDate = searchParams.get("to") ?? initialQuery.to ?? "";
-  const statusFilter = searchParams.get("status") ?? "";
-  const categoryFilter = searchParams.get("category") ?? "";
-  const searchFilter = searchParams.get("search") ?? "";
+  const fromDate = todayOnly ? today : (searchParams.get("from") ?? initialQuery.from ?? "");
+  const toDate = todayOnly ? today : (searchParams.get("to") ?? initialQuery.to ?? "");
+  const statusFilter = todayOnly ? "" : (searchParams.get("status") ?? "");
+  const categoryFilter = todayOnly ? "" : (searchParams.get("category") ?? "");
+  const searchFilter = todayOnly ? "" : (searchParams.get("search") ?? "");
   const dateRange = useMemo<DateRange | undefined>(() => {
     const from = parseReportDate(fromDate);
     const to = parseReportDate(toDate);
@@ -78,6 +81,19 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
   }, [fromDate, toDate]);
 
   function updateParams(newParams: Record<string, string | null | undefined>) {
+    if (todayOnly) {
+      const params = new URLSearchParams({
+        from: today,
+        to: today,
+        type: newParams.type ?? activeTab,
+      });
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+      return;
+    }
+
     const params = new URLSearchParams(searchParams.toString());
 
     for (const [key, value] of Object.entries(newParams)) {
@@ -180,53 +196,62 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
       </Tabs>
 
       {/* Calendar & Filter Controls Bar */}
-      <Card className="bg-muted/30">
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="me-2 flex items-center gap-1.5 font-semibold text-muted-foreground text-xs">
-                <Calendar className="size-4" /> Date Range:
-              </span>
-              <Button size="sm" variant="outline" onClick={() => handleQuickDate(7)}>
-                Last 7 Days
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleQuickDate(30)}>
-                Last 30 Days
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleQuickDate("this_month")}>
-                This Month
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleQuickDate("last_month")}>
-                Last Month
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleQuickDate("ytd")}>
-                Year to Date
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <DateRangePicker
-                value={dateRange}
-                onChange={(range) =>
-                  updateParams({
-                    from: range?.from ? format(range.from, "yyyy-MM-dd") : null,
-                    to: range?.to ? format(range.to, "yyyy-MM-dd") : null,
-                  })
-                }
-              />
-              {(fromDate || toDate || statusFilter || categoryFilter || searchFilter) && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => updateParams({ from: null, to: null, status: null, category: null, search: null })}
-                >
-                  Clear Filters
+      {todayOnly ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex items-center gap-2 p-4 text-sm">
+            <Calendar className="size-4" />
+            <span>{reportsT("todayOnlyAccess", { date: today })}</span>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-muted/30">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="me-2 flex items-center gap-1.5 font-semibold text-muted-foreground text-xs">
+                  <Calendar className="size-4" /> Date Range:
+                </span>
+                <Button size="sm" variant="outline" onClick={() => handleQuickDate(7)}>
+                  Last 7 Days
                 </Button>
-              )}
+                <Button size="sm" variant="outline" onClick={() => handleQuickDate(30)}>
+                  Last 30 Days
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleQuickDate("this_month")}>
+                  This Month
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleQuickDate("last_month")}>
+                  Last Month
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleQuickDate("ytd")}>
+                  Year to Date
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={(range) =>
+                    updateParams({
+                      from: range?.from ? format(range.from, "yyyy-MM-dd") : null,
+                      to: range?.to ? format(range.to, "yyyy-MM-dd") : null,
+                    })
+                  }
+                />
+                {(fromDate || toDate || statusFilter || categoryFilter || searchFilter) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => updateParams({ from: null, to: null, status: null, category: null, search: null })}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Render Active Report View */}
       {activeTab === "overview" && <ReportsOverviewView data={initialData} />}
@@ -242,6 +267,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
           onStatusChange={(val) => updateParams({ status: val })}
           onExport={exportCSV}
           isPending={isPending}
+          canFilter={!todayOnly}
         />
       )}
 
@@ -256,6 +282,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
           onSearchChange={(val) => updateParams({ search: val })}
           onExport={exportCSV}
           isPending={isPending}
+          canFilter={!todayOnly}
         />
       )}
 
@@ -268,6 +295,7 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
           onSearchChange={(val) => updateParams({ search: val })}
           onExport={exportCSV}
           isPending={isPending}
+          canFilter={!todayOnly}
         />
       )}
 
@@ -278,11 +306,12 @@ export function ReportViewClient({ initialType, initialQuery, initialData }: Rep
           onStatusChange={(val) => updateParams({ status: val })}
           onExport={exportCSV}
           isPending={isPending}
+          canFilter={!todayOnly}
         />
       )}
 
       {activeTab === "income_outcome" && (
-        <IncomeOutcomeView data={initialData} onExport={exportCSV} isPending={isPending} />
+        <IncomeOutcomeView data={initialData} onExport={exportCSV} isPending={isPending} canFilter={!todayOnly} />
       )}
     </div>
   );
@@ -1068,12 +1097,14 @@ function ClassesPlansView({
   onStatusChange,
   onExport,
   isPending,
+  canFilter,
 }: {
   data: Record<string, unknown>;
   statusFilter: string;
   onStatusChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
+  canFilter: boolean;
 }) {
   const locale = useLocale();
   const totals = (data.totals as Record<string, unknown>) ?? {};
@@ -1189,9 +1220,11 @@ function ClassesPlansView({
             </CardTitle>
             <CardDescription>Members whose plan ends within 7 days or have ≤ 3 remaining sessions</CardDescription>
           </div>
-          <Button size="sm" variant="outline" onClick={handleExportEndingSoon}>
-            <Download className="me-1.5 size-4" /> Export Ending List
-          </Button>
+          {canFilter ? (
+            <Button size="sm" variant="outline" onClick={handleExportEndingSoon}>
+              <Download className="me-1.5 size-4" /> Export Ending List
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Table>
@@ -1401,26 +1434,28 @@ function ClassesPlansView({
             <CardTitle className="text-lg">Subscriptions & Members Details</CardTitle>
             <CardDescription>Individual subscription breakdown and session tracking</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <FormSelect
-              name="status"
-              defaultValue={statusFilter}
-              placeholder="All Statuses"
-              options={[
-                { label: "All Statuses", value: "" },
-                { label: "Active", value: "active" },
-                { label: "Ending Soon (Date & Sessions)", value: "ending_soon" },
-                { label: "Low Sessions (≤ 3 Left)", value: "low_sessions" },
-                { label: "Expiring by Date (7 Days)", value: "expiring_soon" },
-                { label: "Expired", value: "expired" },
-                { label: "Stopped", value: "stopped" },
-              ]}
-              onValueChange={(val) => onStatusChange(val)}
-            />
-            <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="me-1.5 size-4" /> Export CSV
-            </Button>
-          </div>
+          {canFilter ? (
+            <div className="flex items-center gap-2">
+              <FormSelect
+                name="status"
+                defaultValue={statusFilter}
+                placeholder="All Statuses"
+                options={[
+                  { label: "All Statuses", value: "" },
+                  { label: "Active", value: "active" },
+                  { label: "Ending Soon (Date & Sessions)", value: "ending_soon" },
+                  { label: "Low Sessions (≤ 3 Left)", value: "low_sessions" },
+                  { label: "Expiring by Date (7 Days)", value: "expiring_soon" },
+                  { label: "Expired", value: "expired" },
+                  { label: "Stopped", value: "stopped" },
+                ]}
+                onValueChange={(val) => onStatusChange(val)}
+              />
+              <Button size="sm" variant="outline" onClick={handleExport}>
+                <Download className="me-1.5 size-4" /> Export CSV
+              </Button>
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Table>
@@ -1634,6 +1669,7 @@ function ProductsFinanceView({
   onSearchChange,
   onExport,
   isPending,
+  canFilter,
 }: {
   data: Record<string, unknown>;
   categoryFilter: string;
@@ -1644,6 +1680,7 @@ function ProductsFinanceView({
   onSearchChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
+  canFilter: boolean;
 }) {
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const productsSummary = (data.products_summary as Record<string, unknown>[]) ?? [];
@@ -1718,21 +1755,23 @@ function ProductsFinanceView({
             <CardTitle className="text-lg">Products & Inventory Performance</CardTitle>
             <CardDescription>Sales volume and revenue per product</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-48">
-              <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search product..."
-                defaultValue={searchFilter}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="h-9 ps-8 text-xs"
-              />
+          {canFilter ? (
+            <div className="flex items-center gap-2">
+              <div className="relative w-48">
+                <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search product..."
+                  defaultValue={searchFilter}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="h-9 ps-8 text-xs"
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={handleExport}>
+                <Download className="me-1.5 size-4" /> Export CSV
+              </Button>
             </div>
-            <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="me-1.5 size-4" /> Export CSV
-            </Button>
-          </div>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Table>
@@ -1858,12 +1897,14 @@ function SubsShiftsView({
   onStatusChange,
   onExport,
   isPending,
+  canFilter,
 }: {
   data: Record<string, unknown>;
   statusFilter: string;
   onStatusChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
+  canFilter: boolean;
 }) {
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const shifts = (data.shifts as Record<string, unknown>[]) ?? [];
@@ -1979,23 +2020,25 @@ function SubsShiftsView({
             <CardTitle className="text-lg">Staff Shift Sessions Revenue Breakdown</CardTitle>
             <CardDescription>Money collected from subscriptions & POS per shift</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <FormSelect
-              name="status"
-              defaultValue={statusFilter}
-              placeholder="All Statuses"
-              options={[
-                { label: "All Statuses", value: "" },
-                { label: "Open", value: "open" },
-                { label: "Pending Review", value: "pending_review" },
-                { label: "Accepted", value: "accepted" },
-              ]}
-              onValueChange={(val) => onStatusChange(val)}
-            />
-            <Button size="sm" variant="outline" onClick={handleExport}>
-              <Download className="me-1.5 size-4" /> Export CSV
-            </Button>
-          </div>
+          {canFilter ? (
+            <div className="flex items-center gap-2">
+              <FormSelect
+                name="status"
+                defaultValue={statusFilter}
+                placeholder="All Statuses"
+                options={[
+                  { label: "All Statuses", value: "" },
+                  { label: "Open", value: "open" },
+                  { label: "Pending Review", value: "pending_review" },
+                  { label: "Accepted", value: "accepted" },
+                ]}
+                onValueChange={(val) => onStatusChange(val)}
+              />
+              <Button size="sm" variant="outline" onClick={handleExport}>
+                <Download className="me-1.5 size-4" /> Export CSV
+              </Button>
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Table>
@@ -2079,6 +2122,7 @@ function MemberSubscriptionsView({
   onSearchChange,
   onExport,
   isPending,
+  canFilter,
 }: {
   data: Record<string, unknown>;
   statusFilter: string;
@@ -2087,6 +2131,7 @@ function MemberSubscriptionsView({
   onSearchChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
+  canFilter: boolean;
 }) {
   const totals = asRecord(data.totals);
   const members = asRows(data.members);
@@ -2194,38 +2239,40 @@ function MemberSubscriptionsView({
           <div>
             <CardTitle className="text-lg">Members & latest subscription</CardTitle>
             <CardDescription>
-              Attendance, payments, plan window and staff for each member&apos;s most recent subscription. Open the
-              history to see every previous subscription.
+              Attendance, payments, plan window and staff for each member&apos;s most recent subscription.
+              {canFilter ? " Open the history to see every previous subscription." : ""}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-64 lg:w-80">
-              <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search by name, phone or QR code..."
-                defaultValue={searchFilter}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="h-9 ps-8 text-xs"
+          {canFilter ? (
+            <div className="flex items-center gap-2">
+              <div className="relative w-64 lg:w-80">
+                <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, phone or QR code..."
+                  defaultValue={searchFilter}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="h-9 ps-8 text-xs"
+                />
+              </div>
+              <FormSelect
+                name="status"
+                defaultValue={statusFilter}
+                placeholder="All Statuses"
+                options={[
+                  { label: "All Statuses", value: "" },
+                  { label: "Active", value: "active" },
+                  { label: "Frozen", value: "frozen" },
+                  { label: "Expired", value: "expired" },
+                  { label: "Stopped", value: "stopped" },
+                ]}
+                onValueChange={(val) => onStatusChange(val)}
               />
+              <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
+                <Download className="me-1.5 size-4" /> Export CSV
+              </Button>
             </div>
-            <FormSelect
-              name="status"
-              defaultValue={statusFilter}
-              placeholder="All Statuses"
-              options={[
-                { label: "All Statuses", value: "" },
-                { label: "Active", value: "active" },
-                { label: "Frozen", value: "frozen" },
-                { label: "Expired", value: "expired" },
-                { label: "Stopped", value: "stopped" },
-              ]}
-              onValueChange={(val) => onStatusChange(val)}
-            />
-            <Button size="sm" variant="outline" onClick={handleExport} disabled={isPending}>
-              <Download className="me-1.5 size-4" /> Export CSV
-            </Button>
-          </div>
+          ) : null}
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -2241,7 +2288,7 @@ function MemberSubscriptionsView({
                 <TableHead>Balance</TableHead>
                 <TableHead>Billing</TableHead>
                 <TableHead>Coach / sold by</TableHead>
-                <TableHead className="text-end">History</TableHead>
+                {canFilter ? <TableHead className="text-end">History</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2311,9 +2358,11 @@ function MemberSubscriptionsView({
                       <div>{String(latest.coach_name ?? "-")}</div>
                       <div className="text-muted-foreground text-xs">{String(latest.sold_by ?? "")}</div>
                     </TableCell>
-                    <TableCell className="text-end">
-                      <MemberSubscriptionHistoryDialog member={row} />
-                    </TableCell>
+                    {canFilter ? (
+                      <TableCell className="text-end">
+                        <MemberSubscriptionHistoryDialog member={row} />
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 );
               })}
@@ -2856,10 +2905,12 @@ function IncomeOutcomeView({
   data,
   onExport,
   isPending,
+  canFilter,
 }: {
   data: Record<string, unknown>;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
+  canFilter: boolean;
 }) {
   const totals = (data.totals as Record<string, unknown>) ?? {};
   const timeline = (data.timeline as Record<string, unknown>[]) ?? [];
@@ -2938,9 +2989,11 @@ function IncomeOutcomeView({
             <CardTitle className="text-lg">Daily / Monthly Cashflow Breakdown</CardTitle>
             <CardDescription>Detailed income sources vs expense/payroll outcomes</CardDescription>
           </div>
-          <Button size="sm" variant="outline" onClick={handleExport}>
-            <Download className="me-1.5 size-4" /> Export CSV
-          </Button>
+          {canFilter ? (
+            <Button size="sm" variant="outline" onClick={handleExport}>
+              <Download className="me-1.5 size-4" /> Export CSV
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Table>

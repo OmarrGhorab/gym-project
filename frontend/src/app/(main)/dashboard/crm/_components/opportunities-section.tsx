@@ -69,6 +69,16 @@ const normalizedOpportunityFilter: FilterFn<MembershipPipelineRow> = (row, _colu
   return searchableValues.some((value) => includesNormalizedSearch(value, filterValue));
 };
 
+const renewalHealthValues = [
+  "active",
+  "renewed",
+  "renew_soon",
+  "needs_action",
+  "paused",
+  "sessions_exhausted",
+  "period_ended_sessions_left",
+] as const;
+
 export function OpportunitiesSection({
   canViewMoney,
   canApproveFreeze,
@@ -129,7 +139,7 @@ export function OpportunitiesSection({
   const filteredOpportunityCount = table.getFilteredRowModel().rows.length;
   const visibleOpportunityCount = table.getRowModel().rows.length;
   const statusOptions = React.useMemo(() => buildOptions(rows.map((row) => row.status)), [rows]);
-  const healthOptions = React.useMemo(() => buildOptions(rows.map((row) => row.health)), [rows]);
+  const healthOptions = React.useMemo(() => ["all", ...renewalHealthValues], []);
   const billingOptions = React.useMemo(() => buildOptions(rows.map((row) => row.billingStatus)), [rows]);
   const pageNumbers = React.useMemo(() => {
     if (pageCount <= 3) {
@@ -212,7 +222,7 @@ export function OpportunitiesSection({
                   {t("renewalHealth")}
                   <ChevronDownIcon data-icon="inline-end" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuContent align="end" className="w-64">
                   <DropdownMenuRadioGroup
                     value={healthFilter}
                     onValueChange={(value) => {

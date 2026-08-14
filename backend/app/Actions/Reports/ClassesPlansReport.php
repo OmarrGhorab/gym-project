@@ -117,7 +117,7 @@ final class ClassesPlansReport
             ->when(isset($params['from']) && isset($params['to']), fn ($q) => $q->whereBetween('created_at', [$from, $to]))
             ->latest();
 
-        if ($subscriptionsQuery->count() === 0 && ! $statusFilter) {
+        if ($subscriptionsQuery->count() === 0 && ! $statusFilter && ! isset($params['from'], $params['to'])) {
             $subscriptionsQuery = Subscription::query()
                 ->with(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name'])
                 ->when($planId, fn ($q) => $q->where('plan_id', $planId))

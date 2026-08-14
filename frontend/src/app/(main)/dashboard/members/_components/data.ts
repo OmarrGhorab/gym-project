@@ -36,11 +36,13 @@ export type MemberRow = {
     end_date: string | null;
     status: string;
     price_paid?: string | null;
+    discount?: string | null;
     paid_total?: string | null;
     balance?: string | null;
     package_price_paid?: string | null;
     package_paid_total?: string | null;
     package_balance?: string | null;
+    cancellation_grace_days?: number | null;
     sessions_total?: number | null;
     sessions_remaining?: number | null;
     can_cancel_with_refund?: boolean | null;
