@@ -1017,9 +1017,7 @@ function MemberLifecycleDialog({
 
   const actionLabel = action ? t(`lifecycle.${action}`) : "";
   const submitLabel =
-    action === "freeze" && currentPlan?.freeze_requires_approval && !canApproveFreeze
-      ? t("requestFreezeApproval")
-      : actionLabel;
+    action === "freeze" && currentPlan?.freeze_requires_approval ? t("requestFreezeApproval") : actionLabel;
 
   return (
     <Dialog open={action !== null} onOpenChange={onOpenChange}>
@@ -1068,7 +1066,7 @@ function MemberLifecycleDialog({
             <>
               {currentPlan?.freeze_requires_approval ? (
                 <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300">
-                  {canApproveFreeze ? t("freezeApprovalGranted") : t("freezeApprovalWillRequest")}
+                  {t("freezeApprovalWillRequest")} {canApproveFreeze ? t("freezeApprovalGranted") : null}
                 </div>
               ) : null}
               <div className="grid gap-2">

@@ -114,6 +114,33 @@ test('approval-only freeze can be requested and approved from its admin notifica
         ->and($requester->notifications()->where('data->category', 'membership.freeze_approved')->exists())->toBeTrue();
 });
 
+test('admin request on an approval-only plan waits for an explicit decision', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $subscription = makeLifecycleSubscription(
+        $admin,
+        ['freeze_requires_approval' => true],
+        ['end_date' => '2026-06-30'],
+    );
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/freeze", [
+        'freeze_start' => '2026-06-10',
+        'freeze_end' => '2026-06-12',
+    ])
+        ->assertStatus(202)
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.pending_freeze.approval_status', SubscriptionFreeze::APPROVAL_PENDING);
+
+    $freeze = SubscriptionFreeze::firstOrFail();
+
+    $this->postJson("/api/v1/subscriptions/{$subscription->id}/freezes/{$freeze->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('data.status', 'frozen')
+        ->assertJsonPath('data.pending_freeze', null);
+});
+
 test('approver can dismiss a pending freeze without pausing the membership', function (): void {
     $requester = User::factory()->create();
     $requester->assignRole(FoundationPermissions::ROLE_CASHIER);

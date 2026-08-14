@@ -212,7 +212,7 @@ export async function getDefaultDashboardData(
       : Promise.resolve({ data: [] }),
     access.canViewMembers
       ? serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(
-          "/members?filter[subscription_status]=frozen&sort=-join_date&per_page=100",
+          "/members?filter[freeze_queue]=1&sort=-join_date&per_page=100",
         )
       : Promise.resolve({ data: [] }),
     access.canViewReports

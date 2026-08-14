@@ -22,6 +22,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionFreeze;
 use App\Support\ArabicSearch;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -99,6 +100,19 @@ final class MemberController extends ApiController
 
                     $query->whereHas('latestSubscription', function ($q) use ($value): void {
                         $q->where('status', $value);
+                    });
+                }),
+                AllowedFilter::callback('freeze_queue', function ($query, $value): void {
+                    if (! filter_var($value, FILTER_VALIDATE_BOOL)) {
+                        return;
+                    }
+
+                    $query->whereHas('latestSubscription', function ($subscription): void {
+                        $subscription
+                            ->where('status', 'frozen')
+                            ->orWhereHas('freezes', function ($freeze): void {
+                                $freeze->where('approval_status', SubscriptionFreeze::APPROVAL_PENDING);
+                            });
                     });
                 }),
                 AllowedFilter::callback('renewal_attention', function ($query, string $value): void {

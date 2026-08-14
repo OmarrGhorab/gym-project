@@ -608,8 +608,7 @@ function SubscriptionActions({
     freezeDisabledReason = t("freezeApprovalPending");
   }
 
-  const freezeSubmitLabel =
-    subscription.freezeRequiresApproval && !canApproveFreeze ? t("requestFreezeApproval") : t("freeze");
+  const freezeSubmitLabel = subscription.freezeRequiresApproval ? t("requestFreezeApproval") : t("freeze");
   const backendActions = getBackendActions(subscription.status);
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
   const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
@@ -1504,8 +1503,8 @@ function SubscriptionActions({
               </div>
               {subscription.freezeRequiresApproval ? (
                 <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300">
-                  {t("freezeNeedsApproval")}{" "}
-                  {canApproveFreeze ? t("freezeApprovalGranted") : t("freezeApprovalWillRequest")}
+                  {t("freezeNeedsApproval")} {t("freezeApprovalWillRequest")}{" "}
+                  {canApproveFreeze ? t("freezeApprovalGranted") : null}
                 </div>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-2">

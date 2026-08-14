@@ -22,15 +22,13 @@ type RecentCustomersColumnLabels = {
   joined: string;
   member: string;
   noPlan: string;
+  noProtectedDaysRemaining: string;
   pausedDaysRemaining: (values: { count: number }) => string;
   paidAmount: (values: { amount: string }) => string;
   freezeApprovalPending: string;
   plan: string;
   selectAll: string;
   selectMember: (values: { name: string }) => string;
-  sessionTiming: string;
-  sessionTimingDetails: Record<string, (count: number) => string>;
-  sessionTimingStatuses: Record<string, string>;
   status: string;
   statuses: Record<string, string>;
 };
@@ -81,28 +79,6 @@ function billingBadgeClassName(billing: string) {
     default:
       return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
   }
-}
-
-function getSessionTimingStatus(subscription: RecentCustomerRow["latest_subscription"]) {
-  const health = subscription?.renewal_health;
-
-  if (health === "sessions_exhausted" || health === "period_ended_sessions_left") {
-    return health;
-  }
-
-  return subscription?.sessions_total == null ? "not_applicable" : "on_track";
-}
-
-function sessionTimingBadgeClassName(status: string) {
-  if (status === "on_track") {
-    return "border-green-500/35 bg-green-500/10 text-green-700 dark:text-green-300";
-  }
-
-  if (status === "not_applicable") {
-    return "border-muted-foreground/25 bg-muted/30 text-muted-foreground";
-  }
-
-  return "border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300";
 }
 
 export function createRecentCustomersColumns({
@@ -191,28 +167,6 @@ export function createRecentCustomersColumns({
       ),
     },
     {
-      id: "sessionTiming",
-      header: labels.sessionTiming,
-      cell: ({ row }) => {
-        const subscription = row.original.latest_subscription;
-        const timingStatus = getSessionTimingStatus(subscription);
-        const detailCount =
-          timingStatus === "sessions_exhausted"
-            ? (subscription?.days_left ?? 0)
-            : (subscription?.sessions_remaining ?? 0);
-        const detail = labels.sessionTimingDetails[timingStatus]?.(detailCount);
-
-        return (
-          <div className="grid max-w-48 gap-1">
-            <Badge variant="outline" className={cn("w-fit px-1.5", sessionTimingBadgeClassName(timingStatus))}>
-              {labels.sessionTimingStatuses[timingStatus] ?? timingStatus}
-            </Badge>
-            {detail ? <span className="text-muted-foreground text-xs">{detail}</span> : null}
-          </div>
-        );
-      },
-    },
-    {
       accessorKey: "billing",
       header: labels.billing,
       filterFn: "equalsString",
@@ -256,7 +210,9 @@ export function createRecentCustomersColumns({
             ) : null}
             {row.original.status === "frozen" ? (
               <span className="text-amber-700 text-xs dark:text-amber-300">
-                {labels.pausedDaysRemaining({ count: subscription?.days_left ?? 0 })}
+                {(subscription?.days_left ?? 0) > 0
+                  ? labels.pausedDaysRemaining({ count: subscription?.days_left ?? 0 })
+                  : labels.noProtectedDaysRemaining}
               </span>
             ) : null}
           </div>

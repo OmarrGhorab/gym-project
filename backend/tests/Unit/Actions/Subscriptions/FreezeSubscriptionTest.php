@@ -102,7 +102,7 @@ test('freeze subscription on an approval-only plan creates a pending request wit
         ->and($freeze->approved_at)->toBeNull();
 });
 
-test('freeze subscription on an approval-only plan records the approver', function (): void {
+test('freeze subscription on an approval-only plan still waits when requested by an approver', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_MANAGER);
     $member = Member::factory()->active()->create();
@@ -116,17 +116,17 @@ test('freeze subscription on an approval-only plan records the approver', functi
         'end_date' => '2026-06-30',
     ]);
 
-    $frozen = app(FreezeSubscription::class)->handle($subscription, [
+    $requested = app(FreezeSubscription::class)->handle($subscription, [
         'freeze_start' => '2026-06-10',
         'freeze_end' => '2026-06-12',
     ], $user);
 
     $freeze = SubscriptionFreeze::firstOrFail();
 
-    expect($frozen->status)->toBe('frozen')
-        ->and($freeze->approval_status)->toBe(SubscriptionFreeze::APPROVAL_APPROVED)
-        ->and($freeze->approved_by)->toBe($user->id)
-        ->and($freeze->approved_at)->not->toBeNull();
+    expect($requested->status)->toBe('active')
+        ->and($freeze->approval_status)->toBe(SubscriptionFreeze::APPROVAL_PENDING)
+        ->and($freeze->approved_by)->toBeNull()
+        ->and($freeze->approved_at)->toBeNull();
 });
 
 test('freeze subscription leaves the approver empty when the plan needs no approval', function (): void {

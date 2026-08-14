@@ -4,6 +4,7 @@ use App\Models\Member;
 use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
 use App\Models\User;
 use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
@@ -192,6 +193,35 @@ test('frozen member filter checks the latest subscription instead of old history
         ->assertJsonPath('meta.total', 1);
 
     expect(collect($response->json('data'))->pluck('name')->all())->toBe(['Currently Frozen']);
+});
+
+test('freeze queue includes pending requests and frozen memberships', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $pendingMember = Member::factory()->create(['name' => 'Pending Freeze Request']);
+    $pendingSubscription = Subscription::factory()->for($pendingMember)->active()->create();
+    SubscriptionFreeze::factory()->for($pendingSubscription)->create([
+        'approval_status' => SubscriptionFreeze::APPROVAL_PENDING,
+        'created_by' => $user->id,
+    ]);
+
+    $frozenMember = Member::factory()->create(['name' => 'Already Frozen']);
+    Subscription::factory()->for($frozenMember)->frozen()->create();
+
+    $activeMember = Member::factory()->create(['name' => 'Active Without Request']);
+    Subscription::factory()->for($activeMember)->active()->create();
+
+    $response = $this->getJson('/api/v1/members?filter[freeze_queue]=1&sort=name')
+        ->assertOk()
+        ->assertJsonPath('meta.total', 2);
+
+    expect(collect($response->json('data'))->pluck('name')->all())
+        ->toBe(['Already Frozen', 'Pending Freeze Request'])
+        ->and($response->json('data.1.membership_status'))->toBe('active')
+        ->and($response->json('data.1.latest_subscription.pending_freeze.approval_status'))
+        ->toBe(SubscriptionFreeze::APPROVAL_PENDING);
 });
 
 test('member list honors requested per page size', function (): void {

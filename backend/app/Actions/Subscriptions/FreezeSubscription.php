@@ -6,7 +6,6 @@ use App\Models\Subscription;
 use App\Models\SubscriptionFreeze;
 use App\Models\User;
 use App\Services\OperationalNotifier;
-use App\Support\MembershipPermissions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -78,9 +77,11 @@ class FreezeSubscription
             }
 
             $needsApproval = (bool) $plan->freeze_requires_approval;
-            $isApprover = $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE);
+            // Requiring approval must always create a decision point. An admin
+            // who submits the request can still approve it afterward, but the
+            // request must not silently approve itself.
             $approvalStatus = $needsApproval
-                ? ($isApprover ? SubscriptionFreeze::APPROVAL_APPROVED : SubscriptionFreeze::APPROVAL_PENDING)
+                ? SubscriptionFreeze::APPROVAL_PENDING
                 : SubscriptionFreeze::APPROVAL_NOT_REQUIRED;
 
             $freeze = SubscriptionFreeze::create([
@@ -95,8 +96,8 @@ class FreezeSubscription
                     : $remainingDays,
                 'reason' => $data['reason'] ?? null,
                 'created_by' => $user->id,
-                'approved_by' => $approvalStatus === SubscriptionFreeze::APPROVAL_APPROVED ? $user->id : null,
-                'approved_at' => $approvalStatus === SubscriptionFreeze::APPROVAL_APPROVED ? now() : null,
+                'approved_by' => null,
+                'approved_at' => null,
                 'approval_status' => $approvalStatus,
             ]);
 

@@ -34,7 +34,7 @@ export default async function Page() {
         memberPermissions={memberPermissions}
       />
       <OpportunitiesSection
-        rows={data.pipelineRows.filter((row) => row.status === "frozen")}
+        rows={data.pipelineRows.filter((row) => row.status === "frozen" || row.pendingFreeze !== null)}
         reminderDays={data.reminderDays}
         canViewMoney={canViewMoney}
         canApproveFreeze={canApproveFreeze}
