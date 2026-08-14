@@ -29,6 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { FieldError } from "@/components/ui/field";
+import { FormDatePicker } from "@/components/ui/form-controls";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -106,18 +107,16 @@ export function AbsenceEditorDialog({
 
           <div className="grid gap-2">
             <Label htmlFor={`absence-date-${formKey}`}>{t("date")}</Label>
-            <Input
+            <FormDatePicker
               id={`absence-date-${formKey}`}
               name="date"
-              type="date"
               min={monthStart}
               max={monthEnd}
               defaultValue={absence?.date ?? defaultDate}
               disabled={pending}
               required
-              aria-invalid={Boolean(state.errors.date?.[0])}
+              error={state.errors.date?.[0]}
             />
-            <FieldError errors={state.errors.date} />
           </div>
 
           <div className="grid gap-2">

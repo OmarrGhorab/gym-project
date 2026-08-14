@@ -259,6 +259,8 @@ type FormDatePickerProps = {
   disabled?: boolean;
   error?: string;
   id?: string;
+  max?: string | null;
+  min?: string | null;
   name: string;
   onValueChange?: (value: string) => void;
   placeholder?: string;
@@ -273,6 +275,8 @@ export function FormDatePicker({
   disabled = false,
   error,
   id,
+  max,
+  min,
   name,
   onValueChange,
   placeholder,
@@ -286,6 +290,12 @@ export function FormDatePicker({
   const [internalValue, setInternalValue] = React.useState(defaultValue ?? "");
   const value = isControlled ? (controlledValue ?? "") : internalValue;
   const selectedDate = parseDateString(value);
+  const minDate = parseDateString(min ?? "");
+  const maxDate = parseDateString(max ?? "");
+  const disabledDates = [
+    ...(minDate ? [{ before: minDate }] : []),
+    ...(maxDate ? [{ after: maxDate }] : []),
+  ];
 
   return (
     <>
@@ -315,6 +325,9 @@ export function FormDatePicker({
             mode="single"
             selected={selectedDate}
             defaultMonth={selectedDate}
+            startMonth={minDate}
+            endMonth={maxDate}
+            disabled={disabledDates}
             captionLayout="dropdown"
             onSelect={(date) => {
               if (date) {
@@ -508,4 +521,3 @@ function parseTime24(value: string) {
 
   return { hour, minute, period };
 }
-
