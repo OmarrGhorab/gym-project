@@ -11,12 +11,15 @@ use App\Models\Product;
 use App\Models\ShiftSession;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionFreeze;
 use App\Models\User;
 use App\Notifications\OperationalNotification;
 use App\Support\FoundationPermissions;
+use App\Support\MembershipPermissions;
 use App\Support\NotificationLink;
 use App\Support\SubscriptionMessagePayload;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -70,6 +73,84 @@ class OperationalNotifier
             extra: [
                 ...$this->subscriptionMessagePayload($subscription),
                 'sold_by' => $subscription->soldBy?->name,
+            ],
+        );
+    }
+
+    public function freezeApprovalRequested(SubscriptionFreeze $freeze): void
+    {
+        $freeze->loadMissing(['subscription.member', 'subscription.plan', 'createdBy']);
+        $subscription = $freeze->subscription;
+
+        if (! $subscription) {
+            return;
+        }
+
+        $requester = $freeze->createdBy?->name ?? 'A staff member';
+        $member = $subscription->member?->name ?? 'Member';
+        $recipients = User::permission(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE)->get();
+
+        $this->notifyUsers(
+            $recipients,
+            title: 'Freeze approval requested',
+            body: "{$requester} requested a freeze for {$member} from {$freeze->freeze_start?->toDateString()} through {$freeze->freeze_end?->toDateString()}.",
+            category: 'membership.freeze_approval_requested',
+            link: NotificationLink::to('crm', 'subscription_freeze', $freeze->id, [
+                'freeze_request' => $freeze->id,
+                'subscription' => $subscription->id,
+            ]),
+            severity: 'warning',
+            extra: [
+                ...$this->subscriptionMessagePayload($subscription),
+                'freeze_request_id' => $freeze->id,
+                'freeze_start' => $freeze->freeze_start?->toDateString(),
+                'freeze_end' => $freeze->freeze_end?->toDateString(),
+                'freeze_days' => $freeze->days,
+                'freeze_reason' => $freeze->reason,
+                'requested_by' => $freeze->createdBy?->name,
+                'approval_status' => SubscriptionFreeze::APPROVAL_PENDING,
+                'requires_action' => true,
+            ],
+        );
+    }
+
+    public function freezeApprovalDecided(SubscriptionFreeze $freeze, bool $approved): void
+    {
+        $freeze->loadMissing(['subscription.member', 'subscription.plan', 'createdBy']);
+        $subscription = $freeze->subscription;
+
+        DatabaseNotification::query()
+            ->where('data->freeze_request_id', $freeze->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now(), 'updated_at' => now()]);
+
+        if (! $subscription || ! $freeze->createdBy) {
+            return;
+        }
+
+        $status = $approved ? SubscriptionFreeze::APPROVAL_APPROVED : SubscriptionFreeze::APPROVAL_DISMISSED;
+        $member = $subscription->member?->name ?? 'Member';
+
+        $this->notifyUsers(
+            collect([$freeze->createdBy]),
+            title: $approved ? 'Freeze request approved' : 'Freeze request dismissed',
+            body: $approved
+                ? "{$member}'s membership is now frozen."
+                : "{$member}'s membership remains active.",
+            category: $approved ? 'membership.freeze_approved' : 'membership.freeze_dismissed',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
+            severity: $approved ? 'success' : 'info',
+            extra: [
+                ...$this->subscriptionMessagePayload($subscription),
+                'freeze_request_id' => $freeze->id,
+                'freeze_start' => $freeze->freeze_start?->toDateString(),
+                'freeze_end' => $freeze->freeze_end?->toDateString(),
+                'approval_status' => $status,
+                'requires_action' => false,
             ],
         );
     }

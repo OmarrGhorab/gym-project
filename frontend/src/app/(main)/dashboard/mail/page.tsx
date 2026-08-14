@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 import { GYM_TIME_ZONE } from "@/lib/timezone";
 
+import { FreezeApprovalButtons } from "../_components/freeze-approval-buttons";
 import { markNotificationRead } from "./_components/actions";
 import { getNotificationsPageData } from "./_components/data";
 
@@ -135,6 +136,9 @@ const notificationCategoryOptions = [
   "inventory.low_stock",
   "membership.cancelled_refund",
   "membership.expiring_soon",
+  "membership.freeze_approval_requested",
+  "membership.freeze_approved",
+  "membership.freeze_dismissed",
   "membership.sessions_finished",
   "membership.subscription_created",
   "payroll.paid",
@@ -207,6 +211,10 @@ function NotificationPayloadActions({
 
   return (
     <>
+      <FreezeApprovalButtons
+        data={data}
+        labels={{ approve: t("approveFreeze"), dismiss: t("dismissFreeze"), working: t("working") }}
+      />
       {phone ? <WhatsAppNotificationButton phone={phone} data={data} size="sm" /> : null}
       {payslipUrl ? (
         <Button size="sm" variant="outline" render={<a href={payslipUrl} />}>

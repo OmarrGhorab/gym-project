@@ -283,14 +283,17 @@ async function mutateSubscription(
   body?: Record<string, unknown>,
   method: "POST" | "PATCH" = "POST",
 ): Promise<MembershipActionResult> {
+  let resolvedSuccessMessage = successMessage;
+
   try {
-    await serverApiFetch(path, {
+    const result = await serverApiFetch(path, {
       method,
       headers: {
         "Content-Type": "application/json",
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
+    resolvedSuccessMessage = result.message ?? successMessage;
   } catch (error) {
     return {
       ok: false,
@@ -306,7 +309,7 @@ async function mutateSubscription(
 
   return {
     ok: true,
-    message: successMessage,
+    message: resolvedSuccessMessage,
     errors: {},
   };
 }

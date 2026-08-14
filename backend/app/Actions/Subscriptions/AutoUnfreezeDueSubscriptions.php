@@ -3,6 +3,7 @@
 namespace App\Actions\Subscriptions;
 
 use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
 use Illuminate\Support\Carbon;
 
 class AutoUnfreezeDueSubscriptions
@@ -21,6 +22,10 @@ class AutoUnfreezeDueSubscriptions
             ->whereHas('freezes', function ($query) use ($today): void {
                 $query
                     ->whereNull('resumed_on')
+                    ->whereIn('approval_status', [
+                        SubscriptionFreeze::APPROVAL_NOT_REQUIRED,
+                        SubscriptionFreeze::APPROVAL_APPROVED,
+                    ])
                     ->whereDate('freeze_end', '<', $today->toDateString());
             })
             ->with(['freezes'])
@@ -28,6 +33,7 @@ class AutoUnfreezeDueSubscriptions
                 foreach ($subscriptions as $subscription) {
                     $openFreeze = $subscription->freezes
                         ->whereNull('resumed_on')
+                        ->filter(fn (SubscriptionFreeze $freeze): bool => $freeze->isEffectiveFreeze())
                         ->sortByDesc('freeze_end')
                         ->first();
 

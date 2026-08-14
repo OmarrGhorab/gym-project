@@ -175,6 +175,25 @@ test('member list filters session timing renewal attention on the latest subscri
         ->assertJsonPath('data.0.latest_subscription.renewal_health', 'period_ended_sessions_left');
 });
 
+test('frozen member filter checks the latest subscription instead of old history', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $currentlyFrozen = Member::factory()->create(['name' => 'Currently Frozen']);
+    Subscription::factory()->for($currentlyFrozen)->frozen()->create();
+
+    $previouslyFrozen = Member::factory()->create(['name' => 'Previously Frozen']);
+    Subscription::factory()->for($previouslyFrozen)->frozen()->create(['created_at' => now()->subDay()]);
+    Subscription::factory()->for($previouslyFrozen)->active()->create(['created_at' => now()]);
+
+    $response = $this->getJson('/api/v1/members?filter[subscription_status]=frozen')
+        ->assertOk()
+        ->assertJsonPath('meta.total', 1);
+
+    expect(collect($response->json('data'))->pluck('name')->all())->toBe(['Currently Frozen']);
+});
+
 test('member list honors requested per page size', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_ADMIN);

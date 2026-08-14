@@ -20,6 +20,7 @@ class SubscriptionFreezeFactory extends Factory
             'days' => 3,
             'reason' => fake()->sentence(),
             'created_by' => User::factory(),
+            'approval_status' => SubscriptionFreeze::APPROVAL_NOT_REQUIRED,
         ];
     }
 }

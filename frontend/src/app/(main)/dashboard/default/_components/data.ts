@@ -56,6 +56,7 @@ type MemberResource = {
     start_date?: string | null;
     status?: string | null;
     end_date?: string | null;
+    projected_end_date?: string | null;
     days_left?: number | null;
     renewal_health?: string | null;
     renewal_health_reason?: string | null;
@@ -69,6 +70,22 @@ type MemberResource = {
     price_paid?: string | null;
     paid_total?: string | null;
     balance?: string | null;
+    freeze?: {
+      id?: number;
+      freeze_start?: string | null;
+      freeze_end?: string | null;
+      remaining_days_at_freeze?: number | null;
+      projected_end_date?: string | null;
+      approval_status?: string | null;
+    } | null;
+    pending_freeze?: {
+      id: number;
+      freeze_start?: string | null;
+      freeze_end?: string | null;
+      planned_days?: number | null;
+      reason?: string | null;
+      approval_status?: string | null;
+    } | null;
     addons?: Array<{
       id?: number;
       status?: string | null;
@@ -113,6 +130,8 @@ export type DefaultDashboardData = {
   members: RecentCustomerRow[];
   membersTotal: number;
   membersMeta: MembersMeta;
+  frozenMembers: RecentCustomerRow[];
+  frozenMembersTotal: number;
   salesChart: SalesChartPoint[];
   memberDues: Record<number, RecentCustomerRow["due"]>;
   memberPlans: PlanRow[];
@@ -175,6 +194,7 @@ export async function getDefaultDashboardData(
   const [
     summaryResult,
     membersResult,
+    frozenMembersResult,
     salesReportResult,
     activeSubscriptionsResult,
     expiringSoonResult,
@@ -189,6 +209,11 @@ export async function getDefaultDashboardData(
       : Promise.resolve({ data: getEmptySummary() }),
     access.canViewMembers
       ? serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(`/members?${memberParams.toString()}`)
+      : Promise.resolve({ data: [] }),
+    access.canViewMembers
+      ? serverApiFetch<MemberResource[] | PaginatedData<MemberResource>>(
+          "/members?filter[subscription_status]=frozen&sort=-join_date&per_page=100",
+        )
       : Promise.resolve({ data: [] }),
     access.canViewReports
       ? serverApiFetch<SalesReportDay[] | PaginatedData<SalesReportDay>>(`/sales/report?${dateParams.toString()}`)
@@ -213,12 +238,15 @@ export async function getDefaultDashboardData(
   ]);
 
   const members = unwrapList(membersResult.data);
+  const frozenMembers = unwrapList(frozenMembersResult.data);
   const salesReport = unwrapList(salesReportResult.data);
   const dues = unwrapList(duesResult.data);
   const memberDues = mapMemberDues(dues);
   const memberPlans = unwrapList(plansResult.data);
   const memberStaff = unwrapList(staffResult.data);
   const membersMeta = getPaginationMeta("meta" in membersResult ? membersResult.meta : undefined, members.length);
+  const frozenMembersTotal =
+    getMetaTotal("meta" in frozenMembersResult ? frozenMembersResult.meta : undefined) ?? frozenMembers.length;
 
   // Prefer dashboard/summary MembershipMetrics totals; only fill detail payloads from extra endpoints.
   const summaryActive = summaryResult.data.active_subscriptions ?? getCount(activeSubscriptionsResult.data) ?? 0;
@@ -235,6 +263,8 @@ export async function getDefaultDashboardData(
     members: members.map((member) => mapMemberToRow(member, memberDues[member.id] ?? null)),
     membersTotal: membersMeta.total,
     membersMeta,
+    frozenMembers: frozenMembers.map((member) => mapMemberToRow(member, memberDues[member.id] ?? null)),
+    frozenMembersTotal,
     salesChart: salesReport.map(mapSalesDay).reverse(),
     memberDues,
     memberPlans,
@@ -363,7 +393,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     birth_date: member.birth_date ?? null,
     plan: subscription?.plan_name ?? null,
     planStartsAt: subscription?.start_date ?? null,
-    planEndsAt: subscription?.end_date ?? null,
+    planEndsAt: subscription?.projected_end_date ?? subscription?.end_date ?? null,
     status: member.status === "inactive" ? "inactive" : (member.membership_status ?? member.status ?? null),
     billing: member.billing_status ?? "unknown",
     totalPaid: subscription?.package_paid_total ?? member.total_paid ?? "0.00",
@@ -378,6 +408,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
           plan_name: subscription.plan_name ?? null,
           start_date: subscription.start_date ?? null,
           end_date: subscription.end_date ?? null,
+          projected_end_date: subscription.projected_end_date ?? null,
           status: subscription.status ?? "unknown",
           days_left: subscription.days_left ?? null,
           renewal_health: subscription.renewal_health ?? null,
@@ -392,6 +423,8 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
           price_paid: subscription.price_paid ?? null,
           paid_total: subscription.paid_total ?? null,
           balance: subscription.balance ?? null,
+          freeze: subscription.freeze ?? null,
+          pending_freeze: subscription.pending_freeze ?? null,
           addons: subscription.addons?.flatMap((addon) => {
             if (!addon.id) {
               return [];

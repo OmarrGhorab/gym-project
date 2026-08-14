@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Actions\Reminders\FindExpiringSubscriptions;
 use App\Actions\Reports\MembershipMetrics;
 use App\Actions\Subscriptions\AddSubscriptionAddon;
+use App\Actions\Subscriptions\ApproveSubscriptionFreeze;
 use App\Actions\Subscriptions\CancelSubscription;
 use App\Actions\Subscriptions\CancelSubscriptionAddon;
 use App\Actions\Subscriptions\CreateSubscription;
+use App\Actions\Subscriptions\DismissSubscriptionFreeze;
 use App\Actions\Subscriptions\FreezeSubscription;
 use App\Actions\Subscriptions\RenewSubscription;
 use App\Actions\Subscriptions\StopSubscription;
@@ -26,6 +28,7 @@ use App\Http\Resources\SubscriptionResource;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionFreeze;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -249,8 +252,43 @@ class SubscriptionController extends ApiController
     ): JsonResponse {
         $frozen = $action->handle($subscription, $request->validated(), $request->user());
 
+        $isPendingApproval = $frozen->freezes
+            ->contains(fn (SubscriptionFreeze $freeze): bool => $freeze->isPendingApproval());
+
         return (new SubscriptionResource($frozen))
-            ->withMessage('Subscription frozen')
+            ->withMessage($isPendingApproval ? 'Freeze approval requested' : 'Subscription frozen')
+            ->response()
+            ->setStatusCode($isPendingApproval ? 202 : 200);
+    }
+
+    public function approveFreeze(
+        Request $request,
+        Subscription $subscription,
+        SubscriptionFreeze $freeze,
+        ApproveSubscriptionFreeze $action,
+    ): JsonResponse {
+        $this->authorize('approveFreeze', $subscription);
+
+        $updated = $action->handle($subscription, $freeze, $request->user());
+
+        return (new SubscriptionResource($updated))
+            ->withMessage('Freeze request approved')
+            ->response()
+            ->setStatusCode(200);
+    }
+
+    public function dismissFreeze(
+        Request $request,
+        Subscription $subscription,
+        SubscriptionFreeze $freeze,
+        DismissSubscriptionFreeze $action,
+    ): JsonResponse {
+        $this->authorize('approveFreeze', $subscription);
+
+        $updated = $action->handle($subscription, $freeze, $request->user());
+
+        return (new SubscriptionResource($updated))
+            ->withMessage('Freeze request dismissed')
             ->response()
             ->setStatusCode(200);
     }

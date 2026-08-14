@@ -97,7 +97,7 @@ final class MemberController extends ApiController
                         return;
                     }
 
-                    $query->whereHas('subscriptions', function ($q) use ($value): void {
+                    $query->whereHas('latestSubscription', function ($q) use ($value): void {
                         $q->where('status', $value);
                     });
                 }),

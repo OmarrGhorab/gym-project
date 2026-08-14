@@ -22,7 +22,9 @@ type RecentCustomersColumnLabels = {
   joined: string;
   member: string;
   noPlan: string;
+  pausedDaysRemaining: (values: { count: number }) => string;
   paidAmount: (values: { amount: string }) => string;
+  freezeApprovalPending: string;
   plan: string;
   selectAll: string;
   selectMember: (values: { name: string }) => string;
@@ -178,9 +180,14 @@ export function createRecentCustomersColumns({
       header: labels.status,
       filterFn: "equalsString",
       cell: ({ row }) => (
-        <Badge variant="outline" className={cn("w-fit px-1.5", statusBadgeClassName(row.original.status))}>
-          {labels.statuses[row.original.status ?? "none"] ?? row.original.status}
-        </Badge>
+        <div className="grid gap-1">
+          <Badge variant="outline" className={cn("w-fit px-1.5", statusBadgeClassName(row.original.status))}>
+            {labels.statuses[row.original.status ?? "none"] ?? row.original.status}
+          </Badge>
+          {row.original.latest_subscription?.pending_freeze ? (
+            <span className="text-amber-700 text-xs dark:text-amber-300">{labels.freezeApprovalPending}</span>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -245,6 +252,11 @@ export function createRecentCustomersColumns({
             {row.original.planEndsAt ? (
               <span className="text-muted-foreground text-xs">
                 {labels.endsAt({ date: compactDateFormatter.format(parseISO(row.original.planEndsAt)) })}
+              </span>
+            ) : null}
+            {row.original.status === "frozen" ? (
+              <span className="text-amber-700 text-xs dark:text-amber-300">
+                {labels.pausedDaysRemaining({ count: subscription?.days_left ?? 0 })}
               </span>
             ) : null}
           </div>

@@ -85,12 +85,14 @@ export function OpportunitiesSection({
   memberPermissions,
   rows,
   reminderDays,
+  variant = "all",
 }: {
   canViewMoney: boolean;
   canApproveFreeze: boolean;
   memberPermissions: MemberActionPermissions;
   rows: MembershipPipelineRow[];
   reminderDays: number[];
+  variant?: "all" | "frozen";
 }) {
   const t = useTranslations("Dashboard.crm");
   const locale = useLocale();
@@ -156,8 +158,12 @@ export function OpportunitiesSection({
     <section>
       <Card>
         <CardHeader>
-          <CardTitle className="leading-none">{t("renewalPipeline")}</CardTitle>
-          <CardDescription>{t("renewalPipelineDescription")}</CardDescription>
+          <CardTitle className="leading-none">
+            {variant === "frozen" ? t("frozenMembers") : t("renewalPipeline")}
+          </CardTitle>
+          <CardDescription>
+            {variant === "frozen" ? t("frozenMembersDescription") : t("renewalPipelineDescription")}
+          </CardDescription>
           <CardAction>
             <div className="flex items-center gap-2">
               <Input

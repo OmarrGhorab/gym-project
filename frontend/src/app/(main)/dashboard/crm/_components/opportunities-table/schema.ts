@@ -71,6 +71,7 @@ export const membershipPipelineSchema = z.object({
   sessionsRemaining: z.number().nullable().optional(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
+  projectedEndDate: z.string().nullable(),
   canCancelWithRefund: z.boolean(),
   defaultRefundAmount: z.number(),
   cancellationGraceEndsOn: z.string().nullable(),
@@ -80,12 +81,26 @@ export const membershipPipelineSchema = z.object({
   freezeRequiresApproval: z.boolean(),
   freeze: z
     .object({
+      id: z.number(),
       freezeStart: z.string().nullable(),
       freezeEnd: z.string().nullable(),
       resumedOn: z.string().nullable(),
       plannedDays: z.number().nullable(),
       remainingDaysAtFreeze: z.number().nullable(),
+      projectedEndDate: z.string().nullable(),
+      approvalStatus: z.string().nullable(),
       reason: z.string().nullable(),
+    })
+    .nullable(),
+  pendingFreeze: z
+    .object({
+      id: z.number(),
+      freezeStart: z.string().nullable(),
+      freezeEnd: z.string().nullable(),
+      plannedDays: z.number().nullable(),
+      reason: z.string().nullable(),
+      approvalStatus: z.string(),
+      requestedAt: z.string().nullable(),
     })
     .nullable(),
 });

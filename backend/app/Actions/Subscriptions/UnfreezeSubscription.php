@@ -3,6 +3,7 @@
 namespace App\Actions\Subscriptions;
 
 use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +30,7 @@ class UnfreezeSubscription
             $resumeOn = Carbon::parse($data['resume_on'] ?? Carbon::today())->startOfDay();
             $openFreeze = $lockedSubscription->freezes
                 ->whereNull('resumed_on')
+                ->filter(fn (SubscriptionFreeze $freeze): bool => $freeze->isEffectiveFreeze())
                 ->sortByDesc('freeze_start')
                 ->first();
             $endDate = $lockedSubscription->end_date;

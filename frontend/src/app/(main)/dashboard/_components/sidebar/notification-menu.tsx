@@ -16,6 +16,8 @@ export async function NotificationMenu() {
     <NotificationMenuClient
       initialNotifications={notifications}
       labels={{
+        approveFreeze: t("approveFreeze"),
+        dismissFreeze: t("dismissFreeze"),
         empty: t("notificationsItems.paymentDueDescription"),
         latestActivity: t("latestActivity"),
         markAllRead: t("markAllRead"),
@@ -23,6 +25,7 @@ export async function NotificationMenu() {
         notificationCenter: t("notificationCenter"),
         notifications: t("notifications"),
         openNotifications: t("openNotifications"),
+        working: t("working"),
       }}
     />
   );

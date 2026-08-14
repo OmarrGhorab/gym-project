@@ -11,6 +11,14 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class SubscriptionFreeze extends Model
 {
+    public const APPROVAL_NOT_REQUIRED = 'not_required';
+
+    public const APPROVAL_PENDING = 'pending';
+
+    public const APPROVAL_APPROVED = 'approved';
+
+    public const APPROVAL_DISMISSED = 'dismissed';
+
     /** @use HasFactory<SubscriptionFreezeFactory> */
     use HasFactory;
 
@@ -35,6 +43,9 @@ class SubscriptionFreeze extends Model
         'created_by',
         'approved_by',
         'approved_at',
+        'approval_status',
+        'dismissed_by',
+        'dismissed_at',
     ];
 
     protected function casts(): array
@@ -45,6 +56,7 @@ class SubscriptionFreeze extends Model
             'resumed_on' => 'date',
             'remaining_days_at_freeze' => 'integer',
             'approved_at' => 'datetime',
+            'dismissed_at' => 'datetime',
         ];
     }
 
@@ -57,5 +69,28 @@ class SubscriptionFreeze extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function dismissedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dismissed_by');
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->approval_status === self::APPROVAL_PENDING;
+    }
+
+    public function isEffectiveFreeze(): bool
+    {
+        return in_array($this->approval_status, [
+            self::APPROVAL_NOT_REQUIRED,
+            self::APPROVAL_APPROVED,
+        ], true);
     }
 }

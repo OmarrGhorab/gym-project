@@ -37,6 +37,12 @@ Route::prefix('subscriptions')->group(function (): void {
     Route::post('/{subscription}/freeze', [SubscriptionController::class, 'freeze'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE]);
 
+    Route::post('/{subscription}/freezes/{freeze}/approve', [SubscriptionController::class, 'approveFreeze'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE]);
+
+    Route::post('/{subscription}/freezes/{freeze}/dismiss', [SubscriptionController::class, 'dismissFreeze'])
+        ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE]);
+
     Route::post('/{subscription}/unfreeze', [SubscriptionController::class, 'unfreeze'])
         ->middleware(['throttle:api', 'permission:'.MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE]);
 

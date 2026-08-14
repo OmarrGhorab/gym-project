@@ -33,6 +33,14 @@ export default async function Page() {
         canApproveFreeze={canApproveFreeze}
         memberPermissions={memberPermissions}
       />
+      <OpportunitiesSection
+        rows={data.pipelineRows.filter((row) => row.status === "frozen")}
+        reminderDays={data.reminderDays}
+        canViewMoney={canViewMoney}
+        canApproveFreeze={canApproveFreeze}
+        memberPermissions={memberPermissions}
+        variant="frozen"
+      />
     </div>
   );
 }

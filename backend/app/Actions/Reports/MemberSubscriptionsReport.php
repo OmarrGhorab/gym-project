@@ -7,6 +7,7 @@ use App\Models\MemberVisit;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionAddon;
+use App\Models\SubscriptionFreeze;
 use App\Models\SubscriptionRefund;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -89,8 +90,12 @@ final class MemberSubscriptionsReport
         $addonVisitStats = $this->addonVisitStats($subscriptions->pluck('id')->all());
         $historyCounts = $this->historyCounts($subscriptions->pluck('member_id')->all());
 
-        $rows = $subscriptions
-            ->map(fn (Subscription $subscription): array => $this->memberRow($subscription, $visitStats, $addonVisitStats, $historyCounts))
+        $rows = $this->filterMembershipRange(
+            $subscriptions
+                ->map(fn (Subscription $subscription): array => $this->memberRow($subscription, $visitStats, $addonVisitStats, $historyCounts)),
+            $params,
+            latestRow: true,
+        )
             ->when(
                 $statusFilter === 'expired',
                 fn (Collection $mapped) => $mapped->filter(fn (array $row): bool => $row['latest']['status'] === 'expired'),
@@ -142,7 +147,14 @@ final class MemberSubscriptionsReport
 
             $query
                 ->whereDate('start_date', '<=', $to->toDateString())
-                ->whereDate('end_date', '>=', $from->toDateString());
+                ->where(function ($period) use ($from): void {
+                    $period
+                        ->whereDate('end_date', '>=', $from->toDateString())
+                        // The stored end date is intentionally unchanged while
+                        // frozen. Include those rows here and apply their exact
+                        // projected end date after the freeze is loaded.
+                        ->orWhere('status', 'frozen');
+                });
         }
 
         // Effective status resolves plan grace days in PHP, so only the plain
@@ -152,6 +164,30 @@ final class MemberSubscriptionsReport
         }
 
         return $query;
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  array<string, mixed>  $params
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function filterMembershipRange(Collection $rows, array $params, bool $latestRow = false): Collection
+    {
+        if (empty($params['from']) && empty($params['to'])) {
+            return $rows;
+        }
+
+        $from = Carbon::parse($params['from'] ?? $params['to'])->toDateString();
+        $to = Carbon::parse($params['to'] ?? $params['from'])->toDateString();
+
+        return $rows->filter(function (array $row) use ($from, $to, $latestRow): bool {
+            $subscription = $latestRow ? ($row['latest'] ?? []) : $row;
+            $start = $subscription['start_date'] ?? null;
+            $end = $subscription['end_date'] ?? null;
+
+            return ($start === null || $start <= $to)
+                && ($end === null || $end >= $from);
+        });
     }
 
     /**
@@ -276,6 +312,7 @@ final class MemberSubscriptionsReport
                     'resumed_on' => $freeze->resumed_on?->toDateString(),
                     'days' => (int) $freeze->days,
                     'remaining_days_at_freeze' => $freeze->remaining_days_at_freeze,
+                    'approval_status' => $freeze->approval_status,
                     'reason' => $freeze->reason,
                 ])->values()->all(),
             'refunds' => $subscription->refunds
@@ -413,6 +450,8 @@ final class MemberSubscriptionsReport
     {
         $stats = $visitStats->get($subscription->id);
         $status = $this->effectiveStatus($subscription);
+        $activeFreeze = $this->activeFreeze($subscription);
+        $projectedEndDate = $this->projectedEndDate($subscription, $activeFreeze);
 
         $pricePaid = $this->money($subscription->price_paid);
         $addonPrice = $subscription->addons->reduce(
@@ -447,7 +486,9 @@ final class MemberSubscriptionsReport
             : null;
 
         $visitsCount = (int) ($stats->visits_count ?? 0);
-        $freezeDaysUsed = (int) $subscription->freezes->sum('days');
+        $freezeDaysUsed = (int) $subscription->freezes
+            ->filter(fn (SubscriptionFreeze $freeze): bool => $freeze->isEffectiveFreeze())
+            ->sum('days');
 
         return [
             'id' => $subscription->id,
@@ -459,13 +500,14 @@ final class MemberSubscriptionsReport
             'plan_category' => $subscription->plan?->category,
             'plan_type' => $subscription->plan?->type,
             'start_date' => $subscription->start_date?->toDateString(),
-            'end_date' => $subscription->end_date?->toDateString(),
+            'end_date' => $projectedEndDate?->toDateString(),
+            'original_end_date' => $subscription->end_date?->toDateString(),
             'status' => $status,
             'raw_status' => $subscription->status,
-            'days_left' => $this->daysLeft($subscription, $status),
+            'days_left' => $this->daysLeft($subscription, $status, $activeFreeze),
             'duration_days' => $this->durationDays($subscription),
             'freeze_days_used' => $freezeDaysUsed,
-            'is_frozen' => $subscription->freezes->whereNull('resumed_on')->isNotEmpty(),
+            'is_frozen' => $activeFreeze !== null,
             'upgraded_from_subscription_id' => $subscription->upgraded_from_subscription_id,
 
             // Attendance / sessions
@@ -596,8 +638,11 @@ final class MemberSubscriptionsReport
         $visitStats = $this->visitStats($subscriptions->pluck('id')->all());
         $addonVisitStats = $this->addonVisitStats($subscriptions->pluck('id')->all());
 
-        $all = $subscriptions
-            ->map(fn (Subscription $subscription): array => $this->subscriptionRow($subscription, $visitStats, $addonVisitStats))
+        $all = $this->filterMembershipRange(
+            $subscriptions
+                ->map(fn (Subscription $subscription): array => $this->subscriptionRow($subscription, $visitStats, $addonVisitStats)),
+            $params,
+        )
             ->when(
                 $statusFilter === 'expired',
                 fn (Collection $mapped) => $mapped->filter(fn (array $row): bool => $row['status'] === 'expired'),
@@ -768,13 +813,49 @@ final class MemberSubscriptionsReport
             : $subscription->status;
     }
 
-    private function daysLeft(Subscription $subscription, string $status): ?int
+    private function daysLeft(
+        Subscription $subscription,
+        string $status,
+        ?SubscriptionFreeze $activeFreeze,
+    ): ?int
     {
         if (in_array($status, ['stopped', 'expired'], true) || ! $subscription->end_date) {
             return null;
         }
 
+        if ($status === 'frozen' && $activeFreeze?->remaining_days_at_freeze !== null) {
+            return (int) $activeFreeze->remaining_days_at_freeze;
+        }
+
         return (int) Carbon::today()->diffInDays($subscription->end_date, false);
+    }
+
+    private function activeFreeze(Subscription $subscription): ?SubscriptionFreeze
+    {
+        return $subscription->freezes
+            ->whereNull('resumed_on')
+            ->filter(fn (SubscriptionFreeze $freeze): bool => $freeze->isEffectiveFreeze())
+            ->sortByDesc('freeze_start')
+            ->first();
+    }
+
+    private function projectedEndDate(
+        Subscription $subscription,
+        ?SubscriptionFreeze $activeFreeze,
+    ): ?Carbon
+    {
+        if ($subscription->status !== 'frozen' || $activeFreeze === null) {
+            return $subscription->end_date?->copy();
+        }
+
+        if ($activeFreeze->freeze_end === null || $activeFreeze->remaining_days_at_freeze === null) {
+            return $subscription->end_date?->copy();
+        }
+
+        return $activeFreeze->freeze_end
+            ->copy()
+            ->addDay()
+            ->addDays($activeFreeze->remaining_days_at_freeze);
     }
 
     private function durationDays(Subscription $subscription): ?int

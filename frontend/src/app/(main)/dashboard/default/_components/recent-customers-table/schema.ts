@@ -27,6 +27,7 @@ export const recentCustomersSchema = z.object({
       plan_name: z.string().nullable(),
       start_date: z.string().nullable(),
       end_date: z.string().nullable(),
+      projected_end_date: z.string().nullable().optional(),
       status: z.string(),
       days_left: z.number().nullable().optional(),
       renewal_health: z.string().nullable().optional(),
@@ -41,6 +42,28 @@ export const recentCustomersSchema = z.object({
       price_paid: z.string().nullable().optional(),
       paid_total: z.string().nullable().optional(),
       balance: z.string().nullable().optional(),
+      freeze: z
+        .object({
+          id: z.number().optional(),
+          freeze_start: z.string().nullable().optional(),
+          freeze_end: z.string().nullable().optional(),
+          remaining_days_at_freeze: z.number().nullable().optional(),
+          projected_end_date: z.string().nullable().optional(),
+          approval_status: z.string().nullable().optional(),
+        })
+        .nullable()
+        .optional(),
+      pending_freeze: z
+        .object({
+          id: z.number(),
+          freeze_start: z.string().nullable().optional(),
+          freeze_end: z.string().nullable().optional(),
+          planned_days: z.number().nullable().optional(),
+          reason: z.string().nullable().optional(),
+          approval_status: z.string().nullable().optional(),
+        })
+        .nullable()
+        .optional(),
       addons: z
         .array(
           z.object({

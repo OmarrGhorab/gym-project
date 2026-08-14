@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Notifications\IndexNotificationRequest;
 use App\Http\Resources\NotificationResource;
 use App\Models\Subscription;
+use App\Models\SubscriptionFreeze;
 use App\Support\SubscriptionMessagePayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ class NotificationController extends ApiController
             ->withQueryString();
 
         $this->refreshSubscriptionPayloads($notifications->getCollection());
+        $this->refreshFreezeApprovalPayloads($notifications->getCollection());
 
         return $this->success(
             data: NotificationResource::collection($notifications->getCollection())->resolve(),
@@ -97,6 +99,45 @@ class NotificationController extends ApiController
                 ...$stored,
                 'attendance_code' => $fresh['attendance_code'],
                 'attendance_qr' => $fresh['attendance_qr'],
+            ];
+        }
+    }
+
+    /**
+     * Approval notifications are actionable, so their stored snapshot must not
+     * keep showing Approve/Dismiss after another manager has made the decision.
+     *
+     * @param  Collection<int, \Illuminate\Notifications\DatabaseNotification>  $notifications
+     */
+    private function refreshFreezeApprovalPayloads(Collection $notifications): void
+    {
+        $freezeIds = $notifications
+            ->pluck('data.freeze_request_id')
+            ->filter()
+            ->unique();
+
+        if ($freezeIds->isEmpty()) {
+            return;
+        }
+
+        $freezes = SubscriptionFreeze::query()
+            ->whereKey($freezeIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($notifications as $notification) {
+            $freeze = $freezes->get($notification->data['freeze_request_id'] ?? null);
+
+            if ($freeze === null) {
+                continue;
+            }
+
+            $notification->data = [
+                ...$notification->data,
+                'approval_status' => $freeze->approval_status,
+                'requires_action' => $freeze->isPendingApproval(),
+                'approved_at' => $freeze->approved_at?->toIso8601String(),
+                'dismissed_at' => $freeze->dismissed_at?->toIso8601String(),
             ];
         }
     }

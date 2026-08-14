@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\WrapsApiResponse;
 use App\Models\Payment;
+use App\Models\SubscriptionFreeze;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
@@ -20,7 +21,10 @@ class SubscriptionResource extends JsonResource
         $packagePaidTotal = $this->packagePaidTotal();
         $collectedPaidTotal = $this->packageCollectedPaidTotal();
         $refundTotal = $this->refundTotal();
-        $daysLeft = $this->daysLeft();
+        $currentFreeze = $this->currentFreeze();
+        $pendingFreeze = $this->pendingFreeze();
+        $daysLeft = $this->daysLeft($currentFreeze);
+        $projectedEndDate = $this->projectedEndDate($currentFreeze);
         $status = $this->effectiveStatus();
         $cancellationGraceDays = $this->cancellationGraceDays();
         $cancellationGraceEndsOn = $this->cancellationGraceEndsOn($cancellationGraceDays);
@@ -38,7 +42,9 @@ class SubscriptionResource extends JsonResource
             'status' => $status,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
-            'freeze' => $this->freezeSnapshot(),
+            'projected_end_date' => $projectedEndDate?->toDateString(),
+            'freeze' => $this->freezeSnapshot($currentFreeze, $projectedEndDate),
+            'pending_freeze' => $this->pendingFreezeSnapshot($pendingFreeze),
             'price_paid' => $this->price_paid,
             'paid_total' => $this->paidTotal(),
             'collected_paid_total' => $collectedPaidTotal,
@@ -127,19 +133,39 @@ class SubscriptionResource extends JsonResource
     /**
      * @return array<string, mixed>|null
      */
-    private function freezeSnapshot(): ?array
+    private function currentFreeze(): ?SubscriptionFreeze
     {
         $this->loadMissing('freezes');
-        $openFreeze = $this->freezes
+
+        return $this->freezes
             ->whereNull('resumed_on')
+            ->filter(fn (SubscriptionFreeze $freeze): bool => $freeze->isEffectiveFreeze())
             ->sortByDesc('freeze_start')
             ->first();
+    }
+
+    private function pendingFreeze(): ?SubscriptionFreeze
+    {
+        $this->loadMissing('freezes');
+
+        return $this->freezes
+            ->filter(fn (SubscriptionFreeze $freeze): bool => $freeze->isPendingApproval())
+            ->sortByDesc('created_at')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function freezeSnapshot(?SubscriptionFreeze $openFreeze, ?Carbon $projectedEndDate): ?array
+    {
 
         if ($openFreeze === null) {
             return null;
         }
 
         return [
+            'id' => $openFreeze->id,
             'freeze_start' => $openFreeze->freeze_start?->toDateString(),
             'freeze_end' => $openFreeze->freeze_end?->toDateString(),
             'resumed_on' => $openFreeze->resumed_on?->toDateString(),
@@ -147,8 +173,45 @@ class SubscriptionResource extends JsonResource
                 ? (int) $openFreeze->freeze_start->diffInDays($openFreeze->freeze_end) + 1
                 : (int) $openFreeze->days,
             'remaining_days_at_freeze' => $openFreeze->remaining_days_at_freeze,
+            'projected_end_date' => $projectedEndDate?->toDateString(),
+            'approval_status' => $openFreeze->approval_status,
             'reason' => $openFreeze->reason,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function pendingFreezeSnapshot(?SubscriptionFreeze $pendingFreeze): ?array
+    {
+        if ($pendingFreeze === null) {
+            return null;
+        }
+
+        return [
+            'id' => $pendingFreeze->id,
+            'freeze_start' => $pendingFreeze->freeze_start?->toDateString(),
+            'freeze_end' => $pendingFreeze->freeze_end?->toDateString(),
+            'planned_days' => (int) $pendingFreeze->days,
+            'reason' => $pendingFreeze->reason,
+            'approval_status' => $pendingFreeze->approval_status,
+            'requested_at' => $pendingFreeze->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function projectedEndDate(?SubscriptionFreeze $freeze): ?Carbon
+    {
+        if ($this->status !== 'frozen' || $freeze === null || ! $freeze->freeze_end) {
+            return $this->end_date?->copy();
+        }
+
+        $remainingDays = $freeze->remaining_days_at_freeze;
+
+        if ($remainingDays === null) {
+            return $this->end_date?->copy();
+        }
+
+        return $freeze->freeze_end->copy()->addDay()->addDays($remainingDays);
     }
 
     private function balanceDue(): string
@@ -226,7 +289,7 @@ class SubscriptionResource extends JsonResource
         return bcadd($this->collectedPaidTotal(), $this->addonPaidTotal(), 2);
     }
 
-    private function daysLeft(): ?int
+    private function daysLeft(?SubscriptionFreeze $freeze): ?int
     {
         // Closed memberships have no remaining access window to display.
         if (in_array($this->status, ['stopped', 'expired'], true)) {
@@ -235,6 +298,10 @@ class SubscriptionResource extends JsonResource
 
         if (! $this->end_date) {
             return null;
+        }
+
+        if ($this->status === 'frozen' && $freeze?->remaining_days_at_freeze !== null) {
+            return (int) $freeze->remaining_days_at_freeze;
         }
 
         return (int) Carbon::today()->diffInDays($this->end_date, false);

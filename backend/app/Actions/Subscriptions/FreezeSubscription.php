@@ -5,6 +5,7 @@ namespace App\Actions\Subscriptions;
 use App\Models\Subscription;
 use App\Models\SubscriptionFreeze;
 use App\Models\User;
+use App\Services\OperationalNotifier;
 use App\Support\MembershipPermissions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -12,12 +13,18 @@ use Illuminate\Validation\ValidationException;
 
 class FreezeSubscription
 {
+    public function __construct(
+        private readonly OperationalNotifier $notifier,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
     public function handle(Subscription $subscription, array $data, User $user): Subscription
     {
-        return DB::transaction(function () use ($subscription, $data, $user): Subscription {
+        $pendingFreeze = null;
+
+        $result = DB::transaction(function () use ($subscription, $data, $user, &$pendingFreeze): Subscription {
             $lockedSubscription = Subscription::query()
                 ->lockForUpdate()
                 ->with(['plan', 'freezes'])
@@ -38,7 +45,15 @@ class FreezeSubscription
                 (int) $freezeStart->diffInDays($lockedSubscription->end_date, false),
             );
 
-            $usedDays = (int) $lockedSubscription->freezes->sum('days');
+            if ($lockedSubscription->freezes->contains->isPendingApproval()) {
+                throw ValidationException::withMessages([
+                    'subscription' => 'A freeze request is already waiting for approval.',
+                ]);
+            }
+
+            $usedDays = (int) $lockedSubscription->freezes
+                ->reject(fn (SubscriptionFreeze $freeze): bool => $freeze->approval_status === SubscriptionFreeze::APPROVAL_DISMISSED)
+                ->sum('days');
             $maxFreezeDays = (int) $plan->max_freeze_days;
             $minFreezeDays = (int) $plan->min_freeze_days;
 
@@ -62,35 +77,44 @@ class FreezeSubscription
                 ]);
             }
 
-            // An approval-only plan is not un-freezable — it just needs sign-off from
-            // someone holding `subscriptions.freeze_approve` (admin/manager). Front-desk
-            // staff still get the block, and the approver is stamped on the freeze row.
             $needsApproval = (bool) $plan->freeze_requires_approval;
             $isApprover = $user->can(MembershipPermissions::PERM_SUBSCRIPTIONS_FREEZE_APPROVE);
+            $approvalStatus = $needsApproval
+                ? ($isApprover ? SubscriptionFreeze::APPROVAL_APPROVED : SubscriptionFreeze::APPROVAL_PENDING)
+                : SubscriptionFreeze::APPROVAL_NOT_REQUIRED;
 
-            if ($needsApproval && ! $isApprover) {
-                throw ValidationException::withMessages([
-                    'subscription' => 'This plan requires a manager or admin to approve the freeze. Ask an approver to freeze it for you.',
-                ]);
-            }
-
-            SubscriptionFreeze::create([
+            $freeze = SubscriptionFreeze::create([
                 'subscription_id' => $lockedSubscription->id,
                 'freeze_start' => $data['freeze_start'],
                 'freeze_end' => $data['freeze_end'],
                 'days' => $days,
-                'remaining_days_at_freeze' => $remainingDays,
+                // A pending request is still active access. Snapshot the unused
+                // days only when an approver actually pauses the membership.
+                'remaining_days_at_freeze' => $approvalStatus === SubscriptionFreeze::APPROVAL_PENDING
+                    ? null
+                    : $remainingDays,
                 'reason' => $data['reason'] ?? null,
                 'created_by' => $user->id,
-                'approved_by' => $needsApproval ? $user->id : null,
-                'approved_at' => $needsApproval ? now() : null,
+                'approved_by' => $approvalStatus === SubscriptionFreeze::APPROVAL_APPROVED ? $user->id : null,
+                'approved_at' => $approvalStatus === SubscriptionFreeze::APPROVAL_APPROVED ? now() : null,
+                'approval_status' => $approvalStatus,
             ]);
 
-            $lockedSubscription->update([
-                'status' => 'frozen',
-            ]);
+            if ($approvalStatus === SubscriptionFreeze::APPROVAL_PENDING) {
+                $pendingFreeze = $freeze;
+            } else {
+                $lockedSubscription->update([
+                    'status' => 'frozen',
+                ]);
+            }
 
             return $lockedSubscription->fresh(['member', 'plan', 'soldBy', 'payments', 'freezes']);
         });
+
+        if ($pendingFreeze instanceof SubscriptionFreeze) {
+            $this->notifier->freezeApprovalRequested($pendingFreeze);
+        }
+
+        return $result;
     }
 }

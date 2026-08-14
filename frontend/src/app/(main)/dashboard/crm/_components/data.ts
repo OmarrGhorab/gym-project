@@ -81,6 +81,7 @@ type SubscriptionResource = {
   billing_status?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  projected_end_date?: string | null;
   days_left?: number | null;
   price_paid?: string | number | null;
   paid_total?: string | number | null;
@@ -126,12 +127,24 @@ type SubscriptionResource = {
     name?: string | null;
   } | null;
   freeze?: {
+    id?: number;
     freeze_start?: string | null;
     freeze_end?: string | null;
     resumed_on?: string | null;
     planned_days?: number | string | null;
     remaining_days_at_freeze?: number | string | null;
+    projected_end_date?: string | null;
+    approval_status?: string | null;
     reason?: string | null;
+  } | null;
+  pending_freeze?: {
+    id?: number;
+    freeze_start?: string | null;
+    freeze_end?: string | null;
+    planned_days?: number | string | null;
+    reason?: string | null;
+    approval_status?: string | null;
+    requested_at?: string | null;
   } | null;
   addons?: {
     id: number;
@@ -511,6 +524,7 @@ function mapSubscriptionToPipeline(
     sessionsRemaining: subscription.sessions_remaining ?? null,
     startDate: subscription.start_date ?? null,
     endDate: subscription.end_date ?? null,
+    projectedEndDate: subscription.projected_end_date ?? subscription.end_date ?? null,
     canCancelWithRefund: Boolean(subscription.can_cancel_with_refund),
     defaultRefundAmount: Number(
       subscription.default_refund_amount ?? subscription.collected_paid_total ?? subscription.paid_total ?? 0,
@@ -522,6 +536,7 @@ function mapSubscriptionToPipeline(
     freezeRequiresApproval: Boolean(subscription.plan?.freeze_requires_approval),
     freeze: subscription.freeze
       ? {
+          id: Number(subscription.freeze.id ?? 0),
           freezeStart: subscription.freeze.freeze_start ?? null,
           freezeEnd: subscription.freeze.freeze_end ?? null,
           resumedOn: subscription.freeze.resumed_on ?? null,
@@ -534,7 +549,23 @@ function mapSubscriptionToPipeline(
             subscription.freeze.remaining_days_at_freeze === undefined
               ? null
               : Number(subscription.freeze.remaining_days_at_freeze),
+          projectedEndDate: subscription.freeze.projected_end_date ?? subscription.projected_end_date ?? null,
+          approvalStatus: subscription.freeze.approval_status ?? null,
           reason: subscription.freeze.reason ?? null,
+        }
+      : null,
+    pendingFreeze: subscription.pending_freeze?.id
+      ? {
+          id: Number(subscription.pending_freeze.id),
+          freezeStart: subscription.pending_freeze.freeze_start ?? null,
+          freezeEnd: subscription.pending_freeze.freeze_end ?? null,
+          plannedDays:
+            subscription.pending_freeze.planned_days === null || subscription.pending_freeze.planned_days === undefined
+              ? null
+              : Number(subscription.pending_freeze.planned_days),
+          reason: subscription.pending_freeze.reason ?? null,
+          approvalStatus: subscription.pending_freeze.approval_status ?? "pending",
+          requestedAt: subscription.pending_freeze.requested_at ?? null,
         }
       : null,
   };

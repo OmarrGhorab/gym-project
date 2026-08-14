@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
 
+import { FreezeApprovalButtons } from "../freeze-approval-buttons";
 import { markAllSidebarNotificationsRead, markSidebarNotificationRead } from "./notification-actions";
 
 export type NotificationRow = {
@@ -42,12 +43,15 @@ export type NotificationRow = {
 type NotificationMenuClientProps = {
   initialNotifications: NotificationRow[];
   labels: {
+    approveFreeze: string;
+    dismissFreeze: string;
     latestActivity: string;
     markAllRead: string;
     markRead: string;
     notificationCenter: string;
     notifications: string;
     openNotifications: string;
+    working: string;
     empty: string;
   };
 };
@@ -111,6 +115,11 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
     });
   }
 
+  function resolveNotification(id: string) {
+    setNotifications((current) => current.filter((item) => item.id !== id));
+    setUnreadCount((current) => Math.max(0, current - 1));
+  }
+
   useEffect(() => {
     const events = new EventSource("/api/notifications/stream");
 
@@ -125,9 +134,7 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
 
       if (newNotifications.length > 0) {
         const latest = newNotifications[0];
-        if (!notificationAudio.current) {
-          notificationAudio.current = new Audio("/notifications.mp3");
-        }
+        notificationAudio.current ??= new Audio("/notifications.mp3");
         notificationAudio.current.currentTime = 0;
         void notificationAudio.current.play().catch(() => {
           // Browsers can block audio until the user interacts with the page.
@@ -204,6 +211,15 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
                     </span>
                   </span>
                   <div className="flex shrink-0 items-center gap-1">
+                    <FreezeApprovalButtons
+                      data={notification.data}
+                      labels={{
+                        approve: labels.approveFreeze,
+                        dismiss: labels.dismissFreeze,
+                        working: labels.working,
+                      }}
+                      onResolved={() => resolveNotification(notification.id)}
+                    />
                     {phone ? <WhatsAppNotificationButton phone={phone} data={notification.data} size="sm" /> : null}
                     <Button
                       type="button"

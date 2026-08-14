@@ -17,9 +17,16 @@ class SubscriptionFreezeResource extends JsonResource
             'subscription_id' => $this->subscription_id,
             'freeze_start' => $this->freeze_start?->toDateString(),
             'freeze_end' => $this->freeze_end?->toDateString(),
+            'resumed_on' => $this->resumed_on?->toDateString(),
             'days' => $this->days,
+            'remaining_days_at_freeze' => $this->remaining_days_at_freeze,
             'reason' => $this->reason,
             'created_by' => $this->created_by,
+            'approval_status' => $this->approval_status,
+            'approved_by' => $this->approved_by,
+            'approved_at' => $this->approved_at?->toIso8601String(),
+            'dismissed_by' => $this->dismissed_by,
+            'dismissed_at' => $this->dismissed_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

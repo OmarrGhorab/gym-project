@@ -88,6 +88,8 @@ export default async function Page({
       {access.canViewMembers ? (
         <SubscriberOverview
           members={data.members}
+          frozenMembers={data.frozenMembers}
+          frozenMembersTotal={data.frozenMembersTotal}
           total={data.membersTotal}
           meta={data.membersMeta}
           query={membersQuery}

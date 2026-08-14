@@ -297,7 +297,7 @@ function buildMemberWhatsAppMessage(
   }
 
   if (subscription?.end_date) {
-    lines.push(`${locale === "ar" ? "تنتهي" : "Ends"}: ${subscription.end_date}`);
+    lines.push(`${locale === "ar" ? "تنتهي" : "Ends"}: ${subscription.projected_end_date ?? subscription.end_date}`);
   }
 
   if (qrPayload) {

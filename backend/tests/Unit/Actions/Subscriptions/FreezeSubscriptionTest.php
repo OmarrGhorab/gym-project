@@ -74,7 +74,7 @@ test('freeze subscription rejects when cumulative freeze exceeds plan cap', func
     ], $user))->toThrow(ValidationException::class);
 });
 
-test('freeze subscription on an approval-only plan is blocked without the approval permission', function (): void {
+test('freeze subscription on an approval-only plan creates a pending request without pausing access', function (): void {
     $user = User::factory()->create();
     $user->assignRole(FoundationPermissions::ROLE_CASHIER);
     $member = Member::factory()->active()->create();
@@ -88,11 +88,18 @@ test('freeze subscription on an approval-only plan is blocked without the approv
         'end_date' => '2026-06-30',
     ]);
 
-    expect(fn () => app(FreezeSubscription::class)->handle($subscription, [
+    $requested = app(FreezeSubscription::class)->handle($subscription, [
         'freeze_start' => '2026-06-10',
         'freeze_end' => '2026-06-12',
-    ], $user))->toThrow(ValidationException::class)
-        ->and(SubscriptionFreeze::count())->toBe(0);
+    ], $user);
+
+    $freeze = SubscriptionFreeze::firstOrFail();
+
+    expect($requested->status)->toBe('active')
+        ->and($freeze->approval_status)->toBe(SubscriptionFreeze::APPROVAL_PENDING)
+        ->and($freeze->remaining_days_at_freeze)->toBeNull()
+        ->and($freeze->approved_by)->toBeNull()
+        ->and($freeze->approved_at)->toBeNull();
 });
 
 test('freeze subscription on an approval-only plan records the approver', function (): void {
@@ -117,6 +124,7 @@ test('freeze subscription on an approval-only plan records the approver', functi
     $freeze = SubscriptionFreeze::firstOrFail();
 
     expect($frozen->status)->toBe('frozen')
+        ->and($freeze->approval_status)->toBe(SubscriptionFreeze::APPROVAL_APPROVED)
         ->and($freeze->approved_by)->toBe($user->id)
         ->and($freeze->approved_at)->not->toBeNull();
 });
@@ -140,7 +148,8 @@ test('freeze subscription leaves the approver empty when the plan needs no appro
         'freeze_end' => '2026-06-12',
     ], $user);
 
-    expect(SubscriptionFreeze::firstOrFail()->approved_by)->toBeNull();
+    expect(SubscriptionFreeze::firstOrFail()->approval_status)->toBe(SubscriptionFreeze::APPROVAL_NOT_REQUIRED)
+        ->and(SubscriptionFreeze::firstOrFail()->approved_by)->toBeNull();
 });
 
 test('freeze subscription rejects invalid status', function (): void {

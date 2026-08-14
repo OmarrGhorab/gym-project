@@ -34,6 +34,7 @@ export type MemberRow = {
     plan?: { id: number; name: string; price: string | number } | null;
     start_date: string | null;
     end_date: string | null;
+    projected_end_date?: string | null;
     status: string;
     price_paid?: string | null;
     discount?: string | null;
@@ -48,6 +49,22 @@ export type MemberRow = {
     can_cancel_with_refund?: boolean | null;
     cancellation_grace_ends_on?: string | null;
     default_refund_amount?: string | null;
+    freeze?: {
+      id?: number;
+      freeze_start?: string | null;
+      freeze_end?: string | null;
+      remaining_days_at_freeze?: number | null;
+      projected_end_date?: string | null;
+      approval_status?: string | null;
+    } | null;
+    pending_freeze?: {
+      id: number;
+      freeze_start?: string | null;
+      freeze_end?: string | null;
+      planned_days?: number | null;
+      reason?: string | null;
+      approval_status?: string | null;
+    } | null;
     addons?: {
       id: number;
       status?: string;

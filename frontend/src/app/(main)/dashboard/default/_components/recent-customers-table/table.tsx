@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { FreezeApprovalButtons } from "@/app/(main)/dashboard/_components/freeze-approval-buttons";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { canAccess } from "@/lib/authorization";
 import type { DashboardUser } from "@/lib/session";
 
 import type { StaffOption } from "../../../members/_components/data";
@@ -63,6 +65,7 @@ export function RecentCustomersTable({
   query,
   staff,
   user,
+  compact = false,
 }: {
   data: RecentCustomerRow[];
   meta: MembersMeta;
@@ -70,6 +73,7 @@ export function RecentCustomersTable({
   query: MembersQuery;
   staff: StaffOption[];
   user: DashboardUser;
+  compact?: boolean;
 }) {
   const t = useTranslations("Dashboard.default.members");
   const locale = useLocale();
@@ -87,6 +91,8 @@ export function RecentCustomersTable({
   const billingFilter = query.billing ?? "all";
   const joinedDateFilter = query.joinedWindow ?? "all";
   const sortValue = query.sort ?? "newest";
+  const rowsPerPageId = compact ? "frozen-members-rows-per-page" : "recent-customers-rows-per-page";
+  const canApproveFreeze = canAccess(user, "subscriptions.freeze_approve");
 
   React.useEffect(() => {
     setSearchQuery(query.search ?? "");
@@ -179,7 +185,9 @@ export function RecentCustomersTable({
           joined: t("joined"),
           member: t("member"),
           noPlan: t("noPlan"),
+          pausedDaysRemaining: (values) => t("pausedDaysRemaining", values),
           paidAmount: (values) => t("paidAmount", values),
+          freezeApprovalPending: t("freezeApprovalPending"),
           plan: t("plan"),
           selectAll: t("selectAll"),
           selectMember: (values) => t("selectMember", values),
@@ -196,60 +204,78 @@ export function RecentCustomersTable({
         },
         locale,
         renderActions: (row) => (
-          <MemberActionsMenu
-            member={{
-              id: Number(row.id),
-              name: row.name,
-              phone: row.phone,
-              email: row.email || null,
-              national_id: row.national_id ?? null,
-              gender: row.gender ?? null,
-              attendance_code: row.attendance_code ?? null,
-              attendance_qr: row.attendance_qr ?? null,
-              birth_date: row.birth_date ?? null,
-              join_date: row.joined ?? null,
-              expiry_date: row.planEndsAt ?? null,
-              status: row.status ?? "inactive",
-              notes: row.notes ?? null,
-              has_photo: row.has_photo ?? false,
-              total_paid: row.totalPaid,
-              updated_at: row.updated_at ?? null,
-              latest_subscription: row.latest_subscription ?? null,
-            }}
-            plans={plans}
-            staff={staff}
-            due={row.due ?? null}
-            permissions={user.permissions}
-            labels={{
-              actionsFor: (values) => t("actionOpenMenu", values),
-              addPayment: t("actionAddPayment"),
-              addPaymentDescription: (values) => t("actionAddPaymentDescription", values),
-              addSubscription: t("actionAddSubscription"),
-              addSubscriptionExtra: t("addSubscriptionExtra"),
-              addSubscriptionExtraDescription: t("addSubscriptionExtraDescription"),
-              bankTransfer: t("paymentMethods.bankTransfer"),
-              cancel: t("actionCancel"),
-              card: t("paymentMethods.card"),
-              cash: t("paymentMethods.cash"),
-              changePlan: t("actionChangePlan"),
-              changePlanDescription: (values) => t("actionChangePlanDescription", values),
-              editMember: t("actionEditMember"),
-              member: t("member"),
-              noActivePlan: t("noPlan"),
-              outstanding: t("outstanding"),
-              paymentAmount: t("actionPaymentAmount"),
-              paymentMethod: t("actionPaymentMethod"),
-              pleaseTryAgain: t("actionFailed"),
-              selectPaymentMethod: t("actionSelectPaymentMethod"),
-              subscription: t("subscription"),
-              uploadPhoto: t("actionUploadPhoto"),
-              viewDetails: t("actionViewDetails"),
-              working: t("actionWorking"),
-            }}
-          />
+          <div className="flex items-center justify-end gap-2">
+            {canApproveFreeze && row.latest_subscription?.pending_freeze ? (
+              <FreezeApprovalButtons
+                data={{
+                  category: "membership.freeze_approval_requested",
+                  approval_status: row.latest_subscription.pending_freeze.approval_status ?? "pending",
+                  requires_action: true,
+                  subscription_id: row.latest_subscription.id,
+                  freeze_request_id: row.latest_subscription.pending_freeze.id,
+                }}
+                labels={{
+                  approve: t("approveFreeze"),
+                  dismiss: t("dismissFreeze"),
+                  working: t("approvalWorking"),
+                }}
+              />
+            ) : null}
+            <MemberActionsMenu
+              member={{
+                id: Number(row.id),
+                name: row.name,
+                phone: row.phone,
+                email: row.email || null,
+                national_id: row.national_id ?? null,
+                gender: row.gender ?? null,
+                attendance_code: row.attendance_code ?? null,
+                attendance_qr: row.attendance_qr ?? null,
+                birth_date: row.birth_date ?? null,
+                join_date: row.joined ?? null,
+                expiry_date: row.planEndsAt ?? null,
+                status: row.status ?? "inactive",
+                notes: row.notes ?? null,
+                has_photo: row.has_photo ?? false,
+                total_paid: row.totalPaid,
+                updated_at: row.updated_at ?? null,
+                latest_subscription: row.latest_subscription ?? null,
+              }}
+              plans={plans}
+              staff={staff}
+              due={row.due ?? null}
+              permissions={user.permissions}
+              labels={{
+                actionsFor: (values) => t("actionOpenMenu", values),
+                addPayment: t("actionAddPayment"),
+                addPaymentDescription: (values) => t("actionAddPaymentDescription", values),
+                addSubscription: t("actionAddSubscription"),
+                addSubscriptionExtra: t("addSubscriptionExtra"),
+                addSubscriptionExtraDescription: t("addSubscriptionExtraDescription"),
+                bankTransfer: t("paymentMethods.bankTransfer"),
+                cancel: t("actionCancel"),
+                card: t("paymentMethods.card"),
+                cash: t("paymentMethods.cash"),
+                changePlan: t("actionChangePlan"),
+                changePlanDescription: (values) => t("actionChangePlanDescription", values),
+                editMember: t("actionEditMember"),
+                member: t("member"),
+                noActivePlan: t("noPlan"),
+                outstanding: t("outstanding"),
+                paymentAmount: t("actionPaymentAmount"),
+                paymentMethod: t("actionPaymentMethod"),
+                pleaseTryAgain: t("actionFailed"),
+                selectPaymentMethod: t("actionSelectPaymentMethod"),
+                subscription: t("subscription"),
+                uploadPhoto: t("actionUploadPhoto"),
+                viewDetails: t("actionViewDetails"),
+                working: t("actionWorking"),
+              }}
+            />
+          </div>
         ),
       }),
-    [locale, plans, staff, t, user.permissions],
+    [canApproveFreeze, locale, plans, staff, t, user.permissions],
   );
 
   const table = useReactTable({
@@ -271,7 +297,7 @@ export function RecentCustomersTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className={compact ? "hidden" : "flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"}>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full lg:w-80">
             <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -424,7 +450,7 @@ export function RecentCustomersTable({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between px-1">
+      <div className={compact ? "hidden" : "flex items-center justify-between px-1"}>
         <div className="hidden flex-1 text-muted-foreground text-sm lg:flex">
           {t("selected", {
             selected: table.getSelectedRowModel().rows.length,
@@ -433,7 +459,7 @@ export function RecentCustomersTable({
         </div>
         <div className="flex w-full items-center gap-8 lg:w-fit">
           <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="recent-customers-rows-per-page" className="font-medium text-sm">
+            <Label htmlFor={rowsPerPageId} className="font-medium text-sm">
               {t("rowsPerPage")}
             </Label>
             <Select
@@ -447,7 +473,7 @@ export function RecentCustomersTable({
               }}
               items={pageSizeItems}
             >
-              <SelectTrigger size="sm" className="w-20" id="recent-customers-rows-per-page">
+              <SelectTrigger size="sm" className="w-20" id={rowsPerPageId}>
                 <SelectValue placeholder={meta.perPage} />
               </SelectTrigger>
               <SelectContent side="top">

@@ -108,6 +108,38 @@ test('report returns one row per member built from the latest subscription', fun
         ->assertJsonPath('data.members.0.latest.days_left', 11);
 });
 
+test('frozen membership report protects remaining days and shows projected expiry', function (): void {
+    Carbon::setTestNow('2026-08-16 12:00:00');
+    actAsReportViewer();
+
+    $subscription = Subscription::factory()->frozen()->create([
+        'member_id' => Member::factory()->create()->id,
+        'start_date' => '2026-08-13',
+        'end_date' => '2026-09-12',
+    ]);
+    SubscriptionFreeze::factory()->create([
+        'subscription_id' => $subscription->id,
+        'freeze_start' => '2026-08-14',
+        'freeze_end' => '2026-08-20',
+        'days' => 7,
+        'remaining_days_at_freeze' => 29,
+        'resumed_on' => null,
+    ]);
+
+    $this->getJson('/api/v1/reports/member-subscriptions')
+        ->assertOk()
+        ->assertJsonPath('data.members.0.latest.original_end_date', '2026-09-12')
+        ->assertJsonPath('data.members.0.latest.end_date', '2026-09-19')
+        ->assertJsonPath('data.members.0.latest.days_left', 29)
+        ->assertJsonPath('data.members.0.latest.freeze_days_used', 7)
+        ->assertJsonPath('data.members.0.latest.is_frozen', true);
+
+    $this->getJson('/api/v1/reports/member-subscriptions?from=2026-09-15&to=2026-09-18')
+        ->assertOk()
+        ->assertJsonPath('data.totals.members_count', 1)
+        ->assertJsonPath('data.members.0.latest.end_date', '2026-09-19');
+});
+
 test('report rolls add-on price, payments and visits into the package figures', function (): void {
     Carbon::setTestNow('2026-07-20 12:00:00');
     actAsReportViewer();

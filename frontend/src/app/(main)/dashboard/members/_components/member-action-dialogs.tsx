@@ -317,6 +317,7 @@ export function MemberActionsMenu({
   const canCancelSubscription = canAccess(currentUser, "subscriptions.stop");
   const canForceRefund = canAccess(currentUser, "subscriptions.force_refund");
   const canAddPayment = canAccess(currentUser, "payments.create");
+  const canApproveFreeze = canAccess(currentUser, "subscriptions.freeze_approve");
   const canUpdateMember = canAccess(currentUser, "members.update");
   const canDeleteMember = canAccess(currentUser, "members.delete");
 
@@ -362,6 +363,7 @@ export function MemberActionsMenu({
   const lifecycleActions = getSubscriptionLifecycleActions(subscriptionStatus).filter((action) => {
     if (action === "renew") return canAccess(currentUser, "subscriptions.renew");
     if (action === "stop") return canCancelSubscription;
+    if (action === "freeze" && member.latest_subscription?.pending_freeze) return false;
 
     return canAccess(currentUser, "subscriptions.freeze");
   });
@@ -514,6 +516,7 @@ export function MemberActionsMenu({
       {subscriptionId ? (
         <MemberLifecycleDialog
           action={lifecycleAction}
+          canApproveFreeze={canApproveFreeze}
           member={member}
           onOpenChange={(next) => {
             if (!next) {
@@ -925,12 +928,14 @@ function getLifecycleIcon(action: SubscriptionLifecycleAction) {
  */
 function MemberLifecycleDialog({
   action,
+  canApproveFreeze,
   member,
   onOpenChange,
   plans,
   subscriptionId,
 }: {
   action: SubscriptionLifecycleAction | null;
+  canApproveFreeze: boolean;
   member: MemberRow;
   onOpenChange: (open: boolean) => void;
   plans: PlanRow[];
@@ -1011,6 +1016,10 @@ function MemberLifecycleDialog({
   }
 
   const actionLabel = action ? t(`lifecycle.${action}`) : "";
+  const submitLabel =
+    action === "freeze" && currentPlan?.freeze_requires_approval && !canApproveFreeze
+      ? t("requestFreezeApproval")
+      : actionLabel;
 
   return (
     <Dialog open={action !== null} onOpenChange={onOpenChange}>
@@ -1057,6 +1066,11 @@ function MemberLifecycleDialog({
           ) : null}
           {action === "freeze" ? (
             <>
+              {currentPlan?.freeze_requires_approval ? (
+                <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300">
+                  {canApproveFreeze ? t("freezeApprovalGranted") : t("freezeApprovalWillRequest")}
+                </div>
+              ) : null}
               <div className="grid gap-2">
                 <Label htmlFor="member-freeze-start">{t("freezeStart")}</Label>
                 <FormDatePicker
@@ -1097,7 +1111,7 @@ function MemberLifecycleDialog({
               {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending} variant={action === "stop" ? "destructive" : "default"}>
-              {pending ? t("working") : actionLabel}
+              {pending ? t("working") : submitLabel}
             </Button>
           </DialogFooter>
         </form>
@@ -2726,7 +2740,7 @@ function CurrentMembershipSummary({ member }: { member: MemberRow }) {
         </p>
       </div>
       <SummaryItem label="Purchased" value={subscription.start_date ?? "—"} />
-      <SummaryItem label="Ends" value={subscription.end_date ?? "—"} />
+      <SummaryItem label="Ends" value={subscription.projected_end_date ?? subscription.end_date ?? "—"} />
       <SummaryItem label="Time in plan" value={daysInPlan === null ? "—" : `${daysInPlan} day(s)`} />
       <SummaryItem label="Gym visits this month" value={`${member.visits_this_month ?? 0}`} />
       <SummaryItem

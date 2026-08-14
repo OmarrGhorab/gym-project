@@ -12,6 +12,7 @@ import type { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
 import { toast } from "sonner";
 
+import { FreezeApprovalButtons } from "@/app/(main)/dashboard/_components/freeze-approval-buttons";
 import type { MemberRow, StaffOption } from "@/app/(main)/dashboard/members/_components/data";
 import {
   DeactivateMemberItem,
@@ -283,7 +284,7 @@ export function getOpportunitiesColumns(
                   member_name: row.original.member,
                   plan_name: row.original.plan,
                   start_date: row.original.startDate,
-                  end_date: row.original.endDate,
+                  end_date: row.original.projectedEndDate,
                   amount_paid: row.original.paidTotal,
                   attendance_qr: row.original.memberQr,
                   sessions_remaining: row.original.sessionsRemaining,
@@ -303,9 +304,17 @@ export function getOpportunitiesColumns(
       accessorKey: "status",
       header: t("status"),
       cell: ({ row }) => (
-        <Badge variant="outline" className={cn("rounded-full px-2.5", getStatusBadgeClassName(row.original.status))}>
-          {translateStatus(row.original.status, t)}
-        </Badge>
+        <div className="grid gap-1">
+          <Badge
+            variant="outline"
+            className={cn("w-fit rounded-full px-2.5", getStatusBadgeClassName(row.original.status))}
+          >
+            {translateStatus(row.original.status, t)}
+          </Badge>
+          {row.original.pendingFreeze ? (
+            <span className="text-amber-700 text-xs dark:text-amber-300">{t("freezeApprovalPendingStatus")}</span>
+          ) : null}
+        </div>
       ),
       filterFn: "equalsString",
     },
@@ -340,19 +349,19 @@ export function getOpportunitiesColumns(
       cell: ({ row }) => {
         const isClosed = row.original.status === "stopped" || row.original.status === "expired";
         const wasRefunded = row.original.refundTotal > 0 || row.original.billingStatus === "refunded";
+        let periodSummary =
+          formatDaysUntilStart(row.original.startsInDays, t) ?? formatDaysLeft(row.original.daysLeft, t);
+
+        if (isClosed) {
+          periodSummary = wasRefunded ? t("periodClosedRefunded") : t("periodClosed");
+        } else if (row.original.status === "frozen") {
+          periodSummary = t("pausedDaysRemaining", { count: row.original.daysLeft ?? 0 });
+        }
 
         return (
           <div className="grid gap-0.5 text-sm">
-            <span>{formatSubscriptionPeriod(row.original.startDate, row.original.endDate, t)}</span>
-            <span className="text-muted-foreground text-xs">
-              {isClosed
-                ? wasRefunded
-                  ? t("periodClosedRefunded")
-                  : t("periodClosed")
-                : // Counting down to the end date reads as access the member does
-                  // not have yet; until it starts, the wait is the useful number.
-                  (formatDaysUntilStart(row.original.startsInDays, t) ?? formatDaysLeft(row.original.daysLeft, t))}
-            </span>
+            <span>{formatSubscriptionPeriod(row.original.startDate, row.original.projectedEndDate, t)}</span>
+            <span className="text-muted-foreground text-xs">{periodSummary}</span>
           </div>
         );
       },
@@ -386,7 +395,23 @@ export function getOpportunitiesColumns(
       id: "actions",
       header: () => <div className="text-right">{t("actions")}</div>,
       cell: ({ row }) => (
-        <div className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          {canApproveFreeze && row.original.pendingFreeze ? (
+            <FreezeApprovalButtons
+              data={{
+                category: "membership.freeze_approval_requested",
+                approval_status: row.original.pendingFreeze.approvalStatus,
+                requires_action: true,
+                subscription_id: row.original.subscriptionId,
+                freeze_request_id: row.original.pendingFreeze.id,
+              }}
+              labels={{
+                approve: t("approveFreeze"),
+                dismiss: t("dismissFreeze"),
+                working: t("working"),
+              }}
+            />
+          ) : null}
           <SubscriptionActions
             subscription={row.original}
             t={t}
@@ -512,7 +537,7 @@ function SubscriptionActions({
       attendance_qr: subscription.memberQr ?? null,
       birth_date: null,
       join_date: subscription.startDate ?? null,
-      expiry_date: subscription.endDate ?? null,
+      expiry_date: subscription.projectedEndDate ?? null,
       status: subscription.status,
       notes: null,
       has_photo: false,
@@ -575,14 +600,16 @@ function SubscriptionActions({
     selectedFreezeDays === null ||
     (subscription.minFreezeDays > 0 && selectedFreezeDays < subscription.minFreezeDays) ||
     selectedFreezeDays > subscription.maxFreezeDays;
-  // An approval-only plan is not blocked outright — it is blocked for staff who
-  // cannot sign it off, which is what the backend enforces.
-  const freezeDisabledReason =
-    subscription.maxFreezeDays < 1
-      ? t("freezeUnavailableReason")
-      : subscription.freezeRequiresApproval && !canApproveFreeze
-        ? t("freezeApprovalMissing")
-        : null;
+  let freezeDisabledReason: string | null = null;
+
+  if (subscription.maxFreezeDays < 1) {
+    freezeDisabledReason = t("freezeUnavailableReason");
+  } else if (subscription.pendingFreeze) {
+    freezeDisabledReason = t("freezeApprovalPending");
+  }
+
+  const freezeSubmitLabel =
+    subscription.freezeRequiresApproval && !canApproveFreeze ? t("requestFreezeApproval") : t("freeze");
   const backendActions = getBackendActions(subscription.status);
   const fieldId = (name: string) => `subscription-${subscription.subscriptionId}-${name}`;
   const confirmActionLabel = getConfirmActionLabel(confirmAction, pendingAction, t);
@@ -1014,10 +1041,17 @@ function SubscriptionActions({
                 value={`${translateHealth(subscription.health, t)} - ${translateHealthReason(subscription, t)}`}
               />
               <DetailRow label={t("starts")} value={subscription.startDate ?? t("noStartDate")} />
-              <DetailRow label={t("ends")} value={subscription.endDate ?? t("noEndDate")} />
+              <DetailRow
+                label={subscription.status === "frozen" ? t("projectedEnds") : t("ends")}
+                value={subscription.projectedEndDate ?? t("noEndDate")}
+              />
               <DetailRow
                 label={t("daysLeft")}
-                value={formatDaysUntilStart(subscription.startsInDays, t) ?? formatDaysLeft(subscription.daysLeft, t)}
+                value={
+                  subscription.status === "frozen"
+                    ? t("pausedDaysRemaining", { count: subscription.daysLeft ?? 0 })
+                    : (formatDaysUntilStart(subscription.startsInDays, t) ?? formatDaysLeft(subscription.daysLeft, t))
+                }
               />
               <DetailRow
                 label={t("paidTotal")}
@@ -1471,7 +1505,7 @@ function SubscriptionActions({
               {subscription.freezeRequiresApproval ? (
                 <div className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-amber-700 text-xs dark:text-amber-300">
                   {t("freezeNeedsApproval")}{" "}
-                  {canApproveFreeze ? t("freezeApprovalGranted") : t("freezeApprovalMissing")}
+                  {canApproveFreeze ? t("freezeApprovalGranted") : t("freezeApprovalWillRequest")}
                 </div>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1502,7 +1536,7 @@ function SubscriptionActions({
                   {t("cancel")}
                 </Button>
                 <Button type="submit" size="sm" disabled={pendingAction !== null || isFreezeDurationInvalid}>
-                  {pendingAction === "freeze" ? t("freezing") : t("freeze")}
+                  {pendingAction === "freeze" ? t("freezing") : freezeSubmitLabel}
                 </Button>
               </div>
             </form>
@@ -1635,7 +1669,7 @@ function buildSubscriptionWhatsAppMessage(subscription: MembershipPipelineRow, t
     );
     lines.push(`${t("plan")}: ${subscription.plan ?? t("noPlan")}`);
     lines.push(`${t("starts")}: ${subscription.startDate ?? t("noStartDate")}`);
-    lines.push(`${t("ends")}: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`${t("ends")}: ${subscription.projectedEndDate ?? t("noEndDate")}`);
     lines.push(`${t("planPrice")}: ${formatCurrency(subscription.value, { currency: "EGP", noDecimals: true })}`);
   } else {
     if (subscription.health === "renewed") {
@@ -1651,7 +1685,7 @@ function buildSubscriptionWhatsAppMessage(subscription: MembershipPipelineRow, t
     );
     lines.push(`${t("plan")}: ${subscription.plan ?? t("noPlan")}`);
     lines.push(`${t("starts")}: ${subscription.startDate ?? t("noStartDate")}`);
-    lines.push(`${t("ends")}: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`${t("ends")}: ${subscription.projectedEndDate ?? t("noEndDate")}`);
     lines.push(`${t("planPrice")}: ${formatCurrency(subscription.value, { currency: "EGP", noDecimals: true })}`);
   }
 
@@ -1700,7 +1734,7 @@ function buildSubscriptionReminderWhatsAppMessage(
         : `تذكير: اشتراكك سينتهي خلال ${nearestReminderDay} يوم.`,
     );
     lines.push(`الخطة: ${subscription.plan ?? t("noPlan")}`);
-    lines.push(`تاريخ الانتهاء: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`تاريخ الانتهاء: ${subscription.projectedEndDate ?? t("noEndDate")}`);
     lines.push(`برجاء التواصل معنا لتجديد الاشتراك قبل انتهاء المدة.`);
   } else {
     lines.push(`Hello ${memberName},`);
@@ -1710,7 +1744,7 @@ function buildSubscriptionReminderWhatsAppMessage(
         : `reminder: your membership will end in ${nearestReminderDay} day(s).`,
     );
     lines.push(`Plan: ${subscription.plan ?? t("noPlan")}`);
-    lines.push(`End date: ${subscription.endDate ?? t("noEndDate")}`);
+    lines.push(`End date: ${subscription.projectedEndDate ?? t("noEndDate")}`);
     lines.push("Please contact us to renew your membership before it expires.");
   }
 
