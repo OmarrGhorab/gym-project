@@ -43,8 +43,9 @@ Route::prefix('attendance')->group(function (): void {
     Route::post('/check-out', [AttendanceController::class, 'checkOut'])
         ->middleware(['permission:attendance.create', 'throttle:api']);
 
+    // Manual entry, not a scan — gated with the corrections it belongs to.
     Route::post('/', [AttendanceController::class, 'store'])
-        ->middleware(['permission:attendance.create', 'throttle:api']);
+        ->middleware(['permission:attendance.update', 'throttle:api']);
 
     Route::get('/{attendance}', [AttendanceController::class, 'show'])
         ->middleware('permission:attendance.view');

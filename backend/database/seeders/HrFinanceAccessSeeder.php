@@ -15,7 +15,7 @@ use Spatie\Permission\PermissionRegistrar;
  *
  * Role matrix:
  *   Admin      — all HR & Finance permissions
- *   Manager    — all HR & Finance permissions
+ *   Manager    — all HR & Finance permissions except attendance.update/delete
  *   Cashier    — reports.view, expenses.view/create, attendance.view/create (shift desk)
  *   Captain    — reports.view, expenses.view/create, attendance.view/create (shift desk)
  *   Accountant — reports.view, expenses.*, attendance.view, payroll.view, commissions.view
@@ -52,8 +52,18 @@ class HrFinanceAccessSeeder extends Seeder
         // Admin — all permissions.
         $admin->givePermissionTo(HrFinancePermissions::ALL_PERMISSIONS);
 
-        // Manager — all permissions.
-        $manager->givePermissionTo(HrFinancePermissions::ALL_PERMISSIONS);
+        // Manager — everything except correcting attendance by hand. A day
+        // written or deleted without a scan behind it moves payroll, so it is
+        // Admin-only. Revoked explicitly as well: re-seeding an older database
+        // would otherwise leave the grant in place.
+        $attendanceCorrections = [
+            HrFinancePermissions::PERM_ATTENDANCE_UPDATE,
+            HrFinancePermissions::PERM_ATTENDANCE_DELETE,
+        ];
+        $manager->givePermissionTo(
+            array_values(array_diff(HrFinancePermissions::ALL_PERMISSIONS, $attendanceCorrections))
+        );
+        $manager->revokePermissionTo($attendanceCorrections);
 
         // Front-desk / floor staff — enough to open Finance, run shift desk, take money.
         $shiftDeskStaffPermissions = [

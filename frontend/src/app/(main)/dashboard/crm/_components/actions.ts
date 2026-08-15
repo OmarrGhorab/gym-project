@@ -34,6 +34,9 @@ const paymentSchema = z.object({
       error: "Payment amount cannot be negative.",
     }),
   method: paymentMethodSchema,
+  // Money over the price is money, not time. Days are only added when the desk
+  // ticks the box that says so.
+  extend_days_for_overpayment: z.boolean().optional(),
 });
 const renewalAddonSchema = z.object({
   plan_id: z.coerce.number().int().positive("Choose a valid extra service."),
@@ -41,10 +44,23 @@ const renewalAddonSchema = z.object({
   discount: optionalMoneySchema,
   payment: paymentSchema,
 });
+/**
+ * Everything past `payment` is an override of what the plan says, sent only
+ * when the desk actually changed it. Omitted, the renewal is the plan.
+ */
 const renewalSchema = z.object({
   discount: optionalMoneySchema,
   payment: paymentSchema,
   addons: z.array(renewalAddonSchema).optional(),
+  plan_id: z.coerce.number().int().positive("Choose a valid plan.").optional(),
+  coach_id: z.coerce.number().int().positive("Choose a valid coach.").optional(),
+  price: optionalMoneySchema,
+  end_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid end date.")
+    .optional(),
+  sessions_total: z.coerce.number().int().min(0, "Sessions cannot be negative.").optional(),
+  unlimited_sessions: z.boolean().optional(),
 });
 const recordPaymentSchema = z.object({
   amount: z
@@ -53,6 +69,7 @@ const recordPaymentSchema = z.object({
     .refine((value) => Number(value) > 0, "Payment amount must be greater than zero."),
   method: paymentMethodSchema,
   subscription_id: subscriptionIdSchema,
+  extend_days_for_overpayment: z.boolean().optional(),
 });
 const freezeSchema = z
   .object({
@@ -217,6 +234,7 @@ export type RenewMembershipSubscriptionInput = {
   payment: {
     amount: string;
     method: "cash" | "card" | "bank_transfer";
+    extend_days_for_overpayment?: boolean;
   };
   addons?: Array<{
     plan_id: number;
@@ -227,6 +245,13 @@ export type RenewMembershipSubscriptionInput = {
       method: "cash" | "card" | "bank_transfer";
     };
   }>;
+  /** Overrides of the plan's own terms, for this period only. */
+  plan_id?: number;
+  coach_id?: number;
+  price?: string;
+  end_date?: string;
+  sessions_total?: number;
+  unlimited_sessions?: boolean;
 };
 
 export async function renewMembershipSubscription(
@@ -246,6 +271,7 @@ export type RecordMembershipPaymentInput = {
   subscription_id: number;
   amount: string;
   method: "cash" | "card" | "bank_transfer";
+  extend_days_for_overpayment?: boolean;
 };
 
 export async function recordMembershipPayment(input: RecordMembershipPaymentInput): Promise<MembershipActionResult> {

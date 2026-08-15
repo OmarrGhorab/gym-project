@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { ServerApiError, serverApiFetch } from "@/lib/api/server";
+import { canAccess } from "@/lib/authorization";
+import { getCurrentUser } from "@/lib/session";
 
 /**
  * A scan the desk has to decide on before it counts.
@@ -155,6 +157,19 @@ export async function createManualAttendance(
   input: FormData,
 ): Promise<AttendanceActionResult> {
   const values = getFormValues(input);
+  // Hiding the form is not the gate — a server action is an endpoint, so the
+  // same permission is checked here before anything is sent on.
+  const user = await getCurrentUser();
+
+  if (!user || !canAccess(user, "attendance.update")) {
+    return {
+      ok: false,
+      message: "You do not have permission to correct attendance.",
+      errors: {},
+      values,
+    };
+  }
+
   const parsed = manualAttendanceSchema.safeParse(values);
 
   if (!parsed.success) {

@@ -56,6 +56,64 @@ class OperationalNotifier
         );
     }
 
+    /**
+     * The gym's WhatsApp number is no longer sending.
+     *
+     * Nothing here fixes itself from the dashboard, and the members waiting on a
+     * renewal reminder or an entry barcode have no idea anything broke. So the
+     * notification leads with what to do about it — send those by hand — rather
+     * than with the state name, which means nothing to whoever is on the desk.
+     */
+    public function whatsAppLinkLost(string $state, ?string $error, int $queued = 0): void
+    {
+        $reasons = [
+            'logged_out' => 'The number was unlinked from the gym\'s phone. Open Settings and scan the new code to link it again.',
+            'conflict' => 'Another copy of the WhatsApp service took over the session. Open Settings and press Reconnect.',
+            'unreachable' => 'The WhatsApp service is not responding on the server.',
+            'qr_pending' => 'The number is waiting to be linked. Open Settings and scan the code with the gym\'s phone.',
+            'disconnected' => 'The connection dropped and has not come back on its own.',
+        ];
+
+        $body = 'Automatic WhatsApp messages are not being sent. '.
+            ($reasons[$state] ?? 'The connection is not healthy (state: '.$state.').').
+            ' Until it is back, send renewal reminders and barcodes by hand from the member\'s page.';
+
+        if ($queued > 0) {
+            $body .= " {$queued} message(s) are waiting to send.";
+        }
+
+        $this->notifyAdmins(
+            title: 'WhatsApp is not sending',
+            body: $body,
+            category: 'whatsapp.link_lost',
+            link: NotificationLink::to('settings', 'whatsapp', null, ['section' => 'whatsapp']),
+            severity: 'error',
+            extra: [
+                'connection_state' => $state,
+                'connection_error' => $error,
+                'queued' => $queued,
+                'requires_action' => true,
+            ],
+        );
+    }
+
+    /** The number is linked and sending again, so nobody needs to keep doing it by hand. */
+    public function whatsAppLinkRestored(?string $number): void
+    {
+        $this->notifyAdmins(
+            title: 'WhatsApp is sending again',
+            body: 'The gym\'s number'.($number ? " (+{$number})" : '').' is linked again and automatic messages have resumed.',
+            category: 'whatsapp.link_restored',
+            link: NotificationLink::to('settings', 'whatsapp', null, ['section' => 'whatsapp']),
+            severity: 'success',
+            extra: [
+                'connection_state' => 'connected',
+                'number' => $number,
+                'requires_action' => false,
+            ],
+        );
+    }
+
     public function newSubscription(Subscription $subscription): void
     {
         $subscription->loadMissing(['member:id,name,phone,attendance_code', 'plan:id,name', 'soldBy:id,name', 'payments']);
@@ -73,6 +131,90 @@ class OperationalNotifier
             extra: [
                 ...$this->subscriptionMessagePayload($subscription),
                 'sold_by' => $subscription->soldBy?->name,
+            ],
+        );
+    }
+
+    /**
+     * A membership was sold on terms the catalogue does not explain — a price,
+     * a length, a session count or a plan the desk set by hand. Nothing here is
+     * wrong, but the plan no longer describes what the member is on, so the
+     * people who own pricing are told who changed what.
+     *
+     * @param  list<string>  $changes  human-readable "was → now" lines
+     */
+    public function membershipRenewedOnCustomTerms(Subscription $subscription, User $actor, array $changes): void
+    {
+        if ($changes === []) {
+            return;
+        }
+
+        $subscription->loadMissing(['member:id,name,phone', 'plan:id,name']);
+
+        $memberName = $subscription->member?->name ?? 'Member';
+        $planName = $subscription->plan?->name ?? 'a plan';
+
+        $this->notifyAdmins(
+            title: 'Renewal on custom terms',
+            body: "{$memberName} renewed {$planName} with changes by {$actor->name}: ".implode('; ', $changes).'.',
+            category: 'membership.renewal_custom_terms',
+            link: NotificationLink::member(
+                $subscription->member_id,
+                $subscription->member?->phone,
+                ['subscription' => $subscription->id],
+            ),
+            severity: 'warning',
+            extra: [
+                'subscription_id' => $subscription->id,
+                'member_id' => $subscription->member_id,
+                'member_name' => $memberName,
+                'plan_name' => $planName,
+                'changes' => $changes,
+                'changed_by' => $actor->id,
+                'changed_by_name' => $actor->name,
+            ],
+        );
+    }
+
+    /**
+     * The desk took more money than was owed and asked for the excess to be
+     * turned into time. The member's end date moved without any plan saying so,
+     * which is exactly the kind of change that has to be visible.
+     */
+    public function membershipDaysBoughtByOverpayment(
+        Subscription|SubscriptionAddon $payable,
+        int $extraDays,
+        string $extraAmount,
+        ?User $actor,
+    ): void {
+        $payable->loadMissing(['member:id,name,phone', 'plan:id,name']);
+
+        $memberName = $payable->member?->name ?? 'Member';
+        $planName = $payable->plan?->name ?? 'a plan';
+        $formattedExtra = number_format((float) $extraAmount, 2, '.', '');
+        $endsOn = $payable->end_date?->toDateString() ?? 'unknown';
+        $by = $actor?->name ?? 'the system';
+
+        $this->notifyAdmins(
+            title: 'Extra days bought with an overpayment',
+            body: "{$memberName} paid EGP {$formattedExtra} above the balance on {$planName} — {$extraDays} day(s) added by {$by}, now ending {$endsOn}.",
+            category: 'membership.overpayment_extended_days',
+            link: NotificationLink::member(
+                $payable->member_id,
+                $payable->member?->phone,
+                ['subscription' => $payable instanceof Subscription ? $payable->id : $payable->subscription_id],
+            ),
+            severity: 'warning',
+            extra: [
+                'subscription_id' => $payable instanceof Subscription ? $payable->id : $payable->subscription_id,
+                'member_id' => $payable->member_id,
+                'member_name' => $memberName,
+                'plan_name' => $planName,
+                'extra_amount' => $formattedExtra,
+                'extra_days' => $extraDays,
+                'ends_on' => $endsOn,
+                'recorded_by' => $actor?->id,
+                'recorded_by_name' => $actor?->name,
             ],
         );
     }

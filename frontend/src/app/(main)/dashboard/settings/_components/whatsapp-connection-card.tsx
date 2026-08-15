@@ -19,7 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type ConnectionState = "connected" | "qr_pending" | "disconnected" | "logged_out" | "not_configured" | "unreachable";
+type ConnectionState =
+  | "connected"
+  | "qr_pending"
+  | "disconnected"
+  | "logged_out"
+  | "conflict"
+  | "not_configured"
+  | "unreachable";
 
 type Connection = {
   configured: boolean;
@@ -50,7 +57,12 @@ const STATUS: Record<string, { label: string; tone: string; help: string }> = {
   logged_out: {
     label: "Not linked",
     tone: "text-destructive",
-    help: "The number was unlinked. Scan a new code to connect it again.",
+    help: "The number was unlinked. A new code appears here within a few seconds — scan it with the gym's phone to connect again.",
+  },
+  conflict: {
+    label: "Taken over",
+    tone: "text-destructive",
+    help: "Another copy of the WhatsApp service linked as this device and took the session. Stop the duplicate on the server, then press Reconnect — the number is still linked, so no one needs to scan anything.",
   },
   not_configured: {
     label: "Not set up",
@@ -74,6 +86,7 @@ export function WhatsAppConnectionCard() {
   const [connection, setConnection] = React.useState<Connection | null>(null);
   const [qr, setQr] = React.useState<string | null>(null);
   const [unlinking, setUnlinking] = React.useState(false);
+  const [reconnecting, setReconnecting] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     try {
@@ -110,6 +123,16 @@ export function WhatsAppConnectionCard() {
       await refresh();
     } finally {
       setUnlinking(false);
+    }
+  };
+
+  const reconnect = async () => {
+    setReconnecting(true);
+    try {
+      await fetch("/api/whatsapp/reconnect", { method: "POST" });
+      await refresh();
+    } finally {
+      setReconnecting(false);
     }
   };
 
@@ -170,32 +193,55 @@ export function WhatsAppConnectionCard() {
           </div>
         ) : null}
 
-        {connection?.connected ? (
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button type="button" variant="outline" size="sm" className="gap-1.5 justify-self-start">
-                  <Unlink className="size-3.5" /> Unlink this number
-                </Button>
-              }
-            />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Unlink the gym's WhatsApp?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Automatic messages stop immediately, and someone has to scan a new code from the gym's phone to start
-                  them again. Staff can still send by hand from the member's page.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction disabled={unlinking} onClick={() => void unlink()}>
-                  {unlinking ? <Loader2 className="size-4 animate-spin" /> : null}
-                  Unlink
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        {/*
+          Both recovery paths stay reachable whenever the gateway is up, not just
+          while connected: a number that has fallen out of the session is exactly
+          when someone needs them, and hiding them there left the only fix as an
+          SSH session on the server.
+        */}
+        {connection?.configured && connection.state !== "unreachable" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {!connection.connected ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={reconnecting}
+                onClick={() => void reconnect()}
+              >
+                {reconnecting ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                Reconnect
+              </Button>
+            ) : null}
+
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                    <Unlink className="size-3.5" />
+                    {connection.connected ? "Unlink this number" : "Unlink and scan a new code"}
+                  </Button>
+                }
+              />
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Unlink the gym's WhatsApp?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Automatic messages stop immediately, and someone has to scan a new code from the gym's phone to
+                    start them again. Staff can still send by hand from the member's page.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction disabled={unlinking} onClick={() => void unlink()}>
+                    {unlinking ? <Loader2 className="size-4 animate-spin" /> : null}
+                    Unlink
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         ) : null}
       </CardContent>
     </Card>

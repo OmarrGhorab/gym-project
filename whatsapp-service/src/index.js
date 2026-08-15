@@ -40,6 +40,14 @@ app.get("/qr", async (_request, response) => {
   response.json({ qr, state: status.state });
 });
 
+// Rebuilds the socket without touching the pairing. This is the recovery for a
+// session another process took over, where the credentials are still good and
+// making someone re-scan a QR would be a pointless trip to the gym's phone.
+app.post("/reconnect", async (_request, response) => {
+  await whatsapp.reconnect();
+  response.json({ ok: true, ...(await whatsapp.status()) });
+});
+
 app.post("/logout", async (_request, response) => {
   await whatsapp.logout();
   response.json({ ok: true });

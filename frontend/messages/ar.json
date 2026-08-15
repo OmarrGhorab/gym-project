@@ -1392,7 +1392,16 @@
       "membershipRules": "قواعد الاشتراك",
       "membershipRulesHelp": "صحح القواعد التي نُسخت من الخطة عند بيع هذا الاشتراك.",
       "cancellationGraceDaysEdit": "أيام سماح الإلغاء",
-      "cancellationGraceDaysEditHelp": "تحدد مدة إمكانية إلغاء هذا الاشتراك مع استرداد وفق سياسة الإلغاء الحالية."
+      "cancellationGraceDaysEditHelp": "تحدد مدة إمكانية إلغاء هذا الاشتراك مع استرداد وفق سياسة الإلغاء الحالية.",
+      "renewTerms": "شروط هذه الفترة",
+      "renewTermsHelp": "كل القيم هنا مأخوذة من الخطة. غيّر ما سيحصل عليه هذا العضو فعليا — الخطة نفسها لا تتغير، ويصل إشعار للمسؤولين بأي بيع مخالف للخطة.",
+      "renewPriceHelp": "سعر الخطة: {price}. يمكنك تحصيل أكثر أو أقل لهذه الفترة فقط.",
+      "renewPeriodHint": "تبدأ في {start} — {days} يوم.",
+      "keepCurrentCoach": "الإبقاء على المدرب الحالي",
+      "overpaymentNotice": "{amount} أكثر من الإجمالي المستحق.",
+      "overpaymentBuysDays": "إضافة {days} يوم إلى الفترة بدلا من الاحتفاظ بالمبلغ كنقود",
+      "overpaymentBuysDaysOn": "سيتأخر تاريخ الانتهاء {days} يوم.",
+      "overpaymentBuysDaysOff": "يسجل المبلغ الزائد كنقود مُحصّلة، ولا يتغير تاريخ الانتهاء."
     },
     "plans": {
       "title": "خطط الاشتراك",

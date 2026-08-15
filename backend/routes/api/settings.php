@@ -21,5 +21,6 @@ Route::prefix('/settings/whatsapp')
     ->group(function () {
         Route::get('/connection', [WhatsAppController::class, 'connection']);
         Route::get('/qr', [WhatsAppController::class, 'qr']);
+        Route::post('/reconnect', [WhatsAppController::class, 'reconnect']);
         Route::post('/logout', [WhatsAppController::class, 'logout']);
     });

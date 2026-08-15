@@ -54,10 +54,10 @@ test('manager can view monthly attendance summary per employee', function (): vo
         ->assertJsonPath('data.0.open_count', 1);
 });
 
-test('manager can create update and delete attendance', function (): void {
-    $manager = User::factory()->create();
-    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
-    Sanctum::actingAs($manager);
+test('admin can create update and delete attendance', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
 
     $employee = Employee::factory()->create(['name' => 'Nour Salem']);
 
@@ -95,9 +95,9 @@ test('manager can create update and delete attendance', function (): void {
 });
 
 test('attendance rejects duplicate employee date rows', function (): void {
-    $manager = User::factory()->create();
-    $manager->assignRole(FoundationPermissions::ROLE_MANAGER);
-    Sanctum::actingAs($manager);
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
 
     $employee = Employee::factory()->create();
     Attendance::factory()->create(['employee_id' => $employee->id, 'date' => '2026-06-26']);

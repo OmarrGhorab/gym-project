@@ -8,14 +8,15 @@ use App\Support\FoundationPermissions;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\HrFinanceAccessSeeder;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
 
 beforeEach(function (): void {
     $this->seed(FoundationAccessSeeder::class);
     $this->seed(HrFinanceAccessSeeder::class);
 
-    $this->manager = User::factory()->create();
-    $this->manager->assignRole(FoundationPermissions::ROLE_MANAGER);
-    Sanctum::actingAs($this->manager);
+    $this->admin = User::factory()->create();
+    $this->admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($this->admin);
 });
 
 function workingShift(array $overrides = []): EmployeeShift
@@ -92,6 +93,65 @@ test('an admin can correct the clock times on an existing record', function (): 
         ->assertStatus(200)
         ->assertJsonPath('data.check_in', '09:05')
         ->assertJsonPath('data.check_out', '16:00');
+});
+
+test('no role but admin may write attendance by hand', function (string $role): void {
+    // The desk scans people in all day (attendance.create) but must not be able
+    // to author a day nobody scanned, rewrite one that was, or throw one away.
+    $user = User::factory()->create();
+    $user->assignRole($role);
+    Sanctum::actingAs($user);
+
+    $employee = Employee::factory()->create(['status' => 'active']);
+    $existing = Attendance::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => '2026-07-19',
+    ]);
+
+    $this->postJson('/api/v1/attendance', [
+        'employee_id' => $employee->id,
+        'date' => '2026-07-20',
+        'check_in' => '09:00',
+        'status' => 'present',
+    ])->assertForbidden();
+
+    $this->putJson("/api/v1/attendance/{$existing->id}", [
+        'check_in' => '09:05',
+    ])->assertForbidden();
+
+    $this->deleteJson("/api/v1/attendance/{$existing->id}")->assertForbidden();
+
+    expect(Attendance::query()->where('date', '2026-07-20')->exists())->toBeFalse();
+    expect(Attendance::find($existing->id))->not->toBeNull();
+})->with([
+    FoundationPermissions::ROLE_MANAGER,
+    FoundationPermissions::ROLE_CASHIER,
+    FoundationPermissions::ROLE_CAPTAIN,
+    FoundationPermissions::ROLE_ACCOUNTANT,
+]);
+
+test('a role created after the presets loses attendance corrections when the migration runs', function (): void {
+    // Production runs Admin plus a reception role that no seeder knows about.
+    $reception = Role::create(['name' => 'Reception', 'guard_name' => 'web']);
+    $reception->givePermissionTo(['attendance.view', 'attendance.create', 'attendance.update', 'attendance.delete']);
+
+    $migration = require database_path('migrations/2026_08_15_120000_restrict_attendance_corrections_to_admin.php');
+    $migration->up();
+
+    $user = User::factory()->create();
+    $user->assignRole($reception);
+    Sanctum::actingAs($user);
+
+    $employee = Employee::factory()->create(['status' => 'active']);
+
+    $this->postJson('/api/v1/attendance', [
+        'employee_id' => $employee->id,
+        'date' => '2026-07-20',
+        'check_in' => '09:00',
+        'status' => 'present',
+    ])->assertForbidden();
+
+    expect($user->fresh()->can('attendance.create'))->toBeTrue();
 });
 
 test('recording a second row for the same employee and day is rejected', function (): void {

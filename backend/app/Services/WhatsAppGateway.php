@@ -97,6 +97,25 @@ class WhatsAppGateway
         ];
     }
 
+    /**
+     * Rebuild the session without unlinking the number.
+     *
+     * The recovery for a session that another process took over: the pairing is
+     * still valid, so nobody should have to walk to the gym's phone for a QR.
+     */
+    public function reconnect(): bool
+    {
+        if (! $this->configured()) {
+            return false;
+        }
+
+        try {
+            return $this->request()->post('/reconnect')->successful();
+        } catch (ConnectionException) {
+            return false;
+        }
+    }
+
     /** Unlink the number, forcing a fresh QR scan. */
     public function logout(): bool
     {

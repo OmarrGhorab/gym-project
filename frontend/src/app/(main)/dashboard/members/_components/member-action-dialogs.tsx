@@ -524,6 +524,7 @@ export function MemberActionsMenu({
             }
           }}
           plans={plans}
+          staff={staff}
           subscriptionId={subscriptionId}
         />
       ) : null}
@@ -932,6 +933,7 @@ function MemberLifecycleDialog({
   member,
   onOpenChange,
   plans,
+  staff,
   subscriptionId,
 }: {
   action: SubscriptionLifecycleAction | null;
@@ -939,6 +941,7 @@ function MemberLifecycleDialog({
   member: MemberRow;
   onOpenChange: (open: boolean) => void;
   plans: PlanRow[];
+  staff: StaffOption[];
   subscriptionId: number;
 }) {
   const t = useTranslations("Dashboard.membersPage");
@@ -946,13 +949,64 @@ function MemberLifecycleDialog({
   const [pending, startTransition] = React.useTransition();
   const today = React.useMemo(() => getGymTodayString(), []);
   const currentPlan = plans.find((plan) => plan.id === member.latest_subscription?.plan_id);
+  // Read as values, not as an object: the form resets when the member's plan
+  // changes, not every time the parent hands us a fresh copy of the same plans.
+  const currentPlanId = currentPlan?.id;
+  const currentPlanPrice = currentPlan?.price;
+  const currentPlanSessions = currentPlan?.sessions_count;
+  const currentPlanUnlimited = currentPlan?.is_unlimited_sessions;
+  const [planId, setPlanId] = React.useState(currentPlan ? String(currentPlan.id) : "");
+  const [coachId, setCoachId] = React.useState("");
+  const [price, setPrice] = React.useState("0");
   const [amount, setAmount] = React.useState("0");
   const [discount, setDiscount] = React.useState("0");
+  const [endDate, setEndDate] = React.useState("");
+  // The plan decides the end date unless somebody moves it. Posting a date we
+  // worked out ourselves would read as a custom period on every renewal.
+  const [endDateTouched, setEndDateTouched] = React.useState(false);
+  const [unlimitedSessions, setUnlimitedSessions] = React.useState(false);
+  const [sessionsTotal, setSessionsTotal] = React.useState("");
+  const [extendDaysForOverpayment, setExtendDaysForOverpayment] = React.useState(false);
   const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card" | "bank_transfer">("cash");
   const [freezeStart, setFreezeStart] = React.useState(today);
   const [freezeEnd, setFreezeEnd] = React.useState(today);
   const [resumeOn, setResumeOn] = React.useState(today);
   const [reason, setReason] = React.useState("");
+
+  const selectedPlan = plans.find((plan) => String(plan.id) === planId) ?? currentPlan;
+  // Mirrors RenewSubscription: a live period is stacked on, anything else
+  // restarts today.
+  const renewalStart = React.useMemo(() => {
+    const subscription = member.latest_subscription;
+    const currentEnd = subscription?.end_date ? parseDateOnly(subscription.end_date) : null;
+
+    if (!currentEnd || ["stopped", "expired"].includes(subscription?.status ?? "")) {
+      return today;
+    }
+
+    return currentEnd >= (parseDateOnly(today) ?? currentEnd) ? formatDateOnly(addDays(currentEnd, 1)) : today;
+  }, [member.latest_subscription, today]);
+  const planDefaultEnd = planEndDateFrom(selectedPlan, renewalStart);
+  const effectiveEndDate = endDateTouched && endDate ? endDate : planDefaultEnd;
+  const totalDue = Math.max(0, (Number(price) || 0) - (Number(discount) || 0));
+  const overpayment = Math.max(0, (Number(amount) || 0) - totalDue);
+  const renewalDurationDays = calculateMembershipDurationDays(renewalStart, effectiveEndDate);
+  // Same arithmetic the API uses to turn money into time, so the desk is told
+  // what it is about to buy rather than finding out afterwards.
+  const extraDaysFromOverpayment =
+    overpayment > 0 && totalDue > 0 && renewalDurationDays && renewalDurationDays > 0
+      ? Math.floor(overpayment / (totalDue / renewalDurationDays))
+      : 0;
+  const endsBeforeStart = Boolean(effectiveEndDate && effectiveEndDate < renewalStart);
+
+  function applyPlanDefaults(plan: PlanRow | undefined) {
+    setPrice(plan?.price ? String(plan.price) : "0");
+    setAmount(plan?.price ? String(plan.price) : "0");
+    setUnlimitedSessions(Boolean(plan?.is_unlimited_sessions) || plan?.sessions_count == null);
+    setSessionsTotal(plan?.sessions_count == null ? "" : String(plan.sessions_count));
+    setEndDate("");
+    setEndDateTouched(false);
+  }
 
   React.useEffect(() => {
     if (action === null) {
@@ -961,14 +1015,22 @@ function MemberLifecycleDialog({
 
     // Reprice every time it opens — a stale amount left over from a previous
     // attempt would quietly under- or over-charge the new period.
-    setAmount(currentPlan?.price ? String(currentPlan.price) : "0");
+    setPlanId(currentPlanId ? String(currentPlanId) : "");
+    setCoachId("");
     setDiscount("0");
     setPaymentMethod("cash");
+    setExtendDaysForOverpayment(false);
+    setPrice(currentPlanPrice ? String(currentPlanPrice) : "0");
+    setAmount(currentPlanPrice ? String(currentPlanPrice) : "0");
+    setUnlimitedSessions(Boolean(currentPlanUnlimited) || currentPlanSessions == null);
+    setSessionsTotal(currentPlanSessions == null ? "" : String(currentPlanSessions));
+    setEndDate("");
+    setEndDateTouched(false);
     setFreezeStart(today);
     setFreezeEnd(today);
     setResumeOn(today);
     setReason("");
-  }, [action, currentPlan?.price, today]);
+  }, [action, currentPlanId, currentPlanPrice, currentPlanSessions, currentPlanUnlimited, today]);
 
   function finish(result: { ok: boolean; message: string }) {
     if (!result.ok) {
@@ -986,10 +1048,27 @@ function MemberLifecycleDialog({
 
     startTransition(async () => {
       if (action === "renew") {
+        let sessionOverride: { unlimited_sessions: true } | { sessions_total: number } | Record<string, never> = {};
+
+        if (unlimitedSessions) {
+          sessionOverride = { unlimited_sessions: true };
+        } else if (sessionsTotal.trim()) {
+          sessionOverride = { sessions_total: Number(sessionsTotal) };
+        }
+
         finish(
           await renewMembershipSubscription(subscriptionId, {
             discount,
-            payment: { amount, method: paymentMethod },
+            payment: {
+              amount,
+              method: paymentMethod,
+              ...(extendDaysForOverpayment ? { extend_days_for_overpayment: true } : {}),
+            },
+            ...(selectedPlan ? { plan_id: selectedPlan.id } : {}),
+            ...(coachId ? { coach_id: Number(coachId) } : {}),
+            ...(price.trim() ? { price } : {}),
+            ...(endDateTouched && endDate ? { end_date: endDate } : {}),
+            ...sessionOverride,
           }),
         );
         return;
@@ -1030,37 +1109,144 @@ function MemberLifecycleDialog({
         </DialogHeader>
         <form className="grid gap-4" onSubmit={submit}>
           {action === "renew" ? (
-            <>
-              <Field
-                label={t("paymentAmount")}
-                name="renew_amount"
-                type="number"
-                required
-                value={amount}
-                onChange={(event) => setAmount(event.currentTarget.value)}
-              />
-              <Field
-                label={t("discount")}
-                name="renew_discount"
-                type="number"
-                value={discount}
-                onChange={(event) => setDiscount(event.currentTarget.value)}
-              />
-              <div className="grid gap-2">
-                <Label htmlFor="member-renew-method">{t("paymentMethod")}</Label>
-                <FormSelect
-                  id="member-renew-method"
-                  name="renew_method"
-                  value={paymentMethod}
-                  onValueChange={(value) => setPaymentMethod((value as "cash" | "card" | "bank_transfer") || "cash")}
-                  options={[
-                    { value: "cash", label: t("cash") },
-                    { value: "card", label: t("card") },
-                    { value: "bank_transfer", label: t("bankTransfer") },
-                  ]}
-                />
+            <div className="-mx-4 grid max-h-[60vh] content-start gap-4 overflow-y-auto px-4">
+              <div className="grid gap-3 rounded-lg border p-4">
+                <div>
+                  <p className="font-medium text-sm">{t("renewTerms")}</p>
+                  <p className="text-muted-foreground text-xs">{t("renewTermsHelp")}</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="member-renew-plan">{t("plan")}</Label>
+                  <FormSelect
+                    id="member-renew-plan"
+                    name="renew_plan"
+                    value={planId}
+                    onValueChange={(value) => {
+                      setPlanId(value);
+                      applyPlanDefaults(plans.find((plan) => String(plan.id) === value));
+                    }}
+                    placeholder={t("selectPlan")}
+                    options={plans
+                      .filter((plan) => plan.is_sellable || plan.id === currentPlan?.id)
+                      .map((plan) => ({ value: String(plan.id), label: plan.name }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="member-renew-coach">{t("coach")}</Label>
+                  <FormSelect
+                    id="member-renew-coach"
+                    name="renew_coach"
+                    value={coachId}
+                    onValueChange={setCoachId}
+                    placeholder={t("keepCurrentCoach")}
+                    options={getPlanCoachOptions(selectedPlan, plans, staff).map((employee) => ({
+                      value: String(employee.id),
+                      label: employee.name,
+                    }))}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    help={t("renewPriceHelp", { price: selectedPlan?.price ?? "0" })}
+                    label={t("membershipPrice")}
+                    min="0"
+                    name="renew_price"
+                    onChange={(event) => setPrice(event.currentTarget.value)}
+                    required
+                    step="0.01"
+                    type="number"
+                    value={price}
+                  />
+                  <Field
+                    label={t("discount")}
+                    min="0"
+                    name="renew_discount"
+                    onChange={(event) => setDiscount(event.currentTarget.value)}
+                    step="0.01"
+                    type="number"
+                    value={discount}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="member-renew-end">{t("endDate")}</Label>
+                  <FormDatePicker
+                    id="member-renew-end"
+                    name="renew_end_date"
+                    value={effectiveEndDate}
+                    onValueChange={(value) => {
+                      setEndDate(value);
+                      setEndDateTouched(true);
+                    }}
+                    error={endsBeforeStart ? t("endBeforeStart") : undefined}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {t("renewPeriodHint", {
+                      days: renewalDurationDays ?? 0,
+                      start: renewalStart,
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="member-renew-unlimited"
+                    checked={unlimitedSessions}
+                    onCheckedChange={(checked) => setUnlimitedSessions(checked === true)}
+                  />
+                  <Label htmlFor="member-renew-unlimited">{t("unlimitedSessionAccess")}</Label>
+                </div>
+                {!unlimitedSessions ? (
+                  <Field
+                    label={t("sessionsTotal")}
+                    min="0"
+                    name="renew_sessions_total"
+                    onChange={(event) => setSessionsTotal(event.currentTarget.value)}
+                    step="1"
+                    type="number"
+                    value={sessionsTotal}
+                  />
+                ) : null}
               </div>
-            </>
+
+              <div className="grid gap-3 rounded-lg border p-4">
+                <Field
+                  label={t("paymentAmount")}
+                  min="0"
+                  name="renew_amount"
+                  onChange={(event) => setAmount(event.currentTarget.value)}
+                  required
+                  step="0.01"
+                  type="number"
+                  value={amount}
+                />
+                <div className="grid gap-2">
+                  <Label htmlFor="member-renew-method">{t("paymentMethod")}</Label>
+                  <FormSelect
+                    id="member-renew-method"
+                    name="renew_method"
+                    value={paymentMethod}
+                    onValueChange={(value) => setPaymentMethod((value as "cash" | "card" | "bank_transfer") || "cash")}
+                    options={[
+                      { value: "cash", label: t("cash") },
+                      { value: "card", label: t("card") },
+                      { value: "bank_transfer", label: t("bankTransfer") },
+                    ]}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">{t("totalDue")}</span>
+                  <span className="font-medium">{formatCurrency(totalDue, { currency: "EGP" })}</span>
+                </div>
+                {overpayment > 0 ? (
+                  <OverpaymentChoice
+                    checked={extendDaysForOverpayment}
+                    extraDays={extraDaysFromOverpayment}
+                    id="member-renew-extend"
+                    onCheckedChange={setExtendDaysForOverpayment}
+                    overpayment={overpayment}
+                  />
+                ) : null}
+              </div>
+            </div>
           ) : null}
           {action === "freeze" ? (
             <>
@@ -1522,11 +1708,21 @@ function MemberPaymentDialog({
   const activeSubscriptionId = due?.subscription_id ?? member.latest_subscription?.id ?? null;
   const [amount, setAmount] = React.useState(due?.balance ?? "");
   const [paymentMethod, setPaymentMethod] = React.useState<"cash" | "card" | "bank_transfer">("cash");
+  const [extendDaysForOverpayment, setExtendDaysForOverpayment] = React.useState(false);
+  const subscription = member.latest_subscription;
+  const overpayment = Math.max(0, (Number(amount) || 0) - (Number(due?.balance) || 0));
+  const periodDays = calculateMembershipDurationDays(subscription?.start_date, subscription?.end_date);
+  const periodPrice = Number(subscription?.price_paid ?? 0);
+  const extraDaysFromOverpayment =
+    overpayment > 0 && periodPrice > 0 && periodDays && periodDays > 0
+      ? Math.floor(overpayment / (periodPrice / periodDays))
+      : 0;
 
   React.useEffect(() => {
     if (open) {
       setAmount(due?.balance ?? "");
       setPaymentMethod("cash");
+      setExtendDaysForOverpayment(false);
     }
   }, [due?.balance, open]);
 
@@ -1542,6 +1738,7 @@ function MemberPaymentDialog({
         subscription_id: activeSubscriptionId,
         amount,
         method: paymentMethod,
+        ...(extendDaysForOverpayment ? { extend_days_for_overpayment: true } : {}),
       });
 
       if (!result.ok) {
@@ -1604,6 +1801,15 @@ function MemberPaymentDialog({
               ]}
             />
           </div>
+          {overpayment > 0 ? (
+            <OverpaymentChoice
+              checked={extendDaysForOverpayment}
+              extraDays={extraDaysFromOverpayment}
+              id="member-payment-extend"
+              onCheckedChange={setExtendDaysForOverpayment}
+              overpayment={overpayment}
+            />
+          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {labels.cancel}
@@ -3124,6 +3330,67 @@ function mergeMemberFormValues(member: MemberRow | undefined, values: Record<str
     phone: "phone" in values ? values.phone : base.phone,
     status: "status" in values ? values.status : base.status,
   };
+}
+
+/**
+ * Money over the price is money. It only becomes time if the desk says so here,
+ * which is why the box starts unticked and states the days it would add.
+ */
+function OverpaymentChoice({
+  checked,
+  extraDays,
+  id,
+  onCheckedChange,
+  overpayment,
+}: {
+  checked: boolean;
+  extraDays: number;
+  id: string;
+  onCheckedChange: (checked: boolean) => void;
+  overpayment: number;
+}) {
+  const t = useTranslations("Dashboard.membersPage");
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-amber-500/35 bg-amber-500/10 p-3">
+      <p className="font-medium text-amber-700 text-sm dark:text-amber-300">
+        {t("overpaymentNotice", { amount: formatCurrency(overpayment, { currency: "EGP" }) })}
+      </p>
+      <div className="flex items-start gap-2">
+        <Checkbox id={id} checked={checked} onCheckedChange={(next) => onCheckedChange(next === true)} />
+        <div className="grid gap-1">
+          <Label htmlFor={id}>{t("overpaymentBuysDays", { days: extraDays })}</Label>
+          <p className="text-muted-foreground text-xs">
+            {checked ? t("overpaymentBuysDaysOn", { days: extraDays }) : t("overpaymentBuysDaysOff")}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Mirrors Plan::endDateFrom on the API: months when the plan is sold in months, days otherwise. */
+function planEndDateFrom(plan: PlanRow | undefined, startDate: string) {
+  const start = parseDateOnly(startDate);
+
+  if (!plan || !start) {
+    return "";
+  }
+
+  if (plan.duration_months && plan.duration_months > 0) {
+    const end = new Date(start.getTime());
+    const targetMonth = end.getMonth() + plan.duration_months;
+    const dayOfMonth = end.getDate();
+    end.setDate(1);
+    end.setMonth(targetMonth);
+    // addMonthsNoOverflow: the 31st of a month that becomes a 30-day month
+    // lands on the 30th, never on the 1st of the month after.
+    end.setDate(Math.min(dayOfMonth, new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()));
+
+    return formatDateOnly(end);
+  }
+
+  return formatDateOnly(addDays(start, plan.duration_days));
 }
 
 function Field({

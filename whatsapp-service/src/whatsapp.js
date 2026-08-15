@@ -15,6 +15,17 @@ import { fetchBarcodeImage } from "./image.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "warn" });
 
+// Reconnect backoff. A flat retry hammers WhatsApp when the fault is on their
+// side, and the states worth retrying at all (network blip, restart required)
+// clear in seconds; anything still failing after a minute needs a human.
+const RECONNECT_BASE_MS = 3000;
+const RECONNECT_MAX_MS = 60000;
+
+// A logout that cannot reach the server would otherwise hang the HTTP request
+// that asked for it. Telling WhatsApp is the polite part; wiping the local
+// credentials below is the part that actually unlinks the number.
+const LOGOUT_TIMEOUT_MS = 5000;
+
 /**
  * Build what goes on the wire.
  *
@@ -98,6 +109,8 @@ class WhatsAppConnection {
     this.lastError = null;
     this.connectedNumber = null;
     this.starting = null;
+    this.reconnectTimer = null;
+    this.reconnectAttempts = 0;
     // Outlives the socket: a reconnect must not lose the messages a device is
     // still waiting on, since that is exactly when retries arrive.
     this.sentMessages = new SentMessageStore();
@@ -117,7 +130,25 @@ class WhatsAppConnection {
     return this.starting;
   }
 
+  /**
+   * Reconnect with the credentials we already have.
+   *
+   * Separate from logout(): the number is still linked and the pairing is still
+   * good, this only rebuilds the socket. That is the whole fix for a session
+   * another process took over, and it must not cost anyone a QR scan.
+   */
+  async reconnect() {
+    this.reconnectAttempts = 0;
+
+    return this.start();
+  }
+
   async #connect() {
+    this.#cancelReconnect();
+    // Two live sockets on one set of credentials is what WhatsApp answers with
+    // a `conflict` stream error, so the old one goes before the new one exists.
+    await this.#discard(this.socket);
+
     const { state, saveCreds } = await useMultiFileAuthState(config.authDir);
     const { version } = await fetchLatestBaileysVersion();
 
@@ -140,6 +171,13 @@ class WhatsAppConnection {
     socket.ev.on("creds.update", saveCreds);
 
     socket.ev.on("connection.update", (update) => {
+      // A socket we have already replaced still emits its own close. Letting it
+      // through would null out the live socket and schedule a second reconnect,
+      // which is how one blip turns into several sockets on the same number.
+      if (this.socket !== socket) {
+        return;
+      }
+
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
@@ -151,33 +189,109 @@ class WhatsAppConnection {
         this.qr = null;
         this.state = "connected";
         this.lastError = null;
+        this.reconnectAttempts = 0;
         this.connectedNumber = socket.user?.id?.split(":")[0] ?? null;
         logger.info({ number: this.connectedNumber }, "WhatsApp connected");
       }
 
       if (connection === "close") {
         const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
-        const loggedOut = statusCode === DisconnectReason.loggedOut;
 
         this.socket = null;
         this.connectedNumber = null;
+        this.qr = null;
         this.lastError = lastDisconnect?.error?.message ?? null;
+        socket.ev.removeAllListeners("connection.update");
+        socket.ev.removeAllListeners("creds.update");
 
-        if (loggedOut) {
-          // The number was unlinked from the phone. Credentials are dead; only
-          // a fresh scan brings it back, so don't spin on reconnect attempts.
+        if (statusCode === DisconnectReason.loggedOut) {
+          // The number was unlinked from the phone (WhatsApp sends this as
+          // `<stream:error code="401"><conflict type="device_removed"/>`, so it
+          // reads as "Stream Errored (conflict)"). The stored credentials are
+          // dead: reconnecting on them only earns another 401 and never a QR,
+          // so they have to go before we can offer a fresh pairing code.
           this.state = "logged_out";
-          logger.warn("WhatsApp logged out — re-link required");
+          logger.warn("WhatsApp logged out — wiping credentials for a fresh QR");
+          void this.#relink();
           return;
+        }
+
+        if (statusCode === DisconnectReason.connectionReplaced) {
+          // Something else linked as this same device and took the session.
+          // Reconnecting would take it back and get us replaced again, forever,
+          // so stop and say so — the fix is killing the other process, not
+          // winning the fight.
+          this.state = "conflict";
+          logger.error("WhatsApp session replaced by another instance — not reconnecting");
+          return;
+        }
+
+        if (statusCode === DisconnectReason.restartRequired) {
+          // Not a fault: Baileys asks for exactly one reconnect straight after a
+          // successful pairing. Making whoever just scanned the code wait out a
+          // backoff would read as the scan not having worked.
+          this.reconnectAttempts = 0;
         }
 
         this.state = "disconnected";
         logger.warn({ statusCode }, "WhatsApp disconnected, reconnecting");
-        setTimeout(() => void this.start(), 3000);
+        this.#scheduleReconnect();
       }
     });
 
     return socket;
+  }
+
+  /** Wipe the dead pairing and come back with a QR nobody has to SSH in for. */
+  async #relink() {
+    try {
+      await rm(config.authDir, { recursive: true, force: true });
+      await this.start();
+    } catch (error) {
+      this.lastError = error.message;
+      logger.error({ err: error.message }, "could not restart after logout");
+    }
+  }
+
+  /**
+   * End a socket for good: listeners off first, so the close it emits on the
+   * way out cannot be mistaken for the live session going down.
+   */
+  async #discard(socket) {
+    if (!socket) {
+      return;
+    }
+
+    if (this.socket === socket) {
+      this.socket = null;
+    }
+
+    socket.ev.removeAllListeners("connection.update");
+    socket.ev.removeAllListeners("creds.update");
+
+    try {
+      socket.end(undefined);
+    } catch {
+      // Already down. Nothing left to release.
+    }
+  }
+
+  #scheduleReconnect() {
+    const delay = Math.min(RECONNECT_BASE_MS * 2 ** this.reconnectAttempts, RECONNECT_MAX_MS);
+    this.reconnectAttempts += 1;
+
+    this.#cancelReconnect();
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.start();
+    }, delay);
+  }
+
+  #cancelReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   isConnected() {
@@ -207,16 +321,33 @@ class WhatsAppConnection {
    * issues a fresh QR.
    */
   async logout() {
+    this.#cancelReconnect();
+
+    const socket = this.socket;
+    // Taken off `this.socket` before anything can fail, so the close it emits
+    // is read as "we ended it" rather than "the session dropped".
+    this.socket = null;
+
     try {
-      await this.socket?.logout();
+      await Promise.race([
+        socket?.logout(),
+        new Promise((_resolve, reject) => setTimeout(() => reject(new Error("logout timed out")), LOGOUT_TIMEOUT_MS)),
+      ]);
     } catch {
-      // Already gone — wiping the credentials below is what actually matters.
+      // Already gone, or unreachable. Wiping the credentials below is what
+      // actually unlinks the number.
     }
 
-    this.socket = null;
+    // Even a logout() that threw can leave the socket alive, and a live socket
+    // still holds a creds.update listener that would write the credentials
+    // straight back into the directory we are about to wipe.
+    await this.#discard(socket);
+
     this.state = "logged_out";
     this.qr = null;
     this.connectedNumber = null;
+    this.lastError = null;
+    this.reconnectAttempts = 0;
 
     await rm(config.authDir, { recursive: true, force: true });
 

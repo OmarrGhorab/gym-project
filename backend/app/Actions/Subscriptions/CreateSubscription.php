@@ -48,11 +48,13 @@ class CreateSubscription
                 ? Carbon::parse($data['end_date'])->startOfDay()
                 : $plan->endDateFrom($startDate);
             $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
-            $subtotal = bcadd((string) $plan->price, '0.00', 2);
+            // A price sent with the sale replaces the catalogue price for this
+            // member only — the plan keeps costing what it costs everyone else.
+            $subtotal = $this->filled($data, 'price')
+                ? bcadd((string) $data['price'], '0.00', 2)
+                : bcadd((string) $plan->price, '0.00', 2);
             $pricePaid = bcsub($subtotal, $discount, 2);
-            $sessionAllowance = $plan->is_unlimited_sessions || $plan->sessions_count === null
-                ? null
-                : (int) $plan->sessions_count;
+            $sessionAllowance = $this->sessionAllowance($data, $plan);
 
             if (bccomp($pricePaid, '0.00', 2) === -1) {
                 throw ValidationException::withMessages([
@@ -151,6 +153,36 @@ class CreateSubscription
 
             return $subscription->fresh(['member', 'plan', 'soldBy', 'payments', 'addons.plan', 'addons.coach', 'addons.payments']) ?? $subscription;
         });
+    }
+
+    /**
+     * The session allowance for the period: the plan's own, unless the sale
+     * carries an explicit one. Unlimited is the null/null pair everywhere else
+     * in the system reads as "no balance to spend".
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function sessionAllowance(array $data, Plan $plan): ?int
+    {
+        if (filter_var($data['unlimited_sessions'] ?? false, FILTER_VALIDATE_BOOL)) {
+            return null;
+        }
+
+        if ($this->filled($data, 'sessions_total')) {
+            return (int) $data['sessions_total'];
+        }
+
+        return $plan->is_unlimited_sessions || $plan->sessions_count === null
+            ? null
+            : (int) $plan->sessions_count;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function filled(array $data, string $key): bool
+    {
+        return array_key_exists($key, $data) && $data[$key] !== null && $data[$key] !== '';
     }
 
     private function coachCanSellAddon(int $planId, int $coachId): bool

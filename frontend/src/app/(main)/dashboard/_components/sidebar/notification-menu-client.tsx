@@ -11,6 +11,7 @@ import {
   CheckCheck,
   ClipboardList,
   ClockAlert,
+  MessageCircle,
   Package,
   ReceiptText,
   UserPlus,
@@ -68,6 +69,7 @@ const iconMap = [
   { match: "payroll", icon: WalletCards },
   { match: "tasks", icon: ClipboardList },
   { match: "sales", icon: ReceiptText },
+  { match: "whatsapp", icon: MessageCircle },
 ] as const;
 
 export function NotificationMenuClient({ initialNotifications, labels }: NotificationMenuClientProps) {

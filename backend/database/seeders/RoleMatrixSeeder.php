@@ -54,7 +54,8 @@ class RoleMatrixSeeder extends Seeder
             'commissions.view', 'commissions.backfill', 'commissions.earn_sales',
             'payroll.view', 'payroll.generate', 'payroll.pay',
             'expenses.view', 'expenses.create', 'expenses.update', 'expenses.delete',
-            'attendance.view', 'attendance.create', 'attendance.update', 'attendance.delete',
+            // No attendance.update/delete: correcting a day by hand is Admin-only.
+            'attendance.view', 'attendance.create',
             'dashboard.view',
             'notifications.view',
             'audit.view',

@@ -6,6 +6,7 @@ use App\Support\FoundationPermissions;
 use App\Support\WhatsAppTemplates;
 use Database\Seeders\FoundationAccessSeeder;
 use Database\Seeders\RoleMatrixSeeder;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 
@@ -148,6 +149,44 @@ test('staff without settings permission cannot reach the pairing qr', function (
     $this->getJson('/api/v1/settings/whatsapp/qr')->assertStatus(403);
     $this->getJson('/api/v1/settings/whatsapp/connection')->assertStatus(403);
     $this->postJson('/api/v1/settings/whatsapp/logout')->assertStatus(403);
+    $this->postJson('/api/v1/settings/whatsapp/reconnect')->assertStatus(403);
+});
+
+/**
+ * Recovering a session another process took over must not cost anyone a trip to
+ * the gym's phone: the pairing is still good, only the socket needs rebuilding.
+ */
+test('an admin can rebuild the session without unlinking the number', function (): void {
+    actingAsSettingsAdmin();
+    config()->set('services.whatsapp.url', 'http://127.0.0.1:3001');
+    config()->set('services.whatsapp.token', 'test-token');
+    Http::fake([
+        '*/reconnect' => Http::response(['ok' => true]),
+        '*/status' => Http::response([
+            'state' => 'connected',
+            'connected' => true,
+            'number' => '201012345678',
+            'error' => null,
+            'queued' => 0,
+        ]),
+    ]);
+
+    $this->postJson('/api/v1/settings/whatsapp/reconnect')
+        ->assertStatus(200)
+        ->assertJsonPath('data.state', 'connected');
+
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/reconnect') && $request->method() === 'POST');
+});
+
+test('reconnect reports the service being down rather than pretending it worked', function (): void {
+    actingAsSettingsAdmin();
+    config()->set('services.whatsapp.url', 'http://127.0.0.1:3001');
+    config()->set('services.whatsapp.token', 'test-token');
+    Http::fake(['*/reconnect' => fn () => throw new ConnectionException('Connection refused')]);
+
+    $this->postJson('/api/v1/settings/whatsapp/reconnect')
+        ->assertStatus(503)
+        ->assertJsonPath('error.code', 'whatsapp_unreachable');
 });
 
 test('the pairing qr requires authentication', function (): void {

@@ -49,6 +49,7 @@ const fixedTopSelectCollision = {
 } as const;
 
 type Props = {
+  canCorrectAttendance: boolean;
   correctionRecord?: AttendanceRecord;
   defaultAttendanceDate: string;
   employees: EmployeeOption[];
@@ -56,17 +57,26 @@ type Props = {
   shifts: EmployeeShift[];
 };
 
-export function AttendanceActionPanels({ correctionRecord, defaultAttendanceDate, employees, members, shifts }: Props) {
+export function AttendanceActionPanels({
+  canCorrectAttendance,
+  correctionRecord,
+  defaultAttendanceDate,
+  employees,
+  members,
+  shifts,
+}: Props) {
   return (
     <div id="attendance-actions" className="grid scroll-mt-24 grid-cols-1 gap-4 xl:grid-cols-12">
       <MemberScanCard members={members} />
       <StaffScanCard defaultAttendanceDate={defaultAttendanceDate} employees={employees} />
-      <ManualAttendanceCard
-        correctionRecord={correctionRecord}
-        defaultAttendanceDate={defaultAttendanceDate}
-        employees={employees}
-        shifts={shifts}
-      />
+      {canCorrectAttendance ? (
+        <ManualAttendanceCard
+          correctionRecord={correctionRecord}
+          defaultAttendanceDate={defaultAttendanceDate}
+          employees={employees}
+          shifts={shifts}
+        />
+      ) : null}
     </div>
   );
 }

@@ -18,3 +18,7 @@ Schedule::command('member-visits:auto-close')->everyTenMinutes();
 Schedule::command('attendance:send-daily-report')->dailyAt('23:55')->timezone('Africa/Cairo')->withoutOverlapping();
 Schedule::command('shifts:send-daily-summary')->dailyAt('23:50')->timezone('Africa/Cairo')->withoutOverlapping();
 Schedule::command('exports:prune')->hourly();
+// Often enough that nobody spends a morning wondering why members stopped
+// getting messages; the command itself waits out transient drops before it
+// bothers anyone.
+Schedule::command('whatsapp:check-connection')->everyFiveMinutes()->withoutOverlapping();

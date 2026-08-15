@@ -64,7 +64,9 @@ test('record payment marks paid when full balance is cleared', function (): void
         ->and(Payment::where('payable_id', $subscription->id)->count())->toBe(2);
 });
 
-test('record payment extends subscription days when payment exceeds balance', function (): void {
+test('record payment keeps an overpayment as money and leaves the period alone', function (): void {
+    // Paying above the balance means the gym took more money. It does not mean
+    // the member bought more time — nobody asked for that here.
     $subscription = makePaymentSubscription([
         'start_date' => '2026-07-01',
         'end_date' => '2026-07-31',
@@ -82,10 +84,35 @@ test('record payment extends subscription days when payment exceeds balance', fu
     ]);
 
     expect($payment->status)->toBe('paid')
+        ->and($payment->amount)->toBe('60.00')
+        ->and($subscription->fresh()->end_date->toDateString())->toBe('2026-07-31');
+});
+
+test('record payment turns an overpayment into days when the desk asks for it', function (): void {
+    $subscription = makePaymentSubscription([
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+    ]);
+
+    Payment::factory()->partial()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '250.00',
+    ]);
+
+    // 250.00 already paid + 60.00 now = 310.00 against 300.00. The 10.00 excess
+    // buys 1 day at the 300.00 / 30-day rate.
+    $payment = app(RecordPayment::class)->handle($subscription, [
+        'amount' => '60.00',
+        'method' => 'cash',
+        'extend_days_for_overpayment' => true,
+    ]);
+
+    expect($payment->status)->toBe('paid')
         ->and($subscription->fresh()->end_date->toDateString())->toBe('2026-08-01');
 });
 
-test('record payment on settled subscription converts money into extra days', function (): void {
+test('record payment on a settled subscription can buy a further period of days', function (): void {
     $subscription = makePaymentSubscription([
         'start_date' => '2026-07-01',
         'end_date' => '2026-07-31',
@@ -101,10 +128,44 @@ test('record payment on settled subscription converts money into extra days', fu
     $payment = app(RecordPayment::class)->handle($subscription, [
         'amount' => '150.00',
         'method' => 'cash',
+        'extend_days_for_overpayment' => true,
     ]);
 
     expect($payment->status)->toBe('paid')
         ->and($subscription->fresh()->end_date->toDateString())->toBe('2026-08-15');
+});
+
+test('a settled subscription paid again without asking for days keeps its end date', function (): void {
+    $subscription = makePaymentSubscription([
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+    ]);
+
+    Payment::factory()->create([
+        'payable_type' => Subscription::class,
+        'payable_id' => $subscription->id,
+        'amount' => '300.00',
+        'status' => 'paid',
+    ]);
+
+    app(RecordPayment::class)->handle($subscription, [
+        'amount' => '150.00',
+        'method' => 'cash',
+    ]);
+
+    expect($subscription->fresh()->end_date->toDateString())->toBe('2026-07-31');
+});
+
+test('a zero-value subscription refuses to convert money into days', function (): void {
+    // No daily rate means the excess cannot be turned into service. It is only
+    // an error because the desk explicitly asked for days.
+    $subscription = makePaymentSubscription(['price_paid' => '0.00']);
+
+    expect(fn () => app(RecordPayment::class)->handle($subscription, [
+        'amount' => '60.00',
+        'method' => 'cash',
+        'extend_days_for_overpayment' => true,
+    ]))->toThrow(Illuminate\Validation\ValidationException::class);
 });
 
 test('record payment re-reads locked subscription payments before accepting a stale request', function (): void {
@@ -125,6 +186,7 @@ test('record payment re-reads locked subscription payments before accepting a st
     app(RecordPayment::class)->handle($staleSubscription, [
         'amount' => '60.00',
         'method' => 'cash',
+        'extend_days_for_overpayment' => true,
     ]);
 
     expect(Payment::where('payable_id', $subscription->id)->count())->toBe(2)

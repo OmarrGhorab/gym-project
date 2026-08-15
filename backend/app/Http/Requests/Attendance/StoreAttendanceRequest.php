@@ -11,7 +11,7 @@ class StoreAttendanceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('create', Attendance::class);
+        return $this->user()->can('createManual', Attendance::class);
     }
 
     public function rules(): array

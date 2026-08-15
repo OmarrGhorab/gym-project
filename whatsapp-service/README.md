@@ -88,8 +88,10 @@ All routes except `/health` need `Authorization: Bearer $WHATSAPP_SERVICE_TOKEN`
 | Route | Purpose |
 | --- | --- |
 | `GET /health` | Liveness check; no auth. |
-| `GET /status` | `{ state, connected, number, error, queued }` — `state` is `connected`, `qr_pending`, `disconnected` or `logged_out`. |
+| `GET /status` | `{ state, connected, number, error, queued }` — `state` is `connected`, `qr_pending`, `disconnected`, `logged_out` or `conflict`. |
 | `GET /qr` | `{ qr, state }` — `qr` is a data-URL image, or `null` when already linked. |
+| `POST /reconnect` | Rebuilds the socket, keeping the pairing. The recovery for `conflict`; nobody re-scans anything. |
+| `POST /logout` | Unlinks the number and wipes the credentials, so the next `/qr` is a fresh pairing code. |
 | `POST /send` | `{ phone, message, image_url? }`. `phone` is digits only in international format (`201012345678`). With `image_url` the message is sent as an image with the text as its caption. |
 
 `image_url` is fetched and re-encoded before sending, not passed to WhatsApp as a
@@ -102,7 +104,6 @@ If the barcode cannot be fetched or converted, the message still goes out as
 plain text and the failure is logged as `barcode unavailable, sending text only`.
 The member is not blocked: the template body carries the barcode link too, which
 is exactly why that link is worth keeping alongside the picture.
-| `POST /logout` | Unlinks the number and wipes the credentials. |
 
 `POST /send` status codes, which the Laravel job treats differently:
 
@@ -135,8 +136,22 @@ pkill -f 'node src/index.js'
   `makeWASocket`.
 - **Stuck on `qr_pending`** — the QR expires every ~20s and regenerates; reload
   the settings page for a fresh one.
-- **Went to `logged_out` on its own** — the device was unlinked from the phone,
-  or WhatsApp dropped it. Re-scan.
+- **Went to `logged_out` on its own** — the device was unlinked from the phone.
+  WhatsApp reports this as `Stream Errored (conflict)` (it is a
+  `<conflict type="device_removed"/>` carrying code 401), so the wording is
+  misleading. The service wipes the dead credentials itself and shows a fresh QR
+  within seconds; just re-scan from Settings. Nothing needs restarting.
+- **`conflict` / "Taken over"** — a *second copy of this service* linked as the
+  same device and took the session. The service deliberately stops instead of
+  taking it back, because two instances would replace each other forever. Find
+  the duplicate (`ps aux | grep 'node src/index.js'` — the cron `flock` should
+  make this impossible, so suspect a manual `node src/index.js` left running),
+  kill it, then press **Reconnect** in Settings. The pairing is still valid.
+- **Nobody noticed the number was down for a day** — they should have.
+  `whatsapp:check-connection` runs every five minutes from the Laravel scheduler
+  and notifies the admins when the link is lost, telling staff to message members
+  by hand until it is back. If that notification never arrived, check the
+  scheduler is running at all (`* * * * * php artisan schedule:run`).
 - **Messages queue but never arrive** — check `queued` in `/status`. With a 5–20s
   gap, 50 pending messages take roughly 10 minutes to drain. That is intentional.
 - **Message arrives but the barcode is an empty box** — grep the log for

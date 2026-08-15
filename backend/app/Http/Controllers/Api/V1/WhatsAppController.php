@@ -37,6 +37,22 @@ class WhatsAppController extends ApiController
         );
     }
 
+    public function reconnect(WhatsAppGateway $gateway): JsonResponse
+    {
+        if (! $gateway->reconnect()) {
+            return $this->error(
+                code: 'whatsapp_unreachable',
+                message: 'Could not reach the WhatsApp service to reconnect.',
+                status: 503,
+            );
+        }
+
+        return $this->success(
+            data: $gateway->status(),
+            message: 'WhatsApp reconnection started successfully',
+        );
+    }
+
     public function logout(WhatsAppGateway $gateway): JsonResponse
     {
         if (! $gateway->logout()) {

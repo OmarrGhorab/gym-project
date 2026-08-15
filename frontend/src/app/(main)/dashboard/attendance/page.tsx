@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { canAccess } from "@/lib/authorization";
+import { getCurrentUser } from "@/lib/session";
 import { GYM_TIME_ZONE } from "@/lib/timezone";
 
 import { AttendanceActionPanels } from "./_components/attendance-action-panels";
@@ -30,11 +32,19 @@ export default async function Page({ searchParams }: PageProps) {
   // The nightly report notification deep-links here with the day it covers.
   const selectedDate = normalizeDate(readParam(resolvedSearchParams.report_date) ?? resolvedSearchParams.date);
   const selectedMonth = selectedDate.slice(0, 7);
-  const data = await getAttendancePageData({ date: selectedDate, month: selectedMonth });
+  const [user, data] = await Promise.all([
+    getCurrentUser(),
+    getAttendancePageData({ date: selectedDate, month: selectedMonth }),
+  ]);
+  // Hand-written attendance is an admin correction: it can put any hours on any
+  // day, so the desk that only scans people in never sees the form — nor the
+  // deep link into it, which would otherwise prefill a record it cannot save.
+  const canCorrectAttendance = user ? canAccess(user, "attendance.update") : false;
   const correctionRecordId = Number(resolvedSearchParams.correction);
-  const correctionRecord = Number.isFinite(correctionRecordId)
-    ? data.records.find((record) => record.id === correctionRecordId)
-    : undefined;
+  const correctionRecord =
+    canCorrectAttendance && Number.isFinite(correctionRecordId)
+      ? data.records.find((record) => record.id === correctionRecordId)
+      : undefined;
   const dayTotals = data.records.reduce(
     (acc, row) => ({
       absent: acc.absent + (row.status === "absent" ? 1 : 0),
@@ -87,6 +97,7 @@ export default async function Page({ searchParams }: PageProps) {
 
       <AttendanceActionPanels
         key={correctionRecord?.id ?? "new-correction"}
+        canCorrectAttendance={canCorrectAttendance}
         correctionRecord={correctionRecord}
         defaultAttendanceDate={selectedDate}
         employees={data.employees}
@@ -109,7 +120,7 @@ export default async function Page({ searchParams }: PageProps) {
                   <TableHead>{t("inOut")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("gps")}</TableHead>
-                  <TableHead className="text-right">{t("actions")}</TableHead>
+                  {canCorrectAttendance ? <TableHead className="text-right">{t("actions")}</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -135,23 +146,27 @@ export default async function Page({ searchParams }: PageProps) {
                           {record.check_in_location?.status ?? t("unknown")}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          render={
-                            <a
-                              href={`/dashboard/attendance?date=${selectedDate}&correction=${record.id}#manual-correction`}
-                            />
-                          }
-                          size="sm"
-                          variant="outline"
-                        >
-                          {t("correctAttendance")}
-                        </Button>
-                      </TableCell>
+                      {canCorrectAttendance ? (
+                        <TableCell className="text-right">
+                          <Button
+                            render={
+                              <a
+                                href={`/dashboard/attendance?date=${selectedDate}&correction=${record.id}#manual-correction`}
+                              />
+                            }
+                            size="sm"
+                            variant="outline"
+                          >
+                            {t("correctAttendance")}
+                          </Button>
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   );
                 })}
-                {data.records.length === 0 ? <EmptyRow cols={6} label={t("noRecords")} /> : null}
+                {data.records.length === 0 ? (
+                  <EmptyRow cols={canCorrectAttendance ? 6 : 5} label={t("noRecords")} />
+                ) : null}
               </TableBody>
             </Table>
           </CardContent>

@@ -1392,7 +1392,16 @@
       "membershipRules": "Membership rules",
       "membershipRulesHelp": "Correct rules that were copied from the plan when this membership was sold.",
       "cancellationGraceDaysEdit": "Cancellation grace days",
-      "cancellationGraceDaysEditHelp": "Controls how long this membership can be cancelled with a refund under the existing cancellation policy."
+      "cancellationGraceDaysEditHelp": "Controls how long this membership can be cancelled with a refund under the existing cancellation policy.",
+      "renewTerms": "Terms for this period",
+      "renewTermsHelp": "Everything here starts from the plan. Change what this member is actually getting — the plan itself is untouched, and admins are notified of anything sold off-plan.",
+      "renewPriceHelp": "Plan price: {price}. Charge more or less for this period only.",
+      "renewPeriodHint": "Starts {start} — {days} day(s).",
+      "keepCurrentCoach": "Keep current coach",
+      "overpaymentNotice": "{amount} more than the total due.",
+      "overpaymentBuysDays": "Add {days} day(s) to the period instead of keeping it as money",
+      "overpaymentBuysDaysOn": "The end date moves {days} day(s) later.",
+      "overpaymentBuysDaysOff": "The extra is recorded as money taken. The end date does not move."
     },
     "plans": {
       "title": "Membership Plans",
