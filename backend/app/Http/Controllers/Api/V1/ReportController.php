@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Reports\BuildDailyReport;
 use App\Actions\Reports\ClassesPlansReport;
 use App\Actions\Reports\CoachExtraPlansReport;
 use App\Actions\Reports\EmployeePerformanceReport;
@@ -14,6 +15,7 @@ use App\Actions\Reports\MemberSubscriptionsReport;
 use App\Actions\Reports\OperationsSummary;
 use App\Actions\Reports\PosDashboardSummary;
 use App\Actions\Reports\ProductsFinanceReport;
+use App\Actions\Reports\RenderDailyReportPdf;
 use App\Actions\Reports\ReportsOverview;
 use App\Actions\Reports\StaffAcademySummary;
 use App\Actions\Reports\SubsShiftsReport;
@@ -24,18 +26,22 @@ use App\Http\Requests\Reports\FinancialReportRequest;
 use App\Http\Requests\Reports\MemberSubscriptionsReportRequest;
 use App\Http\Requests\Reports\StoreOperationsCalendarEventRequest;
 use App\Http\Requests\Reports\UpdateOperationsCalendarEventRequest;
+use App\Models\DailyReport;
 use App\Models\Employee;
 use App\Models\OperationsCalendarEvent;
 use App\Models\Payroll;
 use App\Models\Product;
 use App\Models\Subscription;
+use App\Support\BusinessDay;
 use App\Support\ReportAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 final class ReportController extends ApiController
@@ -126,6 +132,57 @@ final class ReportController extends ApiController
             data: $action->execute(ReportAccess::scopeFilters($request->user(), $validated)),
             message: 'Coach extra plans report retrieved',
         );
+    }
+
+    /**
+     * One working day: the money, who handled it, the shifts and staff attendance.
+     *
+     * Defaults to the day that just ended rather than the one in progress —
+     * opened first thing in the morning, "today" would be five minutes old.
+     */
+    public function daily(Request $request, BuildDailyReport $action): JsonResponse
+    {
+        $validated = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $date = $validated['date'] ?? BusinessDay::previous();
+
+        return $this->success(
+            data: [
+                ...$action->handle($date),
+                'generated_at' => DailyReport::query()
+                    ->whereDate('business_date', $date)
+                    ->value('sent_at')?->toIso8601String(),
+            ],
+            message: 'Daily report retrieved',
+        );
+    }
+
+    /** The same day as a printable document. */
+    public function dailyPdf(
+        Request $request,
+        BuildDailyReport $builder,
+        RenderDailyReportPdf $renderer,
+    ): Response {
+        $validated = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $date = $validated['date'] ?? BusinessDay::previous();
+        $stored = DailyReport::query()->whereDate('business_date', $date)->value('file_path');
+        $disk = (string) config('export.disk', 'local');
+
+        // Serve the copy the 05:15 job rendered when there is one, so a printed
+        // report and a re-downloaded one are the same document.
+        $pdf = $stored !== null && Storage::disk($disk)->exists($stored)
+            ? Storage::disk($disk)->get($stored)
+            : $renderer->handle($builder->handle($date));
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$renderer->filename($date).'"',
+        ]);
     }
 
     public function overview(Request $request, ReportsOverview $action): JsonResponse

@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { useCanViewMoney } from "@/components/money/money-visibility-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { formatCurrency } from "@/lib/utils";
@@ -12,6 +13,7 @@ import type { FinanceChartPoint } from "./data";
 export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[] }) {
   const t = useTranslations("Dashboard.finance");
   const locale = useLocale();
+  const canViewMoney = useCanViewMoney("reports");
 
   const chartConfig = {
     revenue: {
@@ -43,6 +45,12 @@ export function TransactionsOverviewCard({ chart }: { chart: FinanceChartPoint[]
       };
     })
     .filter((point) => Number.isFinite(point.date));
+
+  // Revenue, expense, and profit lines are the entire chart — plotting them
+  // without labels would still leak the shape of the business.
+  if (!canViewMoney) {
+    return null;
+  }
 
   return (
     <Card id="finance-overview">

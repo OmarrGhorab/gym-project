@@ -37,6 +37,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { voidSale } from "./actions";
 import type { PosRecentOrder } from "./data";
+import { usePosMoney } from "./format";
 import { getRecentOrdersColumns } from "./recent-orders-table/columns";
 import { preventPaginationNavigation } from "./recent-orders-table/formatters";
 import { type OrderFilter, type OrderRow, orderFilters } from "./recent-orders-table/schema";
@@ -74,9 +75,10 @@ export function RecentOrders({ canVoidSale, orders }: { canVoidSale: boolean; or
     },
     [router, t],
   );
+  const posMoney = usePosMoney();
   const columns = React.useMemo(
-    () => getRecentOrdersColumns(t, setSelectedOrder, handleVoidSale, canVoidSale),
-    [canVoidSale, handleVoidSale, t],
+    () => getRecentOrdersColumns(t, setSelectedOrder, handleVoidSale, canVoidSale, posMoney),
+    [canVoidSale, handleVoidSale, posMoney, t],
   );
 
   const table = useReactTable({

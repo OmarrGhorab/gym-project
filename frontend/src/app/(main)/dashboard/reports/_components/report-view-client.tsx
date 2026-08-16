@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import { type ReactNode, useCallback, useMemo, useState, useTransition } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -23,6 +23,8 @@ import { useLocale, useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
 
 import { DateRangePicker } from "@/components/date-range-picker";
+import { Money } from "@/components/money/money";
+import { useCanViewMoney } from "@/components/money/money-visibility-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppNotificationButton } from "@/components/whatsapp-notification-button";
+import { MONEY_REDACTED, type MoneyDomain } from "@/lib/money-visibility";
 import {
   buildReportTabParams,
   getQuickReportDateRange,
@@ -351,6 +354,7 @@ export function ReportViewClient({
 }
 
 function ReportsOverviewView({ data }: { data: Record<string, unknown> }) {
+  const currency = useCurrency();
   const totals = asRecord(data.totals);
   const daily = asRows(data.daily);
   const dailyPagination = useTablePagination(daily);
@@ -420,6 +424,7 @@ function EmployeeDetailsDialog({
   to: string;
 }) {
   const t = useTranslations("Dashboard.reports.employeePerformance");
+  const currency = useCurrency();
   const [details, setDetails] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -525,6 +530,7 @@ function EmployeeDetailsDialog({
                               String(commission.calculation_type ?? ""),
                               commission.rule_value,
                               t,
+                              currency,
                             )}
                           </TableCell>
                           <TableCell
@@ -616,6 +622,7 @@ type EmployeeReportTotals = {
 
 function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
   const t = useTranslations("Dashboard.reports.employeePerformance");
+  const currency = useCurrency();
   const employees = asRows(data.employees);
   const employeePagination = useTablePagination(employees);
   const totals = employees.reduce<EmployeeReportTotals>(
@@ -734,6 +741,7 @@ function EmployeesReportView({ data, from, to }: { data: Record<string, unknown>
 }
 
 function CaptainsReportView({ data, from, to }: { data: Record<string, unknown>; from: string; to: string }) {
+  const currency = useCurrency();
   const kpis = asRecord(data.kpis);
   const coaches = asRows(data.coaches);
   const coachPagination = useTablePagination(coaches);
@@ -837,7 +845,13 @@ function commissionReasonLabel(type: string, t: EmployeeReportT): string {
   return isRefund ? t("refundReversalOf", { reason }) : reason;
 }
 
-function commissionCalculationLabel(type: string, ruleValue: unknown, t: EmployeeReportT): string {
+/** Takes the caller's formatter so a redacted figure stays redacted inside the label. */
+function commissionCalculationLabel(
+  type: string,
+  ruleValue: unknown,
+  t: EmployeeReportT,
+  currency: (value: unknown) => string,
+): string {
   if (type === "refund") return t("refundReversal");
   if (type === "percentage") return t("percentageCalculation", { value: Number(ruleValue ?? 0) });
   if (type === "fixed") return t("fixedCalculation", { amount: currency(ruleValue) });
@@ -847,6 +861,7 @@ function commissionCalculationLabel(type: string, ruleValue: unknown, t: Employe
 
 function CaptainDetailsDialog({ coach, from, to }: { coach: Record<string, unknown>; from: string; to: string }) {
   const t = useTranslations("Dashboard.reports.captainDetails");
+  const currency = useCurrency();
   const members = asRows(coach.members);
   const pagination = useTablePagination(members);
   const coachName = String(coach.coach_name ?? t("captainFallback"));
@@ -1041,8 +1056,27 @@ function EmptyTableRow({ columns, label }: { columns: number; label: string }) {
 
 const currencyFormatter = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 });
 
-function currency(value: unknown) {
+function formatEgp(value: unknown) {
   return `EGP ${currencyFormatter.format(Number(value ?? 0))}`;
+}
+
+/**
+ * Figures on this page are report output, withheld from roles without the
+ * matching money permission.
+ *
+ * Returned as a formatter rather than a wrapper component because most figures
+ * here are interpolated into sentences and table cells that are built as
+ * strings — a component would not fit those call sites.
+ */
+function useCurrency(domain: MoneyDomain = "reports") {
+  const canView = useCanViewMoney(domain);
+
+  return useCallback((value: unknown) => (canView ? formatEgp(value) : MONEY_REDACTED), [canView]);
+}
+
+/** Prefixed figure for the many `EGP {...}` cells that format their own value. */
+function Egp({ children, domain = "reports" }: { children: ReactNode; domain?: MoneyDomain }) {
+  return <Money domain={domain}>EGP {children}</Money>;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1239,7 +1273,9 @@ function ClassesPlansView({
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Period Revenue</CardDescription>
-            <CardTitle className="text-2xl">EGP {String(totals.total_revenue_period ?? "0.00")}</CardTitle>
+            <CardTitle className="text-2xl">
+              <Egp>{String(totals.total_revenue_period ?? "0.00")}</Egp>
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -1368,7 +1404,9 @@ function ClassesPlansView({
                             : "Expiring Soon (Date)"}
                       </Badge>
                     </TableCell>
-                    <TableCell>EGP {String(sub.price_paid)}</TableCell>
+                    <TableCell>
+                      <Egp domain="subscriptions">{String(sub.price_paid)}</Egp>
+                    </TableCell>
                     <TableCell>{String(sub.sold_by)}</TableCell>
                     <TableCell className="text-right">
                       {sub.member_phone ? (
@@ -1426,7 +1464,9 @@ function ClassesPlansView({
               {planPagination.pageRows.map((plan) => (
                 <TableRow key={String(plan.id)}>
                   <TableCell className="font-medium">{String(plan.name)}</TableCell>
-                  <TableCell>EGP {String(plan.price)}</TableCell>
+                  <TableCell>
+                    <Egp domain="plans">{String(plan.price)}</Egp>
+                  </TableCell>
                   <TableCell>{String(plan.duration_days)} days</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
@@ -1444,7 +1484,9 @@ function ClassesPlansView({
                     </Badge>
                   </TableCell>
                   <TableCell>{String(plan.new_subscriptions_period)}</TableCell>
-                  <TableCell className="text-end font-semibold">EGP {String(plan.revenue_period)}</TableCell>
+                  <TableCell className="text-end font-semibold">
+                    <Egp>{String(plan.revenue_period)}</Egp>
+                  </TableCell>
                 </TableRow>
               ))}
               {plansSummary.length === 0 && (
@@ -1558,7 +1600,9 @@ function ClassesPlansView({
                         {String(sub.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell>EGP {String(sub.price_paid)}</TableCell>
+                    <TableCell>
+                      <Egp domain="subscriptions">{String(sub.price_paid)}</Egp>
+                    </TableCell>
                     <TableCell>{String(sub.sold_by)}</TableCell>
                   </TableRow>
                 );
@@ -1593,6 +1637,7 @@ function ProductSaleDetailsDialog({
   paymentMethod: string;
   to: string;
 }) {
+  const currency = useCurrency();
   const [details, setDetails] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -1763,7 +1808,7 @@ function ProductsFinanceView({
           <CardHeader className="pb-2">
             <CardDescription>Total POS Revenue</CardDescription>
             <CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">
-              EGP {String(totals.total_pos_revenue ?? "0.00")}
+              <Egp>{String(totals.total_pos_revenue ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -1859,15 +1904,19 @@ function ProductsFinanceView({
                 <TableRow key={String(prod.id)}>
                   <TableCell className="font-medium">{String(prod.name)}</TableCell>
                   <TableCell>{String(prod.category)}</TableCell>
-                  <TableCell>EGP {String(prod.price)}</TableCell>
-                  <TableCell>EGP {String(prod.cost)}</TableCell>
+                  <TableCell>
+                    <Egp domain="products">{String(prod.price)}</Egp>
+                  </TableCell>
+                  <TableCell>
+                    <Egp domain="products">{String(prod.cost)}</Egp>
+                  </TableCell>
                   <TableCell>{String(prod.stock_quantity)}</TableCell>
                   <TableCell className="font-semibold">{String(prod.units_sold_period)}</TableCell>
                   <TableCell className="text-end font-semibold text-emerald-600 dark:text-emerald-400">
-                    EGP {String(prod.net_revenue_period)}
+                    <Egp>{String(prod.net_revenue_period)}</Egp>
                   </TableCell>
                   <TableCell className="text-end font-semibold text-emerald-600 dark:text-emerald-400">
-                    EGP {String(prod.net_profit_period)}
+                    <Egp>{String(prod.net_profit_period)}</Egp>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -1935,7 +1984,9 @@ function ProductsFinanceView({
                     <Badge variant="outline">{String(tx.payment_method)}</Badge>
                   </TableCell>
                   <TableCell>{String(tx.items_count)} items</TableCell>
-                  <TableCell className="text-end font-semibold">EGP {String(tx.total_amount)}</TableCell>
+                  <TableCell className="text-end font-semibold">
+                    <Egp>{String(tx.total_amount)}</Egp>
+                  </TableCell>
                 </TableRow>
               ))}
               {transactions.length === 0 && (
@@ -2022,7 +2073,7 @@ function SubsShiftsView({
           <CardHeader className="pb-2">
             <CardDescription>Sub Sales (In Shifts)</CardDescription>
             <CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">
-              EGP {String(totals.total_subscription_revenue ?? "0.00")}
+              <Egp>{String(totals.total_subscription_revenue ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -2030,7 +2081,7 @@ function SubsShiftsView({
           <CardHeader className="pb-2">
             <CardDescription>POS Sales (In Shifts)</CardDescription>
             <CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">
-              EGP {String(totals.total_pos_revenue ?? "0.00")}
+              <Egp>{String(totals.total_pos_revenue ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -2038,7 +2089,7 @@ function SubsShiftsView({
           <CardHeader className="pb-2">
             <CardDescription>Shift Discrepancy</CardDescription>
             <CardTitle className="text-2xl text-amber-600 dark:text-amber-400">
-              EGP {String(totals.total_cash_discrepancy ?? "0.00")}
+              <Egp>{String(totals.total_cash_discrepancy ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -2049,19 +2100,21 @@ function SubsShiftsView({
           <CardHeader className="pb-2">
             <CardDescription>Outside Any Shift</CardDescription>
             <CardTitle className="text-2xl text-amber-600 dark:text-amber-400">
-              EGP {String(totals.unassigned_revenue ?? "0.00")}
+              <Egp>{String(totals.unassigned_revenue ?? "0.00")}</Egp>
             </CardTitle>
             <CardDescription>
-              {String(totals.unassigned_payments_count ?? 0)} payment(s) taken while no desk session was open — subs EGP{" "}
-              {String(totals.unassigned_subscription_revenue ?? "0.00")}, POS EGP{" "}
-              {String(totals.unassigned_pos_revenue ?? "0.00")}
+              {String(totals.unassigned_payments_count ?? 0)} payment(s) taken while no desk session was open — subs{" "}
+              <Egp>{String(totals.unassigned_subscription_revenue ?? "0.00")}</Egp>, POS{" "}
+              <Egp>{String(totals.unassigned_pos_revenue ?? "0.00")}</Egp>
             </CardDescription>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total Money This Period</CardDescription>
-            <CardTitle className="text-2xl">EGP {String(totals.total_period_revenue ?? "0.00")}</CardTitle>
+            <CardTitle className="text-2xl">
+              <Egp>{String(totals.total_period_revenue ?? "0.00")}</Egp>
+            </CardTitle>
             <CardDescription>Everything collected in the range, in a shift or not.</CardDescription>
           </CardHeader>
         </Card>
@@ -2069,11 +2122,11 @@ function SubsShiftsView({
           <CardHeader className="pb-2">
             <CardDescription>Expenses This Period</CardDescription>
             <CardTitle className="text-2xl text-destructive">
-              EGP {String(totals.total_period_expenses ?? "0.00")}
+              <Egp>{String(totals.total_period_expenses ?? "0.00")}</Egp>
             </CardTitle>
             <CardDescription>
-              EGP {String(totals.total_shift_expenses ?? "0.00")} paid during a shift, EGP{" "}
-              {String(totals.unassigned_expenses ?? "0.00")} outside one.
+              <Egp>{String(totals.total_shift_expenses ?? "0.00")}</Egp> paid during a shift,{" "}
+              <Egp>{String(totals.unassigned_expenses ?? "0.00")}</Egp> outside one.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -2136,15 +2189,23 @@ function SubsShiftsView({
                     <Badge variant={s.status === "accepted" ? "default" : "secondary"}>{String(s.status)}</Badge>
                   </TableCell>
                   <TableCell className="font-medium text-emerald-600">
-                    EGP {String(s.subscription_sales_amount)}
+                    <Egp>{String(s.subscription_sales_amount)}</Egp>
                   </TableCell>
-                  <TableCell className="font-medium text-emerald-600">EGP {String(s.pos_sales_amount)}</TableCell>
-                  <TableCell className="text-end font-bold">EGP {String(s.total_revenue)}</TableCell>
-                  <TableCell className="text-destructive">EGP {String(s.expenses_amount ?? "0.00")}</TableCell>
-                  <TableCell>EGP {String(s.expected_cash)}</TableCell>
-                  <TableCell>{s.counted_cash ? `EGP ${s.counted_cash}` : "N/A"}</TableCell>
+                  <TableCell className="font-medium text-emerald-600">
+                    <Egp>{String(s.pos_sales_amount)}</Egp>
+                  </TableCell>
+                  <TableCell className="text-end font-bold">
+                    <Egp>{String(s.total_revenue)}</Egp>
+                  </TableCell>
+                  <TableCell className="text-destructive">
+                    <Egp>{String(s.expenses_amount ?? "0.00")}</Egp>
+                  </TableCell>
+                  <TableCell>
+                    <Egp>{String(s.expected_cash)}</Egp>
+                  </TableCell>
+                  <TableCell>{s.counted_cash ? <Egp>{String(s.counted_cash)}</Egp> : "N/A"}</TableCell>
                   <TableCell className={Number(s.discrepancy) < 0 ? "font-semibold text-rose-600" : ""}>
-                    EGP {String(s.discrepancy)}
+                    <Egp>{String(s.discrepancy)}</Egp>
                   </TableCell>
                 </TableRow>
               ))}
@@ -2202,6 +2263,7 @@ function MemberSubscriptionsView({
   isPending: boolean;
   canFilter: boolean;
 }) {
+  const currency = useCurrency();
   const totals = asRecord(data.totals);
   const members = asRows(data.members);
   const memberPagination = useTablePagination(members);
@@ -2453,6 +2515,7 @@ function MemberSubscriptionsView({
 }
 
 function MemberSubscriptionHistoryDialog({ member }: { member: Record<string, unknown> }) {
+  const currency = useCurrency();
   const [payload, setPayload] = useState<Record<string, unknown> | null>(null);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -2594,6 +2657,8 @@ function SubscriptionPlanCard({
   isSelected: boolean;
   onSelect: (subscriptionId: number) => void;
 }) {
+  const currency = useCurrency();
+
   return (
     <button
       type="button"
@@ -2620,6 +2685,7 @@ function SubscriptionPlanCard({
 }
 
 function SubscriptionDetailPanel({ detail }: { detail: Record<string, unknown> }) {
+  const currency = useCurrency();
   const subscription = asRecord(detail.subscription);
   const visits = asRows(detail.visits);
   const payments = asRows(detail.payments);
@@ -3025,7 +3091,7 @@ function IncomeOutcomeView({
           <CardHeader className="pb-2">
             <CardDescription>Total Income</CardDescription>
             <CardTitle className="text-2xl text-emerald-600 dark:text-emerald-400">
-              EGP {String(totals.total_income ?? "0.00")}
+              <Egp>{String(totals.total_income ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -3033,7 +3099,7 @@ function IncomeOutcomeView({
           <CardHeader className="pb-2">
             <CardDescription>Total Outcome (Expenses/Payroll)</CardDescription>
             <CardTitle className="text-2xl text-rose-600 dark:text-rose-400">
-              EGP {String(totals.total_outcome ?? "0.00")}
+              <Egp>{String(totals.total_outcome ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -3043,7 +3109,7 @@ function IncomeOutcomeView({
             <CardTitle
               className={`text-2xl ${netProfitNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
             >
-              EGP {String(totals.net_profit ?? "0.00")}
+              <Egp>{String(totals.net_profit ?? "0.00")}</Egp>
             </CardTitle>
           </CardHeader>
         </Card>
@@ -3099,21 +3165,31 @@ function IncomeOutcomeView({
               {timelinePagination.pageRows.map((row) => (
                 <TableRow key={String(row.period)}>
                   <TableCell className="font-medium">{String(row.period)}</TableCell>
-                  <TableCell>EGP {String(row.subscription_income)}</TableCell>
-                  <TableCell>EGP {String(row.pos_income)}</TableCell>
-                  <TableCell className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    EGP {String(row.total_income)}
+                  <TableCell>
+                    <Egp>{String(row.subscription_income)}</Egp>
                   </TableCell>
-                  <TableCell>EGP {String(row.expenses_outcome)}</TableCell>
-                  <TableCell>EGP {String(row.payroll_outcome)}</TableCell>
-                  <TableCell>EGP {String(row.refunds_outcome)}</TableCell>
+                  <TableCell>
+                    <Egp>{String(row.pos_income)}</Egp>
+                  </TableCell>
+                  <TableCell className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    <Egp>{String(row.total_income)}</Egp>
+                  </TableCell>
+                  <TableCell>
+                    <Egp>{String(row.expenses_outcome)}</Egp>
+                  </TableCell>
+                  <TableCell>
+                    <Egp>{String(row.payroll_outcome)}</Egp>
+                  </TableCell>
+                  <TableCell>
+                    <Egp>{String(row.refunds_outcome)}</Egp>
+                  </TableCell>
                   <TableCell className="font-semibold text-rose-600 dark:text-rose-400">
-                    EGP {String(row.total_outcome)}
+                    <Egp>{String(row.total_outcome)}</Egp>
                   </TableCell>
                   <TableCell
                     className={`text-end font-bold ${Number(row.net_profit) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
                   >
-                    EGP {String(row.net_profit)}
+                    <Egp>{String(row.net_profit)}</Egp>
                   </TableCell>
                 </TableRow>
               ))}

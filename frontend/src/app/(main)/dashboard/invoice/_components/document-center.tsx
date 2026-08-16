@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Download, FileArchive, IdCard, Printer, ReceiptText, ShieldAlert } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,8 +78,12 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                       <div className="text-muted-foreground text-xs">{row.employee.role ?? t("staff")}</div>
                     </TableCell>
                     <TableCell>{row.month}</TableCell>
-                    <TableCell>{money(row.deductions)}</TableCell>
-                    <TableCell className="font-medium">{money(row.net_salary)}</TableCell>
+                    <TableCell>
+                      <Money domain="payroll">{money(row.deductions)}</Money>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <Money domain="payroll">{money(row.net_salary)}</Money>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{cleanLabel(row.status)}</Badge>
                     </TableCell>
@@ -132,7 +137,9 @@ export function DocumentCenter({ data }: { data: DocumentCenterData }) {
                         (sale.member_id ? t("memberFallback", { id: sale.member_id }) : t("walkIn"))}
                     </TableCell>
                     <TableCell>{sale.sold_by?.name ?? t("posStaff")}</TableCell>
-                    <TableCell className="font-medium">{money(sale.total)}</TableCell>
+                    <TableCell className="font-medium">
+                      <Money domain="sales">{money(sale.total)}</Money>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={sale.status === "completed" ? "secondary" : "outline"}>
                         {cleanLabel(sale.status)}

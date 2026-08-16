@@ -1,6 +1,7 @@
 import {
   Banknote,
   Calendar,
+  CalendarCheck,
   CalendarX2,
   ChartBar,
   CheckSquare,
@@ -76,6 +77,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Reports Hub",
         url: "/dashboard/reports",
         icon: FileSpreadsheet,
+      },
+      {
+        id: "daily-report",
+        title: "Daily Report",
+        url: "/dashboard/daily-report",
+        icon: CalendarCheck,
       },
       {
         id: "crm",

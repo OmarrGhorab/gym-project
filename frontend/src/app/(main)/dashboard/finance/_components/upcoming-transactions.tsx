@@ -1,8 +1,10 @@
 import { ChevronRight, CircleDollarSign, ReceiptText, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { MONEY_REDACTED, type MoneyDomain } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceDashboardData, FinanceUpcomingItem } from "./data";
@@ -32,9 +34,9 @@ export function UpcomingTransactions({
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <h2 className="flex items-baseline text-3xl leading-none tracking-tight">
-              <span className="font-normal">
+              <Money domain="payments" className="font-normal">
                 {formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true })}
-              </span>
+              </Money>
             </h2>
             <p className="text-muted-foreground text-sm leading-none">
               {t("balancesNeedCollection", { count: numberFormatter.format(totals.outstanding_dues_count) })}
@@ -43,9 +45,11 @@ export function UpcomingTransactions({
           <div className="flex w-max items-center gap-2 rounded-md border border-border bg-muted/70 px-2 py-1.5 text-sm">
             <Zap className="size-4 fill-primary text-primary" />
             <span className="text-muted-foreground">
-              {t("pendingPayrollAmount", {
-                value: formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true }),
-              })}
+              <Money domain="payroll" redacted={t("pendingPayrollAmount", { value: MONEY_REDACTED })}>
+                {t("pendingPayrollAmount", {
+                  value: formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true }),
+                })}
+              </Money>
             </span>
           </div>
         </div>
@@ -67,6 +71,13 @@ export function UpcomingTransactions({
   );
 }
 
+/** Each row draws its figure from a different ledger, so each is gated on its own domain. */
+const itemMoneyDomains: Record<"due" | "expense" | "payroll", MoneyDomain> = {
+  due: "payments",
+  expense: "expenses",
+  payroll: "payroll",
+};
+
 function FinanceItem({ item }: { item: FinanceUpcomingItem & { kind: "due" | "expense" | "payroll" } }) {
   const Icon = item.kind === "expense" ? ReceiptText : CircleDollarSign;
 
@@ -80,7 +91,10 @@ function FinanceItem({ item }: { item: FinanceUpcomingItem & { kind: "due" | "ex
       <ItemContent>
         <ItemTitle>{item.title}</ItemTitle>
         <ItemDescription>
-          {item.description} · {formatCurrency(Number(item.amount), { currency: "EGP", noDecimals: true })}
+          {item.description} ·{" "}
+          <Money domain={itemMoneyDomains[item.kind]}>
+            {formatCurrency(Number(item.amount), { currency: "EGP", noDecimals: true })}
+          </Money>
         </ItemDescription>
       </ItemContent>
       <ItemActions>

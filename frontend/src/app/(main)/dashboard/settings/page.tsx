@@ -107,6 +107,24 @@ export default async function Page() {
                   <Label htmlFor="shifts.require_handover_to_open">{t("requireHandoverToOpen")}</Label>
                 </div>
               </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label={t("resetAfterClosedHours")}
+                  name="shifts.reset_after_closed_hours"
+                  type="number"
+                  step="1"
+                  defaultValue={settings.shifts?.reset_after_closed_hours ?? 4}
+                  hint={t("resetAfterClosedHoursHint")}
+                />
+                <Field
+                  label={t("dayStartsAtHour")}
+                  name="shifts.day_starts_at_hour"
+                  type="number"
+                  step="1"
+                  defaultValue={settings.shifts?.day_starts_at_hour ?? 5}
+                  hint={t("dayStartsAtHourHint")}
+                />
+              </div>
             </div>
 
             <Button type="submit" className="w-full">

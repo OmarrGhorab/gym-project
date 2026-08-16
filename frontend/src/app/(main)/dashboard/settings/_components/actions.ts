@@ -24,6 +24,16 @@ const settingsSchema = z.object({
   shifts_handover_auto_accept: z.boolean(),
   shifts_handover_auto_accept_on_match_only: z.boolean(),
   shifts_require_handover_to_open: z.boolean(),
+  shifts_day_starts_at_hour: z.coerce
+    .number()
+    .int()
+    .min(0, "The day must start on an hour between 0 and 23.")
+    .max(23, "The day must start on an hour between 0 and 23."),
+  shifts_reset_after_closed_hours: z.coerce
+    .number()
+    .int()
+    .min(1, "The closure must be between 1 and 24 hours.")
+    .max(24, "The closure must be between 1 and 24 hours."),
 });
 
 const shiftSchema = z.object({
@@ -54,6 +64,8 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
       input.get("shifts.handover_auto_accept_on_match_only") === "true",
     shifts_require_handover_to_open:
       input.get("shifts.require_handover_to_open") === "on" || input.get("shifts.require_handover_to_open") === "true",
+    shifts_day_starts_at_hour: input.get("shifts.day_starts_at_hour") || "5",
+    shifts_reset_after_closed_hours: input.get("shifts.reset_after_closed_hours") || "4",
   });
 
   if (!parsed.success) {
@@ -71,6 +83,8 @@ export async function updateSettings(input: FormData): Promise<SettingsActionRes
       handover_auto_accept: parsed.data.shifts_handover_auto_accept,
       handover_auto_accept_on_match_only: parsed.data.shifts_handover_auto_accept_on_match_only,
       require_handover_to_open: parsed.data.shifts_require_handover_to_open,
+      day_starts_at_hour: parsed.data.shifts_day_starts_at_hour,
+      reset_after_closed_hours: parsed.data.shifts_reset_after_closed_hours,
     },
     reminder_days: parsed.data.reminder_days,
   };

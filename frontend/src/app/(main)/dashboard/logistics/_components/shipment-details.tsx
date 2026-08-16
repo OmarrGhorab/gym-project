@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -128,7 +129,9 @@ function InventoryHero({ data, order }: { data: InventoryLogisticsData; order: P
           </div>
           <div className="text-right">
             <div className="text-muted-foreground text-xs">{t("inventoryValue")}</div>
-            <div className="text-2xl tracking-tight">{formatEgp(data.stats.inventory_value, locale)}</div>
+            <Money domain="products" className="block text-2xl tracking-tight">
+              {formatEgp(data.stats.inventory_value, locale)}
+            </Money>
           </div>
         </div>
       </div>
@@ -188,7 +191,9 @@ function OrderOverview({ order, permissions }: { order: PurchaseOrder; permissio
         </div>
         <div className="flex flex-col gap-2">
           <div className="text-muted-foreground text-xs leading-none md:text-sm">{t("totalCost")}</div>
-          <div className="text-sm leading-none">{formatEgp(order.subtotal, locale)}</div>
+          <Money domain="products" className="block text-sm leading-none">
+            {formatEgp(order.subtotal, locale)}
+          </Money>
         </div>
         <div className="flex flex-col gap-2">
           <div className="text-muted-foreground text-xs leading-none md:text-sm">{t("units")}</div>
@@ -237,7 +242,9 @@ function OrderOverview({ order, permissions }: { order: PurchaseOrder; permissio
               <div>
                 {item.quantity_received}/{item.quantity_ordered}
               </div>
-              <div className="text-muted-foreground text-xs">{formatEgp(item.line_total, locale)}</div>
+              <Money domain="products" className="block text-muted-foreground text-xs">
+                {formatEgp(item.line_total, locale)}
+              </Money>
             </div>
           </div>
         ))}

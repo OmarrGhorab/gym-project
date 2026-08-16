@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\WrapsApiResponse;
+use App\Support\BusinessDay;
 use App\Support\WhatsAppTemplates;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -47,6 +48,15 @@ class SettingResource extends JsonResource
                 'handover_auto_accept' => (bool) ($settings['shifts.handover_auto_accept'] ?? false),
                 'handover_auto_accept_on_match_only' => (bool) ($settings['shifts.handover_auto_accept_on_match_only'] ?? true),
                 'require_handover_to_open' => (bool) ($settings['shifts.require_handover_to_open'] ?? false),
+                // The hour the gym's working day turns over, which is when a
+                // shift opens on an empty drawer instead of carrying the last
+                // one's cash. Defaults to 05:00 because the desk trades past
+                // midnight and a calendar day would split the night shift.
+                'day_starts_at_hour' => (int) ($settings['shifts.day_starts_at_hour'] ?? BusinessDay::DEFAULT_START_HOUR),
+                // How long the desk must sit shut before the next shift is a new
+                // day's trading. This is the reset the gym recognises; the hour
+                // above only catches a day that ended without anyone noticing.
+                'reset_after_closed_hours' => (int) ($settings['shifts.reset_after_closed_hours'] ?? BusinessDay::DEFAULT_CLOSED_GAP_HOURS),
             ],
             'whatsapp' => [
                 'templates' => $settings['whatsapp.templates'] ?? [],

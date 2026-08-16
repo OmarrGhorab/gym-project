@@ -1,6 +1,7 @@
 import { ArrowUpRight, TrendingDown, TrendingUp } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -30,15 +31,17 @@ export function KpiCards({ canViewMoney, summary }: { canViewMoney: boolean; sum
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center gap-3">
-                <span className="text-3xl leading-none tracking-tight">
+                <Money domain="subscriptions" className="text-3xl leading-none tracking-tight">
                   {formatCurrency(summary.subscriptionRevenue, { currency: "EGP", maximumFractionDigits: 0 })}
-                </span>
+                </Money>
 
-                <PositiveBadge
-                  value={t("today", {
-                    value: formatCurrency(summary.salesTodayRevenue, { currency: "EGP", noDecimals: true }),
-                  })}
-                />
+                <Money domain="sales">
+                  <PositiveBadge
+                    value={t("today", {
+                      value: formatCurrency(summary.salesTodayRevenue, { currency: "EGP", noDecimals: true }),
+                    })}
+                  />
+                </Money>
               </div>
               <p className="text-sm">
                 <span className="font-medium text-foreground">{t("allSubscriptionValue")}</span>{" "}
@@ -58,9 +61,9 @@ export function KpiCards({ canViewMoney, summary }: { canViewMoney: boolean; sum
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center gap-3">
-                <span className="text-3xl leading-none tracking-tight">
+                <Money domain="payments" className="text-3xl leading-none tracking-tight">
                   {formatCurrency(summary.outstandingDuesTotal, { currency: "EGP", maximumFractionDigits: 0 })}
-                </span>
+                </Money>
 
                 <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive">
                   <TrendingDown />

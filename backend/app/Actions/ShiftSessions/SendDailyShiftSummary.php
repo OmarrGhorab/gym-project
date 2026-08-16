@@ -6,6 +6,7 @@ use App\Models\DailyShiftSummary;
 use App\Models\EmployeeShift;
 use App\Models\ShiftSession;
 use App\Services\OperationalNotifier;
+use App\Support\BusinessDay;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,12 +24,17 @@ class SendDailyShiftSummary
      * Shifts carry no times any more, so there is no "last shift has ended" to
      * wait for — the scheduler decides when the day is over and fires this once.
      *
+     * Defaults to the business day that has just ended rather than the one in
+     * progress. The working day runs to 05:00, so a summary of "today" sent
+     * before then would report a day still being worked, and the sessions opened
+     * after midnight would land in no summary at all.
+     *
      * @return array{sent: bool, reason: string, business_date: string, sessions: int}
      */
     public function handle(?Carbon $businessDate = null, ?Carbon $now = null): array
     {
         $now ??= now();
-        $businessDate ??= $now->copy()->startOfDay();
+        $businessDate ??= Carbon::parse(BusinessDay::previous($now));
         $businessDate = $businessDate->copy()->startOfDay();
 
         $shifts = EmployeeShift::query()

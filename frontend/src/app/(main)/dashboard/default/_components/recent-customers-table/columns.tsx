@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { differenceInCalendarDays, endOfToday, parseISO } from "date-fns";
 import { CircleAlertIcon, CircleCheckIcon, Clock3Icon, LoaderIcon, UserRound } from "lucide-react";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -192,10 +193,15 @@ export function createRecentCustomersColumns({
         return (
           <div className="grid max-w-72 gap-0.5">
             <span className="truncate text-sm">{row.original.plan ?? labels.noPlan}</span>
-            {mainPlanPaid ? <span className="text-muted-foreground text-xs">Paid: {mainPlanPaid} EGP</span> : null}
+            {mainPlanPaid ? (
+              <Money domain="subscriptions" className="text-muted-foreground text-xs">
+                Paid: {mainPlanPaid} EGP
+              </Money>
+            ) : null}
             {activeAddons.map((addon) => (
               <span key={addon.id} className="truncate text-muted-foreground text-xs">
-                + {addon.plan?.name ?? "Extra"}: {addon.paid_total ?? addon.price_paid ?? "0.00"} EGP
+                + {addon.plan?.name ?? "Extra"}:{" "}
+                <Money domain="subscriptions">{addon.paid_total ?? addon.price_paid ?? "0.00"} EGP</Money>
               </span>
             ))}
             {row.original.planStartsAt ? (

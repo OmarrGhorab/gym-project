@@ -5,12 +5,13 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 
 import type { PosDashboardData } from "./data";
-import { formatEgp } from "./format";
+import { usePosMoney } from "./format";
 
 const colors = ["var(--chart-3)", "var(--chart-2)", "var(--chart-1)", "var(--chart-4)", "var(--chart-5)"] as const;
 
 export function TopProducts({ data }: { data: PosDashboardData["top_products"] }) {
   const t = useTranslations("Dashboard.ecommerce");
+  const posMoney = usePosMoney();
 
   return (
     <Card className="h-full">
@@ -73,7 +74,7 @@ export function TopProducts({ data }: { data: PosDashboardData["top_products"] }
                   <div className="text-muted-foreground text-xs capitalize">{product.category}</div>
                 </div>
                 <div className="self-center text-muted-foreground tabular-nums">{product.units_sold}</div>
-                <div className="self-center font-medium tabular-nums">{formatEgp(product.sales)}</div>
+                <div className="self-center font-medium tabular-nums">{posMoney(product.sales)}</div>
               </div>
             ))
           ) : (

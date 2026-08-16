@@ -5,6 +5,7 @@ import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { Money } from "@/components/money/money";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
@@ -127,7 +128,9 @@ export function PipelineActivity({ data, summary }: { data: MembershipChartPoint
             <div className="flex flex-col gap-5 rounded-lg p-4 lg:col-span-4">
               <div className="flex flex-col gap-1">
                 <div className="font-medium text-4xl tabular-nums leading-none">
-                  {formatCurrency(rangeRevenue, { currency: "EGP", noDecimals: true })}{" "}
+                  <Money domain="subscriptions">
+                    {formatCurrency(rangeRevenue, { currency: "EGP", noDecimals: true })}
+                  </Money>{" "}
                   <span className="font-normal text-lg text-muted-foreground">{t("rangeRevenue")}</span>
                 </div>
                 <p className="text-muted-foreground text-sm">
@@ -142,7 +145,9 @@ export function PipelineActivity({ data, summary }: { data: MembershipChartPoint
 
                 <div className="flex flex-col gap-1.5">
                   <div className="font-medium text-2xl tabular-nums leading-none">
-                    {formatCurrency(summary.outstandingDuesTotal, { currency: "EGP", noDecimals: true })}{" "}
+                    <Money domain="payments">
+                      {formatCurrency(summary.outstandingDuesTotal, { currency: "EGP", noDecimals: true })}
+                    </Money>{" "}
                     <span className="font-normal text-muted-foreground text-sm">{t("due")}</span>
                   </div>
                   <p className="text-muted-foreground text-sm">

@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -28,9 +29,9 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="space-y-1">
-              <div className="font-heading text-3xl leading-none tracking-tight">
+              <Money domain="reports" className="block font-heading text-3xl leading-none tracking-tight">
                 {formatCurrency(netProfit, { currency: "EGP", noDecimals: true })}
-              </div>
+              </Money>
               <p className="text-muted-foreground text-xs">{t("netProfitDescription")}</p>
             </div>
             <GrowthBadge value={netProfit >= 0 ? margin : -Math.abs(margin)} suffix={t("margin")} />
@@ -43,11 +44,13 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="flex flex-col gap-1">
-              <div className="font-heading text-3xl leading-none tracking-tight">
+              <Money domain="reports" className="block font-heading text-3xl leading-none tracking-tight">
                 {formatCurrency(revenue, { currency: "EGP", noDecimals: true })}
-              </div>
+              </Money>
               <p className="text-muted-foreground text-xs">
-                {t("vsPreviousMonth", { value: formatDelta(revenue - previousRevenue, t) })}
+                <Money domain="reports">
+                  {t("vsPreviousMonth", { value: formatDelta(revenue - previousRevenue, t) })}
+                </Money>
               </p>
             </div>
             <GrowthBadge value={Number(totals.revenue_growth_rate)} />
@@ -60,11 +63,13 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="flex flex-col gap-1">
-              <div className="font-heading text-3xl leading-none tracking-tight">
+              <Money domain="expenses" className="block font-heading text-3xl leading-none tracking-tight">
                 {formatCurrency(expenses, { currency: "EGP", noDecimals: true })}
-              </div>
+              </Money>
               <p className="text-muted-foreground text-xs">
-                {t("vsPreviousMonth", { value: formatDelta(expenses - previousExpenses, t) })}
+                <Money domain="expenses">
+                  {t("vsPreviousMonth", { value: formatDelta(expenses - previousExpenses, t) })}
+                </Money>
               </p>
             </div>
             <GrowthBadge value={Number(totals.expense_growth_rate)} inverse />
@@ -77,13 +82,15 @@ export function OverviewKpis({ totals }: { totals: FinanceDashboardData["totals"
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="flex flex-col gap-1">
-              <div className="font-heading text-3xl leading-none tracking-tight">
+              <Money domain="payroll" className="block font-heading text-3xl leading-none tracking-tight">
                 {formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true })}
-              </div>
+              </Money>
               <p className="text-muted-foreground text-xs">
-                {t("duesToCollect", {
-                  value: formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true }),
-                })}
+                <Money domain="payments">
+                  {t("duesToCollect", {
+                    value: formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true }),
+                  })}
+                </Money>
               </p>
             </div>
             <Badge className="bg-chart-2/10 text-chart-2">

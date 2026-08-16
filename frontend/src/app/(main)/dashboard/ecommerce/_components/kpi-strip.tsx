@@ -9,7 +9,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 import type { PosChartPoint, PosDashboardData } from "./data";
-import { formatEgp, formatSignedPercent } from "./format";
+import { formatSignedPercent, usePosMoney } from "./format";
 
 const revenueOverviewConfig = {
   revenue: {
@@ -59,6 +59,7 @@ export function KpiStrip({
 }) {
   const t = useTranslations("Dashboard.ecommerce");
   const locale = useLocale();
+  const posMoney = usePosMoney();
   const chartData = chart.map((point) => ({
     ...point,
     revenue: Number(point.revenue),
@@ -66,7 +67,7 @@ export function KpiStrip({
   const metrics = [
     {
       title: hasCustomDateRange ? "Selected sales" : "Today sales",
-      value: formatEgp(dailySales.total_revenue),
+      value: posMoney(dailySales.total_revenue),
       detail: `${dailySales.sales.length.toLocaleString()} ${hasCustomDateRange ? "orders selected" : "orders today"}`,
       trend: totals.sales_growth_rate,
       icon: DollarSign,
@@ -87,7 +88,7 @@ export function KpiStrip({
     },
     {
       title: t("averageSale"),
-      value: formatEgp(totals.average_sale),
+      value: posMoney(totals.average_sale),
       detail: t("perCheckout"),
       trend: "0",
       icon: ReceiptText,
@@ -172,7 +173,7 @@ export function KpiStrip({
                             <div className="flex flex-1 items-center justify-between leading-none">
                               <span className="text-muted-foreground">{String(name ?? "")}</span>
                               <span className="font-medium font-mono text-foreground tabular-nums">
-                                {name === "revenue" ? formatEgp(Number(value)) : String(value)}
+                                {name === "revenue" ? posMoney(Number(value)) : String(value)}
                               </span>
                             </div>
                           </>

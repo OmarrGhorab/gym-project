@@ -119,6 +119,8 @@ class UpdateSettingsRequest extends FormRequest
                 'handover_auto_accept',
                 'handover_auto_accept_on_match_only',
                 'require_handover_to_open',
+                'day_starts_at_hour',
+                'reset_after_closed_hours',
             ]));
         }
         foreach ([
@@ -197,6 +199,13 @@ class UpdateSettingsRequest extends FormRequest
             'shifts.handover_auto_accept_on_match_only' => ['nullable', 'boolean'],
             'shifts.require_handover_to_open' => ['nullable', 'boolean'],
             'shifts.require_cash_count' => ['nullable', 'boolean'],
+            // The hour the working day turns over. Anything outside 0–23 would
+            // move every shift's business date, so it is rejected rather than
+            // clamped.
+            'shifts.day_starts_at_hour' => ['nullable', 'integer', 'min:0', 'max:23'],
+            // Under an hour would fire between two shifts handing over; past a day
+            // it could never fire at all.
+            'shifts.reset_after_closed_hours' => ['nullable', 'integer', 'min:1', 'max:24'],
             'whatsapp' => ['nullable', 'array'],
             'whatsapp.templates' => ['nullable', 'array'],
             'whatsapp.templates.*' => ['nullable', 'string', 'max:5000'],

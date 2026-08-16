@@ -16,6 +16,7 @@ use App\Models\Expense;
 use App\Models\Payment;
 use App\Models\ShiftSession;
 use App\Support\FoundationPermissions;
+use App\Support\ShiftDrawerAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -28,6 +29,12 @@ class ShiftSessionController extends ApiController
 
         $sessions = ShiftSession::query()
             ->with(['shift', 'openedBy', 'closedBy', 'receivedBy', 'adminReviewer', 'openedByEmployee', 'closedByEmployee'])
+            // Only an admin browses shift history. For everyone else this list is
+            // the shift they are answerable for right now — a past shift of their
+            // own is already settled, and another employee's is not theirs to read.
+            ->unless(ShiftDrawerAccess::seesEveryShift($request->user()), function ($query) use ($request): void {
+                $this->scopeToOwnLiveSession($query, $request);
+            })
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
             ->when($request->query('business_date'), fn ($q, $date) => $q->whereDate('business_date', $date))
             ->when($request->query('from'), fn ($q, $from) => $q->whereDate('business_date', '>=', $from))
@@ -67,8 +74,9 @@ class ShiftSessionController extends ApiController
                 (int) ($agg->rows_count ?? 0),
                 bcadd((string) ($agg->amount_sum ?? 0), '0.00', 2),
             );
-            $row['live_totals'] = $live;
-            $row['variance'] = $this->varianceSnapshot($session);
+            $scope = ShiftDrawerAccess::scopeFor($request->user(), $session);
+            $row['live_totals'] = $this->visibleTotals($live, $scope);
+            $row['variance'] = $this->visibleVariance($session, $scope);
 
             return $row;
         })->values()->all();
@@ -151,13 +159,14 @@ class ShiftSessionController extends ApiController
         }
 
         $live = $totals->handle($session);
+        $scope = ShiftDrawerAccess::scopeFor($request->user(), $session);
 
         return $this->success(
             data: array_merge(
                 (new ShiftSessionResource($session))->toArray($request),
                 [
-                    'live_totals' => $live,
-                    'variance' => $this->varianceSnapshot($session),
+                    'live_totals' => $this->visibleTotals($live, $scope),
+                    'variance' => $this->visibleVariance($session, $scope),
                 ],
             ),
             message: 'Current shift session retrieved',
@@ -182,7 +191,7 @@ class ShiftSessionController extends ApiController
         return $this->success(
             data: array_merge(
                 (new ShiftSessionResource($session))->toArray($request),
-                ['live_totals' => $live],
+                ['live_totals' => $this->visibleTotals($live, ShiftDrawerAccess::scopeFor($request->user(), $session))],
             ),
             message: 'Shift session opened',
             status: 201,
@@ -284,6 +293,83 @@ class ShiftSessionController extends ApiController
         if (! $user?->can('expenses.create') && ! $user?->can('attendance.create') && ! $user?->can('payments.create')) {
             abort(403);
         }
+    }
+
+    /**
+     * Narrows the list to the one shift a non-admin is answerable for.
+     *
+     * Matched on the employee as well as the user, because an admin can put
+     * somebody else on the desk: the drawer belongs to the employee named on the
+     * session, not to whoever opened it.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<ShiftSession>  $query
+     */
+    private function scopeToOwnLiveSession($query, Request $request): void
+    {
+        $user = $request->user();
+        $employeeId = $user?->employee?->id;
+
+        $query
+            ->whereIn('status', [
+                ShiftSession::STATUS_OPEN,
+                ShiftSession::STATUS_PENDING_HANDOVER,
+                ShiftSession::STATUS_PENDING_ADMIN,
+                ShiftSession::STATUS_DISPUTED,
+            ])
+            ->where(function ($scoped) use ($user, $employeeId): void {
+                $scoped
+                    ->where('opened_by', $user?->id)
+                    ->orWhere('closed_by', $user?->id);
+
+                if ($employeeId !== null) {
+                    $scoped
+                        ->orWhere('opened_by_employee_id', $employeeId)
+                        ->orWhere('closed_by_employee_id', $employeeId);
+                }
+            });
+    }
+
+    /**
+     * The totals a viewer is allowed to read.
+     *
+     * `cash` and `net` are computed with the opening float folded in, which is
+     * the previous employee's money. An employee sees the cash they took in
+     * instead, so the number on their screen is one they can account for.
+     *
+     * @param  array<string, mixed>  $live
+     * @return array<string, mixed>
+     */
+    private function visibleTotals(array $live, string $scope): array
+    {
+        if ($scope === ShiftDrawerAccess::SCOPE_FULL) {
+            return $live;
+        }
+
+        if ($scope === ShiftDrawerAccess::SCOPE_NONE) {
+            return [];
+        }
+
+        $ownCash = (string) ($live['by_method']['cash'] ?? '0.00');
+        $collections = (string) ($live['collections'] ?? '0.00');
+        $expenses = (string) ($live['expenses'] ?? '0.00');
+
+        return [
+            ...$live,
+            'cash' => $ownCash,
+            'net' => bcsub($collections, $expenses, 2),
+            'opening_float' => null,
+        ];
+    }
+
+    /**
+     * @return array<string, array{expected: string|null, counted: string|null, variance: string|null}>
+     */
+    private function visibleVariance(ShiftSession $session, string $scope): array
+    {
+        // Expected cash carries the float, and the variance against it is the
+        // judgement an admin makes on the count — not something the employee
+        // being judged gets to see while they are still counting.
+        return $scope === ShiftDrawerAccess::SCOPE_FULL ? $this->varianceSnapshot($session) : [];
     }
 
     /**

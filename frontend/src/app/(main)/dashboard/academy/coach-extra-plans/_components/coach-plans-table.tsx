@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Calendar, Dumbbell, Eye, Search, UserCheck, Users } from "lucide-react";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +116,9 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium text-sm tabular-nums">
-                      {formatCurrency(Number(coach.total_revenue), { currency: "EGP" })}
+                      <Money domain="subscriptions">
+                        {formatCurrency(Number(coach.total_revenue), { currency: "EGP" })}
+                      </Money>
                     </TableCell>
                     <TableCell className="text-center">
                       <Button
@@ -172,9 +175,9 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                   </div>
                   <div className="rounded-lg border bg-muted/20 p-3">
                     <p className="text-muted-foreground text-xs">Coached Revenue</p>
-                    <p className="font-semibold text-lg">
+                    <Money domain="subscriptions" className="block font-semibold text-lg">
                       {formatCurrency(Number(selectedCoach.total_revenue), { currency: "EGP" })}
-                    </p>
+                    </Money>
                   </div>
                 </div>
 
@@ -253,7 +256,9 @@ export function CoachPlansTable({ coaches }: { coaches: CoachExtraPlanItem[] }) 
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right font-medium text-sm tabular-nums">
-                              {formatCurrency(Number(m.price_paid), { currency: "EGP" })}
+                              <Money domain="subscriptions">
+                                {formatCurrency(Number(m.price_paid), { currency: "EGP" })}
+                              </Money>
                             </TableCell>
                           </TableRow>
                         ))

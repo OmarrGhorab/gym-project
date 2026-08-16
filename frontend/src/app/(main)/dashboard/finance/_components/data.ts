@@ -99,7 +99,9 @@ export type FinanceShiftSession = {
   id: number;
   business_date?: string | null;
   status: string;
-  opening_float: string;
+  /** How much of this session's money the signed-in user may be shown. */
+  money_scope?: "full" | "own" | "none";
+  opening_float: string | null;
   expected_cash: string | null;
   expected_card: string | null;
   expected_bank: string | null;
@@ -117,12 +119,13 @@ export type FinanceShiftSession = {
     expenses?: { expected: string | null; counted: string | null; variance: string | null };
   } | null;
   live_totals?: {
-    cash: string;
-    card: string;
-    bank: string;
-    expenses: string;
-    net: string;
-    opening_float?: string;
+    // Absent on a shift the viewer may not read the money of.
+    cash?: string;
+    card?: string;
+    bank?: string;
+    expenses?: string;
+    net?: string;
+    opening_float?: string | null;
     collections?: string;
     refunds?: string;
     payment_count?: number;

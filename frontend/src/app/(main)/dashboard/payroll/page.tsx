@@ -4,11 +4,13 @@ import { format } from "date-fns";
 import { Banknote, CalendarX2, ReceiptText } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { MoneyDomain } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 
 import { getPayrollPageData } from "./_components/data";
@@ -60,10 +62,12 @@ export default async function Page({ searchParams }: PageProps) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Summary label={t("entries")} value={rows.length.toString()} />
         <Summary
+          domain="payroll"
           label={t("pendingPayroll")}
           value={formatCurrency(totalPending, { currency: "EGP", noDecimals: true })}
         />
         <Summary
+          domain="payroll"
           label={t("totalDeductions")}
           value={formatCurrency(totalDeductions, { currency: "EGP", noDecimals: true })}
         />
@@ -106,10 +110,14 @@ export default async function Page({ searchParams }: PageProps) {
                     <Badge variant="outline">{row.employee.pay_day ?? t("payDayUnset")}</Badge>
                   </TableCell>
                   <TableCell className="text-end align-middle">
-                    {formatCurrency(Number(row.base_salary), { currency: "EGP", noDecimals: true })}
+                    <Money domain="payroll">
+                      {formatCurrency(Number(row.base_salary), { currency: "EGP", noDecimals: true })}
+                    </Money>
                   </TableCell>
                   <TableCell className="text-end align-middle">
-                    {formatCurrency(Number(row.commissions_total), { currency: "EGP", noDecimals: true })}
+                    <Money domain="commissions">
+                      {formatCurrency(Number(row.commissions_total), { currency: "EGP", noDecimals: true })}
+                    </Money>
                   </TableCell>
                   <TableCell className="align-middle">
                     <PayrollAdjustmentForm
@@ -123,7 +131,9 @@ export default async function Page({ searchParams }: PageProps) {
                     />
                   </TableCell>
                   <TableCell className="text-end align-middle font-medium">
-                    {formatCurrency(Number(row.net_salary), { currency: "EGP", noDecimals: true })}
+                    <Money domain="payroll">
+                      {formatCurrency(Number(row.net_salary), { currency: "EGP", noDecimals: true })}
+                    </Money>
                   </TableCell>
                   <TableCell className="align-middle">
                     <Badge variant={row.status === "paid" ? "secondary" : "outline"}>{row.status}</Badge>
@@ -159,12 +169,18 @@ export default async function Page({ searchParams }: PageProps) {
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+function Summary({ domain, label, value }: { domain?: MoneyDomain; label: string; value: string }) {
   return (
     <Card>
       <CardContent>
         <p className="text-muted-foreground text-sm">{label}</p>
-        <p className="font-medium text-2xl tabular-nums">{value}</p>
+        {domain ? (
+          <Money domain={domain} className="block font-medium text-2xl tabular-nums">
+            {value}
+          </Money>
+        ) : (
+          <p className="font-medium text-2xl tabular-nums">{value}</p>
+        )}
       </CardContent>
     </Card>
   );

@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -87,7 +88,9 @@ function PaymentsTable({ payments }: { payments: FinancePayment[] }) {
               </TableCell>
               <TableCell className="text-muted-foreground">{formatDate(payment.paid_at, locale)}</TableCell>
               <TableCell className="text-end">
-                {formatCurrency(Number(payment.amount), { currency: "EGP", noDecimals: true })}
+                <Money domain="payments">
+                  {formatCurrency(Number(payment.amount), { currency: "EGP", noDecimals: true })}
+                </Money>
               </TableCell>
             </TableRow>
           ))
@@ -122,10 +125,12 @@ function DuesTable({ canCollectDue, dues }: { canCollectDue: boolean; dues: Fina
               </TableCell>
               <TableCell className="text-muted-foreground">{due.due_date ?? t("noDueDate")}</TableCell>
               <TableCell className="text-end">
-                {formatCurrency(Number(due.outstanding_balance ?? due.amount_due ?? 0), {
-                  currency: "EGP",
-                  noDecimals: true,
-                })}
+                <Money domain="subscriptions">
+                  {formatCurrency(Number(due.outstanding_balance ?? due.amount_due ?? 0), {
+                    currency: "EGP",
+                    noDecimals: true,
+                  })}
+                </Money>
               </TableCell>
               {canCollectDue ? (
                 <TableCell>
@@ -174,7 +179,9 @@ function ExpensesTable({ canManageExpenses, expenses }: { canManageExpenses: boo
               <TableCell className="text-muted-foreground">{expense.description ?? "-"}</TableCell>
               <TableCell>{expense.creator?.name ?? "-"}</TableCell>
               <TableCell className="text-end">
-                {formatCurrency(Number(expense.amount), { currency: "EGP", noDecimals: true })}
+                <Money domain="expenses">
+                  {formatCurrency(Number(expense.amount), { currency: "EGP", noDecimals: true })}
+                </Money>
               </TableCell>
               {canManageExpenses ? (
                 <TableCell>

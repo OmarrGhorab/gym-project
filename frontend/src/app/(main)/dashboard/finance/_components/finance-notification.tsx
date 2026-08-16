@@ -1,8 +1,10 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Button } from "@/components/ui/button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { MONEY_REDACTED } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceDashboardData } from "./data";
@@ -22,10 +24,16 @@ export function FinanceNotification({ totals }: { totals: FinanceDashboardData["
       <ItemContent>
         <ItemTitle>{profit >= 0 ? t("positivePosition") : t("attentionPosition")}</ItemTitle>
         <ItemDescription>
-          {t("positionDescription", {
-            dues: formatCurrency(dues, { currency: "EGP", noDecimals: true }),
-            margin: margin.toFixed(1),
-          })}
+          {/* Only the figure is withheld — the standing itself still reads sensibly without it. */}
+          <Money
+            domain="payments"
+            redacted={t("positionDescription", { dues: MONEY_REDACTED, margin: margin.toFixed(1) })}
+          >
+            {t("positionDescription", {
+              dues: formatCurrency(dues, { currency: "EGP", noDecimals: true }),
+              margin: margin.toFixed(1),
+            })}
+          </Money>
         </ItemDescription>
       </ItemContent>
       <ItemActions>

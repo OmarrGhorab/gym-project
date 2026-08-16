@@ -9,7 +9,7 @@ use Throwable;
 
 class SendDailyShiftSummaryCommand extends Command
 {
-    protected $signature = 'shifts:send-daily-summary {--date= : Business date in YYYY-MM-DD format (defaults to today)}';
+    protected $signature = 'shifts:send-daily-summary {--date= : Business date in YYYY-MM-DD format (defaults to the working day that just ended)}';
 
     protected $description = 'Send the once-daily administrator summary after every active shift has ended.';
 

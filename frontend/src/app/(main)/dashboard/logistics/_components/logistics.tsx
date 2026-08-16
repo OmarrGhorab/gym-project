@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Boxes, PackageCheck, PackageSearch, ReceiptText } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -81,7 +82,9 @@ function InventorySummarySheet({
           <Card>
             <CardContent className="p-4">
               <div className="text-muted-foreground text-xs">{t("inventoryValue")}</div>
-              <div className="text-2xl tracking-tight">{formatEgp(data.stats.inventory_value)}</div>
+              <Money domain="products" className="block text-2xl tracking-tight">
+                {formatEgp(data.stats.inventory_value)}
+              </Money>
             </CardContent>
           </Card>
 

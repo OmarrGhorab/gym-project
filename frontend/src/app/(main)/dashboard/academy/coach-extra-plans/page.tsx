@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ArrowLeft, Dumbbell, ReceiptText, UserCheck, Users } from "lucide-react";
 
+import { Money } from "@/components/money/money";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormDatePicker } from "@/components/ui/form-controls";
@@ -114,9 +115,9 @@ export default async function CoachExtraPlansPage({ searchParams }: PageProps) {
             <ReceiptText className="size-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold text-2xl">
+            <Money domain="subscriptions" className="block font-bold text-2xl">
               {formatCurrency(Number(data.kpis.total_addon_revenue), { currency: "EGP" })}
-            </div>
+            </Money>
             <p className="mt-1 text-muted-foreground text-xs">Coached extra plans revenue</p>
           </CardContent>
         </Card>

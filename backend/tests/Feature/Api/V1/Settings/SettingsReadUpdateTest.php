@@ -149,3 +149,62 @@ test('shift automation defaults to manual and the handover toggle round-trips', 
 
     expect(App\Models\Setting::query()->where('key', 'shifts.require_handover_to_open')->exists())->toBeTrue();
 });
+
+/**
+ * The hour the drawer goes back to zero. A gym that trades past 05:00 has to be
+ * able to move it, or its night shift is filed under the wrong day.
+ */
+test('the working day boundary defaults to 5am and round-trips', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.day_starts_at_hour', 5);
+
+    $this->putJson('/api/v1/settings', ['shifts' => ['day_starts_at_hour' => 7]])->assertOk();
+
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.day_starts_at_hour', 7);
+});
+
+/**
+ * The reset the gym recognises: shut for this long since the last shift closed,
+ * and the next one starts empty. Adjustable because a gym with a long midday
+ * break is not the same as one that trades straight through.
+ */
+test('the closure that ends the day defaults to 4 hours and round-trips', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.reset_after_closed_hours', 4);
+
+    $this->putJson('/api/v1/settings', ['shifts' => ['reset_after_closed_hours' => 6]])->assertOk();
+
+    $this->getJson('/api/v1/settings')
+        ->assertOk()
+        ->assertJsonPath('data.shifts.reset_after_closed_hours', 6);
+});
+
+test('the closure threshold rejects a value that could never fire', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $this->putJson('/api/v1/settings', ['shifts' => ['reset_after_closed_hours' => 0]])->assertStatus(422);
+    $this->putJson('/api/v1/settings', ['shifts' => ['reset_after_closed_hours' => 25]])->assertStatus(422);
+});
+
+test('the working day boundary rejects an hour outside the clock', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($admin);
+
+    $this->putJson('/api/v1/settings', ['shifts' => ['day_starts_at_hour' => 24]])
+        ->assertStatus(422);
+});

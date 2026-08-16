@@ -1,6 +1,7 @@
 import { Banknote, CreditCard, Landmark } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
@@ -35,9 +36,9 @@ export function Wallet({ methods }: { methods: FinanceMoneySource[] }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-medium text-sm tabular-nums">
+                  <Money domain="payments" className="font-medium text-sm tabular-nums">
                     {formatCurrency(Number(method.amount), { currency: "EGP", noDecimals: true })}
-                  </span>
+                  </Money>
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background">
                     <Icon className="size-4" />
                   </div>

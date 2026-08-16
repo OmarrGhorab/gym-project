@@ -79,7 +79,7 @@ final class UpdateSettings
         }
 
         if (isset($validated['shifts'])) {
-            foreach (['require_cash_count', 'handover_auto_accept', 'handover_auto_accept_on_match_only', 'require_handover_to_open'] as $key) {
+            foreach (['require_cash_count', 'handover_auto_accept', 'handover_auto_accept_on_match_only', 'require_handover_to_open', 'day_starts_at_hour', 'reset_after_closed_hours'] as $key) {
                 if (array_key_exists($key, $validated['shifts'])) {
                     $flat["shifts.{$key}"] = $validated['shifts'][$key];
                 }

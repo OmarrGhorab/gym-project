@@ -1,6 +1,7 @@
 import { CalendarRange } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -50,7 +51,9 @@ export function TaskReminders({
                     </div>
                   </div>
                   <div className="text-end text-sm tabular-nums">
-                    {formatCurrency(followUp.amount, { currency: "EGP", noDecimals: true })}
+                    <Money domain="payments">
+                      {formatCurrency(followUp.amount, { currency: "EGP", noDecimals: true })}
+                    </Money>
                   </div>
                 </div>
               ))

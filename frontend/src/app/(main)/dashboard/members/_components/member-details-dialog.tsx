@@ -6,10 +6,12 @@ import { Copy, Download, FileText, MessageCircle, ScanBarcode } from "lucide-rea
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Barcode } from "@/components/ui/barcode";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { MoneyDomain } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 import { buildQrImageUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 
@@ -89,7 +91,7 @@ export function MemberDetailsDialog({
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Metric label={t("subscriptionPaid")} value={history?.totals.subscription_paid ?? member.total_paid} />
-          <Metric label={t("productPurchases")} value={history?.totals.product_paid ?? "0"} />
+          <Metric domain="sales" label={t("productPurchases")} value={history?.totals.product_paid ?? "0"} />
           <Metric label={t("totalPaid")} value={history?.totals.total_paid ?? member.total_paid} />
           <Metric label={t("outstanding")} value={history?.totals.outstanding_balance ?? "0"} />
         </div>
@@ -101,7 +103,10 @@ export function MemberDetailsDialog({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">{member.latest_subscription.plan_name ?? t("noActivePlan")}</span>
                 <span className="tabular-nums">
-                  {t("paid")}: {formatCurrency(Number(member.latest_subscription.paid_total ?? 0), { currency: "EGP" })}
+                  {t("paid")}:{" "}
+                  <Money domain="subscriptions">
+                    {formatCurrency(Number(member.latest_subscription.paid_total ?? 0), { currency: "EGP" })}
+                  </Money>
                 </span>
               </div>
               {(member.latest_subscription.addons ?? [])
@@ -114,7 +119,9 @@ export function MemberDetailsDialog({
                     <span>+ {addon.plan?.name ?? t("addon")}</span>
                     <span className="tabular-nums">
                       {t("paid")}:{" "}
-                      {formatCurrency(Number(addon.paid_total ?? addon.price_paid ?? 0), { currency: "EGP" })}
+                      <Money domain="subscriptions">
+                        {formatCurrency(Number(addon.paid_total ?? addon.price_paid ?? 0), { currency: "EGP" })}
+                      </Money>
                     </span>
                   </div>
                 ))}
@@ -226,9 +233,9 @@ export function MemberDetailsDialog({
                   </p>
                   <div className="flex items-center justify-between gap-3 lg:justify-end">
                     <Badge variant={purchase.status === "completed" ? "secondary" : "outline"}>{purchase.status}</Badge>
-                    <span className="font-medium tabular-nums">
+                    <Money domain="sales" className="font-medium tabular-nums">
                       {formatCurrency(Number(purchase.total), { currency: "EGP", noDecimals: true })}
-                    </span>
+                    </Money>
                   </div>
                 </div>
               ))
@@ -423,11 +430,13 @@ function QrPanel({ payload }: { payload: string | null }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ domain = "subscriptions", label, value }: { domain?: MoneyDomain; label: string; value: string }) {
   return (
     <div className="rounded-lg border p-3">
       <p className="text-muted-foreground text-xs">{label}</p>
-      <p className="font-medium tabular-nums">{formatCurrency(Number(value), { currency: "EGP", noDecimals: true })}</p>
+      <Money domain={domain} className="block font-medium tabular-nums">
+        {formatCurrency(Number(value), { currency: "EGP", noDecimals: true })}
+      </Money>
     </div>
   );
 }
@@ -464,9 +473,9 @@ function PaymentItem({ amount, date, status, title }: { amount: string; date: st
       </div>
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="truncate text-muted-foreground">{date}</span>
-        <span className="font-medium tabular-nums">
+        <Money domain="payments" className="font-medium tabular-nums">
           {formatCurrency(Number(amount), { currency: "EGP", noDecimals: true })}
-        </span>
+        </Money>
       </div>
     </div>
   );

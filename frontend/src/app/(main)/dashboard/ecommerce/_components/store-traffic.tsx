@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/chart";
 
 import type { PosHourlyPoint } from "./data";
-import { formatEgp } from "./format";
+import { usePosMoney } from "./format";
 
 const trafficConfig = {
   revenue: {
@@ -30,6 +30,7 @@ const trafficConfig = {
 
 export function StoreTraffic({ data }: { data: PosHourlyPoint[] }) {
   const t = useTranslations("Dashboard.ecommerce");
+  const posMoney = usePosMoney();
   const chartData = data.map((point) => ({
     ...point,
     revenue: Number(point.revenue),
@@ -64,7 +65,7 @@ export function StoreTraffic({ data }: { data: PosHourlyPoint[] }) {
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  formatter={(value, name) => (name === "revenue" ? formatEgp(Number(value)) : String(value))}
+                  formatter={(value, name) => (name === "revenue" ? posMoney(Number(value)) : String(value))}
                 />
               }
               cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}

@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { formatEgp } from "../format";
 import type { OrderRow } from "./schema";
 
 type EcommerceT = ReturnType<typeof useTranslations<"Dashboard.ecommerce">>;
@@ -84,6 +83,9 @@ export function getRecentOrdersColumns(
   onViewSale: (order: OrderRow) => void,
   onVoidSale: (order: OrderRow) => void,
   canVoidSale: boolean,
+  // Column builders run outside a component, so the caller resolves money
+  // visibility with the hook and hands the formatter down.
+  posMoney: (value: string | number) => string,
 ): ColumnDef<OrderRow>[] {
   return [
     {
@@ -173,7 +175,7 @@ export function getRecentOrdersColumns(
     {
       accessorKey: "total",
       header: () => <div className="w-28">{t("total")}</div>,
-      cell: ({ row }) => <div className="w-28 tabular-nums">{formatEgp(row.original.total)}</div>,
+      cell: ({ row }) => <div className="w-28 tabular-nums">{posMoney(row.original.total)}</div>,
     },
     {
       accessorKey: "date",

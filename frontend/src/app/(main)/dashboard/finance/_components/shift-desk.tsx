@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { Money } from "@/components/money/money";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,11 +34,22 @@ export type ShiftDeskShift = {
   employees?: ShiftDeskStaff[];
 };
 
+/**
+ * How much of a session's money the signed-in user may be shown.
+ *
+ * "own" is the desk employee looking at their own shift: what they collected,
+ * never the cash the shift before them left in the drawer. "none" is somebody
+ * else's shift — it exists, and who is on it, and nothing more. The API decides
+ * this; the desk only renders what it is given.
+ */
+export type ShiftMoneyScope = "full" | "own" | "none";
+
 export type ShiftDeskSession = {
   id: number;
   business_date?: string | null;
   status: string;
-  opening_float: string;
+  money_scope?: ShiftMoneyScope;
+  opening_float: string | null;
   expected_cash: string | null;
   expected_card: string | null;
   expected_bank: string | null;
@@ -55,12 +67,12 @@ export type ShiftDeskSession = {
     expenses?: { expected: string | null; counted: string | null; variance: string | null };
   } | null;
   live_totals?: {
-    cash: string;
-    card: string;
-    bank: string;
-    expenses: string;
-    net: string;
-    opening_float?: string;
+    cash?: string;
+    card?: string;
+    bank?: string;
+    expenses?: string;
+    net?: string;
+    opening_float?: string | null;
     collections?: string;
     refunds?: string;
     payment_count?: number;
@@ -87,7 +99,6 @@ export type ShiftDeskSession = {
   closed_by_employee?: { id: number; name: string; role?: string | null } | null;
 };
 
-
 export function ShiftDesk({
   currentSession,
   historySessions = [],
@@ -109,6 +120,11 @@ export function ShiftDesk({
 }) {
   const t = useTranslations("Dashboard.finance");
   const router = useRouter();
+  // One session stamped "full" means this viewer reads across shifts — the API
+  // grants that to administrators only, so the desk does not re-derive it.
+  const seesAllShifts = [currentSession, ...historySessions, ...pendingSessions].some(
+    (session) => session?.money_scope === "full",
+  );
   const [pending, startTransition] = useTransition();
   const [counted, setCounted] = useState({
     cash: "0.00",
@@ -153,9 +169,12 @@ export function ShiftDesk({
     const shiftName = currentSession.shift?.name ?? t("unknownShift");
     // The accountable employee of this shift — the acting user account is only the audit trail.
     const staffOnDuty = currentSession.staff_on_duty?.name ?? currentSession.opened_by?.name ?? t("automaticSystem");
-    const openedByStaff =
-      currentSession.opened_by?.name ?? staffOnDuty;
+    const openedByStaff = currentSession.opened_by?.name ?? staffOnDuty;
     const hasMoney = paymentCount > 0 || expenseCount > 0 || Number(live?.expenses ?? 0) > 0;
+    // The API redacts the figures themselves; this only decides which headings
+    // and sections are worth rendering at all.
+    const seesEveryShift = currentSession.money_scope === "full";
+    const seesOwnMoney = seesEveryShift || currentSession.money_scope !== "none";
 
     sessionBody = (
       <div className="grid gap-4 rounded-xl border bg-card/50 p-4 shadow-2xs">
@@ -192,74 +211,112 @@ export function ShiftDesk({
               <Button size="sm" disabled={pending} onClick={() => run(() => closeShiftSession(currentSession.id))}>
                 {t("endShiftAndCountCash")}
               </Button>
-              <span className="text-[11px] text-muted-foreground">
-                {t("endShiftHint")}
-              </span>
+              <span className="text-[11px] text-muted-foreground">{t("endShiftHint")}</span>
             </div>
           ) : null}
         </div>
 
-        {/* Section 1: Received from Previous Shift */}
-        <div className="space-y-1.5">
-          <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-            Received from Previous Shift
-          </p>
-          <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <Metric label={t("openingFloat")} value={moneyLabel(currentSession.opening_float, "0.00")} />
-            <Metric
-              label="Handover Source"
-              value={
-                currentSession.previous_session_id ? `Session #${currentSession.previous_session_id}` : "Initial float"
-              }
-            />
-            <Metric label="Opened By" value={openedByStaff} />
+        {/*
+          Section 1: Received from Previous Shift — the drawer the last employee
+          left. Only an admin reconciling the two shifts sees it; the employee on
+          duty is answerable for what they take in, not for what was already
+          there when they sat down.
+        */}
+        {seesEveryShift ? (
+          <div className="space-y-1.5">
+            <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              Received from Previous Shift
+            </p>
+            <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <Metric label={t("openingFloat")} value={moneyLabel(currentSession.opening_float, "0.00")} />
+              <Metric
+                label="Handover Source"
+                plain
+                value={
+                  currentSession.previous_session_id
+                    ? `Session #${currentSession.previous_session_id}`
+                    : "Initial float"
+                }
+              />
+              <Metric label="Opened By" plain value={openedByStaff} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-2 text-sm sm:grid-cols-2">
+            <Metric label="Opened By" plain value={openedByStaff} />
+          </div>
+        )}
+
+        {/*
+          Somebody else is on the desk. That it is open has to be visible, or a
+          second session gets opened on top of it — their takings do not.
+        */}
+        {!seesOwnMoney ? (
+          <div className="rounded-md border border-dashed bg-muted/10 px-3 py-2 text-muted-foreground text-xs">
+            {staffOnDuty} is on this shift. Their takings are shown to them and to an administrator.
+          </div>
+        ) : null}
 
         {/* Section 2: Current Shift Statistics */}
-        <div className="space-y-1.5">
-          <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-            Current Shift Performance & Revenue
-          </p>
-          <div className="grid gap-2 rounded-lg border border-dashed bg-muted/20 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <Metric label={t("shiftSubscriptionRevenue")} value={moneyLabel(live?.by_source?.subscriptions, "0.00")} />
-            <Metric label={t("shiftAddonRevenue")} value={moneyLabel(live?.by_source?.addons, "0.00")} />
-            <Metric label={t("shiftPosRevenue")} value={moneyLabel(live?.by_source?.pos, "0.00")} />
-            <Metric label={t("shiftCollections")} value={moneyLabel(live?.collections, "0.00")} />
-            <Metric
-              label={t("shiftExpensesLabel")}
-              value={moneyLabel(live?.expenses, currentSession.expected_expenses)}
-            />
-            <Metric label={t("shiftRefunds")} value={moneyLabel(live?.refunds, "0.00")} />
+        {seesOwnMoney ? (
+          <div className="space-y-1.5">
+            <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              Current Shift Performance & Revenue
+            </p>
+            <div className="grid gap-2 rounded-lg border border-dashed bg-muted/20 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <Metric
+                label={t("shiftSubscriptionRevenue")}
+                value={moneyLabel(live?.by_source?.subscriptions, "0.00")}
+              />
+              <Metric label={t("shiftAddonRevenue")} value={moneyLabel(live?.by_source?.addons, "0.00")} />
+              <Metric label={t("shiftPosRevenue")} value={moneyLabel(live?.by_source?.pos, "0.00")} />
+              <Metric label={t("shiftCollections")} value={moneyLabel(live?.collections, "0.00")} />
+              <Metric
+                label={t("shiftExpensesLabel")}
+                value={moneyLabel(live?.expenses, currentSession.expected_expenses)}
+              />
+              <Metric label={t("shiftRefunds")} value={moneyLabel(live?.refunds, "0.00")} />
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {/* Section 3: To Hand Over to Next Shift */}
-        <div className="space-y-1.5">
-          <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
-            To Hand Over to Next Shift (System Totals)
-          </p>
-          <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <Metric
-              label="Expected Cash in Drawer (incl. Float)"
-              value={moneyLabel(live?.cash, currentSession.expected_cash)}
-            />
-            <Metric label="Expected Card Receipts" value={moneyLabel(live?.card, currentSession.expected_card)} />
-            <Metric label="Expected Bank Transfers" value={moneyLabel(live?.bank, currentSession.expected_bank)} />
-            <Metric label="Net Session Balance" value={moneyLabel(live?.net, currentSession.expected_net)} />
+        {/*
+          Section 3: the shift's own totals. The admin heading says "in the
+          drawer" because that figure carries the float; the employee's says
+          "you collected", because theirs does not.
+        */}
+        {seesOwnMoney ? (
+          <div className="space-y-1.5">
+            <p className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              {seesEveryShift ? "To Hand Over to Next Shift (System Totals)" : "Collected on This Shift"}
+            </p>
+            <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              <Metric
+                label={seesEveryShift ? "Expected Cash in Drawer (incl. Float)" : "Cash You Collected"}
+                value={moneyLabel(live?.cash, seesEveryShift ? currentSession.expected_cash : undefined)}
+              />
+              <Metric label="Expected Card Receipts" value={moneyLabel(live?.card, currentSession.expected_card)} />
+              <Metric label="Expected Bank Transfers" value={moneyLabel(live?.bank, currentSession.expected_bank)} />
+              <Metric
+                label={seesEveryShift ? "Net Session Balance" : "Net for Your Shift"}
+                value={moneyLabel(live?.net, seesEveryShift ? currentSession.expected_net : undefined)}
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
-          <p className="text-muted-foreground">
-            {t("shiftTrackingHelpDetailed", {
-              payments: paymentCount,
-              expenses: expenseCount,
-            })}
-          </p>
-        </div>
+        {seesOwnMoney ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
+            <p className="text-muted-foreground">
+              {t("shiftTrackingHelpDetailed", {
+                payments: paymentCount,
+                expenses: expenseCount,
+              })}
+            </p>
+          </div>
+        ) : null}
 
-        {!hasMoney ? (
+        {seesOwnMoney && !hasMoney ? (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-900 text-xs dark:text-amber-100">
             {t("shiftOpenNoPaymentsHint")}
           </div>
@@ -300,6 +357,11 @@ export function ShiftDesk({
             </div>
             {pendingSessions.map((session) => {
               const live = session.live_totals;
+              // What the system expected, and how far off the count is, is the
+              // judgement an admin makes on this employee's drawer — and the
+              // expected cash carries the previous shift's float besides. The
+              // employee counts what is in front of them and submits it.
+              const seesReconciliation = session.money_scope === "full";
               const lines = [
                 {
                   key: "cash" as const,
@@ -351,7 +413,10 @@ export function ShiftDesk({
                     />
                     <Metric label={t("shiftAddonRevenue")} value={moneyLabel(live?.by_source?.addons, "0.00")} />
                     <Metric label={t("shiftPosRevenue")} value={moneyLabel(live?.by_source?.pos, "0.00")} />
-                    <Metric label={t("shiftNet")} value={moneyLabel(session.expected_net, live?.net)} />
+                    <Metric
+                      label={t("shiftNet")}
+                      value={moneyLabel(seesReconciliation ? session.expected_net : undefined, live?.net)}
+                    />
                   </div>
 
                   <div className="overflow-x-auto rounded-md border">
@@ -359,18 +424,30 @@ export function ShiftDesk({
                       <thead className="bg-muted/40 text-muted-foreground text-xs">
                         <tr>
                           <th className="px-3 py-2 font-medium">{t("handoverLine")}</th>
-                          <th className="px-3 py-2 font-medium">{t("systemExpected")}</th>
+                          {seesReconciliation ? (
+                            <th className="px-3 py-2 font-medium">{t("systemExpected")}</th>
+                          ) : null}
                           <th className="px-3 py-2 font-medium">{t("physicallyCounted")}</th>
-                          <th className="px-3 py-2 font-medium">{t("variance")}</th>
+                          {seesReconciliation ? <th className="px-3 py-2 font-medium">{t("variance")}</th> : null}
                         </tr>
                       </thead>
                       <tbody>
                         {lines.map((line) => (
                           <tr key={line.key} className="border-t">
                             <td className="px-3 py-2">{line.label}</td>
-                            <td className="px-3 py-2 tabular-nums">{moneyLabel(line.expected, "0.00")}</td>
-                            <td className="px-3 py-2 tabular-nums">{moneyLabel(line.counted, "—")}</td>
-                            <td className="px-3 py-2 tabular-nums">{formatVariance(line.variance)}</td>
+                            {seesReconciliation ? (
+                              <td className="px-3 py-2 tabular-nums">
+                                <Money domain="sales">{moneyLabel(line.expected, "0.00")}</Money>
+                              </td>
+                            ) : null}
+                            <td className="px-3 py-2 tabular-nums">
+                              <Money domain="sales">{moneyLabel(line.counted, "—")}</Money>
+                            </td>
+                            {seesReconciliation ? (
+                              <td className="px-3 py-2 tabular-nums">
+                                <Money domain="sales">{formatVariance(line.variance)}</Money>
+                              </td>
+                            ) : null}
                           </tr>
                         ))}
                       </tbody>
@@ -465,7 +542,15 @@ export function ShiftDesk({
           </div>
         ) : null}
 
-        {canReview && historySessions.length > 0 ? <ShiftSessionHistory sessions={historySessions} /> : null}
+        {/*
+          Past shifts are one employee's account of their own money. Reading them
+          side by side is an administrator's job, and the API only stamps their
+          sessions "full" — so an employee never sees this list, even for the
+          shift they worked themselves.
+        */}
+        {canReview && seesAllShifts && historySessions.length > 0 ? (
+          <ShiftSessionHistory sessions={historySessions} />
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -498,11 +583,7 @@ function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
               <tr key={session.id} className="border-t align-top">
                 <td className="px-3 py-2 tabular-nums">{session.business_date ?? "—"}</td>
                 <td className="px-3 py-2 font-medium">{session.shift?.name ?? t("unknownShift")}</td>
-                <td className="px-3 py-2">
-                  {session.staff_on_duty?.name ??
-                    session.opened_by?.name ??
-                    "—"}
-                </td>
+                <td className="px-3 py-2">{session.staff_on_duty?.name ?? session.opened_by?.name ?? "—"}</td>
                 <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_net, "0.00")}</td>
                 <td className="px-3 py-2 tabular-nums">{moneyLabel(session.expected_expenses, "0.00")}</td>
                 <td className="px-3 py-2">{session.status}</td>
@@ -780,11 +861,22 @@ function formatVariance(value: string | null | undefined): string {
   return `${sign}EGP ${amount.toFixed(2)}`;
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+/**
+ * Every metric on the desk is a cash figure unless marked `plain`, so money
+ * gating is the default here — a new metric is covered without anyone
+ * remembering to opt it in.
+ */
+function Metric({ label, plain = false, value }: { label: string; plain?: boolean; value: string }) {
   return (
     <div className="rounded-md bg-muted/40 px-2 py-1.5">
       <div className="text-muted-foreground text-xs">{label}</div>
-      <div className="font-medium tabular-nums">{value}</div>
+      {plain ? (
+        <div className="font-medium tabular-nums">{value}</div>
+      ) : (
+        <Money domain="sales" className="block font-medium tabular-nums">
+          {value}
+        </Money>
+      )}
     </div>
   );
 }

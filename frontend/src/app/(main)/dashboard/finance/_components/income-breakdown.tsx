@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
@@ -28,9 +29,9 @@ export function IncomeBreakdown({ sources }: { sources: FinanceMoneySource[] }) 
                 <p className="wrap-break-word text-muted-foreground text-xs leading-none">
                   {source.label} · {Number(source.percentage).toFixed(1)}%
                 </p>
-                <div className="font-heading text-lg leading-none tracking-tight">
+                <Money domain="reports" className="block font-heading text-lg leading-none tracking-tight">
                   {formatCurrency(Number(source.amount), { currency: "EGP" })}
-                </div>
+                </Money>
               </div>
               <div className="-ml-0.5 h-5 rounded-sm bg-chart-3" style={{ opacity: 1 - index * 0.22 }} />
             </div>

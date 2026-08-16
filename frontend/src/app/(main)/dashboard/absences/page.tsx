@@ -2,10 +2,12 @@ import { format } from "date-fns";
 import { CalendarX2 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { MoneyDomain } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 
 import { PayrollMonthPicker } from "../payroll/_components/payroll-month-picker";
@@ -48,6 +50,7 @@ export default async function Page({ searchParams }: PageProps) {
         <Summary label={t("absenceDays")} value={data.absences.length.toLocaleString(locale)} />
         <Summary label={t("affectedEmployees")} value={employeesWithAbsences.toLocaleString(locale)} />
         <Summary
+          domain="payroll"
           label={t("totalDeduction")}
           value={formatCurrency(totalDeduction, { currency: "EGP", noDecimals: true })}
         />
@@ -93,7 +96,9 @@ export default async function Page({ searchParams }: PageProps) {
                       </div>
                     </TableCell>
                     <TableCell>{employeeAbsences.length.toLocaleString(locale)}</TableCell>
-                    <TableCell>{formatCurrency(deduction, { currency: "EGP", noDecimals: true })}</TableCell>
+                    <TableCell>
+                      <Money domain="payroll">{formatCurrency(deduction, { currency: "EGP", noDecimals: true })}</Money>
+                    </TableCell>
                     <TableCell className="max-w-80 truncate text-muted-foreground">
                       {employeeAbsences[0]?.reason || t("none")}
                     </TableCell>
@@ -149,9 +154,13 @@ export default async function Page({ searchParams }: PageProps) {
                     </TableCell>
                     <TableCell className="max-w-md whitespace-normal">{absence.reason || t("none")}</TableCell>
                     <TableCell>
-                      {Number(absence.deduction_amount) > 0
-                        ? formatCurrency(Number(absence.deduction_amount), { currency: "EGP", noDecimals: true })
-                        : t("noDeduction")}
+                      {Number(absence.deduction_amount) > 0 ? (
+                        <Money domain="payroll">
+                          {formatCurrency(Number(absence.deduction_amount), { currency: "EGP", noDecimals: true })}
+                        </Money>
+                      ) : (
+                        t("noDeduction")
+                      )}
                     </TableCell>
                     <TableCell>{absence.recorded_by?.name ?? t("legacyRecord")}</TableCell>
                     <TableCell className="text-end">
@@ -179,12 +188,18 @@ export default async function Page({ searchParams }: PageProps) {
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
+function Summary({ domain, label, value }: { domain?: MoneyDomain; label: string; value: string }) {
   return (
     <Card>
       <CardContent>
         <p className="text-muted-foreground text-sm">{label}</p>
-        <p className="font-medium text-2xl tabular-nums">{value}</p>
+        {domain ? (
+          <Money domain={domain} className="block font-medium text-2xl tabular-nums">
+            {value}
+          </Money>
+        ) : (
+          <p className="font-medium text-2xl tabular-nums">{value}</p>
+        )}
       </CardContent>
     </Card>
   );

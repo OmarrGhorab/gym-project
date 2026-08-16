@@ -37,8 +37,12 @@ class RoleMatrixSeeder extends Seeder
         $accountantRole = Role::firstOrCreate(['name' => FoundationPermissions::ROLE_ACCOUNTANT, 'guard_name' => 'web']);
 
         // 3. Define the detailed permission mapping for each role
-        // Admin gets everything
+        // Admin gets everything, including the whole money.* family.
         $adminRole->syncPermissions(PermissionMatrix::all());
+
+        // No preset role below lists a money.* permission, and that is deliberate:
+        // financial figures start Admin-only and an administrator opens them up
+        // per domain on the roles screen. See App\Support\MoneyPermissions.
 
         // Manager permissions
         $managerPermissions = [

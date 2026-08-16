@@ -15,6 +15,16 @@ Route::prefix('reports')->group(function (): void {
     Route::get('/overview', [ReportController::class, 'overview'])
         ->middleware($viewReports);
 
+    // The day's whole ledger with a name against every amount. reports.view is
+    // too wide for that — a cashier holds it — so this sits behind the money
+    // permission for financial reports, which starts Admin-only and can be
+    // granted per role from the roles screen without a code change.
+    Route::get('/daily', [ReportController::class, 'daily'])
+        ->middleware('permission:money.reports.view');
+
+    Route::get('/daily/pdf', [ReportController::class, 'dailyPdf'])
+        ->middleware('permission:money.reports.view');
+
     Route::get('/financial', [ReportController::class, 'financial'])
         ->middleware($viewReports);
 

@@ -4,6 +4,7 @@ import { Copy, ScanBarcode } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { Money } from "@/components/money/money";
 import { Barcode } from "@/components/ui/barcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,21 +66,25 @@ export function EmployeePerformanceTable({ rows }: { rows: StaffAcademyPageData[
                     <TableCell>{row.performance?.attendance_count ?? 0}</TableCell>
                     <TableCell>
                       <div>{row.performance?.coached_services_count ?? row.performance?.subscriptions_sold ?? 0}</div>
-                      <div className="text-muted-foreground text-xs">
+                      <Money domain="subscriptions" className="block text-muted-foreground text-xs">
                         {formatCurrency(Number(row.performance?.coached_services_revenue ?? 0), {
                           currency: "EGP",
                           noDecimals: true,
                         })}
-                      </div>
+                      </Money>
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(Number(row.performance?.pos_sales_volume ?? 0), {
-                        currency: "EGP",
-                        noDecimals: true,
-                      })}
+                      <Money domain="sales">
+                        {formatCurrency(Number(row.performance?.pos_sales_volume ?? 0), {
+                          currency: "EGP",
+                          noDecimals: true,
+                        })}
+                      </Money>
                     </TableCell>
                     <TableCell>
-                      <div>{formatCurrency(Number(commissionTotal), { currency: "EGP", noDecimals: true })}</div>
+                      <Money domain="commissions" className="block">
+                        {formatCurrency(Number(commissionTotal), { currency: "EGP", noDecimals: true })}
+                      </Money>
                       <div className="text-muted-foreground text-xs">
                         {t("recentRows", { count: row.commissions.length })}
                       </div>

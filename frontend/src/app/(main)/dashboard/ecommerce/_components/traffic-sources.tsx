@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import type { PosPaymentMethod } from "./data";
-import { formatEgp } from "./format";
+import { usePosMoney } from "./format";
 
 const icons = {
   bank_transfer: Landmark,
@@ -16,6 +16,7 @@ const icons = {
 
 export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
   const t = useTranslations("Dashboard.ecommerce");
+  const posMoney = usePosMoney();
   const total = methods.reduce((sum, method) => sum + method.count, 0);
 
   return (
@@ -54,7 +55,7 @@ export function TrafficSources({ methods }: { methods: PosPaymentMethod[] }) {
                   />
                 </div>
                 <div className="text-muted-foreground text-xs tabular-nums">
-                  {formatEgp(method.amount)} · {t("ordersCount", { count: method.count })}
+                  {posMoney(method.amount)} · {t("ordersCount", { count: method.count })}
                 </div>
               </div>
             );

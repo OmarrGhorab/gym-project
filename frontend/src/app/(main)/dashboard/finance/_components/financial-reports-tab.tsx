@@ -1,7 +1,9 @@
 import { useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { MoneyDomain } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceChartPoint, FinanceDashboardData } from "./data";
@@ -22,9 +24,10 @@ export function FinancialReportsTab({
           <CardTitle className="font-normal">{t("yearToDateSummary")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <ReportMetric label={t("revenueMtd")} value={totals.revenue_mtd} />
-          <ReportMetric label={t("expensesMtd")} value={totals.expenses_mtd} />
-          <ReportMetric label={t("netProfitMtd")} value={totals.net_profit_mtd} />
+          <ReportMetric domain="reports" label={t("revenueMtd")} value={totals.revenue_mtd} />
+          <ReportMetric domain="expenses" label={t("expensesMtd")} value={totals.expenses_mtd} />
+          <ReportMetric domain="reports" label={t("netProfitMtd")} value={totals.net_profit_mtd} />
+          {/* A ratio, not an amount — it survives redaction. */}
           <ReportMetric label={t("profitMargin")} value={`${Number(totals.profit_margin).toFixed(1)}%`} plain />
         </CardContent>
       </Card>
@@ -47,10 +50,20 @@ export function FinancialReportsTab({
               {chart.map((row) => (
                 <TableRow key={row.period}>
                   <TableCell>{row.period}</TableCell>
-                  <TableCell>{formatCurrency(Number(row.revenue), { currency: "EGP", noDecimals: true })}</TableCell>
-                  <TableCell>{formatCurrency(Number(row.expenses), { currency: "EGP", noDecimals: true })}</TableCell>
+                  <TableCell>
+                    <Money domain="reports">
+                      {formatCurrency(Number(row.revenue), { currency: "EGP", noDecimals: true })}
+                    </Money>
+                  </TableCell>
+                  <TableCell>
+                    <Money domain="expenses">
+                      {formatCurrency(Number(row.expenses), { currency: "EGP", noDecimals: true })}
+                    </Money>
+                  </TableCell>
                   <TableCell className="text-end">
-                    {formatCurrency(Number(row.net_profit), { currency: "EGP", noDecimals: true })}
+                    <Money domain="reports">
+                      {formatCurrency(Number(row.net_profit), { currency: "EGP", noDecimals: true })}
+                    </Money>
                   </TableCell>
                 </TableRow>
               ))}
@@ -62,13 +75,32 @@ export function FinancialReportsTab({
   );
 }
 
-function ReportMetric({ label, value, plain = false }: { label: string; value: string; plain?: boolean }) {
+function ReportMetric({
+  domain,
+  label,
+  plain = false,
+  value,
+}: {
+  domain?: MoneyDomain;
+  label: string;
+  plain?: boolean;
+  value: string;
+}) {
+  if (plain || !domain) {
+    return (
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 p-3">
+        <span className="text-muted-foreground text-sm">{label}</span>
+        <span className="font-medium tabular-nums">{value}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border/70 p-3">
       <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="font-medium tabular-nums">
-        {plain ? value : formatCurrency(Number(value), { currency: "EGP", noDecimals: true })}
-      </span>
+      <Money domain={domain} className="font-medium tabular-nums">
+        {formatCurrency(Number(value), { currency: "EGP", noDecimals: true })}
+      </Money>
     </div>
   );
 }

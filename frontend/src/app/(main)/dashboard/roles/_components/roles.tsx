@@ -33,6 +33,9 @@ import type { PermissionGroup, RoleRow } from "./data-live";
 
 const PRESET_ORDER = ["Admin", "Manager", "Cashier", "Captain", "Accountant"];
 
+/** Backend module prefix for the money-visibility permissions; see App\Support\MoneyPermissions. */
+const MONEY_GROUP = "money";
+
 export function Roles({ permissionGroups, roles }: { permissionGroups: PermissionGroup[]; roles: RoleRow[] }) {
   const t = useTranslations("Dashboard.roles");
   const [query, setQuery] = React.useState("");
@@ -375,7 +378,9 @@ function PermissionSets({ permissionGroups }: { permissionGroups: PermissionGrou
         <TableBody>
           {permissionGroups.map((group) => (
             <TableRow key={group.group}>
-              <TableCell className="font-medium">{groupLabel(group.group)}</TableCell>
+              <TableCell className="font-medium">
+                {group.group === MONEY_GROUP ? t("moneyGroup") : groupLabel(group.group)}
+              </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {group.permissions.map((permission) => (
@@ -411,6 +416,14 @@ function PermissionPicker({
     setCheckedPermissions(new Set(selected));
   }, [selected]);
 
+  // Money leads: it is the group an operator comes to this screen to change, and
+  // a full-width card reads as a heading for the rest rather than as an oddity
+  // stranded at the bottom. Sort is stable, so every other group keeps its order.
+  const orderedGroups = React.useMemo(
+    () => [...permissionGroups].sort((a, b) => Number(b.group === MONEY_GROUP) - Number(a.group === MONEY_GROUP)),
+    [permissionGroups],
+  );
+
   function togglePermission(permission: string, checked: boolean) {
     setCheckedPermissions((current) => {
       const next = new Set(current);
@@ -426,48 +439,70 @@ function PermissionPicker({
   }
 
   return (
-    <div className={cn("grid gap-3", compact ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2 xl:grid-cols-3")}>
-      {permissionGroups.map((group) => (
-        <div className="rounded-lg border p-3" key={group.group}>
-          <div className="mb-2 font-medium text-sm">{groupLabel(group.group)}</div>
-          <div className="grid gap-2">
-            {group.permissions.map((permission) => {
-              const isChecked = checkedPermissions.has(permission.name);
+    // items-start, or every card in a row is stretched to the tallest one — which
+    // is what left a column of empty boxes beside the ten-item money group.
+    <div
+      className={cn(
+        "grid items-start gap-3",
+        compact ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2 xl:grid-cols-3",
+      )}
+    >
+      {orderedGroups.map((group) => {
+        // Money gets a row of its own: it holds more than twice what any other
+        // group does, and its labels are sentences rather than one-word verbs.
+        const isMoney = group.group === MONEY_GROUP;
 
-              return (
-                <div
-                  key={permission.name}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
-                    disabled && "opacity-60 hover:bg-transparent",
-                  )}
-                >
-                  <Checkbox
-                    id={`permission-${permission.name}`}
-                    name="permissions"
-                    value={permission.name}
-                    checked={isChecked}
-                    onCheckedChange={(checked) => togglePermission(permission.name, Boolean(checked))}
-                    disabled={disabled}
-                    aria-label={t("togglePermission", { permission: permission.name })}
-                  />
-                  <button
-                    type="button"
+        return (
+          <div
+            className={cn("rounded-lg border p-3", isMoney && "col-span-full border-primary/40 bg-primary/[0.03]")}
+            key={group.group}
+          >
+            <div className="mb-2 font-medium text-sm">{isMoney ? t("moneyGroup") : groupLabel(group.group)}</div>
+            {isMoney ? <p className="mb-2 text-muted-foreground text-xs">{t("moneyGroupDescription")}</p> : null}
+            <div className={cn("grid gap-2", isMoney && "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4")}>
+              {group.permissions.map((permission) => {
+                const isChecked = checkedPermissions.has(permission.name);
+
+                return (
+                  <div
+                    key={permission.name}
                     className={cn(
-                      "min-w-0 flex-1 select-none truncate text-start font-medium leading-none",
-                      disabled ? "cursor-not-allowed" : "cursor-pointer",
+                      "flex gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted",
+                      isMoney ? "items-start" : "items-center",
+                      disabled && "opacity-60 hover:bg-transparent",
                     )}
-                    disabled={disabled}
-                    onClick={() => togglePermission(permission.name, !isChecked)}
                   >
-                    {permissionActionLabel(permission.name, t)}
-                  </button>
-                </div>
-              );
-            })}
+                    <Checkbox
+                      id={`permission-${permission.name}`}
+                      name="permissions"
+                      value={permission.name}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => togglePermission(permission.name, Boolean(checked))}
+                      disabled={disabled}
+                      className={cn(isMoney && "mt-0.5 shrink-0")}
+                      aria-label={t("togglePermission", { permission: permission.name })}
+                    />
+                    <button
+                      type="button"
+                      className={cn(
+                        "min-w-0 flex-1 select-none text-start font-medium",
+                        // A money label names the pages it governs, so it wraps
+                        // rather than truncating the half that explains it.
+                        isMoney ? "whitespace-normal leading-snug" : "truncate leading-none",
+                        disabled ? "cursor-not-allowed" : "cursor-pointer",
+                      )}
+                      disabled={disabled}
+                      onClick={() => togglePermission(permission.name, !isChecked)}
+                    >
+                      {permissionActionLabel(permission.name, t)}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -497,7 +532,31 @@ function permissionLabel(permission: string) {
   return groupLabel(permission.split(".").at(0) ?? permission);
 }
 
+/**
+ * Money permissions all end in `.view`, so the generic "last segment" label
+ * would render ten identical "View" checkboxes. Each gets a full sentence
+ * naming the pages it governs instead.
+ */
+const MONEY_PERMISSION_LABEL_KEYS = {
+  "money.subscriptions.view": "moneySubscriptions",
+  "money.plans.view": "moneyPlans",
+  "money.sales.view": "moneySales",
+  "money.products.view": "moneyProducts",
+  "money.payments.view": "moneyPayments",
+  "money.expenses.view": "moneyExpenses",
+  "money.payroll.view": "moneyPayroll",
+  "money.commissions.view": "moneyCommissions",
+  "money.reports.view": "moneyReports",
+  "money.dashboard.view": "moneyDashboard",
+} as const;
+
 function permissionActionLabel(permission: string, t: ReturnType<typeof useTranslations<"Dashboard.roles">>) {
+  const moneyKey = MONEY_PERMISSION_LABEL_KEYS[permission as keyof typeof MONEY_PERMISSION_LABEL_KEYS];
+
+  if (moneyKey) {
+    return t(moneyKey);
+  }
+
   const permissionLabels: Record<string, string> = {
     "roles.manage": "Manage roles",
     "settings.manage": "Manage settings",

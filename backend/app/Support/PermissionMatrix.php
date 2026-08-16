@@ -17,7 +17,8 @@ final class PermissionMatrix
             MembershipPermissions::ALL_PERMISSIONS,
             PosPermissions::ALL_PERMISSIONS,
             HrFinancePermissions::ALL_PERMISSIONS,
-            SystemPermissions::ALL_PERMISSIONS
+            SystemPermissions::ALL_PERMISSIONS,
+            MoneyPermissions::ALL_PERMISSIONS
         )));
     }
 

@@ -731,6 +731,60 @@ class OperationalNotifier
         );
     }
 
+    /**
+     * The working day, closed and accounted for.
+     *
+     * Leads with the money and with anything that needs answering — a drawer
+     * that did not match, staff who never scanned — because those are the only
+     * parts anyone acts on before opening up again.
+     *
+     * @param  array<string, mixed>  $report
+     */
+    public function dailyReport(string $businessDate, array $report, ?string $filePath = null): void
+    {
+        $money = $report['money'];
+        $attendance = $report['attendance']['totals'];
+        $unresolvedShifts = collect($report['shifts'])
+            ->filter(static fn (array $shift): bool => $shift['variance'] !== null && bccomp((string) $shift['variance'], '0.00', 2) !== 0)
+            ->count();
+
+        $body = "Collected EGP {$money['collections']}, expenses EGP {$money['expenses']}, net EGP {$money['net']} ".
+            "across {$money['payment_count']} payment(s).";
+
+        $flags = [];
+        if ($unresolvedShifts > 0) {
+            $flags[] = "{$unresolvedShifts} shift(s) with a drawer variance";
+        }
+        if (($attendance['absent'] ?? 0) > 0) {
+            $flags[] = "{$attendance['absent']} absent";
+        }
+        if (($attendance['no_scan'] ?? 0) > 0) {
+            $flags[] = "{$attendance['no_scan']} never scanned";
+        }
+        if (($attendance['still_in'] ?? 0) > 0) {
+            $flags[] = "{$attendance['still_in']} not signed out";
+        }
+
+        $body .= $flags === [] ? ' Nothing needs attention.' : ' Needs a look: '.implode(', ', $flags).'.';
+
+        $this->notifyAdmins(
+            title: 'Daily report — '.$businessDate,
+            body: $body,
+            category: 'reports.daily',
+            link: NotificationLink::to('daily-report', 'daily_report', $businessDate, ['date' => $businessDate]),
+            severity: $flags === [] ? 'success' : 'warning',
+            extra: [
+                'business_date' => $businessDate,
+                'money' => $money,
+                'attendance' => $attendance,
+                'shifts_with_variance' => $unresolvedShifts,
+                'memberships_sold' => $report['memberships']['count'],
+                'file_path' => $filePath,
+                'download_url' => "/api/v1/reports/daily/pdf?date={$businessDate}",
+            ],
+        );
+    }
+
     public function taskAssigned(GymTask $task): void
     {
         $task->loadMissing('assignedEmployee.user');

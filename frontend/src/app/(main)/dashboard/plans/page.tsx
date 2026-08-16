@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Pencil, Tags } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,7 +118,11 @@ export default async function Page({ searchParams }: PageProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>{plan.category}</TableCell>
-                    <TableCell>{formatCurrency(Number(plan.price), { currency: "EGP", noDecimals: true })}</TableCell>
+                    <TableCell>
+                      <Money domain="plans">
+                        {formatCurrency(Number(plan.price), { currency: "EGP", noDecimals: true })}
+                      </Money>
+                    </TableCell>
                     <TableCell>
                       {plan.duration_months
                         ? t("months", { count: plan.duration_months })

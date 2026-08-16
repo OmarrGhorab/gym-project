@@ -1,5 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { Money } from "@/components/money/money";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -141,7 +142,9 @@ export default async function Page({
                       <Badge variant={member.status === "active" ? "secondary" : "outline"}>{member.status}</Badge>
                     </TableCell>
                     <TableCell>
-                      {formatCurrency(Number(member.total_paid), { currency: "EGP", noDecimals: true })}
+                      <Money domain="subscriptions">
+                        {formatCurrency(Number(member.total_paid), { currency: "EGP", noDecimals: true })}
+                      </Money>
                     </TableCell>
                     <TableCell className="text-end">
                       <MemberActionsMenu

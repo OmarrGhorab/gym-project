@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Label, Pie, PieChart } from "recharts";
 
+import { useCanViewMoney } from "@/components/money/money-visibility-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { formatCurrency } from "@/lib/utils";
@@ -13,6 +14,7 @@ const methodColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var
 
 export function BalanceDistributionCard({ methods }: { methods: FinanceMoneySource[] }) {
   const t = useTranslations("Dashboard.finance");
+  const canViewMoney = useCanViewMoney("payments");
   const chartConfig = {
     amount: {
       label: t("amount"),
@@ -37,6 +39,12 @@ export function BalanceDistributionCard({ methods }: { methods: FinanceMoneySour
     label: chartConfig[item.key as keyof typeof chartConfig]?.label ?? item.label,
   }));
   const total = chartData.reduce((sum, item) => sum + item.amountValue, 0);
+
+  // The whole card is a chart of collected amounts; there is nothing left to
+  // show once the figures come out, so it goes rather than rendering an empty shell.
+  if (!canViewMoney) {
+    return null;
+  }
 
   return (
     <Card>

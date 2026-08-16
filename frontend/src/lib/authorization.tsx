@@ -13,6 +13,9 @@ export const routePermissions: Record<string, PermissionRequirement> = {
   "/dashboard/crm": "subscriptions.view",
   "/dashboard/crm-v1": "subscriptions.view",
   "/dashboard/reports": ["reports.view", "reports.view_today"],
+  // The day's whole ledger with a name against every amount. Gated on the
+  // money permission rather than reports.view, which a cashier holds.
+  "/dashboard/daily-report": "money.reports.view",
   "/dashboard/finance": ["reports.view", "reports.view_today"],
   "/dashboard/finance-v1": "reports.view",
   "/dashboard/analytics": "reports.view",

@@ -24,6 +24,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { Money } from "@/components/money/money";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -196,9 +197,9 @@ function CrmV1SalesStyle({ data, summary }: DashboardChartStyleSwitcherProps) {
               <CardTitle>{t("revenue")}</CardTitle>
               <CardDescription>{t("selectedRange")}</CardDescription>
             </div>
-            <p className="font-medium text-2xl tabular-nums">
+            <Money domain="dashboard" className="block font-medium text-2xl tabular-nums">
               {formatCurrency(totals.revenue, { currency: "EGP", noDecimals: true })}
-            </p>
+            </Money>
             <TrendPill value={revenueGrowth} />
           </CardContent>
         </Card>
@@ -279,9 +280,9 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
             </div>
             <div>
               <p className="text-muted-foreground text-xs uppercase">{t("income")}</p>
-              <p className="font-medium tabular-nums">
+              <Money domain="dashboard" className="block font-medium tabular-nums">
                 {formatCurrency(totalIncome, { currency: "EGP", noDecimals: true })}
-              </p>
+              </Money>
             </div>
           </div>
           <Separator orientation="vertical" className="h-auto! self-stretch" />
@@ -291,9 +292,9 @@ function FinanceV1SalesStyle({ data }: { data: SalesChartPoint[] }) {
             </div>
             <div>
               <p className="text-muted-foreground text-xs uppercase">{t("activityBasis")}</p>
-              <p className="font-medium tabular-nums">
+              <Money domain="dashboard" className="block font-medium tabular-nums">
                 {formatCurrency(totalCostBasis, { currency: "EGP", noDecimals: true })}
-              </p>
+              </Money>
             </div>
           </div>
         </div>

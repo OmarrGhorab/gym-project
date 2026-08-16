@@ -200,6 +200,8 @@ export async function getStaffManagementPageData(): Promise<{
         handover_auto_accept: false,
         handover_auto_accept_on_match_only: true,
         require_handover_to_open: false,
+        day_starts_at_hour: 5,
+        reset_after_closed_hours: 4,
       },
       receipt_template: "default",
       reminder_days: [7],

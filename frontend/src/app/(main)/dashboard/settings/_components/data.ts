@@ -25,6 +25,10 @@ export type DashboardSettings = {
     handover_auto_accept: boolean;
     handover_auto_accept_on_match_only: boolean;
     require_handover_to_open: boolean;
+    /** The hour the working day turns over and a shift opens on an empty drawer. */
+    day_starts_at_hour: number;
+    /** How long the desk must sit shut before the next shift starts on an empty drawer. */
+    reset_after_closed_hours: number;
   };
   receipt_template: string;
   reminder_days: number[];
@@ -75,6 +79,8 @@ const emptySettings: DashboardSettings = {
     handover_auto_accept: false,
     handover_auto_accept_on_match_only: true,
     require_handover_to_open: false,
+    day_starts_at_hour: 5,
+    reset_after_closed_hours: 4,
   },
   receipt_template: "default",
   reminder_days: [7],

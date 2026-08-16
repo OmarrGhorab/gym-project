@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Models\ShiftSession;
 use App\Models\User;
 use App\Services\OperationalNotifier;
+use App\Support\BusinessDay;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -26,9 +27,12 @@ class OpenShiftSession
         $session = DB::transaction(function () use ($data, $user): ShiftSession {
             $shift = EmployeeShift::query()->findOrFail($data['employee_shift_id']);
 
+            // Not Carbon::today(): the desk trades past midnight, and a calendar
+            // boundary would file the night shift under tomorrow — which is what
+            // made the next morning inherit a drawer it should have opened empty.
             $businessDate = isset($data['business_date'])
                 ? Carbon::parse($data['business_date'])->toDateString()
-                : Carbon::today()->toDateString();
+                : BusinessDay::at();
 
             // Whoever is at the desk names the employee taking the drawer; the
             // shift is only the label the takings are filed under.
@@ -72,17 +76,27 @@ class OpenShiftSession
                 ->orderByDesc('closed_at')
                 ->first();
 
-            // Cash carries forward shift-to-shift within one business day. A new business
-            // date starts the drawer at zero — the day's takings are banked, not inherited.
+            // Cash carries forward shift-to-shift while the desk keeps trading, and the
+            // drawer starts at zero once the day's takings have been banked.
+            //
+            // Two things end a day, and either is enough. The one the gym recognises is
+            // the desk having been shut since the last shift ended — that is the real
+            // close of business, and no hour passing can trigger it while somebody is
+            // still working. The working-day boundary is the backstop for the case that
+            // one cannot see: a shift closed minutes before the next opens, but a whole
+            // day apart, which is what a forgotten close looks like.
             $isNewDay = $lastResolved && $this->businessDate($lastResolved) !== $businessDate;
-            $defaultFloat = ($isNewDay || ! $lastResolved)
+            $wasClosedOvernight = $lastResolved && BusinessDay::closedLongEnough($lastResolved->closed_at);
+            $startsFresh = ! $lastResolved || $isNewDay || $wasClosedOvernight;
+
+            $defaultFloat = $startsFresh
                 ? '0.00'
                 : (string) ($lastResolved->counted_cash ?? $lastResolved->expected_cash ?? '0.00');
 
-            // A later shift never accepts a manually supplied float: its drawer must
-            // begin with the cash counted by the previous resolved same-day shift.
-            // The optional amount is only for the first shift of a new business day.
-            $openingFloat = ! $isNewDay && $lastResolved
+            // A shift that continues the day never accepts a manually supplied float: its
+            // drawer must begin with the cash the previous shift was counted on. The
+            // optional amount is only for a drawer that is starting from nothing.
+            $openingFloat = ! $startsFresh
                 ? bcadd($defaultFloat, '0.00', 2)
                 : (array_key_exists('opening_float', $data) && $data['opening_float'] !== null && $data['opening_float'] !== ''
                     ? bcadd((string) $data['opening_float'], '0.00', 2)

@@ -1,7 +1,9 @@
 import { useLocale, useTranslations } from "next-intl";
 
+import { Money } from "@/components/money/money";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MONEY_REDACTED, type MoneyDomain } from "@/lib/money-visibility";
 import { formatCurrency } from "@/lib/utils";
 
 import type { FinanceDashboardData, FinanceUpcomingItem } from "./data";
@@ -23,14 +25,22 @@ export function CollectionsTab({
         <CardHeader>
           <CardTitle className="font-normal">{t("outstandingMemberBalances")}</CardTitle>
           <CardDescription>
-            {t("balancesTotalDue", {
-              count: numberFormatter.format(totals.outstanding_dues_count),
-              total: formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true }),
-            })}
+            <Money
+              domain="payments"
+              redacted={t("balancesTotalDue", {
+                count: numberFormatter.format(totals.outstanding_dues_count),
+                total: MONEY_REDACTED,
+              })}
+            >
+              {t("balancesTotalDue", {
+                count: numberFormatter.format(totals.outstanding_dues_count),
+                total: formatCurrency(Number(totals.outstanding_dues), { currency: "EGP", noDecimals: true }),
+              })}
+            </Money>
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FinanceItemsTable emptyText={t("noOutstandingMemberBalances")} items={upcoming.dues} />
+          <FinanceItemsTable domain="payments" emptyText={t("noOutstandingMemberBalances")} items={upcoming.dues} />
         </CardContent>
       </Card>
 
@@ -39,13 +49,20 @@ export function CollectionsTab({
           <CardHeader>
             <CardTitle className="font-normal">{t("pendingPayroll")}</CardTitle>
             <CardDescription>
-              {t("notPaidYet", {
-                value: formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true }),
-              })}
+              <Money domain="payroll" redacted={t("notPaidYet", { value: MONEY_REDACTED })}>
+                {t("notPaidYet", {
+                  value: formatCurrency(Number(totals.pending_payroll), { currency: "EGP", noDecimals: true }),
+                })}
+              </Money>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <FinanceItemsTable compact emptyText={t("noPendingPayroll")} items={upcoming.pending_payroll} />
+            <FinanceItemsTable
+              compact
+              domain="payroll"
+              emptyText={t("noPendingPayroll")}
+              items={upcoming.pending_payroll}
+            />
           </CardContent>
         </Card>
 
@@ -54,7 +71,12 @@ export function CollectionsTab({
             <CardTitle className="font-normal">{t("recentExpenses")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <FinanceItemsTable compact emptyText={t("noRecentExpenses")} items={upcoming.recent_expenses} />
+            <FinanceItemsTable
+              compact
+              domain="expenses"
+              emptyText={t("noRecentExpenses")}
+              items={upcoming.recent_expenses}
+            />
           </CardContent>
         </Card>
       </div>
@@ -64,10 +86,12 @@ export function CollectionsTab({
 
 function FinanceItemsTable({
   compact = false,
+  domain,
   emptyText,
   items,
 }: {
   compact?: boolean;
+  domain: MoneyDomain;
   emptyText: string;
   items: FinanceUpcomingItem[];
 }) {
@@ -89,7 +113,9 @@ function FinanceItemsTable({
               <TableCell>{item.title}</TableCell>
               {!compact ? <TableCell className="text-muted-foreground">{item.description}</TableCell> : null}
               <TableCell className="text-end">
-                {formatCurrency(Number(item.amount), { currency: "EGP", noDecimals: true })}
+                <Money domain={domain}>
+                  {formatCurrency(Number(item.amount), { currency: "EGP", noDecimals: true })}
+                </Money>
               </TableCell>
             </TableRow>
           ))
