@@ -387,3 +387,103 @@ test('cashier with members.view can list members', function (): void {
     $this->getJson('/api/v1/members')
         ->assertStatus(200);
 });
+
+/**
+ * join_date has no time on it, so a day's worth of signups all compare equal and
+ * the database is free to return them in any order — which read as random in the
+ * members table. created_at breaks the tie by who actually signed up last.
+ */
+test('members joined on the same day are listed newest signup first', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $joinDate = '2026-08-16';
+    $first = Member::factory()->create([
+        'name' => 'Signed Up At Nine',
+        'join_date' => $joinDate,
+        'created_at' => Carbon::parse("{$joinDate} 09:00:00"),
+    ]);
+    $last = Member::factory()->create([
+        'name' => 'Signed Up At Eight PM',
+        'join_date' => $joinDate,
+        'created_at' => Carbon::parse("{$joinDate} 20:00:00"),
+    ]);
+    $earlier = Member::factory()->create([
+        'name' => 'Joined Yesterday',
+        'join_date' => '2026-08-15',
+        'created_at' => Carbon::parse('2026-08-15 12:00:00'),
+    ]);
+
+    $ids = collect(
+        $this->getJson('/api/v1/members?sort=-join_date,-created_at&per_page=10')
+            ->assertOk()
+            ->json('data')
+    )->pluck('id')->all();
+
+    expect(array_slice($ids, 0, 3))->toBe([$last->id, $first->id, $earlier->id]);
+});
+
+/**
+ * The order the members table reads by default.
+ *
+ * Sorting on join_date answers "who is newest to the gym", which leaves a member
+ * of two years who renewed this morning buried. A renewal writes a fresh
+ * subscription and never touches join_date, so the list has to follow the
+ * subscription.
+ */
+test('members are ordered by their most recent subscription', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $longStanding = Member::factory()->create(['name' => 'Renewed Today', 'join_date' => '2024-02-01']);
+    $recentJoiner = Member::factory()->create(['name' => 'Joined Last Week', 'join_date' => '2026-08-09']);
+    $neverSubscribed = Member::factory()->create(['name' => 'Never Subscribed', 'join_date' => '2026-08-15']);
+
+    Subscription::factory()->create([
+        'member_id' => $recentJoiner->id,
+        'created_at' => Carbon::parse('2026-08-09 11:00:00'),
+    ]);
+    // The old member's original membership, and the one they just renewed onto.
+    Subscription::factory()->create([
+        'member_id' => $longStanding->id,
+        'created_at' => Carbon::parse('2024-02-01 10:00:00'),
+    ]);
+    Subscription::factory()->create([
+        'member_id' => $longStanding->id,
+        'created_at' => Carbon::parse('2026-08-16 19:00:00'),
+    ]);
+
+    $ids = collect(
+        $this->getJson('/api/v1/members?sort=-last_subscription&per_page=10')
+            ->assertOk()
+            ->json('data')
+    )->pluck('id')->all();
+
+    expect(array_slice($ids, 0, 3))
+        ->toBe([$longStanding->id, $recentJoiner->id, $neverSubscribed->id]);
+});
+
+test('the member row carries the date of its latest subscription', function (): void {
+    $user = User::factory()->create();
+    $user->assignRole(FoundationPermissions::ROLE_ADMIN);
+    Sanctum::actingAs($user);
+
+    $member = Member::factory()->create(['join_date' => '2024-02-01']);
+    Subscription::factory()->create([
+        'member_id' => $member->id,
+        'created_at' => Carbon::parse('2024-02-01 10:00:00'),
+    ]);
+    Subscription::factory()->create([
+        'member_id' => $member->id,
+        'created_at' => Carbon::parse('2026-08-16 19:00:00'),
+    ]);
+
+    $row = collect($this->getJson('/api/v1/members?per_page=10')->assertOk()->json('data'))
+        ->firstWhere('id', $member->id);
+
+    // The renewal, not the membership they first joined on.
+    expect($row['last_subscribed_at'])->toStartWith('2026-08-16')
+        ->and($row['join_date'])->toBe('2024-02-01');
+});

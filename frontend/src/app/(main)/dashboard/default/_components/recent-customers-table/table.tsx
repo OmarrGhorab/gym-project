@@ -172,6 +172,7 @@ export function RecentCustomersTable({
           endsAt: (values) => t("endsAt", values),
           startsAt: (values) => t("startsAt", values),
           joined: t("joined"),
+          lastSubscribed: (values: { date: string }) => t("lastSubscribed", values),
           member: t("member"),
           noPlan: t("noPlan"),
           noProtectedDaysRemaining: t("noProtectedDaysRemaining"),

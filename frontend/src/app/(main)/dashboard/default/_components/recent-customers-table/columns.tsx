@@ -21,6 +21,7 @@ type RecentCustomersColumnLabels = {
   endsAt: (values: { date: string }) => string;
   startsAt: (values: { date: string }) => string;
   joined: string;
+  lastSubscribed: (values: { date: string }) => string;
   member: string;
   noPlan: string;
   noProtectedDaysRemaining: string;
@@ -250,10 +251,20 @@ export function createRecentCustomersColumns({
         }
 
         const joinedAt = parseISO(row.original.joined);
+        const subscribedAt = row.original.lastSubscribedAt ? parseISO(row.original.lastSubscribedAt) : null;
+        // The list is ordered on this, so it has to be on screen — an order the
+        // visible columns cannot explain reads as no order at all. Only worth
+        // showing when it says something the join date does not.
+        const showSubscribed = subscribedAt && dateFormatter.format(subscribedAt) !== dateFormatter.format(joinedAt);
 
         return (
           <div className="grid gap-0.5">
             <span className="text-sm">{dateFormatter.format(joinedAt)}</span>
+            {showSubscribed ? (
+              <span className="text-muted-foreground text-xs">
+                {labels.lastSubscribed({ date: dateFormatter.format(subscribedAt) })}
+              </span>
+            ) : null}
             <span className="text-muted-foreground text-xs">#{row.original.id}</span>
           </div>
         );

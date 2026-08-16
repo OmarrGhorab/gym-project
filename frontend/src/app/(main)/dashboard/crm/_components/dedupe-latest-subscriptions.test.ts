@@ -54,3 +54,48 @@ describe("dedupeLatestSubscriptions", () => {
     expect(rows.map((row) => row.id).sort()).toEqual([71, 72]);
   });
 });
+
+describe("ordering", () => {
+  function sold(id: number, createdAt: string, memberId: number, endDate = "2026-12-01"): Row {
+    return {
+      id,
+      status: "active",
+      end_date: endDate,
+      created_at: createdAt,
+      member: { id: memberId, name: `Member #${memberId}` },
+    } as Row;
+  }
+
+  it("lists the newest subscriber first", () => {
+    const rows = dedupeLatestSubscriptions([
+      sold(1, "2026-08-14T10:00:00Z", 1),
+      sold(2, "2026-08-16T18:00:00Z", 2),
+      sold(3, "2026-08-15T09:00:00Z", 3),
+    ]);
+
+    expect(rows.map((row) => row.id)).toEqual([2, 3, 1]);
+  });
+
+  /**
+   * The order used to follow whichever membership ran furthest into the future,
+   * so a member on a year-long plan sold months ago outranked one who signed up
+   * this morning.
+   */
+  it("does not let a longer plan outrank a more recent signup", () => {
+    const rows = dedupeLatestSubscriptions([
+      sold(10, "2026-01-05T10:00:00Z", 1, "2027-01-05"),
+      sold(11, "2026-08-16T10:00:00Z", 2, "2026-09-16"),
+    ]);
+
+    expect(rows[0].id).toBe(11);
+  });
+
+  it("falls back to the newer id when two are sold in the same moment", () => {
+    const rows = dedupeLatestSubscriptions([
+      sold(20, "2026-08-16T10:00:00Z", 1),
+      sold(21, "2026-08-16T10:00:00Z", 2),
+    ]);
+
+    expect(rows.map((row) => row.id)).toEqual([21, 20]);
+  });
+});

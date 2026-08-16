@@ -44,6 +44,8 @@ type MemberResource = {
   membership_status?: string | null;
   billing_status?: string | null;
   join_date?: string | null;
+  /** When this member last bought a membership. A renewal moves it; join_date never does. */
+  last_subscribed_at?: string | null;
   created_at?: string | null;
   total_paid?: string | null;
   notes?: string | null;
@@ -342,14 +344,18 @@ function buildMemberParams(options: MembersQuery) {
 
 function getMemberSortParam(sort: MemberSort) {
   switch (sort) {
+    // Ordered on the member's newest subscription, not on join_date. A renewal
+    // writes a fresh subscription and never touches join_date, so sorting on the
+    // latter buried a member of two years who renewed this morning. Members who
+    // have never subscribed sort last.
     case "oldest":
-      return "join_date";
+      return "last_subscription";
     case "name-asc":
       return "name";
     case "name-desc":
       return "-name";
     default:
-      return "-join_date";
+      return "-last_subscription";
   }
 }
 
@@ -398,6 +404,7 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
     billing: member.billing_status ?? "unknown",
     totalPaid: subscription?.package_paid_total ?? member.total_paid ?? "0.00",
     joined: member.join_date ?? member.created_at?.slice(0, 10) ?? null,
+    lastSubscribedAt: member.last_subscribed_at ?? null,
     notes: member.notes ?? null,
     has_photo: member.has_photo ?? false,
     updated_at: member.updated_at ?? null,

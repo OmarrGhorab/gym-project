@@ -35,6 +35,10 @@ final class MemberResource extends JsonResource
             'attendance_qr' => $this->attendance_code ? "member:{$this->attendance_code}" : null,
             'birth_date' => $this->birth_date?->toDateString(),
             'join_date' => $this->join_date?->toDateString(),
+            // When this member last bought a membership — a renewal counts,
+            // so this moves while join_date never does. Null for someone who
+            // has never subscribed.
+            'last_subscribed_at' => $latestSubscription?->created_at?->toIso8601String(),
             'expiry_date' => $latestSubscriptionData['projected_end_date'] ?? $latestSubscription?->end_date?->toDateString(),
             'status' => $this->status,
             // The subscription resource already works out what the membership

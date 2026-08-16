@@ -200,6 +200,31 @@ final class MemberController extends ApiController
                 AllowedSort::field('join_date'),
                 AllowedSort::field('status'),
                 AllowedSort::field('created_at'),
+                // "Who subscribed most recently", which is not the same as who
+                // joined most recently: a renewal writes a new subscription but
+                // never touches join_date, so a member of two years who renewed
+                // this morning has to be able to reach the top of the list.
+                //
+                // Ordered on the created_at of the member's newest subscription
+                // — the same row the table renders — rather than MAX(created_at),
+                // so the order and the date on screen can never disagree.
+                AllowedSort::callback('last_subscription', function ($query, bool $descending): void {
+                    $direction = $descending ? 'desc' : 'asc';
+
+                    $query
+                        ->orderBy(
+                            Subscription::query()
+                                ->select('created_at')
+                                ->whereColumn('subscriptions.member_id', 'members.id')
+                                ->orderByDesc('id')
+                                ->limit(1),
+                            $direction,
+                        )
+                        // Members who never subscribed sort last on a descending
+                        // read, which is where they belong; the id keeps rows
+                        // stable when two memberships are sold in one second.
+                        ->orderBy('members.id', $direction);
+                }),
             )
             ->defaultSort('-created_at')
             ->paginate($perPage)

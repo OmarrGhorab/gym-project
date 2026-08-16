@@ -80,6 +80,8 @@ type SubscriptionResource = {
   status: string;
   billing_status?: string | null;
   start_date?: string | null;
+  /** When the membership was sold — what "latest subscriber" is ordered on. */
+  created_at?: string | null;
   end_date?: string | null;
   projected_end_date?: string | null;
   days_left?: number | null;
@@ -585,7 +587,25 @@ export function dedupeLatestSubscriptions(subscriptions: SubscriptionResource[])
     }
   }
 
-  return Array.from(latest.values()).sort((left, right) => compareSubscriptionFreshness(right, left));
+  // Freshness decides *which* membership represents a member; recency decides
+  // the order they are listed in. Sorting the list by freshness put whoever's
+  // membership runs furthest into the future on top, which is not the same as
+  // the newest subscriber and read as no order at all.
+  return Array.from(latest.values()).sort(compareSubscriptionRecency);
+}
+
+/** Newest subscriber first. */
+function compareSubscriptionRecency(left: SubscriptionResource, right: SubscriptionResource) {
+  const leftAt = Date.parse(left.created_at ?? "") || 0;
+  const rightAt = Date.parse(right.created_at ?? "") || 0;
+
+  if (leftAt !== rightAt) {
+    return rightAt - leftAt;
+  }
+
+  // Ids climb, so the higher one was sold later — and it keeps the order stable
+  // for rows created in the same second.
+  return right.id - left.id;
 }
 
 function compareSubscriptionFreshness(left: SubscriptionResource, right: SubscriptionResource) {

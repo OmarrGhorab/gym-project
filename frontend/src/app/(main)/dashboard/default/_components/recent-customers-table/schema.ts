@@ -17,6 +17,7 @@ export const recentCustomersSchema = z.object({
   billing: z.string(),
   totalPaid: z.string(),
   joined: z.string().nullable(),
+  lastSubscribedAt: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   has_photo: z.boolean().optional(),
   updated_at: z.string().nullable().optional(),

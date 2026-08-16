@@ -339,8 +339,8 @@
           "allTime": "All time",
           "last30": "Last 30 days",
           "last90": "Last 90 days",
-          "newest": "Newest first",
-          "oldest": "Oldest first",
+          "newest": "Latest subscription",
+          "oldest": "Oldest subscription",
           "nameAsc": "Name A-Z",
           "nameDesc": "Name Z-A"
         },
@@ -365,7 +365,8 @@
           "pending": "Pending",
           "overdue": "Overdue",
           "trial": "Trial"
-        }
+        },
+        "lastSubscribed": "Last sub {date}"
       },
       "shortcuts": {
         "title": "Quick Shortcuts",
