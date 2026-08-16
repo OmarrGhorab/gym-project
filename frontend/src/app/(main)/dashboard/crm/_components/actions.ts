@@ -1,10 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
+import { revalidateMembershipViews } from "@/lib/revalidate-views";
 
 export type MembershipActionResult =
   | {
@@ -328,10 +327,7 @@ async function mutateSubscription(
     };
   }
 
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/finance");
-  revalidatePath("/dashboard/default");
+  revalidateMembershipViews();
 
   return {
     ok: true,

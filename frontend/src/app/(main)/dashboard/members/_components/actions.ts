@@ -1,10 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { z } from "zod";
 
 import { serverApiFetch } from "@/lib/api/server";
+import { revalidateMembershipViews } from "@/lib/revalidate-views";
 
 import { type PaginatedData, unwrapList } from "../../_lib/api";
 import type { MemberPaymentHistory, MemberPaymentRow, MemberReportData, MemberRow, MemberVisitRow } from "./data";
@@ -158,9 +157,7 @@ export async function createMember(_state: MemberFormState, input: FormData): Pr
     };
   }
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/finance");
+  revalidateMembershipViews();
 
   return {
     ok: true,
@@ -221,8 +218,7 @@ export async function updateMember(_state: MemberFormState, input: FormData): Pr
     };
   }
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
+  revalidateMembershipViews();
 
   return {
     ok: true,
@@ -304,9 +300,7 @@ export async function createMemberSubscription(_state: MemberFormState, input: F
     };
   }
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/finance");
+  revalidateMembershipViews();
 
   return {
     ok: true,
@@ -415,11 +409,7 @@ export async function changeMemberPlan(_state: MemberFormState, input: FormData)
     };
   }
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/finance");
-  revalidatePath("/dashboard/default");
-  revalidatePath("/dashboard");
+  revalidateMembershipViews();
 
   return {
     ok: true,
@@ -435,11 +425,7 @@ export async function deactivateMember(input: FormData): Promise<void> {
     method: "DELETE",
   });
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/finance");
-  revalidatePath("/dashboard/default");
-  revalidatePath("/dashboard");
+  revalidateMembershipViews();
 }
 
 export async function reactivateMember(input: FormData): Promise<void> {
@@ -457,10 +443,7 @@ export async function reactivateMember(input: FormData): Promise<void> {
     method: "PUT",
   });
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/default");
-  revalidatePath("/dashboard");
+  revalidateMembershipViews();
 }
 
 export async function cancelMemberSubscription(_state: MemberFormState, input: FormData): Promise<MemberFormState> {
@@ -531,10 +514,7 @@ export async function cancelMemberSubscription(_state: MemberFormState, input: F
     };
   }
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
-  revalidatePath("/dashboard/finance");
-  revalidatePath("/dashboard/default");
+  revalidateMembershipViews();
 
   return {
     ok: true,
@@ -572,8 +552,7 @@ export async function uploadMemberPhoto(input: FormData): Promise<void> {
     throw new Error("The backend saved the request, but no member photo was attached.");
   }
 
-  revalidatePath("/dashboard/members");
-  revalidatePath("/dashboard/crm");
+  revalidateMembershipViews();
 }
 
 const subscriptionInputSchema = z.object({

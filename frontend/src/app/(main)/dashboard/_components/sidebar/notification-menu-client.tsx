@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import {
   Bell,
@@ -74,7 +74,6 @@ const iconMap = [
 
 export function NotificationMenuClient({ initialNotifications, labels }: NotificationMenuClientProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialNotifications.length);
   const [isPending, startTransition] = useTransition();
@@ -145,9 +144,16 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
           description: notificationBody(latest.data),
         });
 
-        if (pathname === "/dashboard/mail") {
-          router.refresh();
-        }
+        // Every notification means a record changed — a membership sold, a
+        // shift opened, an expense recorded. Refreshing only on /dashboard/mail
+        // left every other page showing figures from whenever it was opened,
+        // and the desk sells memberships on a different machine from the one the
+        // owner is watching, so no server action of theirs can invalidate it.
+        //
+        // A soft refresh re-runs the server components and keeps client state
+        // and scroll position, and notifications arrive a handful of times an
+        // hour, so this is cheaper than the page being wrong.
+        router.refresh();
       }
 
       setNotifications(nextNotifications);
@@ -155,7 +161,9 @@ export function NotificationMenuClient({ initialNotifications, labels }: Notific
     });
 
     return () => events.close();
-  }, [pathname, router]);
+    // No pathname dependency: the stream is the same on every page, and keeping
+    // it here tore the connection down and reopened it on every navigation.
+  }, [router]);
 
   return (
     <DropdownMenu>
