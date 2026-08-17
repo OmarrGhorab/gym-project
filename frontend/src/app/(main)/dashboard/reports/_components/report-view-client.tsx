@@ -1161,6 +1161,34 @@ function parseReportDate(value: string) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
+/**
+ * Scrolls `target` into view by moving only the closest real scroll container.
+ *
+ * `scrollIntoView` scrolls every scrollable ancestor, and the dashboard shell
+ * nests the page inside `overflow-hidden` wrappers — which the browser will
+ * still scroll programmatically but the user can never scroll back with a
+ * wheel, stranding them on a blank frame under the pinned header.
+ */
+function scrollWithinNearestScroller(target: HTMLElement | null, offset = 16) {
+  if (!target) return;
+
+  let scroller = target.parentElement;
+
+  while (scroller) {
+    const { overflowY } = getComputedStyle(scroller);
+    if ((overflowY === "auto" || overflowY === "scroll") && scroller.scrollHeight > scroller.clientHeight) break;
+    scroller = scroller.parentElement;
+  }
+
+  if (!scroller) {
+    window.scrollTo({ top: window.scrollY + target.getBoundingClientRect().top - offset, behavior: "smooth" });
+    return;
+  }
+
+  const delta = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top - offset;
+  scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
+}
+
 // ---------------------------------------------------------------------------
 // 1. Classes & Plans View
 // ---------------------------------------------------------------------------
@@ -1194,7 +1222,7 @@ function ClassesPlansView({
   const endingSoonMembers = (data.ending_soon_members as Record<string, unknown>[]) ?? [];
   const subscriptionsTotal = Number(data.subscriptions_total ?? subscriptions.length);
   const [planSearch, setPlanSearch] = useState("");
-  const subscriptionsRef = useRef<HTMLDivElement>(null);
+  const subscriptionsRef = useRef<HTMLDivElement | null>(null);
 
   const filteredPlans = useMemo(() => {
     const term = planSearch.trim().toLowerCase();
@@ -1214,10 +1242,13 @@ function ClassesPlansView({
   const subscriptionPagination = useTablePagination(subscriptions);
 
   // Picking a plan is a "show me its members" gesture, so jump straight to the
-  // members table instead of leaving the answer below the fold.
+  // members table instead of leaving the answer below the fold. The scroll waits
+  // a frame so it measures the table that the new plan actually rendered.
   useEffect(() => {
     if (!planFilter) return;
-    subscriptionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const frame = requestAnimationFrame(() => scrollWithinNearestScroller(subscriptionsRef.current));
+    return () => cancelAnimationFrame(frame);
   }, [planFilter]);
 
   function handleExport() {
@@ -1594,7 +1625,7 @@ function ClassesPlansView({
       </Card>
 
       {/* Subscription Members List Table */}
-      <Card ref={subscriptionsRef} className={selectedPlan ? "scroll-mt-4 border-primary/40" : "scroll-mt-4"}>
+      <Card ref={subscriptionsRef} className={selectedPlan ? "border-primary/40" : undefined}>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-lg">
