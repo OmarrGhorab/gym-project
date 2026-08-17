@@ -14,6 +14,10 @@ export const membershipPipelineSchema = z.object({
   planDurationDays: z.number().nullable(),
   planDurationMonths: z.number().nullable(),
   planIsSellable: z.boolean(),
+  /** The coach running the membership itself, distinct from any add-on's coach. */
+  coachId: z.number().nullable(),
+  coachName: z.string().nullable(),
+  coachRole: z.string().nullable(),
   addons: z.array(
     z.object({
       id: z.number(),

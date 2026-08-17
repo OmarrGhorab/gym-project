@@ -134,25 +134,28 @@ final class CalculateCommission
         $coach = $subscription->coach;
         $coachRule = $this->resolveCoachRule($coach?->planCommissionRules, $subscription->plan_id);
 
+        // Written even when the amount works out to zero, unlike the seller row
+        // above. The rule is the coach's assignment to this plan, so the row is
+        // what records that this member is theirs; a plan coached for nothing —
+        // or one given away at a full discount — still belongs on their list.
+        // Nothing is earned, so payroll totals are unaffected.
         if ($coach !== null && $coach->status === 'active' && $coachRule !== null) {
             $amount = $coachRule->calculation_type === 'percentage'
                 ? bcmul($base, bcdiv((string) $coachRule->value, '100', 6), 2)
                 : number_format((float) $coachRule->value, 2, '.', '');
 
-            if (bccomp($amount, '0.00', 2) > 0) {
-                $specs[] = [
-                    'employee' => $coach,
-                    'commission_type' => 'subscription_coach',
-                    'calculation_type' => $coachRule->calculation_type,
-                    'rate' => $coachRule->calculation_type === 'percentage'
-                        ? bcdiv((string) $coachRule->value, '100', 4)
-                        : '0.0000',
-                    'rule_value' => (string) $coachRule->value,
-                    'amount' => $amount,
-                    'month' => $month,
-                    'rule_id' => $coachRule->id,
-                ];
-            }
+            $specs[] = [
+                'employee' => $coach,
+                'commission_type' => 'subscription_coach',
+                'calculation_type' => $coachRule->calculation_type,
+                'rate' => $coachRule->calculation_type === 'percentage'
+                    ? bcdiv((string) $coachRule->value, '100', 4)
+                    : '0.0000',
+                'rule_value' => (string) $coachRule->value,
+                'amount' => $amount,
+                'month' => $month,
+                'rule_id' => $coachRule->id,
+            ];
         }
 
         if ($specs === []) {
@@ -236,25 +239,25 @@ final class CalculateCommission
         $coach = $addon->coach;
         $coachRule = $this->resolveCoachRule($coach?->planCommissionRules, $addon->plan_id);
 
+        // As with the base subscription: a zero-value rule still assigns the
+        // service to this coach, so the row is written and only the earning is nil.
         if ($coach !== null && $coach->status === 'active' && $coachRule !== null) {
             $amount = $coachRule->calculation_type === 'percentage'
                 ? bcmul($coachPercentageBase, bcdiv((string) $coachRule->value, '100', 6), 2)
                 : number_format((float) $coachRule->value, 2, '.', '');
 
-            if (bccomp($amount, '0.00', 2) > 0) {
-                $specs[] = [
-                    'employee' => $coach,
-                    'commission_type' => 'subscription_addon_coach',
-                    'calculation_type' => $coachRule->calculation_type,
-                    'rate' => $coachRule->calculation_type === 'percentage'
-                        ? bcdiv((string) $coachRule->value, '100', 4)
-                        : '0.0000',
-                    'rule_value' => (string) $coachRule->value,
-                    'amount' => $amount,
-                    'month' => $month,
-                    'rule_id' => $coachRule->id,
-                ];
-            }
+            $specs[] = [
+                'employee' => $coach,
+                'commission_type' => 'subscription_addon_coach',
+                'calculation_type' => $coachRule->calculation_type,
+                'rate' => $coachRule->calculation_type === 'percentage'
+                    ? bcdiv((string) $coachRule->value, '100', 4)
+                    : '0.0000',
+                'rule_value' => (string) $coachRule->value,
+                'amount' => $amount,
+                'month' => $month,
+                'rule_id' => $coachRule->id,
+            ];
         }
 
         if ($specs === []) {

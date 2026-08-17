@@ -38,6 +38,8 @@ export type MemberRow = {
     status: string;
     price_paid?: string | null;
     discount?: string | null;
+    coach_id?: number | null;
+    coach?: { id: number; name: string; role?: string | null } | null;
     paid_total?: string | null;
     balance?: string | null;
     package_price_paid?: string | null;

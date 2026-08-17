@@ -1129,7 +1129,9 @@
       },
       "actionsTitle": "Actions",
       "closeSessionManualHint": "Close by hand when you check out.",
-      "closeSessionManualHintScheduled": "Scheduled to end at {time}. Close by hand when you check out — overtime is fine."
+      "closeSessionManualHintScheduled": "Scheduled to end at {time}. Close by hand when you check out — overtime is fine.",
+      "collectedCash": "Cash collected (excl. float)",
+      "collectedTotal": "Total collected"
     },
     "membersPage": {
       "title": "Members",
@@ -1403,7 +1405,12 @@
       "overpaymentNotice": "{amount} more than the total due.",
       "overpaymentBuysDays": "Add {days} day(s) to the period instead of keeping it as money",
       "overpaymentBuysDaysOn": "The end date moves {days} day(s) later.",
-      "overpaymentBuysDaysOff": "The extra is recorded as money taken. The end date does not move."
+      "overpaymentBuysDaysOff": "The extra is recorded as money taken. The end date does not move.",
+      "assignedCoach": "Assigned coach",
+      "assignedCoachHelp": "Who coaches this membership. Only coaches assigned to this plan can be picked; unsettled commission moves with the change.",
+      "selectCoach": "Select a coach",
+      "noCoach": "No coach",
+      "noCoachesOnPlan": "No coaches are assigned to this plan yet. Assign one on the plan first."
     },
     "plans": {
       "title": "Membership Plans",

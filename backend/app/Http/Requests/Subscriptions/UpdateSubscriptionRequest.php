@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Subscriptions;
 
+use App\Models\EmployeePlanCommissionRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -29,6 +30,8 @@ class UpdateSubscriptionRequest extends FormRequest
             'cancellation_grace_days' => ['sometimes', 'required', 'integer', 'min:0', 'max:3650'],
             'sessions_total' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100000'],
             'sessions_remaining' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100000'],
+            // Null hands the membership back to no coach at all.
+            'coach_id' => ['sometimes', 'nullable', 'integer', 'exists:employees,id'],
         ];
     }
 
@@ -51,6 +54,27 @@ class UpdateSubscriptionRequest extends FormRequest
 
             if ($start && $end && $end->lt($start)) {
                 $validator->errors()->add('end_date', 'The end date must be on or after the start date.');
+            }
+
+            // A correction must not hand the member to someone who does not run
+            // this plan. The rule that assigns a coach to a plan is the same one
+            // their commission is worked out from, so accepting anything else
+            // would leave the coaching credit with nowhere to land.
+            if ($this->filled('coach_id') && $subscription->plan_id) {
+                $assigned = EmployeePlanCommissionRule::query()
+                    ->where('employee_id', (int) $this->input('coach_id'))
+                    ->where('is_active', true)
+                    ->where(function ($query) use ($subscription): void {
+                        // A null plan_id is the coach's catch-all rule, applied
+                        // when they have nothing specific for this plan.
+                        $query->where('plan_id', $subscription->plan_id)
+                            ->orWhereNull('plan_id');
+                    })
+                    ->exists();
+
+                if (! $assigned) {
+                    $validator->errors()->add('coach_id', 'The selected coach is not assigned to this plan.');
+                }
             }
 
             if ($validator->errors()->has('sessions_total') || $validator->errors()->has('sessions_remaining')) {

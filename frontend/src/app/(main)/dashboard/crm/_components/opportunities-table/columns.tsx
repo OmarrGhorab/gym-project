@@ -553,6 +553,14 @@ function SubscriptionActions({
         start_date: subscription.startDate,
         end_date: subscription.endDate,
         status: subscription.status,
+        coach_id: subscription.coachId,
+        coach: subscription.coachId
+          ? {
+              id: subscription.coachId,
+              name: subscription.coachName ?? "",
+              role: subscription.coachRole,
+            }
+          : null,
         price_paid: String(mainPlanPrice),
         paid_total: String(mainPlanPaidTotal),
         balance: String(subscription.balance),
@@ -1636,6 +1644,8 @@ function SubscriptionActions({
             member={memberRow}
             open={editMembershipOpen}
             onOpenChange={setEditMembershipOpen}
+            plans={dialogPlans}
+            staff={dialogStaff}
           />
           <EditMemberControlledDialog member={memberRow} open={editMemberOpen} onOpenChange={setEditMemberOpen} />
           <MemberPhotoControlledDialog member={memberRow} open={photoOpen} onOpenChange={setPhotoOpen} />

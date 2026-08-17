@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useMemo, useState, useTransition } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -89,6 +89,7 @@ export function ReportViewClient({
   const searchFilter = todayOnly ? "" : (searchParams.get("search") ?? "");
   const paymentMethodFilter = todayOnly ? "" : (searchParams.get("payment_method") ?? "");
   const groupByFilter = todayOnly ? "day" : (searchParams.get("group_by") ?? "day");
+  const planFilter = todayOnly ? "" : (searchParams.get("plan_id") ?? "");
   const dateRange = useMemo<DateRange | undefined>(() => {
     const from = parseReportDate(fromDate);
     const to = parseReportDate(toDate);
@@ -247,6 +248,7 @@ export function ReportViewClient({
                   categoryFilter ||
                   searchFilter ||
                   paymentMethodFilter ||
+                  planFilter ||
                   groupByFilter !== "day" ||
                   fromDate !== today ||
                   toDate !== today) && (
@@ -289,7 +291,11 @@ export function ReportViewClient({
             <ClassesPlansView
               data={initialData}
               statusFilter={statusFilter}
+              planFilter={planFilter}
+              from={fromDate}
+              to={toDate}
               onStatusChange={(val) => updateParams({ status: val })}
+              onPlanChange={(val) => updateParams({ plan_id: val })}
               onExport={exportCSV}
               isPending={isPending}
               canFilter={!todayOnly}
@@ -1161,14 +1167,22 @@ function parseReportDate(value: string) {
 function ClassesPlansView({
   data,
   statusFilter,
+  planFilter,
+  from,
+  to,
   onStatusChange,
+  onPlanChange,
   onExport,
   isPending,
   canFilter,
 }: {
   data: Record<string, unknown>;
   statusFilter: string;
+  planFilter: string;
+  from: string;
+  to: string;
   onStatusChange: (val: string) => void;
+  onPlanChange: (val: string) => void;
   onExport: (filename: string, headers: string[], rows: (string | number)[][]) => void;
   isPending: boolean;
   canFilter: boolean;
@@ -1178,9 +1192,33 @@ function ClassesPlansView({
   const plansSummary = (data.plans_summary as Record<string, unknown>[]) ?? [];
   const subscriptions = (data.subscriptions as Record<string, unknown>[]) ?? [];
   const endingSoonMembers = (data.ending_soon_members as Record<string, unknown>[]) ?? [];
+  const subscriptionsTotal = Number(data.subscriptions_total ?? subscriptions.length);
+  const [planSearch, setPlanSearch] = useState("");
+  const subscriptionsRef = useRef<HTMLDivElement>(null);
+
+  const filteredPlans = useMemo(() => {
+    const term = planSearch.trim().toLowerCase();
+    if (!term) return plansSummary;
+    return plansSummary.filter((plan) =>
+      String(plan.name ?? "")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [plansSummary, planSearch]);
+
+  const selectedPlan = planFilter ? plansSummary.find((plan) => String(plan.id) === planFilter) : undefined;
+  const selectedPlanName = selectedPlan ? String(selectedPlan.name) : "";
+
   const endingSoonPagination = useTablePagination(endingSoonMembers);
-  const planPagination = useTablePagination(plansSummary);
+  const planPagination = useTablePagination(filteredPlans);
   const subscriptionPagination = useTablePagination(subscriptions);
+
+  // Picking a plan is a "show me its members" gesture, so jump straight to the
+  // members table instead of leaving the answer below the fold.
+  useEffect(() => {
+    if (!planFilter) return;
+    subscriptionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [planFilter]);
 
   function handleExport() {
     const headers = [
@@ -1207,7 +1245,11 @@ function ClassesPlansView({
       String(s.price_paid ?? "0.00"),
       String(s.sold_by ?? ""),
     ]);
-    onExport("classes_plans_report", headers, rows);
+    onExport(
+      selectedPlanName ? `${selectedPlanName.replace(/[^\w-]+/g, "_")}_members_report` : "classes_plans_report",
+      headers,
+      rows,
+    );
   }
 
   function handleExportEndingSoon() {
@@ -1287,7 +1329,10 @@ function ClassesPlansView({
             <CardTitle className="flex items-center gap-2 text-amber-700 text-lg dark:text-amber-300">
               Members Finishing Plan or Low Sessions
             </CardTitle>
-            <CardDescription>Members whose plan ends within 7 days or have ≤ 3 remaining sessions</CardDescription>
+            <CardDescription>
+              Members whose plan ends within 7 days or have ≤ 3 remaining sessions
+              {selectedPlan ? ` — limited to ${selectedPlanName}` : ""}
+            </CardDescription>
           </div>
           {canFilter ? (
             <Button size="sm" variant="outline" onClick={handleExportEndingSoon} disabled={isPending}>
@@ -1442,9 +1487,37 @@ function ClassesPlansView({
 
       {/* Plans Breakdown Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Membership Plans Overview</CardTitle>
-          <CardDescription>Member counts and revenue per plan</CardDescription>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Membership Plans Overview</CardTitle>
+            <CardDescription>
+              {canFilter
+                ? "Member counts and revenue per plan — click a plan to list its members below"
+                : "Member counts and revenue per plan"}
+            </CardDescription>
+          </div>
+          {canFilter ? (
+            <div className="flex items-center gap-2">
+              <div className="relative w-48">
+                <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search plan..."
+                  value={planSearch}
+                  onChange={(e) => {
+                    setPlanSearch(e.target.value);
+                    planPagination.setPage(1);
+                  }}
+                  className="h-9 ps-8 text-xs"
+                />
+              </div>
+              {planFilter ? (
+                <Button size="sm" variant="ghost" onClick={() => onPlanChange("")} disabled={isPending}>
+                  Clear Plan
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Table>
@@ -1461,38 +1534,56 @@ function ClassesPlansView({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {planPagination.pageRows.map((plan) => (
-                <TableRow key={String(plan.id)}>
-                  <TableCell className="font-medium">{String(plan.name)}</TableCell>
-                  <TableCell>
-                    <Egp domain="plans">{String(plan.price)}</Egp>
-                  </TableCell>
-                  <TableCell>{String(plan.duration_days)} days</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
-                      {String(plan.active_members)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-600">
-                      {String(plan.expiring_soon)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-rose-500/20 bg-rose-500/10 text-rose-600">
-                      {String(plan.expired_members)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{String(plan.new_subscriptions_period)}</TableCell>
-                  <TableCell className="text-end font-semibold">
-                    <Egp>{String(plan.revenue_period)}</Egp>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {plansSummary.length === 0 && (
+              {planPagination.pageRows.map((plan) => {
+                const isSelected = planFilter === String(plan.id);
+
+                return (
+                  <TableRow
+                    key={String(plan.id)}
+                    data-state={isSelected ? "selected" : undefined}
+                    className={canFilter ? "cursor-pointer" : undefined}
+                    onClick={canFilter ? () => onPlanChange(isSelected ? "" : String(plan.id)) : undefined}
+                  >
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-2">
+                        {String(plan.name)}
+                        {isSelected ? (
+                          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                            Selected
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Egp domain="plans">{String(plan.price)}</Egp>
+                    </TableCell>
+                    <TableCell>{String(plan.duration_days)} days</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
+                        {String(plan.active_members)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="border-amber-500/20 bg-amber-500/10 text-amber-600">
+                        {String(plan.expiring_soon)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="border-rose-500/20 bg-rose-500/10 text-rose-600">
+                        {String(plan.expired_members)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{String(plan.new_subscriptions_period)}</TableCell>
+                    <TableCell className="text-end font-semibold">
+                      <Egp>{String(plan.revenue_period)}</Egp>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {filteredPlans.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
-                    No plan records found.
+                    {planSearch.trim() ? `No plan matches "${planSearch.trim()}".` : "No plan records found."}
                   </TableCell>
                 </TableRow>
               )}
@@ -1503,14 +1594,29 @@ function ClassesPlansView({
       </Card>
 
       {/* Subscription Members List Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card ref={subscriptionsRef} className={selectedPlan ? "scroll-mt-4 border-primary/40" : "scroll-mt-4"}>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-lg">Subscriptions & Members Details</CardTitle>
-            <CardDescription>Individual subscription breakdown and session tracking</CardDescription>
+            <CardTitle className="text-lg">
+              {selectedPlan ? `Members Subscribed to ${selectedPlanName}` : "Subscriptions & Members Details"}
+            </CardTitle>
+            <CardDescription>
+              {selectedPlan
+                ? `Members who subscribed to this plan between ${from} and ${to}${
+                    subscriptionsTotal > subscriptions.length
+                      ? ` — showing the latest ${subscriptions.length} of ${subscriptionsTotal}`
+                      : ` — ${subscriptionsTotal} member${subscriptionsTotal === 1 ? "" : "s"}`
+                  }`
+                : "Individual subscription breakdown and session tracking"}
+            </CardDescription>
           </div>
           {canFilter ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedPlan ? (
+                <Button size="sm" variant="ghost" onClick={() => onPlanChange("")} disabled={isPending}>
+                  Show All Plans
+                </Button>
+              ) : null}
               <FormSelect
                 name="status"
                 value={statusFilter}
@@ -1610,7 +1716,9 @@ function ClassesPlansView({
               {subscriptions.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} className="py-6 text-center text-muted-foreground">
-                    No subscriptions match selected filters.
+                    {selectedPlan
+                      ? `No members subscribed to ${selectedPlanName} between ${from} and ${to}.`
+                      : "No subscriptions match selected filters."}
                   </TableCell>
                 </TableRow>
               )}

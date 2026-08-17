@@ -201,9 +201,27 @@ final class StaffAcademySummary
                 'c.employee_id'
             )
             ->leftJoinSub(
-                DB::table('subscription_addons')
-                    ->select('coach_id', DB::raw('COUNT(*) as coached_services_count'), DB::raw('SUM(price_paid) as coached_services_revenue'))
-                    ->whereBetween('created_at', [$fromDateTime, $toDateTime])
+                // Add-ons and coached memberships both count. Reading add-ons
+                // alone left a coach running studio plans showing no work at all.
+                DB::query()
+                    ->fromSub(
+                        DB::table('subscription_addons')
+                            ->select('coach_id', 'price_paid')
+                            ->whereNotNull('coach_id')
+                            ->whereBetween('created_at', [$fromDateTime, $toDateTime])
+                            ->unionAll(
+                                DB::table('subscriptions')
+                                    ->select('coach_id', 'price_paid')
+                                    ->whereNotNull('coach_id')
+                                    ->whereBetween('created_at', [$fromDateTime, $toDateTime])
+                            ),
+                        'coached'
+                    )
+                    ->select(
+                        'coach_id',
+                        DB::raw('COUNT(*) as coached_services_count'),
+                        DB::raw('SUM(price_paid) as coached_services_revenue'),
+                    )
                     ->groupBy('coach_id'),
                 'sa',
                 'employees.id',

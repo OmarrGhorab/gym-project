@@ -26,10 +26,9 @@ final class ClassesPlansReport
             'subscriptions as expired_subscriptions_count' => fn ($q) => $q->where('status', 'expired'),
         ]);
 
-        if ($planId) {
-            $plansQuery->where('id', $planId);
-        }
-
+        // The plans table doubles as the picker for the plan focus filter, so it
+        // always lists every plan — narrowing it to $planId would leave the UI
+        // with no way to switch to another plan once one is selected.
         $plans = $plansQuery->get();
 
         // Extra services are sold as their own plan on a separate table, so counting
@@ -178,7 +177,10 @@ final class ClassesPlansReport
             ];
         };
 
-        $subscriptions = $subscriptionsQuery->limit(100)->get()->map($formatSub)->values()->all();
+        // Focusing a single plan is a "show me everyone on this plan" request, so it
+        // gets a bigger window than the general browse list.
+        $subscriptionsTotal = $subscriptionsQuery->clone()->count();
+        $subscriptions = $subscriptionsQuery->limit($planId ? 500 : 100)->get()->map($formatSub)->values()->all();
 
         $endingSoonList = Subscription::query()
             ->with(['member:id,name,phone', 'plan:id,name', 'soldBy:id,name'])
@@ -211,6 +213,8 @@ final class ClassesPlansReport
             'plans_summary' => $plansTable,
             'ending_soon_members' => $endingSoonList,
             'subscriptions' => $subscriptions,
+            'subscriptions_total' => $subscriptionsTotal,
+            'selected_plan_id' => $planId,
         ];
     }
 }

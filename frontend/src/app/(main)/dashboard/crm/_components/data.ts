@@ -128,6 +128,12 @@ type SubscriptionResource = {
     is_sellable?: boolean | null;
     name?: string | null;
   } | null;
+  coach_id?: number | null;
+  coach?: {
+    id?: number | null;
+    name?: string | null;
+    role?: string | null;
+  } | null;
   freeze?: {
     id?: number;
     freeze_start?: string | null;
@@ -462,6 +468,9 @@ function mapSubscriptionToPipeline(
     planDurationDays: toNullableNumber(subscription.plan?.duration_days ?? matchingPlan?.duration_days),
     planDurationMonths: toNullableNumber(subscription.plan?.duration_months ?? matchingPlan?.duration_months),
     planIsSellable: subscription.plan?.is_sellable ?? Boolean(matchingPlan),
+    coachId: subscription.coach_id ?? subscription.coach?.id ?? null,
+    coachName: subscription.coach?.name ?? null,
+    coachRole: subscription.coach?.role ?? null,
     addons: (subscription.addons ?? []).map((addon) => ({
       id: addon.id,
       planId: addon.plan_id ?? addon.plan?.id ?? null,

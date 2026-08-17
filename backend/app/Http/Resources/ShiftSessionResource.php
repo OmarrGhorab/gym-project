@@ -38,6 +38,13 @@ class ShiftSessionResource extends JsonResource
             'expected_bank' => $ownMoney && $this->expected_bank !== null ? number_format((float) $this->expected_bank, 2, '.', '') : null,
             'expected_expenses' => $ownMoney && $this->expected_expenses !== null ? number_format((float) $this->expected_expenses, 2, '.', '') : null,
             'expected_net' => $full && $this->expected_net !== null ? number_format((float) $this->expected_net, 2, '.', '') : null,
+            // What this shift actually took in, with the inherited float taken back
+            // out. `expected_cash` is the drawer at handover, so on a busy shift
+            // opened on a large float it reads high without saying how much of it
+            // was earned here; these are that answer, and the ones to judge a
+            // shift's takings by.
+            'collected_cash' => $full ? $this->collectedCash() : null,
+            'collected_total' => $full ? $this->collectedTotal() : null,
             // The employee counted the drawer themselves, so their own count is
             // theirs to see back.
             'counted_cash' => $ownMoney && $this->counted_cash !== null ? number_format((float) $this->counted_cash, 2, '.', '') : null,
@@ -68,5 +75,41 @@ class ShiftSessionResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Cash taken during the shift: the drawer at handover less what it opened on.
+     *
+     * Null until the shift is closed, because `expected_cash` is only written
+     * then — while a shift is open the live totals carry the same figure under
+     * `by_method.cash`.
+     */
+    private function collectedCash(): ?string
+    {
+        if ($this->expected_cash === null) {
+            return null;
+        }
+
+        return bcsub(
+            number_format((float) $this->expected_cash, 2, '.', ''),
+            number_format((float) $this->opening_float, 2, '.', ''),
+            2,
+        );
+    }
+
+    /** Everything taken during the shift, across cash, card and bank. */
+    private function collectedTotal(): ?string
+    {
+        $cash = $this->collectedCash();
+
+        if ($cash === null) {
+            return null;
+        }
+
+        return bcadd(
+            bcadd($cash, number_format((float) $this->expected_card, 2, '.', ''), 2),
+            number_format((float) $this->expected_bank, 2, '.', ''),
+            2,
+        );
     }
 }

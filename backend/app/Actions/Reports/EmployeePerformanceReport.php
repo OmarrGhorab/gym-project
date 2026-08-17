@@ -55,14 +55,11 @@ class EmployeePerformanceReport
                 'sub.sold_by_user_id'
             )
             ->leftJoinSub(
-                DB::table('subscription_addons')
-                    ->select('sold_by_user_id', DB::raw('COUNT(*) as coached_services_count'), DB::raw('SUM(price_paid) as coached_services_revenue'))
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->groupBy('sold_by_user_id'),
+                $this->coachedWork($startDate, $endDate),
                 'sa',
-                'employees.user_id',
+                'employees.id',
                 '=',
-                'sa.sold_by_user_id'
+                'sa.coach_id'
             )
             ->leftJoinSub(
                 DB::table('commissions')
@@ -123,14 +120,15 @@ class EmployeePerformanceReport
                 'psub.sold_by_user_id'
             )
             ->leftJoinSub(
-                DB::table('subscription_addons')
-                    ->select('sold_by_user_id', DB::raw('COUNT(*) as previous_coached_services_count'), DB::raw('SUM(price_paid) as previous_coached_services_revenue'))
-                    ->whereBetween('created_at', [$previousStart->toDateTimeString(), $previousEnd->toDateTimeString()])
-                    ->groupBy('sold_by_user_id'),
+                $this->coachedWork(
+                    $previousStart->toDateTimeString(),
+                    $previousEnd->toDateTimeString(),
+                    'previous_',
+                ),
                 'psa',
-                'employees.user_id',
+                'employees.id',
                 '=',
-                'psa.sold_by_user_id'
+                'psa.coach_id'
             )
             ->leftJoinSub(
                 DB::table('commissions')
@@ -225,6 +223,41 @@ class EmployeePerformanceReport
     /**
      * @return list<array<string, int|string|null>>
      */
+    /**
+     * What a coach was put on, keyed by the coach rather than by whoever sold it.
+     *
+     * Two things were wrong before. It joined on `sold_by_user_id`, so a coach
+     * only ever counted the work they sold themselves — a member signed up by
+     * the front desk never showed against the coach actually running them. And
+     * it read add-ons alone, so a coached membership (a studio plan carrying a
+     * `coach_id`) counted for nobody at all.
+     *
+     * Between them, a coach could show zero members while running a full
+     * roster — most visibly on a plan paying no commission, where every other
+     * figure on the row is zero too and there was nothing left to hint otherwise.
+     */
+    private function coachedWork(string $from, string $to, string $prefix = ''): \Illuminate\Database\Query\Builder
+    {
+        $addons = DB::table('subscription_addons')
+            ->select('coach_id', 'price_paid')
+            ->whereNotNull('coach_id')
+            ->whereBetween('created_at', [$from, $to]);
+
+        $memberships = DB::table('subscriptions')
+            ->select('coach_id', 'price_paid')
+            ->whereNotNull('coach_id')
+            ->whereBetween('created_at', [$from, $to]);
+
+        return DB::query()
+            ->fromSub($addons->unionAll($memberships), 'coached')
+            ->select(
+                'coach_id',
+                DB::raw("COUNT(*) as {$prefix}coached_services_count"),
+                DB::raw("SUM(price_paid) as {$prefix}coached_services_revenue"),
+            )
+            ->groupBy('coach_id');
+    }
+
     private function subscriptionDetails(int $userId, string $startDate, string $endDate): array
     {
         if ($userId < 1) {

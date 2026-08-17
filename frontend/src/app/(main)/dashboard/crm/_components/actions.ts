@@ -108,6 +108,9 @@ const correctionSessionSchema = z.number().int().min(0).max(100000).nullable();
 const correctionSchema = z
   .object({
     cancellation_grace_days: z.number().int().min(0).max(3650),
+    // Null hands the membership back to no coach. The backend still checks the
+    // coach actually runs this plan; this only rejects nonsense ids.
+    coach_id: z.number().int().positive().nullable().optional(),
     discount: correctionMoneySchema,
     end_date: dateOnlySchema,
     price_paid: correctionMoneySchema,
@@ -136,6 +139,7 @@ const correctionSchema = z
 
 export type CorrectMembershipSubscriptionInput = {
   cancellation_grace_days: number;
+  coach_id?: number | null;
   discount: string;
   end_date: string;
   price_paid: string;

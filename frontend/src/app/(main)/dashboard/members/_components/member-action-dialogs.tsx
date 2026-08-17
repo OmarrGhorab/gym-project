@@ -108,6 +108,9 @@ type MemberFormValues = {
   status: string;
 };
 
+/** Sentinel for the select, which cannot carry an empty string as a value. */
+const NO_COACH_VALUE = "none";
+
 const initialMemberFormState: MemberFormState = {
   errors: {},
   ok: false,
@@ -511,7 +514,13 @@ export function MemberActionsMenu({
         labels={resolvedLabels}
       />
       {subscriptionId ? (
-        <MemberEditMembershipDialog member={member} open={editMembershipOpen} onOpenChange={setEditMembershipOpen} />
+        <MemberEditMembershipDialog
+          member={member}
+          open={editMembershipOpen}
+          onOpenChange={setEditMembershipOpen}
+          plans={plans}
+          staff={staff}
+        />
       ) : null}
       {subscriptionId ? (
         <MemberLifecycleDialog
@@ -542,15 +551,31 @@ export function MemberEditMembershipDialog({
   member,
   onOpenChange,
   open,
+  plans,
+  staff,
 }: {
   member: MemberRow;
   onOpenChange: (open: boolean) => void;
   open: boolean;
+  plans?: PlanRow[];
+  staff?: StaffOption[];
 }) {
   const t = useTranslations("Dashboard.membersPage");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const subscription = member.latest_subscription;
+  const subscriptionPlan = plans?.find((plan) => plan.id === subscription?.plan_id);
+  // Only coaches who run this plan — moving a member to someone who does not
+  // would leave their coaching credit with nowhere to land, and the API refuses it.
+  const coachOptions = getAssignedEmployees(subscriptionPlan);
+  const currentCoach = subscription?.coach ?? null;
+  // A coach who has since been unassigned from the plan still has to appear, or
+  // reopening the dialog would silently blank out who is actually on the membership.
+  const coachChoices =
+    currentCoach && !coachOptions.some((option) => option.id === currentCoach.id)
+      ? [{ id: currentCoach.id, name: currentCoach.name, role: currentCoach.role ?? null }, ...coachOptions]
+      : coachOptions;
+  const [coachId, setCoachId] = React.useState(subscription?.coach_id ? String(subscription.coach_id) : NO_COACH_VALUE);
   const [startDate, setStartDate] = React.useState(subscription?.start_date ?? "");
   const [endDate, setEndDate] = React.useState(subscription?.end_date ?? "");
   const [durationDays, setDurationDays] = React.useState(
@@ -587,9 +612,11 @@ export function MemberEditMembershipDialog({
     setUnlimitedSessions(subscription?.sessions_total == null && subscription?.sessions_remaining == null);
     setSessionsTotal(subscription?.sessions_total == null ? "" : String(subscription.sessions_total));
     setSessionsRemaining(subscription?.sessions_remaining == null ? "" : String(subscription.sessions_remaining));
+    setCoachId(subscription?.coach_id ? String(subscription.coach_id) : NO_COACH_VALUE);
   }, [
     open,
     subscription?.cancellation_grace_days,
+    subscription?.coach_id,
     subscription?.discount,
     subscription?.end_date,
     subscription?.price_paid,
@@ -682,6 +709,7 @@ export function MemberEditMembershipDialog({
     startTransition(async () => {
       const result = await correctMembershipSubscription(subscription.id, {
         cancellation_grace_days: parsedCancellationGraceDays,
+        coach_id: coachId === NO_COACH_VALUE ? null : Number(coachId),
         discount,
         end_date: endDate,
         price_paid: price,
@@ -715,6 +743,33 @@ export function MemberEditMembershipDialog({
             <div className="rounded-lg border bg-muted/20 p-3">
               <p className="font-medium text-sm">{subscription?.plan_name ?? t("noActivePlan")}</p>
               <p className="mt-1 text-muted-foreground text-xs">{t("editMembershipPlanHint")}</p>
+            </div>
+
+            <div className="grid gap-3 rounded-lg border p-4">
+              <div>
+                <p className="font-medium text-sm">{t("assignedCoach")}</p>
+                <p className="text-muted-foreground text-xs">{t("assignedCoachHelp")}</p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-membership-coach">{t("coach")}</Label>
+                <FormSelect
+                  id="edit-membership-coach"
+                  name="coach_id"
+                  value={coachId}
+                  onValueChange={(value) => setCoachId(value || NO_COACH_VALUE)}
+                  placeholder={t("selectCoach")}
+                  options={[
+                    { label: t("noCoach"), value: NO_COACH_VALUE },
+                    ...coachChoices.map((coach) => ({
+                      label: coach.role ? `${coach.name} — ${coach.role}` : coach.name,
+                      value: String(coach.id),
+                    })),
+                  ]}
+                />
+                {coachChoices.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">{t("noCoachesOnPlan")}</p>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid gap-3 rounded-lg border p-4">

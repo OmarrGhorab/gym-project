@@ -51,6 +51,13 @@ export type ShiftDeskSession = {
   money_scope?: ShiftMoneyScope;
   opening_float: string | null;
   expected_cash: string | null;
+  /**
+   * Takings for the shift with the inherited float removed — what this shift
+   * earned, as opposed to what is sitting in the drawer. Admin-only, and null
+   * until the shift closes; while it is open the same figures are live.
+   */
+  collected_cash?: string | null;
+  collected_total?: string | null;
   expected_card: string | null;
   expected_bank: string | null;
   expected_expenses: string | null;
@@ -295,8 +302,25 @@ export function ShiftDesk({
                 label={seesEveryShift ? "Expected Cash in Drawer (incl. Float)" : "Cash You Collected"}
                 value={moneyLabel(live?.cash, seesEveryShift ? currentSession.expected_cash : undefined)}
               />
+              {/*
+                The drawer figure above carries the float it opened on, so on a
+                large float it says little about how the shift did. This is the
+                same number with the float taken back out — the shift's own cash.
+              */}
+              {seesEveryShift ? (
+                <Metric
+                  label="Cash Collected This Shift (excl. Float)"
+                  value={moneyLabel(live?.by_method?.cash, currentSession.collected_cash)}
+                />
+              ) : null}
               <Metric label="Expected Card Receipts" value={moneyLabel(live?.card, currentSession.expected_card)} />
               <Metric label="Expected Bank Transfers" value={moneyLabel(live?.bank, currentSession.expected_bank)} />
+              {seesEveryShift ? (
+                <Metric
+                  label="Total Collected This Shift"
+                  value={moneyLabel(live?.collections, currentSession.collected_total)}
+                />
+              ) : null}
               <Metric
                 label={seesEveryShift ? "Net Session Balance" : "Net for Your Shift"}
                 value={moneyLabel(live?.net, seesEveryShift ? currentSession.expected_net : undefined)}
@@ -597,6 +621,11 @@ function ShiftSessionHistory({ sessions }: { sessions: ShiftDeskSession[] }) {
                       <dd className="tabular-nums">{moneyLabel(session.opening_float, "0.00")}</dd>
                       <dt className="text-muted-foreground">{t("expectedCash")}</dt>
                       <dd className="tabular-nums">{moneyLabel(session.expected_cash, "0.00")}</dd>
+                      {/* Expected cash less the float: what this shift itself took. */}
+                      <dt className="text-muted-foreground">{t("collectedCash")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.collected_cash, "—")}</dd>
+                      <dt className="text-muted-foreground">{t("collectedTotal")}</dt>
+                      <dd className="tabular-nums">{moneyLabel(session.collected_total, "—")}</dd>
                       <dt className="text-muted-foreground">{t("counted_cash")}</dt>
                       <dd className="tabular-nums">{moneyLabel(session.counted_cash, "—")}</dd>
                       <dt className="text-muted-foreground">{t("expectedCard")}</dt>

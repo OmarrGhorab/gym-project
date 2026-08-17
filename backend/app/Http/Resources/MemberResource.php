@@ -15,7 +15,7 @@ final class MemberResource extends JsonResource
     public function toArray(Request $request): array
     {
         $latestSubscription = $this->latestSubscription;
-        $latestSubscription?->loadMissing(['payments', 'addons.plan', 'addons.coach', 'addons.payments']);
+        $latestSubscription?->loadMissing(['payments', 'coach', 'addons.plan', 'addons.coach', 'addons.payments']);
         $latestSubscriptionResource = $latestSubscription ? new SubscriptionResource($latestSubscription) : null;
         $latestSubscriptionData = $latestSubscriptionResource?->toArray($request);
 
@@ -47,7 +47,7 @@ final class MemberResource extends JsonResource
             // instead made a membership sold for next week show as "active" on
             // every screen built from the member payload.
             'membership_status' => $latestSubscriptionData['status'] ?? null,
-            'billing_status' => $this->billingStatus(),
+            'billing_status' => $this->billingStatus($latestSubscriptionData),
             'notes' => $this->notes,
             'goals' => $this->goals,
             'injuries' => $this->injuries,
@@ -73,6 +73,8 @@ final class MemberResource extends JsonResource
                 'status' => $latestSubscriptionData['status'] ?? $latestSubscription->status,
                 'price_paid' => $latestSubscriptionData['price_paid'] ?? '0.00',
                 'discount' => $latestSubscriptionData['discount'] ?? '0.00',
+                'coach_id' => $latestSubscriptionData['coach_id'] ?? null,
+                'coach' => $latestSubscriptionData['coach'] ?? null,
                 'paid_total' => $latestSubscriptionData['paid_total'] ?? '0.00',
                 'balance' => $latestSubscriptionData['balance'] ?? '0.00',
                 'package_price_paid' => $latestSubscriptionData['package_price_paid'] ?? '0.00',
@@ -96,12 +98,29 @@ final class MemberResource extends JsonResource
         ];
     }
 
-    private function billingStatus(): string
+    /**
+     * @param  array<string, mixed>|null  $latestSubscriptionData
+     */
+    private function billingStatus(?array $latestSubscriptionData): string
     {
         $latestSubscription = $this->latestSubscription;
 
         if (! $latestSubscription) {
             return 'trial';
+        }
+
+        // Nothing outstanding settles the membership on its own, whether or not a
+        // payment was ever taken. A fully discounted plan has no payment row —
+        // CreateSubscription skips it because there is nothing to hand over — and
+        // judging by the existence of that row left comped members reading as
+        // "pending" forever, with no way to ever clear it.
+        //
+        // The package balance is used rather than the plan's own so a free base
+        // plan carrying an unpaid add-on still shows as owing money.
+        $packageBalance = $latestSubscriptionData['package_balance'] ?? null;
+
+        if (is_string($packageBalance) && bccomp($packageBalance, '0.00', 2) <= 0) {
+            return 'paid';
         }
 
         $payments = $latestSubscription->payments;

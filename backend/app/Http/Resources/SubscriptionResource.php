@@ -15,7 +15,7 @@ class SubscriptionResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $this->loadMissing(['payments', 'plan', 'addons.plan', 'addons.coach', 'addons.payments', 'refunds']);
+        $this->loadMissing(['payments', 'plan', 'coach', 'addons.plan', 'addons.coach', 'addons.payments', 'refunds']);
         $balance = $this->balanceDue();
         $packageBalance = $this->packageBalanceDue();
         $packagePaidTotal = $this->packagePaidTotal();
@@ -63,6 +63,14 @@ class SubscriptionResource extends JsonResource
             'renewal_health' => $this->renewalHealth($status, $daysLeft, $packageBalance, $refundTotal),
             'renewal_health_reason' => $this->renewalHealthReason($status, $daysLeft, $packageBalance, $refundTotal),
             'discount' => $this->discount,
+            // Who coaches this membership. Exposed so a correction can show the
+            // coach already on it rather than making staff guess and re-pick.
+            'coach_id' => $this->coach_id,
+            'coach' => $this->coach ? [
+                'id' => $this->coach->id,
+                'name' => $this->coach->name,
+                'role' => $this->coach->role,
+            ] : null,
             'sessions_total' => $this->sessions_total,
             'sessions_remaining' => $this->sessions_remaining,
             'last_reminded_on' => $this->last_reminded_on?->toDateString(),

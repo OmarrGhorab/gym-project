@@ -18,6 +18,7 @@ export default async function ReportsPage({
     search?: string;
     payment_method?: string;
     group_by?: string;
+    plan_id?: string;
   }>;
 }) {
   const query = await searchParams;
@@ -49,6 +50,7 @@ export default async function ReportsPage({
       initialData = res.data;
     } else if (activeType === "classes_plans") {
       if (!todayOnly && query.status) params.set("status", query.status);
+      if (!todayOnly && query.plan_id) params.set("plan_id", query.plan_id);
       const res = await serverApiFetch<Record<string, unknown>>(`/reports/classes-plans?${params.toString()}`);
       initialData = res.data;
     } else if (activeType === "products_finance") {

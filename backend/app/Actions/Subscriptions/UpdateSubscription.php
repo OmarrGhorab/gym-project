@@ -2,11 +2,15 @@
 
 namespace App\Actions\Subscriptions;
 
+use App\Actions\Commissions\CalculateCommission;
+use App\Models\Commission;
 use App\Models\Subscription;
 use Illuminate\Support\Carbon;
 
 class UpdateSubscription
 {
+    public function __construct(private readonly CalculateCommission $calculateCommission) {}
+
     /**
      * Corrects the member-specific values captured when a membership was sold:
      * its dates, price, discount, session allowance, or cancellation window.
@@ -27,6 +31,11 @@ class UpdateSubscription
     public function handle(Subscription $subscription, array $data): Subscription
     {
         $changes = [];
+        $previousCoachId = $subscription->coach_id;
+
+        if (array_key_exists('coach_id', $data)) {
+            $changes['coach_id'] = $data['coach_id'] === null ? null : (int) $data['coach_id'];
+        }
 
         if (array_key_exists('start_date', $data)) {
             $changes['start_date'] = Carbon::parse($data['start_date'])->startOfDay();
@@ -64,6 +73,38 @@ class UpdateSubscription
             $subscription->update($changes);
         }
 
-        return $subscription->fresh(['member', 'plan', 'soldBy', 'payments', 'addons.plan', 'addons.payments', 'freezes']);
+        if (array_key_exists('coach_id', $changes) && $changes['coach_id'] !== $previousCoachId) {
+            $this->moveCoachCredit($subscription, $previousCoachId);
+        }
+
+        return $subscription->fresh(['member', 'plan', 'coach', 'soldBy', 'payments', 'addons.plan', 'addons.payments', 'freezes']);
+    }
+
+    /**
+     * Hands the membership's coaching credit to whoever now runs it.
+     *
+     * Only unsettled credit moves. A commission already flipped to paid left
+     * the gym in a payroll run, and rewriting it would restate a payslip that
+     * has been handed over — the same reason payments are left alone above. So
+     * a coach corrected after payday keeps what they were paid, and the new
+     * coach starts earning from the correction onward.
+     */
+    private function moveCoachCredit(Subscription $subscription, ?int $previousCoachId): void
+    {
+        if ($previousCoachId !== null) {
+            Commission::query()
+                ->where('source_type', Subscription::class)
+                ->where('source_id', $subscription->id)
+                ->where('employee_id', $previousCoachId)
+                ->where('commission_type', 'subscription_coach')
+                ->where('status', 'pending')
+                ->delete();
+        }
+
+        // Rebuilds the coach row for the new coach. The seller's row is keyed on
+        // the same source and survives untouched.
+        $this->calculateCommission->forSource(
+            $subscription->fresh(['plan', 'coach.planCommissionRules']) ?? $subscription
+        );
     }
 }

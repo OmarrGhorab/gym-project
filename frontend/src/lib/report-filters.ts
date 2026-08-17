@@ -1,6 +1,13 @@
 import { endOfMonth, format, parseISO, startOfMonth, startOfYear, subDays, subMonths } from "date-fns";
 
-export const REPORT_SCOPED_FILTER_KEYS = ["status", "category", "search", "payment_method", "group_by"] as const;
+export const REPORT_SCOPED_FILTER_KEYS = [
+  "status",
+  "category",
+  "search",
+  "payment_method",
+  "group_by",
+  "plan_id",
+] as const;
 
 export type ReportQuickDate = 7 | 30 | "this_month" | "last_month" | "ytd";
 
