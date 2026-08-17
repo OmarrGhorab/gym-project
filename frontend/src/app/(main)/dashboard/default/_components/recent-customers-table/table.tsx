@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDebouncedUrlSearch } from "@/hooks/use-debounced-url-search";
 import { canAccess } from "@/lib/authorization";
 import type { DashboardUser } from "@/lib/session";
 
@@ -78,7 +79,6 @@ export function RecentCustomersTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [rowSelection, setRowSelection] = React.useState({});
-  const [searchQuery, setSearchQuery] = React.useState(query.search ?? "");
   const [columnVisibility] = React.useState<VisibilityState>({
     search: false,
     joinedWindow: false,
@@ -89,10 +89,6 @@ export function RecentCustomersTable({
   const sortValue = query.sort ?? "newest";
   const rowsPerPageId = compact ? "frozen-members-rows-per-page" : "recent-customers-rows-per-page";
   const canApproveFreeze = canAccess(user, "subscriptions.freeze_approve");
-
-  React.useEffect(() => {
-    setSearchQuery(query.search ?? "");
-  }, [query.search]);
 
   const updateMembersQuery = React.useCallback(
     (updates: Record<string, string | number | undefined>, resetPage = true) => {
@@ -117,15 +113,18 @@ export function RecentCustomersTable({
     [pathname, router, searchParams],
   );
 
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (searchQuery !== (query.search ?? "")) {
-        updateMembersQuery({ search: searchQuery });
-      }
-    }, 350);
+  const commitSearch = React.useCallback(
+    (search: string) => {
+      updateMembersQuery({ search });
+    },
+    [updateMembersQuery],
+  );
 
-    return () => window.clearTimeout(timer);
-  }, [query.search, searchQuery, updateMembersQuery]);
+  const [searchQuery, setSearchQuery] = useDebouncedUrlSearch({
+    onCommit: commitSearch,
+    value: query.search ?? "",
+  });
+
   const statusOptions = React.useMemo(
     () =>
       statusValues.map((value) => ({
