@@ -55,6 +55,10 @@ type MemberResource = {
     id?: number;
     plan_id?: number | null;
     plan_name?: string | null;
+    // Carried through so the membership correction dialog opens on the coach
+    // already stored. Dropping it makes an untouched form post "no coach".
+    coach_id?: number | null;
+    coach?: { id: number; name: string; role?: string | null } | null;
     start_date?: string | null;
     status?: string | null;
     end_date?: string | null;
@@ -384,7 +388,10 @@ function unwrapList<T>(value: T[] | PaginatedData<T>): T[] {
   return Array.isArray(value.data) ? value.data : [];
 }
 
-function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): RecentCustomerRow {
+// Exported for the regression test: this mapper copies the membership across
+// field by field, so anything it forgets silently disappears from every dialog
+// opened off this table.
+export function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): RecentCustomerRow {
   const subscription = member.latest_subscription;
 
   return {
@@ -413,6 +420,8 @@ function mapMemberToRow(member: MemberResource, due: RecentCustomerRow["due"]): 
           id: subscription.id,
           plan_id: subscription.plan_id ?? null,
           plan_name: subscription.plan_name ?? null,
+          coach_id: subscription.coach_id ?? null,
+          coach: subscription.coach ?? null,
           start_date: subscription.start_date ?? null,
           end_date: subscription.end_date ?? null,
           projected_end_date: subscription.projected_end_date ?? null,

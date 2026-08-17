@@ -26,6 +26,11 @@ export const recentCustomersSchema = z.object({
       id: z.number(),
       plan_id: z.number().nullable().optional(),
       plan_name: z.string().nullable(),
+      coach_id: z.number().nullable().optional(),
+      coach: z
+        .object({ id: z.number(), name: z.string(), role: z.string().nullable().optional() })
+        .nullable()
+        .optional(),
       start_date: z.string().nullable(),
       end_date: z.string().nullable(),
       projected_end_date: z.string().nullable().optional(),
